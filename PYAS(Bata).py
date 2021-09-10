@@ -15,7 +15,7 @@ try:
     import webbrowser
     import subprocess
     import binascii
-    from list import *
+    from Expansion_pack.list import *
     from multiprocessing import Pool
     from multiprocessing import cpu_count
     import pefile
@@ -28,8 +28,10 @@ import json
 import hashlib
 def developer():
     pk = input('請輸入密碼: ')
-    if pk == 'NzA3MDZhMzIzMDMxMzM=\n':
-        print('')
+    if pk == 'pyas':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8')
+    elif pk == 'PYAS':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8')
     else:
         print('✖密碼錯誤')
 def scan_sha256(file):
@@ -38,7 +40,7 @@ def scan_sha256(file):
             bytes = f.read()
             readable_hash = hashlib.sha256(bytes).hexdigest();
             print("該文件的 SHA256 的值為： " + readable_hash)
-            with open("SHA256.txt",'r') as f:
+            with open("Expansion_pack/SHA256.txt",'r') as f:
                 lines = [line.rstrip() for line in f]
                 for line in lines:
                       if str(readable_hash) == str(line.split(";")[0]):
@@ -55,7 +57,7 @@ def scan_md5(file):
             bytes = f.read()
             readable_hash = hashlib.md5(bytes).hexdigest();
             print("此文件的 MD5 的值為： " + readable_hash)
-            with open("MD5 Virus Hashes.txt",'r') as f:
+            with open("Expansion_pack/MD5 Virus Hashes.txt",'r') as f:
                 lines = [line.rstrip() for line in f]
                 for line in lines:
                       if str(readable_hash) == str(line.split(";")[0]):
@@ -74,7 +76,7 @@ def scan(file):
             bytes = f.read()
             readable_hash = hashlib.sha1(bytes).hexdigest();
             print("此文件的 SHA1 的值是: " + readable_hash)
-            with open('SHA1 HASHES.json', 'r') as f:
+            with open('Expansion_pack/SHA1 HASHES.json', 'r') as f:
                 dataset = json.loads(f.read())
                 for index, item in enumerate(dataset["data"]):
                       if str(item['hash']) == str(readable_hash):
@@ -102,7 +104,17 @@ def findfile(path,ffile,fss,start):
             else:
                 fss = fss + 1
                 if ffile in str(fd):
-                    print('找到檔案: '+fullpath)
+                    date = time.ctime(os.path.getmtime(fullpath))
+                    print('找到檔案: '+str(fullpath))
+                    #try:
+                        #f = open(fullpath, 'r')
+                        #text = f.readline()
+                        #f.close()
+                        #print('預覽內容: '+text)
+                    #except:
+                        #print('預覽內容: ✖錯誤，這個檔案不支援預覽')
+                    print('建立日期: '+str(date))
+                    print(' ')
                     continue
     except:
         pass
@@ -337,7 +349,7 @@ def copybuf():
     else:
         pw = str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(4)))
         print('備份中...')
-        shutil.copytree(path,'./備份/'+ pw)
+        shutil.copytree(path,'./Backup/'+ pw)
         print('===========================================================================')
         print('備份提取密碼: ' + pw)
 def getcopybuf():
@@ -351,13 +363,13 @@ def getcopybuf():
     else:
         print('正在提取檔案...')
         path = filedialog.askdirectory(title="選擇存放資料夾")
-        shutil.copytree('./備份/'+ pw,path + '/' + str(pw))
+        shutil.copytree('./Backup/'+ pw,path + '/' + str(pw))
 def movevirus():
     path = filedialog.askdirectory(title="選擇有毒資料夾")
     if path == '':
         pass
     else:
-        shutil.make_archive('./病毒隔離區/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
+        shutil.make_archive('./virus/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
         shutil.rmtree(path)
 def shutdown():
     os.system("shutdown -s -t 0")
@@ -595,8 +607,8 @@ def ask_admin():
             print(Options9)
             print(Options10)
             print(Options11)
-            print(Options12)
             print('================================ 檔案管理 =================================')
+            print(Options12)
             print(Options13)
             print(Options14)
             print(Options15)
@@ -723,7 +735,7 @@ def ask_admin():
                         ffile = input('請輸入要找的檔案名稱: ')
                         fss = 0
                         start = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         findfile('A:/',ffile,fss,start)
                         findfile('B:/',ffile,fss,start)
                         findfile('C:/',ffile,fss,start)
@@ -751,7 +763,7 @@ def ask_admin():
                         findfile('Y:/',ffile,fss,start)
                         findfile('Z:/',ffile,fss,start)
                         end = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         print('總共耗時: '+str(end - start)+' 秒')
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
@@ -824,7 +836,7 @@ def ask_admin():
                 input('✖錯誤:您輸入的內容錯誤或程式出錯，按 Enter 鍵返回')
     else:
         print('')
-        print('============ PYAS 防毒軟體 增強版 ， 版本 : 1.3 測試版(不穩定) ============')
+        print('============ PYAS 防毒軟體 增強版 ， 版本 : 1.4 測試版(不穩定) ============')
         print('')
         print('版權所有© 2020-2021 PYAS')
         print('')
@@ -837,13 +849,21 @@ def ask_admin():
         print('')
         input('此程序需要管理員權限，按 Enter 鍵繼續')
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 8)
+def developer_en():
+    pk = input('Please enter the password: ')
+    if pk == 'pyas':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8?lang=en')
+    elif pk == 'PYAS':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8?lang=en')
+    else:
+        print('✖Wrong password')
 def scan_sha256_en(file):
       virus_found = False
       with open(file,"rb") as f:
             bytes = f.read()
             readable_hash = hashlib.sha256(bytes).hexdigest();
             print("The SHA256 hash of this file is: " + readable_hash)
-            with open("SHA256.txt",'r') as f:
+            with open("Expansion_pack/SHA256.txt",'r') as f:
                 lines = [line.rstrip() for line in f]
                 for line in lines:
                       if str(readable_hash) == str(line.split(";")[0]):
@@ -860,7 +880,7 @@ def scan_md5_en(file):
             bytes = f.read()
             readable_hash = hashlib.md5(bytes).hexdigest();
             print("The MD5 hash of this file is: " + readable_hash)
-            with open("MD5 Virus Hashes.txt",'r') as f:
+            with open("Expansion_pack/MD5 Virus Hashes.txt",'r') as f:
                 lines = [line.rstrip() for line in f]
                 for line in lines:
                       if str(readable_hash) == str(line.split(";")[0]):
@@ -878,7 +898,7 @@ def scan_en(file):
             bytes = f.read()
             readable_hash = hashlib.sha1(bytes).hexdigest();
             print("The SHA1 hash of this file is: " + readable_hash)
-            with open('SHA1 HASHES.json', 'r') as f:
+            with open('Expansion_pack/SHA1 HASHES.json', 'r') as f:
                 dataset = json.loads(f.read())
                 for index, item in enumerate(dataset["data"]):
                       if str(item['hash']) == str(readable_hash):
@@ -898,12 +918,22 @@ def findfile_en(path,ffile,fss,start):
         for fd in os.listdir(path):
             fullpath = os.path.join(path,fd)
             if os.path.isdir(fullpath):
-                #print('正在掃描: ',fullpath)
+                #print('Scanning: ',fullpath)
                 findfile(fullpath,ffile,fss,start)
             else:
                 fss = fss + 1
                 if ffile in str(fd):
-                    print('File found: '+fullpath)
+                    date = time.ctime(os.path.getmtime(fullpath))
+                    print('Find file: '+str(fullpath))
+                    #try:
+                        #f = open(fullpath, 'r')
+                        #text = f.readline()
+                        #f.close()
+                        #print('Preview content: '+text)
+                    #except:
+                        #print('Preview content: ✖Error, this file does not support preview')
+                    print('Creation date: '+str(date))
+                    print(' ')
                     continue
     except:
         pass
@@ -1158,7 +1188,7 @@ def movevirus_en():
     if path == '':
         pass
     else:
-        shutil.make_archive('./virusisolate/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
+        shutil.make_archive('./virus/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
         shutil.rmtree(path)
 def shutdown_en():
     os.system("shutdown -s -t 0")
@@ -1392,7 +1422,6 @@ def ask_admin_en():
             print(Options10)
             print(Options11)
             print('=============================== File management ===========================')
-            print(Options11)
             print(Options12)
             print(Options13)
             print(Options14)
@@ -1520,7 +1549,7 @@ def ask_admin_en():
                         ffile = input('Please enter the name of the file you are looking for: ')
                         fss = 0
                         start = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         findfile_en('A:/',ffile,fss,start)
                         findfile_en('B:/',ffile,fss,start)
                         findfile_en('C:/',ffile,fss,start)
@@ -1548,7 +1577,7 @@ def ask_admin_en():
                         findfile_en('Y:/',ffile,fss,start)
                         findfile_en('Z:/',ffile,fss,start)
                         end = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         print('Total time consuming: '+str(end - start)+' sec')
                         print('===========================================================================')
                         input('Press Enter to return')
@@ -1621,7 +1650,7 @@ def ask_admin_en():
                 input('✖Error: The content you entered is wrong or the program is wrong, press Enter to return')
     else:
         print('')
-        print('======== PYAS antivirus software Pro, version: 1.3 beta (unstable) ========')
+        print('======== PYAS antivirus software Pro, version: 1.4 beta (unstable) ========')
         print('')
         print('Copyright © 2020-2021 PYAS')
         print('')

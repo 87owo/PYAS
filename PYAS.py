@@ -15,15 +15,82 @@ try:
     import webbrowser
     import subprocess
     import binascii
-    from list import *
+    from Expansion_pack.list import *
     from multiprocessing import Pool
     from multiprocessing import cpu_count
     import pefile
+    import hashlib
+    from functools import partial
+    import json
 except:
     expansion = False
+import json
+import hashlib
+def developer():
+    pk = input('請輸入密碼: ')
+    if pk == 'pyas':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8')
+    elif pk == 'PYAS':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8')
+    else:
+        print('✖密碼錯誤')
+def scan_sha256(file):
+      virus_found = False
+      with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = hashlib.sha256(bytes).hexdigest();
+            print("該文件的 SHA256 的值為： " + readable_hash)
+            with open("Expansion_pack/SHA256.txt",'r') as f:
+                lines = [line.rstrip() for line in f]
+                for line in lines:
+                      if str(readable_hash) == str(line.split(";")[0]):
+                            virus_found = True
+                f.close()
+      if not virus_found:
+            print("✔目前檔案安全")
+      else:
+            print("✖已檢測到病毒")
+            #os.remove(file)
+def scan_md5(file):
+      virus_found = False
+      with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = hashlib.md5(bytes).hexdigest();
+            print("此文件的 MD5 的值為： " + readable_hash)
+            with open("Expansion_pack/MD5 Virus Hashes.txt",'r') as f:
+                lines = [line.rstrip() for line in f]
+                for line in lines:
+                      if str(readable_hash) == str(line.split(";")[0]):
+                            virus_found = True
+                f.close()
+      if not virus_found:
+            print("✔目前檔案安全")
+
+            scan_sha256(file)
+      else:
+            print("✖已檢測到病毒")
+            #os.remove(file)
+def scan(file):
+      virus_found = False
+      with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = hashlib.sha1(bytes).hexdigest();
+            print("此文件的 SHA1 的值是: " + readable_hash)
+            with open('Expansion_pack/SHA1 HASHES.json', 'r') as f:
+                dataset = json.loads(f.read())
+                for index, item in enumerate(dataset["data"]):
+                      if str(item['hash']) == str(readable_hash):
+                          virus_found = True
+                f.close()
+      if not virus_found:
+            print("✔目前檔案安全")
+            scan_md5(file)
+      else:
+            print("✖已檢測到病毒")
+            #os.remove(file)
 def ab_pyas():
     print('版權所有© 2020-2021 PYAS')
-    print('軟體版本: 增強版 1.2')
+    print('軟體版本: 增強版 1.3')
 def delpw():
     u = input('請輸入用戶名稱: ')
     os.system('net user '+str(u)+' ""')
@@ -37,7 +104,8 @@ def findfile(path,ffile,fss,start):
             else:
                 fss = fss + 1
                 if ffile in str(fd):
-                    print('找到檔案: '+fullpath)
+                    date = time.ctime(os.path.getmtime(fullpath))
+                    print('找到檔案: '+str(fullpath))
                     continue
     except:
         pass
@@ -272,7 +340,7 @@ def copybuf():
     else:
         pw = str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(4)))
         print('備份中...')
-        shutil.copytree(path,'./備份/'+ pw)
+        shutil.copytree(path,'./Backup/'+ pw)
         print('===========================================================================')
         print('備份提取密碼: ' + pw)
 def getcopybuf():
@@ -286,13 +354,13 @@ def getcopybuf():
     else:
         print('正在提取檔案...')
         path = filedialog.askdirectory(title="選擇存放資料夾")
-        shutil.copytree('./備份/'+ pw,path + '/' + str(pw))
+        shutil.copytree('./Backup/'+ pw,path + '/' + str(pw))
 def movevirus():
     path = filedialog.askdirectory(title="選擇有毒資料夾")
     if path == '':
         pass
     else:
-        shutil.make_archive('./病毒隔離區/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
+        shutil.make_archive('./virus/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
         shutil.rmtree(path)
 def shutdown():
     os.system("shutdown -s -t 0")
@@ -483,34 +551,36 @@ def is_admin():
 def ask_admin():
     if is_admin():
         Options1 = str('[選項1]  智能掃描')
-        Options2 = str('[選項2]  檔案掃描')
-        Options3 = str('[選項3]  局部掃描')
-        Options4 = str('[選項4]  全區掃描')
-        Options5 = str('[選項5]  立即殺毒')
-        Options6 = str('[選項6]  立即偵測殺毒')
-        Options7 = str('[選項7]  重複偵測殺毒')
-        Options8 = str('[選項8]  內部 IP 查詢')
-        Options9 = str('[選項9]  網站檢測')
-        Options10 = str('[選項10] 修復並重置網絡')
-        Options11 = str('[選項11] 檔案備份')
-        Options12 = str('[選項12] 提取檔案')
-        Options13 = str('[選項13] 隔離病毒')
-        Options14 = str('[選項14] 銷毀檔案')
-        Options15 = str('[選項15] 尋找檔案')
-        Options16 = str('[選項16] 移除用戶密碼')
-        Options17 = str('[選項17] 修復系統檔案')
-        Options18 = str('[選項18] 修復 CMD 權限')
-        Options19 = str('[選項19] 啟動安全模式')
-        Options20 = str('[選項20] 關閉安全模式')
-        Options21 = str('[選項21] 多核壓力測試')
-        Options22 = str('[選項22] 加密文字')
-        Options23 = str('[選項23] 解密文字')
-        Options24 = str('[選項24] 強制系統關機')
-        Options25 = str('[選項25] 強制結束系統')
-        Options26 = str('[選項26] 分析執行檔字節')
-        Options27 = str('[選項27] 分析執行檔函數')
-        Options28 = str('[選項28] 自訂 CMD 指令')
-        Options29 = str('[選項29] 中文 / English')
+        Options2 = str('[選項2]  智能分析')
+        Options3 = str('[選項3]  檔案掃描')
+        Options4 = str('[選項4]  局部掃描')
+        Options5 = str('[選項5]  全區掃描')
+        Options6 = str('[選項6]  立即殺毒')
+        Options7 = str('[選項7]  立即偵測殺毒')
+        Options8 = str('[選項8]  重複偵測殺毒')
+        Options9 = str('[選項9]  內部 IP 查詢')
+        Options10 = str('[選項10] 網站檢測')
+        Options11 = str('[選項11] 修復並重置網絡')
+        Options12 = str('[選項12] 檔案備份')
+        Options13 = str('[選項13] 提取檔案')
+        Options14 = str('[選項14] 隔離病毒')
+        Options15 = str('[選項15] 銷毀檔案')
+        Options16 = str('[選項16] 尋找檔案')
+        Options17 = str('[選項17] 移除用戶密碼')
+        Options18 = str('[選項18] 修復系統檔案')
+        Options19 = str('[選項19] 修復 CMD 權限')
+        Options20 = str('[選項20] 啟動安全模式')
+        Options21 = str('[選項21] 關閉安全模式')
+        Options22 = str('[選項22] 多核壓力測試')
+        Options23 = str('[選項23] 加密文字')
+        Options24 = str('[選項24] 解密文字')
+        Options25 = str('[選項25] 強制系統關機')
+        Options26 = str('[選項26] 強制結束系統')
+        Options27 = str('[選項27] 分析執行檔字節')
+        Options28 = str('[選項28] 分析執行檔函數')
+        Options29 = str('[選項29] 自訂 CMD 指令')
+        #Options29 = str('[選項29] 緊急修復系統檔案')
+        Options30 = str('[選項30] 中文 / English')
         while True:
             os.system('cls')
             print('')
@@ -519,38 +589,39 @@ def ask_admin():
             print(Options2)
             print(Options3)
             print(Options4)
-            print('================================== 殺毒 ===================================')
             print(Options5)
+            print('================================== 殺毒 ===================================')
             print(Options6)
             print(Options7)
-            print('================================ 網路管理 =================================')
             print(Options8)
+            print('================================ 網路管理 =================================')
             print(Options9)
             print(Options10)
-            print('================================ 檔案管理 =================================')
             print(Options11)
+            print('================================ 檔案管理 =================================')
             print(Options12)
             print(Options13)
             print(Options14)
             print(Options15)
-            print('================================ 系統安全 =================================')
             print(Options16)
+            print('================================ 系統安全 =================================')
             print(Options17)
             print(Options18)
             print(Options19)
             print(Options20)
-            print('================================ 其他功能 =================================')
             print(Options21)
+            print('================================ 其他功能 =================================')
             print(Options22)
             print(Options23)
             print(Options24)
             print(Options25)
-            print('=============================== 開發者模式 ================================')
             print(Options26)
+            print('=============================== 開發者模式 ================================')
             print(Options27)
             print(Options28)
-            print('================================== 語言 ===================================')
             print(Options29)
+            print('================================== 語言 ===================================')
+            print(Options30)
             print('===========================================================================')
             co = input('請輸入選項: ')
             print('===========================================================================')
@@ -563,86 +634,99 @@ def ask_admin():
                     print('版權所有© 2020-2021 PYAS')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
-                elif co == str('pyas -s'):
-                    kill_while()
+                elif co == str('pyas - a'):
+                    print('版權所有© 2020-2021 PYAS')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
-                elif co == str('PYAS -s'):
-                    kill_while()
+                elif co == str('PYAS - a'):
+                    print('版權所有© 2020-2021 PYAS')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 elif co == str('pyas -d'):
-                    fordel()
+                    developer()
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 elif co == str('PYAS -d'):
-                    fordel()
+                    developer()
+                    print('===========================================================================')
+                    input('按 Enter 鍵返回')
+                elif co == str('pyas - d'):
+                    developer()
+                    print('===========================================================================')
+                    input('按 Enter 鍵返回')
+                elif co == str('PYAS - d'):
+                    developer()
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 else:
                     input('按 Enter 鍵繼續')
                     print('===========================================================================')
                     if int(co) == 1:
-                        ai_scan()
+                        filename = filedialog.askopenfilename()
+                        scan(filename)
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 2:
-                        startfich()
+                        ai_scan()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 3:
-                        startpach()
+                        startfich()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 4:
-                        find_dirch(filedialog.askdirectory(title="選擇"))
+                        startpach()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 5:
-                        kill_appch()
+                        find_dirch(filedialog.askdirectory(title="選擇"))
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 6:
-                        kill_autoch()
+                        kill_appch()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 7:
-                        kill_while()
+                        kill_autoch()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 8:
-                        myipch()
+                        kill_while()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 9:
-                        churl()
+                        myipch()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 10:
-                        Repair_net()
+                        churl()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 11:
-                        copybuf()
+                        Repair_net()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 12:
-                        getcopybuf()
+                        copybuf()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 13:
-                        movevirus()
+                        getcopybuf()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 14:
-                        savedel()
+                        movevirus()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
                     elif int(co) == 15:
+                        savedel()
+                        print('===========================================================================')
+                        input('按 Enter 鍵返回')
+                    elif int(co) == 16:
                         ffile = input('請輸入要找的檔案名稱: ')
                         fss = 0
                         start = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         findfile('A:/',ffile,fss,start)
                         findfile('B:/',ffile,fss,start)
                         findfile('C:/',ffile,fss,start)
@@ -670,63 +754,69 @@ def ask_admin():
                         findfile('Y:/',ffile,fss,start)
                         findfile('Z:/',ffile,fss,start)
                         end = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         print('總共耗時: '+str(end - start)+' 秒')
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 16:
+                    elif int(co) == 17:
                         delpw()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 17:
+                    elif int(co) == 18:
                         sfc()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 18:
+                    elif int(co) == 19:
                         cmdr()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 19:
+                    elif int(co) == 20:
                         savemode()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 20:
+                    elif int(co) == 21:
                         qsavemode()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 21:
+                    elif int(co) == 22:
                         cputest()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 22:
+                    elif int(co) == 23:
                         encrypt()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 23:
+                    elif int(co) == 24:
                         decrypt()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 24:
+                    elif int(co) == 25:
                         shutdown()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 25:
+                    elif int(co) == 26:
                         win_bsod()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 26:
+                    elif int(co) == 27:
                         exe_ca()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 27:
+                    elif int(co) == 28:
                         exe_cb()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 28:
+                    elif int(co) == 29:
                         d_com()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
-                    elif int(co) == 29:
+                    elif int(co) == 99999:
+                        cmdr()
+                        kill_appch()
+                        sfc()
+                        print('===========================================================================')
+                        input('按 Enter 鍵返回')
+                    elif int(co) == 30:
                         ask_admin_en()
                         print('===========================================================================')
                         input('按 Enter 鍵返回')
@@ -737,7 +827,7 @@ def ask_admin():
                 input('✖錯誤:您輸入的內容錯誤或程式出錯，按 Enter 鍵返回')
     else:
         print('')
-        print('================ PYAS 防毒軟體 增強版 ， 版本 : 1.2 (穩定版)  ===============')
+        print('=============== PYAS 防毒軟體 增強版 ， 版本 : 1.3 (穩定版) ===============')
         print('')
         print('版權所有© 2020-2021 PYAS')
         print('')
@@ -750,6 +840,67 @@ def ask_admin():
         print('')
         input('此程序需要管理員權限，按 Enter 鍵繼續')
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 8)
+def developer_en():
+    pk = input('Please enter the password: ')
+    if pk == 'pyas':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8?lang=en')
+    elif pk == 'PYAS':
+        webbrowser.open('https://xiaomi69ai.wixsite.com/pyas/contact-8?lang=en')
+    else:
+        print('✖Wrong password')
+def scan_sha256_en(file):
+      virus_found = False
+      with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = hashlib.sha256(bytes).hexdigest();
+            print("The SHA256 hash of this file is: " + readable_hash)
+            with open("Expansion_pack/SHA256.txt",'r') as f:
+                lines = [line.rstrip() for line in f]
+                for line in lines:
+                      if str(readable_hash) == str(line.split(";")[0]):
+                            virus_found = True
+                f.close()
+      if not virus_found:
+            print("✔File is safe")
+      else:
+            print("✖Virus detected")
+            #os.remove(file)
+def scan_md5_en(file):
+      virus_found = False
+      with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = hashlib.md5(bytes).hexdigest();
+            print("The MD5 hash of this file is: " + readable_hash)
+            with open("Expansion_pack/MD5 Virus Hashes.txt",'r') as f:
+                lines = [line.rstrip() for line in f]
+                for line in lines:
+                      if str(readable_hash) == str(line.split(";")[0]):
+                            virus_found = True
+                f.close()
+      if not virus_found:
+            print("✔File is safe")
+            scan_sha256_en(file)
+      else:
+            print("✖Virus detected")
+            #os.remove(file)
+def scan_en(file):
+      virus_found = False
+      with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = hashlib.sha1(bytes).hexdigest();
+            print("The SHA1 hash of this file is: " + readable_hash)
+            with open('Expansion_pack/SHA1 HASHES.json', 'r') as f:
+                dataset = json.loads(f.read())
+                for index, item in enumerate(dataset["data"]):
+                      if str(item['hash']) == str(readable_hash):
+                          virus_found = True
+                f.close()
+      if not virus_found:
+            print("✔File is safe")
+            scan_md5_en(file)
+      else:
+            print("✖Virus detected")
+            #os.remove(file)
 def delpw_en():
     u = input('Please enter user name: ')
     os.system('net user '+str(u)+' ""')
@@ -758,12 +909,13 @@ def findfile_en(path,ffile,fss,start):
         for fd in os.listdir(path):
             fullpath = os.path.join(path,fd)
             if os.path.isdir(fullpath):
-                #print('正在掃描: ',fullpath)
+                #print('Scanning: ',fullpath)
                 findfile(fullpath,ffile,fss,start)
             else:
                 fss = fss + 1
                 if ffile in str(fd):
-                    print('File found: '+fullpath)
+                    date = time.ctime(os.path.getmtime(fullpath))
+                    print('Find file: '+str(fullpath))
                     continue
     except:
         pass
@@ -1018,7 +1170,7 @@ def movevirus_en():
     if path == '':
         pass
     else:
-        shutil.make_archive('./virusisolate/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
+        shutil.make_archive('./virus/' + str(''.join(random.choice(string.ascii_letters + string.digits)for x in range(8))),'zip',path)
         shutil.rmtree(path)
 def shutdown_en():
     os.system("shutdown -s -t 0")
@@ -1204,34 +1356,36 @@ def d_com_en():
 def ask_admin_en():
     if is_admin():
         Options1 = str('[Option1]  Smart scan')
-        Options2 = str('[Option2]  File scan')
-        Options3 = str('[Option3]  Partial scan')
-        Options4 = str('[Option4]  Full scan')
-        Options5 = str('[Option5]  Antivirus immediately')
-        Options6 = str('[Option6]  Immediately detect and antivirus')
-        Options7 = str('[Option7]  Repeat detection and antivirus')
-        Options8 = str('[Option8]  Internal IP lookup')
-        Options9 = str('[Option9]  Website detection')
-        Options10 = str('[Option10] Repair and reset the network')
-        Options11 = str('[Option11] File backup')
-        Options12 = str('[Option12] Extracting archives')
-        Options13 = str('[Option13] Isolate the virus')
-        Options14 = str('[Option14] Destroy the file')
-        Options15 = str('[Option15] Find files')
-        Options16 = str('[Option16] Remove user password')
-        Options17 = str('[Option17] Repair system files')
-        Options18 = str('[Option18] Fix CMD permissions')
-        Options19 = str('[Option19] Start safe mode')
-        Options20 = str('[Option20] Turn off safe mode')
-        Options21 = str('[Option21] Multi-core stress test')
-        Options22 = str('[Option22] Encrypted text')
-        Options23 = str('[Option23] Decrypt text')
-        Options24 = str('[Option24] Force system shutdown')
-        Options25 = str('[Option25] Forcibly end the system')
-        Options26 = str('[Option26] Analyze the execution file byte')
-        Options27 = str('[Option27] Analysis of executable functions')
-        Options28 = str('[Option28] Custom CMD command')
-        Options29 = str('[Option29] 中文 / English')
+        Options2 = str('[Option2]  Smart analysis')
+        Options3 = str('[Option3]  File scan')
+        Options4 = str('[Option4]  Partial scan')
+        Options5 = str('[Option5]  Full scan')
+        Options6 = str('[Option6]  Antivirus immediately')
+        Options7 = str('[Option7]  Immediately detect and antivirus')
+        Options8 = str('[Option8]  Repeat detection and antivirus')
+        Options9 = str('[Option9]  Internal IP lookup')
+        Options10 = str('[Option10] Website detection')
+        Options11 = str('[Option11] Repair and reset the network')
+        Options12 = str('[Option12] File backup')
+        Options13 = str('[Option13] Extracting archives')
+        Options14 = str('[Option14] Isolate the virus')
+        Options15 = str('[Option15] Destroy the file')
+        Options16 = str('[Option16] Find files')
+        Options17 = str('[Option17] Remove user password')
+        Options18 = str('[Option18] Repair system files')
+        Options19 = str('[Option19] Fix CMD permissions')
+        Options20 = str('[Option20] Start safe mode')
+        Options21 = str('[Option21] Turn off safe mode')
+        Options22 = str('[Option22] Multi-core stress test')
+        Options23 = str('[Option23] Encrypted text')
+        Options24 = str('[Option24] Decrypt text')
+        Options25 = str('[Option25] Force system shutdown')
+        Options26 = str('[Option26] Forcibly end the system')
+        Options27 = str('[Option27] Analyze the execution file byte')
+        Options28 = str('[Option28] Analysis of executable functions')
+        Options29 = str('[Option29] Custom CMD command')
+        #Options29 = str('[Option30] Emergency repair of system files')
+        Options30 = str('[Option30] 中文 / English')
         while True:
             os.system('cls')
             print('')
@@ -1240,38 +1394,39 @@ def ask_admin_en():
             print(Options2)
             print(Options3)
             print(Options4)
-            print('================================== Antivirus ==============================')
             print(Options5)
+            print('================================== Antivirus ==============================')
             print(Options6)
             print(Options7)
-            print('============================== Network management =========================')
             print(Options8)
+            print('============================== Network management =========================')
             print(Options9)
             print(Options10)
-            print('=============================== File management ===========================')
             print(Options11)
+            print('=============================== File management ===========================')
             print(Options12)
             print(Options13)
             print(Options14)
             print(Options15)
-            print('=============================== system security ===========================')
             print(Options16)
+            print('=============================== system security ===========================')
             print(Options17)
             print(Options18)
             print(Options19)
             print(Options20)
-            print('============================== Other functions ============================')
             print(Options21)
+            print('============================== Other functions ============================')
             print(Options22)
             print(Options23)
             print(Options24)
             print(Options25)
-            print('=============================== Developer mode ============================')
             print(Options26)
+            print('=============================== Developer mode ============================')
             print(Options27)
             print(Options28)
-            print('================================== Language ===============================')
             print(Options29)
+            print('================================== Language ===============================')
+            print(Options30)
             print('===========================================================================')
             co = input('Please enter options: ')
             print('===========================================================================')
@@ -1284,86 +1439,99 @@ def ask_admin_en():
                     print('Copyright © 2020-2021 PYAS')
                     print('===========================================================================')
                     input('Press Enter to return')
-                elif co == str('pyas -s'):
-                    kill_while_en()
+                elif co == str('pyas - a'):
+                    print('Copyright © 2020-2021 PYAS')
                     print('===========================================================================')
                     input('Press Enter to return')
-                elif co == str('PYAS -s'):
-                    kill_while_en()
+                elif co == str('PYAS - a'):
+                    print('Copyright © 2020-2021 PYAS')
                     print('===========================================================================')
                     input('Press Enter to return')
                 elif co == str('pyas -d'):
-                    fordel_en()
+                    developer_en()
                     print('===========================================================================')
                     input('Press Enter to return')
                 elif co == str('PYAS -d'):
-                    fordel_en()
+                    developer_en()
+                    print('===========================================================================')
+                    input('Press Enter to return')
+                elif co == str('pyas - d'):
+                    developer_en()
+                    print('===========================================================================')
+                    input('Press Enter to return')
+                elif co == str('PYAS - d'):
+                    developer_en()
                     print('===========================================================================')
                     input('Press Enter to return')
                 else:
                     input('Press Enter to continue')
                     print('===========================================================================')
                     if int(co) == 1:
-                        ai_scan_en()
+                        filename = filedialog.askopenfilename()
+                        scan_en(filename)
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 2:
-                        startfich_en()
+                        ai_scan_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 3:
-                        startpach_en()
+                        startfich_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 4:
-                        find_dirch_en(filedialog.askdirectory(title="select"))
+                        startpach_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 5:
-                        kill_appch_en()
+                        find_dirch_en(filedialog.askdirectory(title="select"))
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 6:
-                        kill_autoch_en()
+                        kill_appch_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 7:
-                        kill_while_en()
+                        kill_autoch_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 8:
-                        myipch_en()
+                        kill_while_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 9:
-                        churl_en()
+                        myipch_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 10:
-                        Repair_net_en()
+                        churl_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 11:
-                        copybuf_en()
+                        Repair_net_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 12:
-                        getcopybuf_en()
+                        copybuf_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 13:
-                        movevirus_en()
+                        getcopybuf_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 14:
-                        savedel_en()
+                        movevirus_en()
                         print('===========================================================================')
                         input('Press Enter to return')
                     elif int(co) == 15:
+                        savedel_en()
+                        print('===========================================================================')
+                        input('Press Enter to return')
+                    elif int(co) == 16:
                         ffile = input('Please enter the name of the file you are looking for: ')
                         fss = 0
                         start = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         findfile_en('A:/',ffile,fss,start)
                         findfile_en('B:/',ffile,fss,start)
                         findfile_en('C:/',ffile,fss,start)
@@ -1391,63 +1559,69 @@ def ask_admin_en():
                         findfile_en('Y:/',ffile,fss,start)
                         findfile_en('Z:/',ffile,fss,start)
                         end = time.time()
-                        print('========================================================================')
+                        print('===========================================================================')
                         print('Total time consuming: '+str(end - start)+' sec')
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 16:
+                    elif int(co) == 17:
                         delpw_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 17:
+                    elif int(co) == 18:
                         sfc_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 18:
+                    elif int(co) == 19:
                         cmdr_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 19:
+                    elif int(co) == 20:
                         savemode_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 20:
+                    elif int(co) == 21:
                         qsavemode_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 21:
+                    elif int(co) == 22:
                         cputest_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 22:
+                    elif int(co) == 23:
                         encrypt_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 23:
+                    elif int(co) == 24:
                         decrypt_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 24:
+                    elif int(co) == 25:
                         shutdown_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 25:
+                    elif int(co) == 26:
                         win_bsod_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 26:
+                    elif int(co) == 27:
                         exe_ca_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 27:
+                    elif int(co) == 28:
                         exe_cb_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 28:
+                    elif int(co) == 29:
                         d_com_en()
                         print('===========================================================================')
                         input('Press Enter to return')
-                    elif int(co) == 29:
+                    elif int(co) == 99999:
+                        cmdr_en()
+                        kill_appch_en()
+                        sfc_en()
+                        print('===========================================================================')
+                        input('Press Enter to return')
+                    elif int(co) == 30:
                         ask_admin()
                         print('===========================================================================')
                         input('Press Enter to return')
@@ -1458,7 +1632,7 @@ def ask_admin_en():
                 input('✖Error: The content you entered is wrong or the program is wrong, press Enter to return')
     else:
         print('')
-        print('======= PYAS antivirus software Pro, version: 1.2 (Stable version) ========')
+        print('============ PYAS antivirus software Pro, version: 1.3 (Stable) ===========')
         print('')
         print('Copyright © 2020-2021 PYAS')
         print('')

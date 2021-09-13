@@ -378,42 +378,45 @@ def find_dirch(path):
     if trypath == -1:
         print('✖輸入檔案錯誤，未選擇檔案')
     else:
-        blist = []
-        bflist = []
-        flist = []
-        for fd in os.listdir(path):
-            fullpath = os.path.join(path,fd)
-            if os.path.isdir(fullpath):
-                print('資料夾:',fullpath)
-                find_dirch(fullpath)
-            else:
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('正在掃描: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    print('===========================================================================')
-                    input('✖讀取錯誤:沒有權限或不支援的檔案，按 Enter 鍵繼續')
-        print('===========================================================================')
-        print('✔目前沒有惡意檔案: ' + str(flist))
-        print('')
-        print('✖目前可能惡意檔案: ' + str(bflist))
-        print('===========================================================================')
-        blist = []
-        bflist = []
-        flist = []
+        try:
+            blist = []
+            bflist = []
+            flist = []
+            for fd in os.listdir(path):
+                fullpath = os.path.join(path,fd)
+                if os.path.isdir(fullpath):
+                    print('資料夾:',fullpath)
+                    find_dirch(fullpath)
+                else:
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('正在掃描: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                    except:
+                        print('===========================================================================')
+                        input('✖讀取錯誤:沒有權限或不支援的檔案，按 Enter 鍵繼續')
+            print('===========================================================================')
+            print('✔目前沒有惡意檔案: ' + str(flist))
+            print('')
+            print('✖目前可能惡意檔案: ' + str(bflist))
+            print('===========================================================================')
+            blist = []
+            bflist = []
+            flist = []
+        except:
+            pass
 def startpach():
     flist = []
     bflist = []
@@ -422,43 +425,46 @@ def startpach():
     if trypath == -1:
         print('✖輸入檔案錯誤，未選擇檔案')
     else:
-        files = listdir(path)
-        for f in files:
-            blist = []
-            dblist = []
-            fullpath = join(path, f)
-            if isfile(fullpath):
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('正在掃描: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(ti):          #檢查
-                        math = int(m * a + m)
-                        if ti_list[a] in file and a != ti - 1:
-                            blist.append(ti_list[a])
-                            continue
-                        if ti_list[a] not in file:
-                            continue
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    pass
-            elif isdir(fullpath):
-                continue
-        print('===========================================================================')
-        print('✔目前沒有惡意檔案: ' + str(flist))
-        print('')
-        print('✖目前可能惡意檔案: ' + str(bflist))
+        try:
+            files = listdir(path)
+            for f in files:
+                blist = []
+                dblist = []
+                fullpath = join(path, f)
+                if isfile(fullpath):
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('正在掃描: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(ti):          #檢查
+                            math = int(m * a + m)
+                            if ti_list[a] in file and a != ti - 1:
+                                blist.append(ti_list[a])
+                                continue
+                            if ti_list[a] not in file:
+                                continue
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                    except:
+                        pass
+                elif isdir(fullpath):
+                    continue
+            print('===========================================================================')
+            print('✔目前沒有惡意檔案: ' + str(flist))
+            print('')
+            print('✖目前可能惡意檔案: ' + str(bflist))
+        except:
+            pass
 def startfich():
     blist = []
     dblist = []
@@ -919,7 +925,7 @@ def findfile_en(path,ffile,fss,start):
             fullpath = os.path.join(path,fd)
             if os.path.isdir(fullpath):
                 #print('Scanning: ',fullpath)
-                findfile(fullpath,ffile,fss,start)
+                findfile_en(fullpath,ffile,fss,start)
             else:
                 fss = fss + 1
                 if ffile in str(fd):
@@ -1197,42 +1203,45 @@ def find_dirch_en(path):
     if trypath == -1:
         print('✖Input file error, file not selected')
     else:
-        blist = []
-        bflist = []
-        flist = []
-        for fd in os.listdir(path):
-            fullpath = os.path.join(path,fd)
-            if os.path.isdir(fullpath):
-                print('Folder:',fullpath)
-                find_dirch(fullpath)
-            else:
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('Scanning: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    print('===========================================================================')
-                    input('✖Read error: Unauthorized or unsupported file, press Enter to continue')
-        print('===========================================================================')
-        print('✔There are currently no malicious files: ' + str(flist))
-        print('')
-        print('✖Currently possible malicious files: ' + str(bflist))
-        print('===========================================================================')
-        blist = []
-        bflist = []
-        flist = []
+        try:
+            blist = []
+            bflist = []
+            flist = []
+            for fd in os.listdir(path):
+                fullpath = os.path.join(path,fd)
+                if os.path.isdir(fullpath):
+                    print('Folder:',fullpath)
+                    find_dirch_en(fullpath)
+                else:
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('Scanning: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                    except:
+                        print('===========================================================================')
+                        input('✖Read error: Unauthorized or unsupported file, press Enter to continue')
+            print('===========================================================================')
+            print('✔There are currently no malicious files: ' + str(flist))
+            print('')
+            print('✖Currently possible malicious files: ' + str(bflist))
+            print('===========================================================================')
+            blist = []
+            bflist = []
+            flist = []
+        except:
+            pass
 def startpach_en():
     flist = []
     bflist = []
@@ -1241,43 +1250,46 @@ def startpach_en():
     if trypath == -1:
         print('✖Input file error, file not selected')
     else:
-        files = listdir(path)
-        for f in files:
-            blist = []
-            dblist = []
-            fullpath = join(path, f)
-            if isfile(fullpath):
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('Scanning: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(ti):          #檢查
-                        math = int(m * a + m)
-                        if ti_list[a] in file and a != ti - 1:
-                            blist.append(ti_list[a])
-                            continue
-                        if ti_list[a] not in file:
-                            continue
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    pass
-            elif isdir(fullpath):
-                continue
-        print('===========================================================================')
-        print('✔This file is currently not malicious: ' + str(flist))
-        print('')
-        print('✖✖Possibly malicious content:: ' + str(bflist))
+        try:
+            files = listdir(path)
+            for f in files:
+                blist = []
+                dblist = []
+                fullpath = join(path, f)
+                if isfile(fullpath):
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('Scanning: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(ti):          #檢查
+                            math = int(m * a + m)
+                            if ti_list[a] in file and a != ti - 1:
+                                blist.append(ti_list[a])
+                                continue
+                            if ti_list[a] not in file:
+                                continue
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                    except:
+                        pass
+                elif isdir(fullpath):
+                    continue
+            print('===========================================================================')
+            print('✔This file is currently not malicious: ' + str(flist))
+            print('')
+            print('✖✖Possibly malicious content:: ' + str(bflist))
+        except:
+            pass
 def startfich_en():
     blist = []
     dblist = []

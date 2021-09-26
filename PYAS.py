@@ -1,13 +1,9 @@
 expansion = True
 try:
-    import time
     import os
-    import tkinter as tk
-    from tkinter import filedialog
+    import time
     import random
     import string
-    from os.path import isfile, isdir, join
-    from os import listdir
     import sys
     import ctypes
     import shutil
@@ -15,17 +11,17 @@ try:
     import webbrowser
     import subprocess
     import binascii
-    from Expansion_pack.list import *
-    from multiprocessing import Pool
-    from multiprocessing import cpu_count
     import pefile
     import hashlib
-    from functools import partial
     import json
+    import tkinter as tk
+    from os import listdir
+    from tkinter import filedialog
+    from Expansion_pack.list import *
+    from functools import partial
+    from os.path import isfile, isdir, join
 except:
     expansion = False
-import json
-import hashlib
 def developer():
     pk = input('請輸入密碼: ')
     if pk == 'pyas':
@@ -39,7 +35,7 @@ def scan_sha256(file):
       with open(file,"rb") as f:
             bytes = f.read()
             readable_hash = hashlib.sha256(bytes).hexdigest();
-            print("該文件的 SHA256 的值為： " + readable_hash)
+            print("此檔案的 SHA256 的值： " + readable_hash)
             with open("Expansion_pack/SHA256.txt",'r') as f:
                 lines = [line.rstrip() for line in f]
                 for line in lines:
@@ -47,16 +43,16 @@ def scan_sha256(file):
                             virus_found = True
                 f.close()
       if not virus_found:
-            print("✔目前檔案安全")
+            print("✔目前沒有惡意的檔案")
       else:
-            print("✖已檢測到病毒")
+            print("✖已檢測到可疑的檔案")
             #os.remove(file)
 def scan_md5(file):
       virus_found = False
       with open(file,"rb") as f:
             bytes = f.read()
             readable_hash = hashlib.md5(bytes).hexdigest();
-            print("此文件的 MD5 的值為： " + readable_hash)
+            print("此檔案的 MD5 的值： " + readable_hash)
             with open("Expansion_pack/MD5 Virus Hashes.txt",'r') as f:
                 lines = [line.rstrip() for line in f]
                 for line in lines:
@@ -64,18 +60,17 @@ def scan_md5(file):
                             virus_found = True
                 f.close()
       if not virus_found:
-            print("✔目前檔案安全")
-
+            print("✔目前沒有惡意的檔案")
             scan_sha256(file)
       else:
-            print("✖已檢測到病毒")
+            print("✖已檢測到可疑的檔案")
             #os.remove(file)
 def scan(file):
       virus_found = False
       with open(file,"rb") as f:
             bytes = f.read()
             readable_hash = hashlib.sha1(bytes).hexdigest();
-            print("此文件的 SHA1 的值是: " + readable_hash)
+            print("此檔案的 SHA1 的值: " + readable_hash)
             with open('Expansion_pack/SHA1 HASHES.json', 'r') as f:
                 dataset = json.loads(f.read())
                 for index, item in enumerate(dataset["data"]):
@@ -83,14 +78,11 @@ def scan(file):
                           virus_found = True
                 f.close()
       if not virus_found:
-            print("✔目前檔案安全")
+            print("✔目前沒有惡意的檔案")
             scan_md5(file)
       else:
-            print("✖已檢測到病毒")
+            print("✖已檢測到可疑的檔案")
             #os.remove(file)
-def ab_pyas():
-    print('版權所有© 2020-2021 PYAS')
-    print('軟體版本: 增強版 1.3')
 def delpw():
     u = input('請輸入用戶名稱: ')
     os.system('net user '+str(u)+' ""')
@@ -106,6 +98,15 @@ def findfile(path,ffile,fss,start):
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
                     print('找到檔案: '+str(fullpath))
+                    #try:
+                        #f = open(fullpath, 'r')
+                        #text = f.readline()
+                        #f.close()
+                        #print('預覽內容: '+text)
+                    #except:
+                        #print('預覽內容: ✖錯誤，這個檔案不支援預覽')
+                    print('建立日期: '+str(date))
+                    print(' ')
                     continue
     except:
         pass
@@ -186,11 +187,11 @@ def ai_scan():
                         if 'Window' in str(blist):
                             ds = ds + 5
                         if len(blist) == 0:
-                            print('✔此檔案目前沒有惡意')
+                            print('✔目前沒有惡意的檔案')
                         else:
-                            print('✖可能惡意內容: '+ str(blist))
+                            print('✖已檢測到可疑的檔案，惡意內容: '+ str(blist))
                             print('============================================================================')
-                            print('✖可能惡意程度: '+ str(ds))
+                            print('✖惡意程度: '+ str(ds))
                 else:
                     print('✖輸入檔案錯誤，不能有引號')
     else:
@@ -244,7 +245,7 @@ def decrypt():
     print('============================================================================')
     print('您的解密內容: '+str(e))
 def kill_while():
-    input('若要關閉重複偵測殺毒，直接關閉此視窗即可。按 Enter 鍵繼續')
+    input('若要關閉重複偵測殺毒，直接關閉此視窗即可，按 Enter 鍵繼續')
     print('============================================================================')
     app = input('請輸入病毒完整檔名:')
     os.system('cls')
@@ -331,7 +332,7 @@ def churl():
 def myipch():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    print('您的往內IP是: ' + s.getsockname()[0])
+    print('您的網內IP是: ' + s.getsockname()[0])
     s.close()
 def copybuf():
     path = filedialog.askdirectory(title="選擇備份資料夾")
@@ -345,7 +346,7 @@ def copybuf():
         print('備份提取密碼: ' + pw)
 def getcopybuf():
     pw = input('輸入提取密碼: ')
-    path = './備份/'
+    path = './Backup/'
     files = listdir(path)
     trying = str(files).find(pw)
     if trying == -1:
@@ -369,42 +370,48 @@ def find_dirch(path):
     if trypath == -1:
         print('✖輸入檔案錯誤，未選擇檔案')
     else:
-        blist = []
-        bflist = []
-        flist = []
-        for fd in os.listdir(path):
-            fullpath = os.path.join(path,fd)
-            if os.path.isdir(fullpath):
-                print('資料夾:',fullpath)
-                find_dirch(fullpath)
-            else:
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('正在掃描: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    print('===========================================================================')
-                    input('✖讀取錯誤:沒有權限或不支援的檔案，按 Enter 鍵繼續')
-        print('===========================================================================')
-        print('✔目前沒有惡意檔案: ' + str(flist))
-        print('')
-        print('✖目前可能惡意檔案: ' + str(bflist))
-        print('===========================================================================')
-        blist = []
-        bflist = []
-        flist = []
+        try:
+            blist = []
+            bflist = []
+            flist = []
+            for fd in os.listdir(path):
+                fullpath = os.path.join(path,fd)
+                if os.path.isdir(fullpath):
+                    print('資料夾:',fullpath)
+                    find_dirch(fullpath)
+                else:
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('正在掃描: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                            bfl = open('VriusFile.txt','a+',encoding="utf-8")
+                            bfl.write('''Vrius:
+'''+str(fullpath)+'''
+''')
+                    except:
+                        pass
+            print('===========================================================================')
+            print('✔目前沒有惡意的檔案: ' + str(flist))
+            print('')
+            print('✖已檢測到可疑的檔案: ' + str(bflist))
+            print('===========================================================================')
+            blist = []
+            bflist = []
+            flist = []
+        except:
+            pass
 def startpach():
     flist = []
     bflist = []
@@ -413,43 +420,46 @@ def startpach():
     if trypath == -1:
         print('✖輸入檔案錯誤，未選擇檔案')
     else:
-        files = listdir(path)
-        for f in files:
-            blist = []
-            dblist = []
-            fullpath = join(path, f)
-            if isfile(fullpath):
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('正在掃描: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(ti):          #檢查
-                        math = int(m * a + m)
-                        if ti_list[a] in file and a != ti - 1:
-                            blist.append(ti_list[a])
-                            continue
-                        if ti_list[a] not in file:
-                            continue
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    pass
-            elif isdir(fullpath):
-                continue
-        print('===========================================================================')
-        print('✔目前沒有惡意檔案: ' + str(flist))
-        print('')
-        print('✖目前可能惡意檔案: ' + str(bflist))
+        try:
+            files = listdir(path)
+            for f in files:
+                blist = []
+                dblist = []
+                fullpath = join(path, f)
+                if isfile(fullpath):
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('正在掃描: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(ti):          #檢查
+                            math = int(m * a + m)
+                            if ti_list[a] in file and a != ti - 1:
+                                blist.append(ti_list[a])
+                                continue
+                            if ti_list[a] not in file:
+                                continue
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                    except:
+                        pass
+                elif isdir(fullpath):
+                    continue
+            print('===========================================================================')
+            print('✔目前沒有惡意的檔案: ' + str(flist))
+            print('')
+            print('✖已檢測到可疑的檔案: ' + str(bflist))
+        except:
+            pass
 def startfich():
     blist = []
     dblist = []
@@ -484,9 +494,9 @@ def startfich():
                             if t_list[a] not in file:
                                 continue
                         if len(blist) == 0:
-                            print('✔此檔案目前沒有惡意')
+                            print('✔目前沒有惡意的檔案')
                         else:
-                            print('✖可能惡意內容: '+ str(blist))
+                            print('✖已檢測到可疑的檔案，惡意內容: '+ str(blist))
                 else:
                     print('✖輸入檔案錯誤，不能有引號')
     else:
@@ -549,7 +559,7 @@ def is_admin():
     except:
         return False
 def ask_admin():
-    if is_admin():
+    if 1:
         Options1 = str('[選項1]  智能掃描')
         Options2 = str('[選項2]  智能分析')
         Options3 = str('[選項3]  檔案掃描')
@@ -627,19 +637,19 @@ def ask_admin():
             print('===========================================================================')
             try:
                 if co == str('pyas -a'):
-                    print('版權所有© 2020-2021 PYAS')
+                    print('版權所有© 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 elif co == str('PYAS -a'):
-                    print('版權所有© 2020-2021 PYAS')
+                    print('版權所有© 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 elif co == str('pyas - a'):
-                    print('版權所有© 2020-2021 PYAS')
+                    print('版權所有© 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 elif co == str('PYAS - a'):
-                    print('版權所有© 2020-2021 PYAS')
+                    print('版權所有© 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('按 Enter 鍵返回')
                 elif co == str('pyas -d'):
@@ -827,7 +837,7 @@ def ask_admin():
                 input('✖錯誤:您輸入的內容錯誤或程式出錯，按 Enter 鍵返回')
     else:
         print('')
-        print('=============== PYAS 防毒軟體 增強版 ， 版本 : 1.3 (穩定版) ===============')
+        print('================ PYAS 防毒軟體 增強版 ， 版本 : 1.4 穩定版 ================')
         print('')
         print('版權所有© 2020-2021 PYAS')
         print('')
@@ -861,9 +871,9 @@ def scan_sha256_en(file):
                             virus_found = True
                 f.close()
       if not virus_found:
-            print("✔File is safe")
+            print("✔There are currently no malicious files")
       else:
-            print("✖Virus detected")
+            print("✖Suspicious file detected")
             #os.remove(file)
 def scan_md5_en(file):
       virus_found = False
@@ -878,10 +888,10 @@ def scan_md5_en(file):
                             virus_found = True
                 f.close()
       if not virus_found:
-            print("✔File is safe")
+            print("✔There are currently no malicious files")
             scan_sha256_en(file)
       else:
-            print("✖Virus detected")
+            print("✖Suspicious file detected")
             #os.remove(file)
 def scan_en(file):
       virus_found = False
@@ -896,10 +906,10 @@ def scan_en(file):
                           virus_found = True
                 f.close()
       if not virus_found:
-            print("✔File is safe")
+            print("✔There are currently no malicious files")
             scan_md5_en(file)
       else:
-            print("✖Virus detected")
+            print("✖Suspicious file detected")
             #os.remove(file)
 def delpw_en():
     u = input('Please enter user name: ')
@@ -910,12 +920,21 @@ def findfile_en(path,ffile,fss,start):
             fullpath = os.path.join(path,fd)
             if os.path.isdir(fullpath):
                 #print('Scanning: ',fullpath)
-                findfile(fullpath,ffile,fss,start)
+                findfile_en(fullpath,ffile,fss,start)
             else:
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
                     print('Find file: '+str(fullpath))
+                    #try:
+                        #f = open(fullpath, 'r')
+                        #text = f.readline()
+                        #f.close()
+                        #print('Preview content: '+text)
+                    #except:
+                        #print('Preview content: ✖Error, this file does not support preview')
+                    print('Creation date: '+str(date))
+                    print(' ')
                     continue
     except:
         pass
@@ -996,11 +1015,11 @@ def ai_scan_en():
                         if 'Window' in str(blist):
                             ds = ds + 5
                         if len(blist) == 0:
-                            print('✔This file is currently not malicious')
+                            print('✔There are currently no malicious files')
                         else:
-                            print('✖Possibly malicious content: '+ str(blist))
+                            print('✖Suspicious file detected, malicious content: '+ str(blist))
                             print('============================================================================')
-                            print('✖Possible malicious degree: '+ str(ds))
+                            print('✖Malicious degree: '+ str(ds))
                 else:
                     print('✖Input file error, cannot have quotation marks')
     else:
@@ -1179,42 +1198,48 @@ def find_dirch_en(path):
     if trypath == -1:
         print('✖Input file error, file not selected')
     else:
-        blist = []
-        bflist = []
-        flist = []
-        for fd in os.listdir(path):
-            fullpath = os.path.join(path,fd)
-            if os.path.isdir(fullpath):
-                print('Folder:',fullpath)
-                find_dirch(fullpath)
-            else:
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('Scanning: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    print('===========================================================================')
-                    input('✖Read error: Unauthorized or unsupported file, press Enter to continue')
-        print('===========================================================================')
-        print('✔There are currently no malicious files: ' + str(flist))
-        print('')
-        print('✖Currently possible malicious files: ' + str(bflist))
-        print('===========================================================================')
-        blist = []
-        bflist = []
-        flist = []
+        try:
+            blist = []
+            bflist = []
+            flist = []
+            for fd in os.listdir(path):
+                fullpath = os.path.join(path,fd)
+                if os.path.isdir(fullpath):
+                    print('Folder:',fullpath)
+                    find_dirch_en(fullpath)
+                else:
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('Scanning: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                            bfl = open('VriusFile.txt','a+',encoding="utf-8")
+                            bfl.write('''Vrius:
+'''+str(fullpath)+'''
+''')
+                    except:
+                        pass
+            print('===========================================================================')
+            print('✔There are currently no malicious files: ' + str(flist))
+            print('')
+            print('✖Suspicious files detected: ' + str(bflist))
+            print('===========================================================================')
+            blist = []
+            bflist = []
+            flist = []
+        except:
+            pass
 def startpach_en():
     flist = []
     bflist = []
@@ -1223,43 +1248,46 @@ def startpach_en():
     if trypath == -1:
         print('✖Input file error, file not selected')
     else:
-        files = listdir(path)
-        for f in files:
-            blist = []
-            dblist = []
-            fullpath = join(path, f)
-            if isfile(fullpath):
-                try:
-                    f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
-                    print('Scanning: ' + str(fullpath))
-                    file = f.read()
-                    m = 100 / t
-                    for a in range(ti):          #檢查
-                        math = int(m * a + m)
-                        if ti_list[a] in file and a != ti - 1:
-                            blist.append(ti_list[a])
-                            continue
-                        if ti_list[a] not in file:
-                            continue
-                    for a in range(t):          #檢查
-                        math = int(m * a + m)
-                        if t_list[a] in file and a != t - 1:
-                            blist.append(t_list[a])
-                            continue
-                        if t_list[a] not in file:
-                            continue
-                    if len(blist) == 0:
-                        flist.append(fullpath)
-                    else:
-                        bflist.append(fullpath)
-                except:
-                    pass
-            elif isdir(fullpath):
-                continue
-        print('===========================================================================')
-        print('✔This file is currently not malicious: ' + str(flist))
-        print('')
-        print('✖✖Possibly malicious content:: ' + str(bflist))
+        try:
+            files = listdir(path)
+            for f in files:
+                blist = []
+                dblist = []
+                fullpath = join(path, f)
+                if isfile(fullpath):
+                    try:
+                        f = open(fullpath,'r',encoding="iso-8859-1") #開啟檔案
+                        print('Scanning: ' + str(fullpath))
+                        file = f.read()
+                        m = 100 / t
+                        for a in range(ti):          #檢查
+                            math = int(m * a + m)
+                            if ti_list[a] in file and a != ti - 1:
+                                blist.append(ti_list[a])
+                                continue
+                            if ti_list[a] not in file:
+                                continue
+                        for a in range(t):          #檢查
+                            math = int(m * a + m)
+                            if t_list[a] in file and a != t - 1:
+                                blist.append(t_list[a])
+                                continue
+                            if t_list[a] not in file:
+                                continue
+                        if len(blist) == 0:
+                            flist.append(fullpath)
+                        else:
+                            bflist.append(fullpath)
+                    except:
+                        pass
+                elif isdir(fullpath):
+                    continue
+            print('===========================================================================')
+            print('✔There are currently no malicious files: ' + str(flist))
+            print('')
+            print('✖Suspicious files detected: ' + str(bflist))
+        except:
+            pass
 def startfich_en():
     blist = []
     dblist = []
@@ -1294,9 +1322,9 @@ def startfich_en():
                             if t_list[a] not in file:
                                 continue
                         if len(blist) == 0:
-                            print('✔This file is currently not malicious')
+                            print('✔There are currently no malicious files')
                         else:
-                            print('✖Possibly malicious content: '+ str(blist))
+                            print('✖Suspicious file detected file, malicious content: '+ str(blist))
                 else:
                     print('✖input file error, can not have quotes')
     else:
@@ -1432,19 +1460,19 @@ def ask_admin_en():
             print('===========================================================================')
             try:
                 if co == str('pyas -a'):
-                    print('Copyright © 2020-2021 PYAS')
+                    print('Copyright © 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('Press Enter to return')
                 elif co == str('PYAS -a'):
-                    print('Copyright © 2020-2021 PYAS')
+                    print('Copyright © 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('Press Enter to return')
                 elif co == str('pyas - a'):
-                    print('Copyright © 2020-2021 PYAS')
+                    print('Copyright © 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('Press Enter to return')
                 elif co == str('PYAS - a'):
-                    print('Copyright © 2020-2021 PYAS')
+                    print('Copyright © 2020-2021 PYAS 1.4 SP1')
                     print('===========================================================================')
                     input('Press Enter to return')
                 elif co == str('pyas -d'):
@@ -1632,7 +1660,7 @@ def ask_admin_en():
                 input('✖Error: The content you entered is wrong or the program is wrong, press Enter to return')
     else:
         print('')
-        print('============ PYAS antivirus software Pro, version: 1.3 (Stable) ===========')
+        print('======== PYAS Antivirus Software Pro, Version: 1.4 beta (unstable) ========')
         print('')
         print('Copyright © 2020-2021 PYAS')
         print('')
@@ -1646,3 +1674,6 @@ def ask_admin_en():
         input('This program requires administrator rights, press Enter to continue')
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 8)
 ask_admin()
+#PYAS 1.4_SP1 (Beta) 2021/09
+#Coding With Python 3.9 UTF-8
+#Copyright© 2020-2021 PYAS

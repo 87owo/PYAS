@@ -129,15 +129,16 @@ def antivirus_immediately(app):
     while not done:
         run = subprocess.call('tasklist |find /i "'+str(app)+'"',shell=True)
         if run == 0:
-            textPad.insert("insert", '該程序已找到 "'+str(app)+'"')
-            of = os.popen('taskkill /f /im '+str(app))
-            ofr = of.read()
-            of.close()
-            textPad.insert("insert", ofr)
+            #textPad.insert("insert", 'The program has been found "'+str(app)+'"')
+            of = subprocess.call('taskkill /f /im '+str(app),shell=True)
+            if of == 0:
+                textPad.insert("insert", '✔成功: 執行成功。')
+            else:
+                textPad.insert("insert", '✖錯誤: 執行失敗。')
             done = True
             break
         else:
-            textPad.insert("insert", '找不到該程序 "'+str(app)+'"')
+            textPad.insert("insert", '找不到程序 "'+str(app)+'"')
             done = True
             break
 
@@ -158,11 +159,12 @@ def web_queries():
 
 def reset_network():
     textPad.delete(1.0,END)
-    of = os.popen('netsh winsock reset')
-    ofr = of.read()
-    of.close()
-    textPad.insert("insert", ofr)
-
+    runc = subprocess.call("netsh winsock reset", shell=True)
+    if runc == 0:
+        textPad.insert("insert", '✔成功: 執行成功。')
+    else:
+        textPad.insert("insert", '✖錯誤: 執行失敗。')
+        
 def input_find_files():
     textPad.delete(1.0,END)
     if askokcancel('Warning','''執行過程需要一段時間，程式可能
@@ -214,11 +216,16 @@ def find_files_info(ffile):
         findfile('Y:/',ffile,fss,start)
         findfile('Z:/',ffile,fss,start)
         end = time.time()
-        print('===========================================================================')
-        print('總共耗時: '+str(end - start)+' 秒')
-        print('===========================================================================')
-        input('按 Enter 鍵結束')
-        os.system('cls')
+        ft = open('PYASF.txt','r')
+        fe = ft.read()
+        ft.close()
+        textPad.insert("insert", '''
+尋找結果: '''+'''
+============================================================================
+
+'''+str(fe)+'''============================================================================
+總共耗時: '''+str(end - start)+''' 秒''')
+        os.remove('PYASF.txt')
     except:
         pass
     
@@ -233,7 +240,6 @@ def findfile(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    print('找到檔案: '+str(fullpath))
                     #try:
                         #f = open(fullpath, 'r')
                         #text = f.readline()
@@ -241,8 +247,12 @@ def findfile(path,ffile,fss,start):
                         #print('預覽內容: '+text)
                     #except:
                         #print('預覽內容: ✖錯誤，這個檔案不支援預覽')
-                    print('建立日期: '+str(date))
-                    print(' ')
+                    ft = open('PYASF.txt','a')
+                    ft.write('''找到檔案: '''+str(fullpath)+'''
+建立日期: '''+str(date)+'''
+
+''')
+                    ft.close()
                     continue
     except:
         pass
@@ -251,27 +261,34 @@ def repair_system_files():
     textPad.delete(1.0,END)
     if askokcancel('Warning','''執行過程需要一段時間，程式可能
 會暫時性停止運作，是否繼續?''', default="cancel", icon="warning"):
-        showinfo('Information','''執行過程需要一段時間，請耐心等待。''')
-        os.system('''sfc /scannow''')
-        print('===========================================================================')
-        input('按 Enter 鍵結束')
-        os.system('cls')
+        runc = os.system('''sfc /scannow''')
+        if runc == 0:
+            textPad.insert("insert", '✔成功: 執行成功。')
+        else:
+            textPad.insert("insert", '✖錯誤: 執行失敗。')
+            os.system('cls')
     else:
         pass
-
+    
 def start_safe_mode():
-    textPad.delete(1.0,END)
-    os.system('net user administrator /active:yes')
-    os.system('bcdedit /set {default} safeboot minimal')
-    time.sleep(1)
-    os.system('shutdown -r -t 0')
+    if askokcancel('Warning','''啟動安全模式需要重新啟動，是否繼續?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:yes')
+        os.system('bcdedit /set {default} safeboot minimal')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
     
 def close_safe_Mode():
-    textPad.delete(1.0,END)
-    os.system('net user administrator /active:no')
-    os.system('bcdedit /deletevalue {current} safeboot')
-    time.sleep(1)
-    os.system('shutdown -r -t 0')
+    if askokcancel('Warning','''關閉安全模式需要重新啟動，是否繼續?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:no')
+        os.system('bcdedit /deletevalue {current} safeboot')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
 
 def input_custom_cmd_command():
     if askokcancel('Warning','''自訂指令有可能讓心懷不軌的使用者取得
@@ -293,11 +310,10 @@ def input_custom_cmd_command():
         pass
 
 def custom_cmd_command(cmd):
-    os.system(cmd)
-    print('===========================================================================')
-    input('按 Enter 鍵結束')
-    os.system('cls')
-
+    textPad.delete(1.0,END)
+    subprocess.run(cmd, shell=True)
+    textPad.insert("insert", '執行完畢。')
+    
 def input_encrypt():
     textPad.delete(1.0,END)
     t=Toplevel(root)
@@ -378,12 +394,15 @@ def is_admin():
 def traditional_chinese():
     if is_admin():
         try:
+            ft = open('PYASL.ini','w')
+            ft.write('''traditional_chinese''')
+            ft.close()
             menubar = Menu(root)
             root.config(menu = menubar)
             filemenu = Menu(menubar,tearoff=False)
             filemenu.add_command(label = '智能掃描',command = smart_scan)
             filemenu.add_command(label = '智能分析',command = ai_scan)
-            menubar.add_cascade(label = '掃描',menu = filemenu)
+            menubar.add_cascade(label = ' 掃描',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
             filemenu2.add_command(label = '立即殺毒',command = input_antivirus_immediately)
             #filemenu2.add_command(label = '偵測殺毒',command = detect_antivirus)
@@ -399,6 +418,8 @@ def traditional_chinese():
             sub2menu.add_separator()
             sub2menu.add_command(label = '啟動安全模式',command = start_safe_mode)
             sub2menu.add_command(label = '關閉安全模式',command = close_safe_Mode)
+            sub2menu.add_separator()
+            sub2menu.add_command(label="自訂 CMD 指令", command=input_custom_cmd_command)
             submenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='更多工具', menu=submenu, underline=0)
             submenu.add_command(label = '尋找檔案',command = input_find_files)
@@ -408,8 +429,6 @@ def traditional_chinese():
             submenu.add_separator()
             submenu.add_command(label = '網路位置查詢',command = web_queries)
             submenu.add_command(label = '重置系統網絡',command = reset_network)
-            submenu.add_separator()
-            submenu.add_command(label="自訂 CMD 指令", command=input_custom_cmd_command)
             filemenu4 = Menu(menubar,tearoff=False)
             #filemenu4.add_command(label = '修復CMD權限',command = fix_cmd_permissions)
             #menubar.add_cascade(label = '系統',menu = filemenu4)
@@ -564,7 +583,7 @@ def input_antivirus_immediately_en():
     e.focus_set()
     c=IntVar()
     fss = 0
-    Button(t,text='OK',command=lambda :antivirus_immediately(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
+    Button(t,text='OK',command=lambda :antivirus_immediately_en(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     
 def antivirus_immediately_en(app):
     textPad.delete(1.0,END)
@@ -572,11 +591,12 @@ def antivirus_immediately_en(app):
     while not done:
         run = subprocess.call('tasklist |find /i "'+str(app)+'"',shell=True)
         if run == 0:
-            textPad.insert("insert", 'The program has been found "'+str(app)+'"')
-            of = os.popen('taskkill /f /im '+str(app))
-            ofr = of.read()
-            of.close()
-            textPad.insert("insert", ofr)
+            #textPad.insert("insert", 'The program has been found "'+str(app)+'"')
+            of = subprocess.call('taskkill /f /im '+str(app),shell=True)
+            if of == 0:
+                textPad.insert("insert", '✔Success: The execution was successful.')
+            else:
+                textPad.insert("insert", '✖Error: The execution failed.')
             done = True
             break
         else:
@@ -602,10 +622,11 @@ def web_queries_en():
 
 def reset_network_en():
     textPad.delete(1.0,END)
-    of = os.popen('netsh winsock reset')
-    ofr = of.read()
-    of.close()
-    textPad.insert("insert", ofr)
+    runc = subprocess.call("netsh winsock reset", shell=True)
+    if runc == 0:
+        textPad.insert("insert", '✔Success: The execution was successful.')
+    else:
+        textPad.insert("insert", '✖Error: The execution failed.')
     
 def input_find_files_en():
     textPad.delete(1.0,END)
@@ -659,11 +680,16 @@ def find_files_info_en(ffile):
         findfile_en('Y:/',ffile,fss,start)
         findfile_en('Z:/',ffile,fss,start)
         end = time.time()
-        print('===========================================================================')
-        print('Total time consuming: '+str(end - start)+' sec')
-        print('===========================================================================')
-        input('Press Enter to finish')
-        os.system('cls')
+        ft = open('PYASF.txt','r')
+        fe = ft.read()
+        ft.close()
+        textPad.insert("insert", '''
+Find result: '''+'''
+============================================================================
+
+'''+str(fe)+'''============================================================================
+Time consuming: '''+str(end - start)+''' sec''')
+        os.remove('PYASF.txt')
     except:
         pass
     
@@ -678,7 +704,6 @@ def findfile_en(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    print('File found: '+str(fullpath))
                     #try:
                         #f = open(fullpath, 'r')
                         #text = f.readline()
@@ -686,8 +711,12 @@ def findfile_en(path,ffile,fss,start):
                         #print('預覽內容: '+text)
                     #except:
                         #print('預覽內容: ✖錯誤，這個檔案不支援預覽')
-                    print('Create date: '+str(date))
-                    print(' ')
+                    ft = open('PYASF.txt','a')
+                    ft.write('''File found: '''+str(fullpath)+'''
+Create date: '''+str(date)+'''
+
+''')
+                    ft.close()
                     continue
     except:
         pass
@@ -696,27 +725,34 @@ def repair_system_files_en():
     textPad.delete(1.0,END)
     if askokcancel('Warning','''The execution process takes a while, and the program
 may temporarily stop working. Do you want to continue?''', default="cancel", icon="warning"):
-        showinfo('Information','''The execution process will take a while, please be patient.''')
-        os.system('''sfc /scannow''')
-        print('===========================================================================')
-        input('按 Enter 鍵結束')
-        os.system('cls')
+        runc = os.system('''sfc /scannow''')
+        if runc == 0:
+            textPad.insert("insert", '✔Success: The execution was successful.')
+        else:
+            textPad.insert("insert", '✖Error: The execution failed.')
+            os.system('cls')
     else:
         pass
 
 def start_safe_mode_en():
-    textPad.delete(1.0,END)
-    os.system('net user administrator /active:yes')
-    os.system('bcdedit /set {default} safeboot minimal')
-    time.sleep(1)
-    os.system('shutdown -r -t 0')
+    if askokcancel('Warning','''A restart is required to start safe mode. Do you want to continue?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:yes')
+        os.system('bcdedit /set {default} safeboot minimal')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
     
 def close_safe_Mode_en():
-    textPad.delete(1.0,END)
-    os.system('net user administrator /active:no')
-    os.system('bcdedit /deletevalue {current} safeboot')
-    time.sleep(1)
-    os.system('shutdown -r -t 0')
+    if askokcancel('Warning','''Turning off safe mode requires a restart. Do you want to continue?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:no')
+        os.system('bcdedit /deletevalue {current} safeboot')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
     
 def input_custom_cmd_command_en():
     if askokcancel('Warning','''It is possible that the custom command may
@@ -739,10 +775,9 @@ to this computer. Do you want to continue?''', default="cancel", icon="warning")
         pass
 
 def custom_cmd_command_en(cmd):
-    os.system(cmd)
-    print('===========================================================================')
-    input('Press Enter to end')
-    os.system('cls')
+    textPad.delete(1.0,END)
+    subprocess.run(cmd, shell=True)
+    textPad.insert("insert", 'Done.')
 
 def input_encrypt_en():
     textPad.delete(1.0,END)
@@ -825,6 +860,9 @@ def is_admin():
 def english():
     if is_admin():
         try:
+            ft = open('PYASL.ini','w')
+            ft.write('''english''')
+            ft.close()
             menubar = Menu(root)
             root.config(menu = menubar)
             filemenu = Menu(menubar,tearoff=False)
@@ -846,6 +884,8 @@ def english():
             sub2menu.add_separator()
             sub2menu.add_command(label = 'Start safe mode',command = start_safe_mode_en)
             sub2menu.add_command(label = 'Close safe mode',command = close_safe_Mode_en)
+            sub2menu.add_separator()
+            sub2menu.add_command(label="Custom CMD command", command=input_custom_cmd_command_en)
             submenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='more options', menu=submenu, underline=0)
             submenu.add_command(label = 'Find Files',command = input_find_files_en)
@@ -855,8 +895,6 @@ def english():
             submenu.add_separator()
             submenu.add_command(label = 'Network location query',command = web_queries_en)
             submenu.add_command(label = 'Reset system network',command = reset_network_en)
-            submenu.add_separator()
-            submenu.add_command(label="Custom CMD command", command=input_custom_cmd_command_en)
             filemenu4 = Menu(menubar,tearoff=False)
             #filemenu4.add_command(label = '修復CMD權限',command = fix_cmd_permissions)
             #menubar.add_cascade(label = '系統',menu = filemenu4)
@@ -886,4 +924,18 @@ Error info: '''+str(e))
     else:
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 8)
 
-traditional_chinese()
+def setup_pyas():
+    try:
+        ft = open('PYASL.ini','r')
+        fe = ft.read()
+        ft.close()
+        if fe == 'english':
+            english()
+        elif fe == 'traditional_chinese':
+            traditional_chinese()
+        else:
+            english()
+    except:
+        english()
+        
+setup_pyas()

@@ -1,7 +1,7 @@
 PYAS ( Python 免費殺毒軟體 )
 
-PYAS 免費防毒軟體使用 Python 開發，以 CMD 視窗執行，提供超過 20 種功能，
-檔案大小不到 200 MB，且不會拖慢您的電腦速度，也不造成干擾。
+PYAS 免費防毒軟體使用 Python 程式語言開發，檔案大小不到 200 MB，
+且不會拖慢您的電腦速度，也不造成干擾，是目前佔用空間最小的軟體之一。
 
 網站:
 
@@ -12,15 +12,15 @@ https://github.com/87owo/PYAS
 
 Wix website ( https://www.wix.com ) , 
 Len Stevens ( https://github.com/Len-Stevens/Python-Antivirus )
+Microsoft MSERT ( https://docs.microsoft.com/en-us/windows/security/threat-protection/intelligence/safety-scanner-download )
 
 ==================================================================
 
 PYAS ( Python Antivirus software Free )
 
-PYAS free anti-virus software is developed in Python and executed 
-in the CMD window, providing more than 20 functions.The file size 
-is less than 200 MB, and will not slow down your computer speed, 
-and will not cause interference.
+PYAS free antivirus software is developed using the Python programming language. 
+The file size is less than 200 MB, and it will not slow down your computer speed or cause interference.
+It is currently one of the smallest software that takes up space.
 
 Website:
 
@@ -31,3 +31,4 @@ We are especially grateful:
 
 Wix website ( https://www.wix.com ) , 
 Len Stevens ( https://github.com/Len-Stevens/Python-Antivirus )
+Microsoft MSERT ( https://docs.microsoft.com/en-us/windows/security/threat-protection/intelligence/safety-scanner-download )

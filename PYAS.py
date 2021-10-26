@@ -38,7 +38,34 @@ scroll.pack(side=RIGHT,fill=Y)
 group = Label(root, text="Copyright© 2020-2021 PYAS Python Antivirus Software",padx=5, pady=2)
 group.pack(anchor='e')
 
+def pyas_license_terms():
+    textPad.delete(1.0,END)
+    textPad.insert("insert", '''PYTHON ANTIVIRUS SOFTWARE LICENSE TERMS
+#Use PYAS anti-virus software and services means that you accept these terms. If you do not accept them, please do not use them.
+#Use PYAS anti-virus software and services, if you comply with the PYAS anti-virus software license terms, you will have the following rights.
+1.License right to use PYAS anti-virus software.
+You can use the software on your device or use a copy of the software to design and develop the software.
+The software is forbidden to be sold or copied by others without permission. You can only use it to design and develop the software.
+2.Obtain genuine PYAS anti-virus software.
+You can get the software directly from the official website of PYAS antivirus software, or you can get it through the official GitHub.
+If you have obtained this software from a third-party application store that has not been authorized by the official website of PYAS antivirus software,
+Then we cannot guarantee that the software can be used normally, and we are not responsible for any related losses caused to you.
+Official website: https://xiaomi69ai.wixsite.com/pyas
+Official Git: https://github.com/87owo/PYAS
+3.Personal information and privacy protection.
+You can register your email and name on the official website of PYAS anti-virus software, which will be used for feedback contact.
+PYAS anti-virus software will obtain the computer system version and basic information, which will be used to optimize the operation of the software.
+The security of your equipment and personal data is very important to us, and we will never leak any of your personal information.
+4.Permission required to use PYAS anti-virus software.
+System administrator permissions
+Turn on target site permissions
+File read and write management permissions
+Command prompt execution permission
+Login editor management authority
+''')
+
 def microsoft_license_terms():
+    textPad.delete(1.0,END)
     textPad.insert("insert", '''MICROSOFT SOFTWARE LICENSE TERMS
 MICROSOFT SAFETY SCANNER 1.0
 These license terms are an agreement between Microsoft Corporation (or based on where you live, one of its affiliates) and you. Please read them. They apply to the software named above, which includes the media on which you received it, if any. The terms also apply to any Microsoft
@@ -110,18 +137,21 @@ def pyas_key(ipw):
         showerror('Error', '''密碼錯誤''')
 
 def ask_pro():
+    textPad.delete(1.0,END)
     if askokcancel('Pro','''此功能僅適用於專業版用戶，您要解鎖此功能嗎?''', default="ok"):
         input_pyas_key()
     else:
         pass
     
 def exe_ca():
+    textPad.delete(1.0,END)
     pe = pefile.PE(filedialog.askopenfilename())
     for section in pe.sections:
         textPad.insert("insert", section.Name, hex(section.VirtualAddress),
         hex(section.Misc_VirtualSize), section.SizeOfRawData)
         
 def exe_cb():
+    textPad.delete(1.0,END)
     pe = pefile.PE(filedialog.askopenfilename())
     for entry in pe.DIRECTORY_ENTRY_IMPORT:
         ft = open('PYASF.txt','a')
@@ -140,12 +170,14 @@ def exe_cb():
     ft.close()
     textPad.insert("insert",str(fe))
     os.remove('PYASF.txt')
+    
 def smart_scan():
     textPad.delete(1.0,END)
     f = open('FSCAN.bat','w',encoding="utf-8")
     f.write('''MSERT.exe /n''')
     f.close()
     os.system('start FSCAN.bat')
+    #os.remove('FSCAN.bat')
 
 def ai_scan():
     textPad.delete(1.0,END)
@@ -376,6 +408,7 @@ def repair_system_files():
         pass
     
 def start_safe_mode():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''啟動安全模式需要重新啟動，是否繼續?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         os.system('net user administrator /active:yes')
@@ -386,6 +419,7 @@ def start_safe_mode():
         pass
     
 def close_safe_Mode():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''關閉安全模式需要重新啟動，是否繼續?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         os.system('net user administrator /active:no')
@@ -396,6 +430,7 @@ def close_safe_Mode():
         pass
 
 def input_custom_cmd_command():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''自訂指令有可能讓心懷不軌的使用者取得
 這個電腦的控制及存取權，是否繼續?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
@@ -415,6 +450,7 @@ def input_custom_cmd_command():
         pass
 
 def input_system_autorun():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''自訂指令有可能讓心懷不軌的使用者取得
 這個電腦的控制及存取權，是否繼續?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
@@ -497,6 +533,7 @@ def input_custom_regedit_command():
         pass
 
 def custom_regedit_command(path,cmd,reg,num):
+    textPad.delete(1.0,END)
     f = open('PYASR.reg','w',encoding="utf-8")
     f.write('''Windows Registry Editor Version 5.00
 ['''+str(path)+''']
@@ -540,6 +577,7 @@ def input_encrypt():
     Button(t,text='確定',command=lambda :encrypt(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
     
 def encrypt(e,e2):
+    textPad.delete(1.0,END)
     '''
     textPad.delete(1.0,END)
     ts = 1
@@ -578,6 +616,7 @@ def input_decrypt():
     Button(t,text='確定',command=lambda :decrypt(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
     
 def decrypt(e,e2):
+    textPad.delete(1.0,END)
     '''
     textPad.delete(1.0,END)
     ts = 1
@@ -594,10 +633,11 @@ def decrypt(e,e2):
     textPad.insert("insert", '您的解密內容: '+str(cryptocode.decrypt(e, e2)))
     
 def input_send_text():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''發送訊息需要對方開啟接收模式，是否繼續?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         t=Toplevel(root)
-        t.title('輸入文字')
+        t.title('發送訊息')
         t.geometry('260x90')
         t.transient(root)
         Label(t,text=' 輸入: ').grid(row=0,column=0,sticky='e')
@@ -622,21 +662,23 @@ def input_send_text():
         pass
     
 def send_text(message,HOST,PORT):
+    textPad.delete(1.0,END)
     try:
         #HOST = '127.0.0.1'        # IP地址
         #PORT = 50007              # 埠
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((HOST, PORT))
+            s.connect((HOST, int(PORT)))
             s.sendall(message.encode())
     except:
         showerror('Error', '''請先將準備接收的設備開啟接收模式''')
 
 def input_receive_text():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''等待接收過程需要一段時間，程式可能
 會暫時性停止運作，是否繼續?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         t=Toplevel(root)
-        t.title('輸入文字')
+        t.title('接收訊息')
         t.geometry('260x70')
         t.transient(root)
         Label(t,text=' 地址: ').grid(row=1,column=0,sticky='e')
@@ -656,6 +698,7 @@ def input_receive_text():
         pass
     
 def receive_text(HOST,PORT):
+    textPad.delete(1.0,END)
     max_connect = 5           # 最大連線數
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, int(PORT)))
@@ -761,6 +804,7 @@ def traditional_chinese():
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 8)
 
 def traditional_chinese_pro():
+    textPad.delete(1.0,END)
     if is_admin():
         try:
             ft = open('PYASL.ini','w')
@@ -832,8 +876,10 @@ def traditional_chinese_pro():
             aboutmenu.add_command(label = '關於我們',command = about)
             aboutmenu.add_command(label = '軟體版本',command = version)
             aboutmenu.add_separator()
-            aboutmenu.add_command(label = '許可條款',command = microsoft_license_terms)
-            #aboutmenu.add_command(label = 'PYAS許可條款',command = version)            
+            licmenu = Menu(aboutmenu,tearoff=False)
+            aboutmenu.add_cascade(label='許可條款', menu=licmenu, underline=0)
+            licmenu.add_command(label = 'PYAS 許可條款',command = pyas_license_terms)
+            licmenu.add_command(label = 'Microsoft 許可條款',command = microsoft_license_terms)
             menubar.add_cascade(label = '關於',menu = aboutmenu)
             root.mainloop()
         except Exception as e:
@@ -880,6 +926,7 @@ def smart_scan_en():
     f.write('''MSERT.exe /n''')
     f.close()
     os.system('start FSCAN.bat')
+    #os.remove('FSCAN.bat')
     
 def ai_scan_en():
     textPad.delete(1.0,END)
@@ -889,7 +936,7 @@ def ai_scan_en():
     myfile = filedialog.askopenfilename()
     trying = myfile.find('.')
     trying2 = myfile.find('/.')
-    trypat = myfile.find('/')
+    trypath = myfile.find('/')
     trydot = myfile.find('"')
     tryos = myfile.find('PYAS.py')
     if tryos == -1:
@@ -1323,12 +1370,13 @@ def system_autorun_en(cmd1,cmd2,cmd3,cmd4,cmd5):
     textPad.insert("insert", 'Finished.')
 
 def input_send_text_en():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''Sending a message requires the other party to turn
 on the receiving mode. Do you want to continue?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         t=Toplevel(root)
-        t.title('Input text')
-        t.geometry('260x110')
+        t.title('Send Message')
+        t.geometry('260x90')
         t.transient(root)
         Label(t,text=' Input: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
@@ -1356,17 +1404,18 @@ def send_text_en(message,HOST,PORT):
         #HOST = '127.0.0.1'        # IP地址
         #PORT = 50007              # 埠
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((HOST, PORT))
+            s.connect((HOST, int(PORT)))
             s.sendall(message.encode())
     except:
         showerror('Error', '''Please turn on the receiving mode of the receiving device first''')
 
 def input_receive_text_en():
+    textPad.delete(1.0,END)
     if askokcancel('Warning','''It takes a while to wait for the receiving process.
 The program may temporarily stop working. Do you want to continue?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         t=Toplevel(root)
-        t.title('Input text')
+        t.title('Receive Message')
         t.geometry('260x70')
         t.transient(root)
         Label(t,text=' IP: ').grid(row=1,column=0,sticky='e')
@@ -1386,6 +1435,7 @@ The program may temporarily stop working. Do you want to continue?''', default="
         pass
     
 def receive_text_en(HOST,PORT):
+    textPad.delete(1.0,END)
     max_connect = 5           # 最大連線數
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, int(PORT)))
@@ -1491,6 +1541,7 @@ Error info: '''+str(e))
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 8)
 
 def english_pro():
+    textPad.delete(1.0,END)
     if is_admin():
         try:
             ft = open('PYASL.ini','w')
@@ -1562,8 +1613,10 @@ def english_pro():
             aboutmenu.add_command(label = 'About us',command = about)
             aboutmenu.add_command(label = 'Software version',command = version)
             aboutmenu.add_separator()
-            aboutmenu.add_command(label = 'license terms',command = microsoft_license_terms)
-            #aboutmenu.add_command(label = 'PYAS許可條款',command = version) 
+            licmenu = Menu(aboutmenu,tearoff=False)
+            aboutmenu.add_cascade(label='license terms', menu=licmenu, underline=0)
+            licmenu.add_command(label = 'PYAS license terms',command = pyas_license_terms)
+            licmenu.add_command(label = 'Microsoft license terms',command = microsoft_license_terms)
             menubar.add_cascade(label = 'About',menu = aboutmenu)
             root.mainloop()
         except Exception as e:

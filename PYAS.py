@@ -18,15 +18,27 @@ import cryptocode
 import tkinter as tk
 from tkinter import *
 from os import listdir
+#import pyinstaller_versionfile
 from tkinter import filedialog
 from tkinter.messagebox import *
 from functools import partial
 from os.path import isfile, isdir, join
 from Expansion_pack.list import *
 from Expansion_pack import *
-
+'''
+pyinstaller_versionfile.create_versionfile(
+    output_file="versionfile.txt",
+    version="1.6.3",
+    company_name="PYAS",
+    file_description="Python Antivirus Software",
+    internal_name="PYAS",
+    legal_copyright="Copyright© 2020-2021 PYAS Python Antivirus Software.",
+    original_filename="PYAS.exe",
+    product_name="PYAS"
+)
+'''
 root = Tk()
-root.title('PYAS V1.6')
+root.title('PYAS V1.6.3')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -195,7 +207,7 @@ def ai_scan():
             textPad.insert("insert", '✖輸入檔案錯誤，未選擇檔案')
         else:
             if trying == -1:
-                print('✖輸入檔案錯誤，沒有副檔名')
+                textPad.insert("insert", '✖輸入檔案錯誤，沒有副檔名')
             elif trying == 0:
                 textPad.insert("insert", '✖輸入檔案錯誤，沒有正檔名')
             else:
@@ -718,7 +730,7 @@ def about():
 版權所有© 2020-2021 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.6')
+    showinfo('Version','軟體版本: PYAS V1.6.3')
 
 def is_admin():
     try:
@@ -944,7 +956,7 @@ def ai_scan_en():
             textPad.insert("insert", '✖Input file error, file not selected')
         else:
             if trying == -1:
-                print('✖Input file error, no correct file name')
+                textPad.insert("insert", '✖Input file error, no correct file name')
             elif trying == 0:
                 textPad.insert("insert", '✖Input file error, no correct file name')
             else:
@@ -1455,7 +1467,7 @@ def about_en():
 Copyright© 2020-2021 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.6')
+    showinfo('Version','Software Version: PYAS V1.6.3')
 
 def is_admin():
     try:
@@ -1529,8 +1541,8 @@ def english():
             sit2menu.add_command(label="English", command=english)
             aboutmenu = Menu(menubar,tearoff=False)
             #aboutmenu.add_command(label = '官方網站',command = website)
-            aboutmenu.add_command(label = 'About us',command = about)
-            aboutmenu.add_command(label = 'Software version',command = version)
+            aboutmenu.add_command(label = 'About us',command = about_en)
+            aboutmenu.add_command(label = 'Software version',command = version_en)
             menubar.add_cascade(label = 'About',menu = aboutmenu)
             root.mainloop()
         except Exception as e:
@@ -1610,8 +1622,8 @@ def english_pro():
             sit2menu.add_command(label="English", command=english_pro)
             aboutmenu = Menu(menubar,tearoff=False)
             #aboutmenu.add_command(label = '官方網站',command = website)
-            aboutmenu.add_command(label = 'About us',command = about)
-            aboutmenu.add_command(label = 'Software version',command = version)
+            aboutmenu.add_command(label = 'About us',command = about_en)
+            aboutmenu.add_command(label = 'Software version',command = version_en)
             aboutmenu.add_separator()
             licmenu = Menu(aboutmenu,tearoff=False)
             aboutmenu.add_cascade(label='license terms', menu=licmenu, underline=0)

@@ -14,6 +14,7 @@ import hashlib
 import getpass
 import json
 import stat
+import threading
 import cryptocode
 import tkinter as tk
 from tkinter import *
@@ -28,7 +29,7 @@ from Expansion_pack import *
 '''
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version="1.6.3",
+    version="1.6.4",
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
@@ -38,7 +39,7 @@ pyinstaller_versionfile.create_versionfile(
 )
 '''
 root = Tk()
-root.title('PYAS V1.6.3')
+root.title('PYAS V1.6.4')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -124,6 +125,15 @@ This limitation applies to
 It also applies even if Microsoft knew or should have known about the possibility of the damages. The above limitation or exclusion may not apply to you because your country may not allow the exclusion or limitation of incidental, consequential or other damages.
 ''')
 
+lock = threading.Lock()
+
+def threading_cmd(tcmd):
+    stcmd=threading.Thread(target=tcmd)
+    stcmd.start()
+    #stcmd.join()
+    #lock.acquire()
+    #lock.release()
+    
 def input_pyas_key():
     textPad.delete(1.0,END)
     t=Toplevel(root)
@@ -192,6 +202,7 @@ def smart_scan():
     #os.remove('FSCAN.bat')
 
 def ai_scan():
+    lock.acquire()
     textPad.delete(1.0,END)
     blist = []
     dblist = []
@@ -251,7 +262,12 @@ def ai_scan():
                         if len(blist) == 0:
                             textPad.insert("insert", '✔此檔案目前沒有高危險行為')
                         else:
-                            textPad.insert("insert", '✖已檢測到可疑行為，可疑內容: '+ str(blist))
+                            textPad.insert("insert", '''
+✖已檢測到可疑行為，可疑內容:
+============================================================================
+
+'''+ str(''',
+'''.join(blist))+'.')
                 else:
                     textPad.insert("insert", '✖輸入檔案錯誤，不能有引號')
     else:
@@ -730,7 +746,7 @@ def about():
 版權所有© 2020-2021 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.6.3')
+    showinfo('Version','軟體版本: PYAS V1.6.4')
 
 def is_admin():
     try:
@@ -1000,12 +1016,16 @@ def ai_scan_en():
                         if len(blist) == 0:
                             textPad.insert("insert", '✔There are currently no high-risk behaviors in this file')
                         else:
-                            textPad.insert("insert", '✖Suspicious behavior has been detected, Suspicious content: '+ str(blist))
+                            textPad.insert("insert", '''
+✖Suspicious behavior has been detected, Suspicious content:
+============================================================================
+
+'''+ str(''',
+'''.join(blist))+'.')
                 else:
                     textPad.insert("insert", '✖Input file error, cannot have quotation marks')
     else:
         textPad.insert("insert", 'Unable to open system file')
-
 def input_antivirus_immediately_en():
     global root,textPad
     textPad.delete(1.0,END)
@@ -1467,7 +1487,7 @@ def about_en():
 Copyright© 2020-2021 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.6.3')
+    showinfo('Version','Software Version: PYAS V1.6.4')
 
 def is_admin():
     try:
@@ -1651,5 +1671,5 @@ def setup_pyas():
             english_pro()
     except:
         english_pro()
-        
+
 setup_pyas()

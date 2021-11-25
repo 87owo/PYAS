@@ -29,7 +29,7 @@ from Expansion_pack import *
 '''
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version="1.6.4",
+    version="1.6.5",
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
@@ -39,7 +39,7 @@ pyinstaller_versionfile.create_versionfile(
 )
 '''
 root = Tk()
-root.title('PYAS V1.6.4')
+root.title('PYAS V1.6.5')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -202,7 +202,6 @@ def smart_scan():
     #os.remove('FSCAN.bat')
 
 def ai_scan():
-    lock.acquire()
     textPad.delete(1.0,END)
     blist = []
     dblist = []
@@ -275,6 +274,10 @@ def ai_scan():
         
 def input_antivirus_immediately():
     textPad.delete(1.0,END)
+    try:
+        textPad.insert("insert", subprocess.getoutput('tasklist'))
+    except:
+        pass
     t=Toplevel(root)
     t.title('檔案名稱')
     t.geometry('260x40')
@@ -292,7 +295,7 @@ def antivirus_immediately(app):
     textPad.delete(1.0,END)
     done = False
     while not done:
-        run = subprocess.call('tasklist |find /i "'+str(app)+'"',shell=True)
+        run = subprocess.call('tasklist |find /i "'+str(app)+'"')
         if run == 0:
             #textPad.insert("insert", 'The program has been found "'+str(app)+'"')
             of = subprocess.call('taskkill /f /im '+str(app),shell=True)
@@ -746,7 +749,7 @@ def about():
 版權所有© 2020-2021 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.6.4')
+    showinfo('Version','軟體版本: PYAS V1.6.5')
 
 def is_admin():
     try:
@@ -1029,6 +1032,10 @@ def ai_scan_en():
 def input_antivirus_immediately_en():
     global root,textPad
     textPad.delete(1.0,END)
+    try:
+        textPad.insert("insert", subprocess.getoutput('tasklist'))
+    except:
+        pass
     t=Toplevel(root)
     t.title('File Name')
     t.geometry('260x40')
@@ -1487,7 +1494,7 @@ def about_en():
 Copyright© 2020-2021 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.6.4')
+    showinfo('Version','Software Version: PYAS V1.6.5')
 
 def is_admin():
     try:

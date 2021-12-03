@@ -1,9 +1,11 @@
 import os
+import cv2
 import time
 import random
 import string
 import sys
 import ctypes
+import psutil
 import shutil
 import socket
 import webbrowser
@@ -29,7 +31,7 @@ from Expansion_pack import *
 '''
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version="1.6.5",
+    version="1.7.0",
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
@@ -39,7 +41,7 @@ pyinstaller_versionfile.create_versionfile(
 )
 '''
 root = Tk()
-root.title('PYAS V1.6.5')
+root.title('PYAS V1.7.0')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -133,7 +135,35 @@ def threading_cmd(tcmd):
     #stcmd.join()
     #lock.acquire()
     #lock.release()
-    
+
+def camera_is_open_check():
+    textPad.delete(1.0,END)
+    try:
+        cap = cv2.VideoCapture(0)
+        ret, frame = cap.read()
+        if ret:
+            textPad.insert("insert", '✔當前攝像頭屬於關閉狀態。')
+            cap.release()
+        else:
+            textPad.insert("insert", '✖當前攝像頭已被其他應用程式占用，可能會有隱私風險。')
+            cap.release()
+    except:
+        textPad.insert("insert", '✖當前攝像頭檢測異常，可能會有隱私風險。')
+        
+def camera_is_open_check_en():
+    textPad.delete(1.0,END)
+    try:
+        cap = cv2.VideoCapture(0)
+        ret, frame = cap.read()
+        if ret:
+            textPad.insert("insert", '✔The current camera is in the off state.')
+            cap.release()
+        else:
+            textPad.insert("insert", '✖The current camera is already occupied by other applications, and there may be privacy risks.')
+            cap.release()
+    except:
+        textPad.insert("insert", '✖The current camera detects abnormalities, and there may be privacy risks.')
+        
 def input_pyas_key():
     textPad.delete(1.0,END)
     t=Toplevel(root)
@@ -275,7 +305,14 @@ def ai_scan():
 def input_antivirus_immediately():
     textPad.delete(1.0,END)
     try:
-        textPad.insert("insert", subprocess.getoutput('tasklist'))
+        pids = psutil.pids()
+        textPad.insert("insert", '''
+已尋找到的檔案名稱:
+============================================================================
+''')
+        for pid in pids:
+            textPad.insert("insert",psutil.Process(pid).name()+'''
+''')
     except:
         pass
     t=Toplevel(root)
@@ -749,7 +786,7 @@ def about():
 版權所有© 2020-2021 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.6.5')
+    showinfo('Version','軟體版本: PYAS V1.7.0')
 
 def is_admin():
     try:
@@ -865,6 +902,11 @@ def traditional_chinese_pro():
             sub2menu.add_separator()
             sub2menu.add_command(label = '啟動安全模式',command = start_safe_mode)
             sub2menu.add_command(label = '關閉安全模式',command = close_safe_Mode)
+            insmenu = Menu(filemenu3,tearoff=False)
+            filemenu3.add_cascade(label='隱私工具', menu=insmenu, underline=0)
+            insmenu.add_command(label = '攝像頭隱私檢測',command = camera_is_open_check)
+            #insmenu.add_separator()
+            #insmenu.add_command(label = '持續增加中...')#,command = input_custom_cmd_command)
             submenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='更多工具', menu=submenu, underline=0)
             submenu.add_command(label = '尋找檔案',command = input_find_files)
@@ -1033,7 +1075,14 @@ def input_antivirus_immediately_en():
     global root,textPad
     textPad.delete(1.0,END)
     try:
-        textPad.insert("insert", subprocess.getoutput('tasklist'))
+        pids = psutil.pids()
+        textPad.insert("insert", '''
+File name found:
+============================================================================
+''')
+        for pid in pids:
+            textPad.insert("insert",psutil.Process(pid).name()+'''
+''')
     except:
         pass
     t=Toplevel(root)
@@ -1494,7 +1543,7 @@ def about_en():
 Copyright© 2020-2021 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.6.5')
+    showinfo('Version','Software Version: PYAS V1.7.0')
 
 def is_admin():
     try:
@@ -1610,6 +1659,9 @@ def english_pro():
             sub2menu.add_separator()
             sub2menu.add_command(label = 'Start safe mode',command = start_safe_mode_en)
             sub2menu.add_command(label = 'Close safe mode',command = close_safe_Mode_en)
+            insmenu = Menu(filemenu3,tearoff=False)
+            filemenu3.add_cascade(label='Privacy Tools', menu=insmenu, underline=0)
+            insmenu.add_command(label = 'Camera privacy detection',command = camera_is_open_check_en)
             submenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='More Tools', menu=submenu, underline=0)
             submenu.add_command(label = 'Find files',command = input_find_files_en)

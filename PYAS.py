@@ -17,8 +17,11 @@ import getpass
 import json
 import stat
 import threading
+import zipfile
+import platform
 import cryptocode
 import tkinter as tk
+from tkinter import ttk
 from tkinter import *
 from os import listdir
 #import pyinstaller_versionfile
@@ -31,17 +34,17 @@ from Expansion_pack import *
 '''
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version="1.7.0",
+    version="1.8.0",
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
-    legal_copyright="Copyright© 2020-2021 PYAS Python Antivirus Software.",
+    legal_copyright="Copyright© 2020-2022 PYAS Python Antivirus Software.",
     original_filename="PYAS.exe",
     product_name="PYAS"
 )
 '''
 root = Tk()
-root.title('PYAS V1.7.0')
+root.title('PYAS V1.8.0')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -50,7 +53,7 @@ scroll=Scrollbar(textPad)
 textPad.config(yscrollcommand=scroll.set)
 scroll.config(command=textPad.yview)
 scroll.pack(side=RIGHT,fill=Y)
-group = Label(root, text="Copyright© 2020-2021 PYAS Python Antivirus Software",padx=5, pady=2)
+group = Label(root, text="Copyright© 2020-2022 PYAS Python Antivirus Software",padx=5, pady=2)
 group.pack(anchor='e')
 
 def pyas_license_terms():
@@ -136,6 +139,32 @@ def threading_cmd(tcmd):
     #lock.acquire()
     #lock.release()
 
+def zip_dir():
+    path = filedialog.askdirectory()
+    zf = zipfile.ZipFile('{}.zip'.format(path), 'w', zipfile.ZIP_DEFLATED)
+    for root, dirs, files in os.walk(path):
+        for file_name in files:
+            zf.write(os.path.join(root, file_name))
+
+def computer_info():
+    textPad.delete(1.0,END)
+    textPad.insert("insert", '''
+系統版本資訊:
+============================================================================
+''')
+    textPad.insert("insert", platform.platform())
+    textPad.insert("insert", '''
+''')
+    textPad.insert("insert", platform.architecture())
+    textPad.insert("insert", '''
+''')
+    textPad.insert("insert", platform.node())
+    textPad.insert("insert", '''
+''')
+    textPad.insert("insert", platform.processor())
+    textPad.insert("insert", '''
+''')
+
 def camera_is_open_check():
     textPad.delete(1.0,END)
     try:
@@ -199,6 +228,7 @@ def exe_ca():
     textPad.delete(1.0,END)
     pe = pefile.PE(filedialog.askopenfilename())
     for section in pe.sections:
+        root.update()
         textPad.insert("insert", section.Name, hex(section.VirtualAddress),
         hex(section.Misc_VirtualSize), section.SizeOfRawData)
         
@@ -206,6 +236,7 @@ def exe_cb():
     textPad.delete(1.0,END)
     pe = pefile.PE(filedialog.askopenfilename())
     for entry in pe.DIRECTORY_ENTRY_IMPORT:
+        root.update()
         ft = open('PYASF.txt','a')
         ft.write(str(entry.dll)+'''
 ''')
@@ -259,11 +290,13 @@ def ai_scan():
                         for entry in pefile.PE(myfile).DIRECTORY_ENTRY_IMPORT:
                             #print(entry.dll)
                             for function in entry.imports:
+                                root.update()
                                 #print('\t', function.name)
                                 #fe = function.name
                                 fe.append(function.name)
                         cc = str(fe)
                         for a in range(at):
+                            root.update()
                             if at_list_winf[a] in str(cc) and a != t - 1:
                                 blist.append(at_list_winf[a])
                                 continue
@@ -332,7 +365,7 @@ def antivirus_immediately(app):
     textPad.delete(1.0,END)
     done = False
     while not done:
-        run = subprocess.call('tasklist |find /i "'+str(app)+'"')
+        run = subprocess.call('tasklist |find /i "'+str(app)+'"',shell=True)
         if run == 0:
             #textPad.insert("insert", 'The program has been found "'+str(app)+'"')
             of = subprocess.call('taskkill /f /im '+str(app),shell=True)
@@ -372,8 +405,8 @@ def reset_network():
         
 def input_find_files():
     textPad.delete(1.0,END)
-    if askokcancel('Warning','''執行過程需要一段時間，程式可能
-會暫時性停止運作，是否繼續?''', default="cancel", icon="warning"):
+    '''
+    if askokcancel('Warning','執行過程需要一段時間，程式可能會暫時性停止運作，是否繼續?', default="cancel", icon="warning"):
         t=Toplevel(root)
         t.title('檔案名稱')
         t.geometry('260x40')
@@ -388,6 +421,19 @@ def input_find_files():
         Button(t,text='確定',command=lambda :find_files_info(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     else:
         pass
+    '''
+    t=Toplevel(root)
+    t.title('檔案名稱')
+    t.geometry('260x40')
+    t.transient(root)
+    Label(t,text=' 檔名: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    c=IntVar()
+    fss = 0
+    Button(t,text='確定',command=lambda :find_files_info(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     
 def find_files_info(ffile):
     textPad.delete(1.0,END)
@@ -436,7 +482,9 @@ def find_files_info(ffile):
     
 def findfile(path,ffile,fss,start):
     try:
+        textPad.insert("insert", '正在尋找: '+str(path)+' ，請耐心等待。')
         for fd in os.listdir(path):
+            root.update()
             fullpath = os.path.join(path,fd)
             if os.path.isdir(fullpath):
                 #print('正在掃描: ',fullpath)
@@ -466,6 +514,7 @@ def repair_system_files():
     textPad.delete(1.0,END)
     if askokcancel('Warning','''執行過程需要一段時間，程式可能
 會暫時性停止運作，是否繼續?''', default="cancel", icon="warning"):
+        root.update()
         runc = os.system('''sfc /scannow''')
         if runc == 0:
             textPad.insert("insert", '✔成功: 執行成功。')
@@ -481,6 +530,28 @@ def start_safe_mode():
         textPad.delete(1.0,END)
         os.system('net user administrator /active:yes')
         os.system('bcdedit /set {default} safeboot minimal')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
+    
+def start_safe_mode_net():
+    textPad.delete(1.0,END)
+    if askokcancel('Warning','''啟動安全模式需要重新啟動，是否繼續?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:yes')
+        os.system('bcdedit /set {default} safeboot network')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
+    
+def start_safe_mode_cmd():
+    textPad.delete(1.0,END)
+    if askokcancel('Warning','''啟動安全模式需要重新啟動，是否繼續?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:yes')
+        os.system('bcdedit /set {default} safeboot minimal bcdedit /set {default} safebootalternateshell yes')
         time.sleep(1)
         os.system('shutdown -r -t 0')
     else:
@@ -524,13 +595,14 @@ def input_system_autorun():
         textPad.delete(1.0,END)
         t=Toplevel(root)
         t.title('自訂指令')
-        t.geometry('260x130')
+        t.geometry('260x40')
         t.transient(root)
-        Label(t,text=' 指令01: ').grid(row=0,column=0,sticky='e')
+        Label(t,text=' 指令: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
         e=Entry(t,width=20,textvariable=v)
         e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
         e.focus_set()
+        '''
         Label(t,text=' 指令02: ').grid(row=1,column=0,sticky='e')
         v2=StringVar()
         e2=Entry(t,width=20,textvariable=v2)
@@ -551,19 +623,19 @@ def input_system_autorun():
         e5=Entry(t,width=20,textvariable=v5)
         e5.grid(row=4,column=1,padx=2,pady=2,sticky='we')
         e5.focus_set()
+        '''
         c=IntVar()
         fss = 0
-        Button(t,text='確定',command=lambda :system_autorun(e.get(),e2.get(),e3.get(),e4.get(),e5.get())).grid(row=4,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='確定',command=lambda :system_autorun(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     else:
         pass
 
-def system_autorun(cmd1,cmd2,cmd3,cmd4,cmd5):
+def system_autorun(cmd1):
     textPad.delete(1.0,END)
     subprocess.run(cmd1, shell=True)
-    subprocess.run(cmd2, shell=True)
-    subprocess.run(cmd3, shell=True)
-    subprocess.run(cmd4, shell=True)
-    subprocess.run(cmd5, shell=True)
+    f = open('%AppData%\Microsoft\Windows\Start Menu\Programs\Startup\ARUN.cmd','w')
+    f.write(cmd1)
+    f.close()
     textPad.insert("insert", '執行完畢。')
 
 def input_custom_regedit_command():
@@ -769,11 +841,13 @@ def receive_text(HOST,PORT):
     textPad.delete(1.0,END)
     max_connect = 5           # 最大連線數
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        root.update()
         s.bind((HOST, int(PORT)))
         s.listen()
         conn, _ = s.accept()
         data = conn.recv(1024).decode()
         textPad.insert("insert",'接收到的內容: '+data)
+        root.update()
 
 def software_update():
     webbrowser.open('https://xiaomi69ai.wixsite.com/pyas')
@@ -783,10 +857,10 @@ def website():
     
 def about():
     showinfo('Copyright','''官方網站: https://xiaomi69ai.wixsite.com/pyas
-版權所有© 2020-2021 PYAS Python Antivirus Software''')
+版權所有© 2020-2022 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.7.0')
+    showinfo('Version','軟體版本: PYAS V1.8.0')
 
 def is_admin():
     try:
@@ -901,7 +975,11 @@ def traditional_chinese_pro():
             sub2menu.add_command(label = '修復系統權限',command = fix_cmd_permissions)
             sub2menu.add_separator()
             sub2menu.add_command(label = '啟動安全模式',command = start_safe_mode)
+            #sub2menu.add_command(label = '啟動網路安全模式',command = start_safe_mode_net)
+            #sub2menu.add_command(label = '啟動命令安全模式',command = start_safe_mode_cmd)
             sub2menu.add_command(label = '關閉安全模式',command = close_safe_Mode)
+            sub2menu.add_separator()
+            sub2menu.add_command(label = '系統版本資訊',command = computer_info)
             insmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='隱私工具', menu=insmenu, underline=0)
             insmenu.add_command(label = '攝像頭隱私檢測',command = camera_is_open_check)
@@ -993,6 +1071,25 @@ Do you want to unlock this feature?''', default="ok", icon="info"):
     else:
         pass
 
+def computer_info_en():
+    textPad.delete(1.0,END)
+    textPad.insert("insert", '''
+System version information:
+============================================================================
+''')
+    textPad.insert("insert", platform.platform())
+    textPad.insert("insert", '''
+''')
+    textPad.insert("insert", platform.architecture())
+    textPad.insert("insert", '''
+''')
+    textPad.insert("insert", platform.node())
+    textPad.insert("insert", '''
+''')
+    textPad.insert("insert", platform.processor())
+    textPad.insert("insert", '''
+''')
+    
 def smart_scan_en():
     textPad.delete(1.0,END)
     f = open('FSCAN.bat','w',encoding="utf-8")
@@ -1029,11 +1126,13 @@ def ai_scan_en():
                         for entry in pefile.PE(myfile).DIRECTORY_ENTRY_IMPORT:
                             #print(entry.dll)
                             for function in entry.imports:
+                                root.update()
                                 #print('\t', function.name)
                                 #fe = function.name
                                 fe.append(function.name)
                         cc = str(fe)
                         for a in range(at):
+                            root.update()
                             if at_list_winf[a] in str(cc) and a != t - 1:
                                 blist.append(at_list_winf[a])
                                 continue
@@ -1143,8 +1242,9 @@ def reset_network_en():
     
 def input_find_files_en():
     textPad.delete(1.0,END)
-    if askokcancel('Warning','''The execution process takes a while, and the program
-may temporarily stop working. Do you want to continue?''', default="cancel", icon="warning"):
+    '''
+    if askokcancel('Warning','The execution process takes a while, and the program
+may temporarily stop working. Do you want to continue?', default="cancel", icon="warning"):
         t=Toplevel(root)
         t.title('File Name')
         t.geometry('260x40')
@@ -1159,6 +1259,19 @@ may temporarily stop working. Do you want to continue?''', default="cancel", ico
         Button(t,text='OK',command=lambda :find_files_info_en(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     else:
         pass
+    '''
+    t=Toplevel(root)
+    t.title('File Name')
+    t.geometry('260x40')
+    t.transient(root)
+    Label(t,text=' File Name: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    c=IntVar()
+    fss = 0
+    Button(t,text='OK',command=lambda :find_files_info(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     
 def find_files_info_en(ffile):
     textPad.delete(1.0,END)
@@ -1207,7 +1320,9 @@ Time consuming: '''+str(end - start)+''' sec''')
     
 def findfile_en(path,ffile,fss,start):
     try:
+        textPad.insert("insert", 'Searching: '+str(path)+' ,Please wait.')
         for fd in os.listdir(path):
+            root.update()
             fullpath = os.path.join(path,fd)
             if os.path.isdir(fullpath):
                 #print('正在掃描: ',fullpath)
@@ -1279,6 +1394,7 @@ def repair_system_files_en():
     textPad.delete(1.0,END)
     if askokcancel('Warning','''The execution process takes a while, and the program
 may temporarily stop working. Do you want to continue?''', default="cancel", icon="warning"):
+        root.update()
         runc = os.system('''sfc /scannow''')
         if runc == 0:
             textPad.insert("insert", '✔Success: The execution was successful.')
@@ -1293,6 +1409,28 @@ def start_safe_mode_en():
         textPad.delete(1.0,END)
         os.system('net user administrator /active:yes')
         os.system('bcdedit /set {default} safeboot minimal')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
+    
+def start_safe_mode_net_en():
+    textPad.delete(1.0,END)
+    if askokcancel('Warning','''A restart is required to start safe mode. Do you want to continue?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:yes')
+        os.system('bcdedit /set {default} safeboot network')
+        time.sleep(1)
+        os.system('shutdown -r -t 0')
+    else:
+        pass
+    
+def start_safe_mode_cmd_en():
+    textPad.delete(1.0,END)
+    if askokcancel('Warning','''A restart is required to start safe mode. Do you want to continue?''', default="cancel", icon="warning"):
+        textPad.delete(1.0,END)
+        os.system('net user administrator /active:yes')
+        os.system('bcdedit /set {default} safeboot minimal bcdedit /set {default} safebootalternateshell yes')
         time.sleep(1)
         os.system('shutdown -r -t 0')
     else:
@@ -1415,13 +1553,14 @@ this computer. Do you want to continue?''', default="cancel", icon="warning"):
         textPad.delete(1.0,END)
         t=Toplevel(root)
         t.title('Custom CMD')
-        t.geometry('260x130')
+        t.geometry('260x40')
         t.transient(root)
-        Label(t,text=' CMD 01: ').grid(row=0,column=0,sticky='e')
+        Label(t,text=' Command: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
         e=Entry(t,width=20,textvariable=v)
         e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
         e.focus_set()
+        '''
         Label(t,text=' CMD 02: ').grid(row=1,column=0,sticky='e')
         v2=StringVar()
         e2=Entry(t,width=20,textvariable=v2)
@@ -1442,19 +1581,19 @@ this computer. Do you want to continue?''', default="cancel", icon="warning"):
         e5=Entry(t,width=20,textvariable=v5)
         e5.grid(row=4,column=1,padx=2,pady=2,sticky='we')
         e5.focus_set()
+        '''
         c=IntVar()
         fss = 0
-        Button(t,text='OK',command=lambda :system_autorun_en(e.get(),e2.get(),e3.get(),e4.get(),e5.get())).grid(row=4,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='確定',command=lambda :system_autorun_en(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     else:
         pass
 
-def system_autorun_en(cmd1,cmd2,cmd3,cmd4,cmd5):
+def system_autorun_en(cmd1):
     textPad.delete(1.0,END)
     subprocess.run(cmd1, shell=True)
-    subprocess.run(cmd2, shell=True)
-    subprocess.run(cmd3, shell=True)
-    subprocess.run(cmd4, shell=True)
-    subprocess.run(cmd5, shell=True)
+    f = open('%AppData%\Microsoft\Windows\Start Menu\Programs\Startup\ARUN.cmd','w')
+    f.write(cmd1)
+    f.close()
     textPad.insert("insert", 'Finished.')
 
 def input_send_text_en():
@@ -1526,6 +1665,7 @@ def receive_text_en(HOST,PORT):
     textPad.delete(1.0,END)
     max_connect = 5           # 最大連線數
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        root.update()
         s.bind((HOST, int(PORT)))
         s.listen()
         conn, _ = s.accept()
@@ -1540,10 +1680,10 @@ def website_en():
     
 def about_en():
     showinfo('Copyright','''Official website: https://xiaomi69ai.wixsite.com/pyas
-Copyright© 2020-2021 PYAS Python Antivirus Software''')
+Copyright© 2020-2022 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.7.0')
+    showinfo('Version','Software Version: PYAS V1.8.0')
 
 def is_admin():
     try:
@@ -1657,8 +1797,12 @@ def english_pro():
             sub2menu.add_command(label = 'Repair system files',command = repair_system_files_en)
             sub2menu.add_command(label = 'Repair system permissions',command = fix_cmd_permissions)
             sub2menu.add_separator()
-            sub2menu.add_command(label = 'Start safe mode',command = start_safe_mode_en)
-            sub2menu.add_command(label = 'Close safe mode',command = close_safe_Mode_en)
+            sub2menu.add_command(label = 'Start safeboot mode',command = start_safe_mode_en)
+            #sub2menu.add_command(label = 'Start network safe mode',command = start_safe_mode_net_en)
+            #sub2menu.add_command(label = 'Start command safe mode',command = start_safe_mode_cmd_en)
+            sub2menu.add_command(label = 'Close safeboot mode',command = close_safe_Mode_en)
+            sub2menu.add_separator()
+            sub2menu.add_command(label = 'System version info',command = computer_info_en)
             insmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='Privacy Tools', menu=insmenu, underline=0)
             insmenu.add_command(label = 'Camera privacy detection',command = camera_is_open_check_en)

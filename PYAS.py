@@ -17,10 +17,12 @@ import getpass
 import json
 import stat
 import threading
+import pyclamd
 import zipfile
 import platform
 import cryptocode
 import tkinter as tk
+#import pandas as pd
 from tkinter import ttk
 from tkinter import *
 from os import listdir
@@ -34,7 +36,7 @@ from Expansion_pack import *
 '''
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version="1.8.0",
+    version="1.8.1",
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
@@ -44,7 +46,7 @@ pyinstaller_versionfile.create_versionfile(
 )
 '''
 root = Tk()
-root.title('PYAS V1.8.0')
+root.title('PYAS V1.8.1')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -131,6 +133,18 @@ It also applies even if Microsoft knew or should have known about the possibilit
 ''')
 
 lock = threading.Lock()
+
+def pyclamd_scan():
+    textPad.delete(1.0,END)
+    try:
+        cd = pyclamd.ClamdAgnostic()
+        cd.reload()
+        if cd.scan_file(filedialog.askopenfilename()) == None:
+            textPad.insert("insert", '✔此檔案目前沒有惡意')
+        else:
+            textPad.insert("insert", '✖此檔案可能含有惡意內容')
+    except Exception as e:
+        textPad.insert("insert", '✖啟動失敗，錯誤資訊: '+str(e))
 
 def threading_cmd(tcmd):
     stcmd=threading.Thread(target=tcmd)
@@ -481,8 +495,9 @@ def find_files_info(ffile):
         pass
     
 def findfile(path,ffile,fss,start):
+    textPad.delete(1.0,END)
     try:
-        textPad.insert("insert", '正在尋找: '+str(path)+' ，請耐心等待。')
+        textPad.insert("insert", '正在尋找: '+str(path))
         for fd in os.listdir(path):
             root.update()
             fullpath = os.path.join(path,fd)
@@ -860,7 +875,7 @@ def about():
 版權所有© 2020-2022 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.8.0')
+    showinfo('Version','軟體版本: PYAS V1.8.1')
 
 def is_admin():
     try:
@@ -923,6 +938,11 @@ def traditional_chinese():
             sitmenu = Menu(filemenu5,tearoff=False)
             filemenu5.add_cascade(label='軟體設置', menu=sitmenu, underline=0)
             sitmenu.add_command(label="更新軟體", command=software_update)
+            sitmenu.add_separator()
+            sitmenu.add_command(label="更換成 Microsoft 引擎 (預設)", command=set_microsoft_engine)
+            sitmenu.add_command(label="更換成 PyclamdAV 引擎 (測試)", command=set_pyclamdav_engine)
+            sitmenu.add_separator()
+            sitmenu.add_command(label="更換成 PYAE 引擎 (尚未開放)", command=set_pyae_engine)
             #sitwmenu = Menu(sitmenu,tearoff=False)
             #filemenu5.add_cascade(label='字體大小', menu=sitwmenu, underline=0)
             #sitwmenu.add_command(label="增大字體", command=sizeb)
@@ -1271,7 +1291,7 @@ may temporarily stop working. Do you want to continue?', default="cancel", icon=
     e.focus_set()
     c=IntVar()
     fss = 0
-    Button(t,text='OK',command=lambda :find_files_info(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
+    Button(t,text='OK',command=lambda :find_files_info_en(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
     
 def find_files_info_en(ffile):
     textPad.delete(1.0,END)
@@ -1319,8 +1339,9 @@ Time consuming: '''+str(end - start)+''' sec''')
         pass
     
 def findfile_en(path,ffile,fss,start):
+    textPad.delete(1.0,END)
     try:
-        textPad.insert("insert", 'Searching: '+str(path)+' ,Please wait.')
+        textPad.insert("insert", 'Searching: '+str(path))
         for fd in os.listdir(path):
             root.update()
             fullpath = os.path.join(path,fd)
@@ -1683,7 +1704,7 @@ def about_en():
 Copyright© 2020-2022 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.8.0')
+    showinfo('Version','Software Version: PYAS V1.8.1')
 
 def is_admin():
     try:
@@ -1875,4 +1896,14 @@ def setup_pyas():
     except:
         english_pro()
 
+def setup_pyeg():
+    try:
+        ft = open('PYASE.ini','r')
+        fe = ft.read()
+        ft.close()
+    except:
+        ft = open('PYASE.ini','w')
+        ft.write('''microsoft_engine''')
+        ft.close()
+        
 setup_pyas()

@@ -16,8 +16,8 @@ import hashlib
 import getpass
 import json
 import stat
-import threading
-import pyclamd
+#import threading
+#import pyclamd
 import zipfile
 import platform
 import cryptocode
@@ -31,12 +31,13 @@ from tkinter import filedialog
 from tkinter.messagebox import *
 from functools import partial
 from os.path import isfile, isdir, join
-from Expansion_pack.list import *
-from Expansion_pack import *
+from Library.list import *
+from Library import *
+from Library import PYAE
 '''
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version="1.8.1",
+    version="1.9.0",
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
@@ -46,7 +47,7 @@ pyinstaller_versionfile.create_versionfile(
 )
 '''
 root = Tk()
-root.title('PYAS V1.8.1')
+root.title('PYAS V1.9.0')
 #root.resizable(0,0)
 root.geometry('800x450')
 textPad=Text(root,undo=True)
@@ -58,6 +59,16 @@ scroll.pack(side=RIGHT,fill=Y)
 group = Label(root, text="Copyright© 2020-2022 PYAS Python Antivirus Software",padx=5, pady=2)
 group.pack(anchor='e')
 
+def c_to_msert():
+    ft = open('Library/PYASE.ini','w')
+    ft.write('''microsoft_engine''')
+    ft.close()
+
+def c_to_pyae():
+    ft = open('Library/PYASE.ini','w')
+    ft.write('''pyae_engine''')
+    ft.close()
+    
 def pyas_license_terms():
     textPad.delete(1.0,END)
     textPad.insert("insert", '''PYTHON ANTIVIRUS SOFTWARE LICENSE TERMS
@@ -132,7 +143,7 @@ This limitation applies to
 It also applies even if Microsoft knew or should have known about the possibility of the damages. The above limitation or exclusion may not apply to you because your country may not allow the exclusion or limitation of incidental, consequential or other damages.
 ''')
 
-lock = threading.Lock()
+#lock = threading.Lock()
 
 def pyclamd_scan():
     textPad.delete(1.0,END)
@@ -251,30 +262,55 @@ def exe_cb():
     pe = pefile.PE(filedialog.askopenfilename())
     for entry in pe.DIRECTORY_ENTRY_IMPORT:
         root.update()
-        ft = open('PYASF.txt','a')
+        ft = open('Library/PYASD.txt','a')
         ft.write(str(entry.dll)+'''
 ''')
         ft.close()
         #textPad.insert("insert", entry.dll)
         for function in entry.imports:
-            ft = open('PYASF.txt','a')
+            ft = open('Library/PYASD.txt','a')
             ft.write(str(function.name)+'''
 ''')
             ft.close()
             #textPad.insert("insert", '\t', function.name)
-    ft = open('PYASF.txt','r')
+    ft = open('Library/PYASD.txt','r')
     fe = ft.read()
     ft.close()
     textPad.insert("insert",str(fe))
-    os.remove('PYASF.txt')
+    os.remove('Library/PYASD.txt')
     
 def smart_scan():
     textPad.delete(1.0,END)
-    f = open('FSCAN.bat','w',encoding="utf-8")
-    f.write('''MSERT.exe /n''')
-    f.close()
-    os.system('start FSCAN.bat')
-    #os.remove('FSCAN.bat')
+    myfile = filedialog.askopenfilename()
+    trying = myfile.find('.')
+    trying2 = myfile.find('/.')
+    trypath = myfile.find('/')
+    trydot = myfile.find('"')
+    tryos = myfile.find('PYAS.py')
+    if tryos == -1:
+        if trypath == -1:
+            textPad.insert("insert", '✖輸入檔案錯誤，未選擇檔案')
+        else:
+            if trying == -1:
+                textPad.insert("insert", '✖輸入檔案錯誤，沒有副檔名')
+            elif trying == 0:
+                textPad.insert("insert", '✖輸入檔案錯誤，沒有正檔名')
+            else:
+                if trydot == -1:
+                    if not trying2 == -1:
+                        textPad.insert("insert", '✖輸入檔案錯誤，沒有正檔名')
+                    else:
+                        #textPad.insert("insert", '掃描中，請耐心等待')
+                        if PYAE.pyae_file_scan(myfile):
+                            textPad.delete(1.0,END)
+                            textPad.insert("insert", '✖此檔案為惡意軟件，請立即移除此檔案')
+                        else:
+                            textPad.delete(1.0,END)
+                            textPad.insert("insert", '✔此檔案目前沒有惡意行為')
+
+def smart_scan_m():
+    textPad.delete(1.0,END)
+    os.system('MSERT.exe /n')
 
 def ai_scan():
     textPad.delete(1.0,END)
@@ -481,7 +517,7 @@ def find_files_info(ffile):
         findfile('Y:/',ffile,fss,start)
         findfile('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('PYASF.txt','r')
+        ft = open('Library/PYASF.txt','r')
         fe = ft.read()
         ft.close()
         textPad.insert("insert", '''
@@ -490,7 +526,7 @@ def find_files_info(ffile):
 
 '''+str(fe)+'''============================================================================
 總共耗時: '''+str(end - start)+''' 秒''')
-        os.remove('PYASF.txt')
+        os.remove('Library/PYASF.txt')
     except:
         pass
     
@@ -515,7 +551,7 @@ def findfile(path,ffile,fss,start):
                         #print('預覽內容: '+text)
                     #except:
                         #print('預覽內容: ✖錯誤，這個檔案不支援預覽')
-                    ft = open('PYASF.txt','a')
+                    ft = open('Library/PYASF.txt','a')
                     ft.write('''找到檔案: '''+str(fullpath)+'''
 建立日期: '''+str(date)+'''
 
@@ -875,7 +911,10 @@ def about():
 版權所有© 2020-2022 PYAS Python Antivirus Software''')
     
 def version():
-    showinfo('Version','軟體版本: PYAS V1.8.1')
+    showinfo('Version','軟體版本: PYAS V1.9.0')
+    
+def version_e():
+    showinfo('Version','引擎版本: PYAS V1.0.0')
 
 def is_admin():
     try:
@@ -969,13 +1008,13 @@ def traditional_chinese_pro():
     textPad.delete(1.0,END)
     if is_admin():
         try:
-            ft = open('PYASL.ini','w')
+            ft = open('Library/PYASL.ini','w')
             ft.write('''traditional_chinese''')
             ft.close()
             menubar = Menu(root)
             root.config(menu = menubar)
             filemenu = Menu(menubar,tearoff=False)
-            filemenu.add_command(label = '智能掃描',command = smart_scan)
+            filemenu.add_command(label = '智能掃描',command = setup_pyeg)
             filemenu.add_command(label = '智能分析',command = ai_scan)
             menubar.add_cascade(label = ' 掃描',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
@@ -1034,6 +1073,10 @@ def traditional_chinese_pro():
             sitmenu = Menu(filemenu5,tearoff=False)
             filemenu5.add_cascade(label='軟體設置', menu=sitmenu, underline=0)
             sitmenu.add_command(label="更新軟體", command=software_update)
+            sitmenu2 = Menu(filemenu5,tearoff=False)
+            filemenu5.add_cascade(label='引擎設置', menu=sitmenu2, underline=0)
+            sitmenu2.add_command(label="更換成 PYAE 引擎", command=c_to_pyae)
+            sitmenu2.add_command(label="更換成 MSERT 引擎", command=c_to_msert)
             #sitwmenu = Menu(sitmenu,tearoff=False)
             #filemenu5.add_cascade(label='字體大小', menu=sitwmenu, underline=0)
             #sitwmenu.add_command(label="增大字體", command=sizeb)
@@ -1045,7 +1088,9 @@ def traditional_chinese_pro():
             aboutmenu = Menu(menubar,tearoff=False)
             #aboutmenu.add_command(label = '官方網站',command = website)
             aboutmenu.add_command(label = '關於我們',command = about)
+            aboutmenu.add_separator()
             aboutmenu.add_command(label = '軟體版本',command = version)
+            aboutmenu.add_command(label = '引擎版本',command = version_e)
             aboutmenu.add_separator()
             licmenu = Menu(aboutmenu,tearoff=False)
             aboutmenu.add_cascade(label='許可條款', menu=licmenu, underline=0)
@@ -1112,11 +1157,36 @@ System version information:
     
 def smart_scan_en():
     textPad.delete(1.0,END)
-    f = open('FSCAN.bat','w',encoding="utf-8")
-    f.write('''MSERT.exe /n''')
-    f.close()
-    os.system('start FSCAN.bat')
-    #os.remove('FSCAN.bat')
+    myfile = filedialog.askopenfilename()
+    trying = myfile.find('.')
+    trying2 = myfile.find('/.')
+    trypath = myfile.find('/')
+    trydot = myfile.find('"')
+    tryos = myfile.find('PYAS.py')
+    if tryos == -1:
+        if trypath == -1:
+            textPad.insert("insert", '✖Input file error, file not selected')
+        else:
+            if trying == -1:
+                textPad.insert("insert", '✖Input file error, no correct file name')
+            elif trying == 0:
+                textPad.insert("insert", '✖Input file error, no correct file name')
+            else:
+                if trydot == -1:
+                    if not trying2 == -1:
+                        textPad.insert("insert", '✖Input file error, no correct file name')
+                    else:
+                        #textPad.insert("insert", '掃描中，請耐心等待')
+                        if PYAE.pyae_file_scan(myfile):
+                            textPad.delete(1.0,END)
+                            textPad.insert("insert", '✖ This file is malware, please remove this file immediately')
+                        else:
+                            textPad.delete(1.0,END)
+                            textPad.insert("insert", '✔There is currently no malicious behavior on this file')
+    
+def smart_scan_m_en():
+    textPad.delete(1.0,END)
+    os.system('MSERT.exe /n')
     
 def ai_scan_en():
     textPad.delete(1.0,END)
@@ -1325,7 +1395,7 @@ def find_files_info_en(ffile):
         findfile_en('Y:/',ffile,fss,start)
         findfile_en('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('PYASF.txt','r')
+        ft = open('Library/PYASF.txt','r')
         fe = ft.read()
         ft.close()
         textPad.insert("insert", '''
@@ -1334,7 +1404,7 @@ Find result: '''+'''
 
 '''+str(fe)+'''============================================================================
 Time consuming: '''+str(end - start)+''' sec''')
-        os.remove('PYASF.txt')
+        os.remove('Library/PYASF.txt')
     except:
         pass
     
@@ -1359,7 +1429,7 @@ def findfile_en(path,ffile,fss,start):
                         #print('預覽內容: '+text)
                     #except:
                         #print('預覽內容: ✖錯誤，這個檔案不支援預覽')
-                    ft = open('PYASF.txt','a')
+                    ft = open('Library/PYASF.txt','a')
                     ft.write('''File found: '''+str(fullpath)+'''
 Create date: '''+str(date)+'''
 
@@ -1704,7 +1774,10 @@ def about_en():
 Copyright© 2020-2022 PYAS Python Antivirus Software''')
     
 def version_en():
-    showinfo('Version','Software Version: PYAS V1.8.1')
+    showinfo('Version','Software Version: PYAS V1.9.0')
+
+def version_e_en():
+    showinfo('Version','Engine Version: PYAS V1.0.0')
 
 def is_admin():
     try:
@@ -1793,13 +1866,13 @@ def english_pro():
     textPad.delete(1.0,END)
     if is_admin():
         try:
-            ft = open('PYASL.ini','w')
+            ft = open('Library/PYASL.ini','w')
             ft.write('''english''')
             ft.close()
             menubar = Menu(root)
             root.config(menu = menubar)
             filemenu = Menu(menubar,tearoff=False)
-            filemenu.add_command(label = 'Smart scan',command = smart_scan)
+            filemenu.add_command(label = 'Smart scan',command = setup_pyeg)
             filemenu.add_command(label = 'Intelligent analysis',command = ai_scan_en)
             menubar.add_cascade(label = ' Scan',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
@@ -1856,6 +1929,10 @@ def english_pro():
             sitmenu = Menu(filemenu5,tearoff=False)
             filemenu5.add_cascade(label='Software settings', menu=sitmenu, underline=0)
             sitmenu.add_command(label="Update software", command=software_update)
+            sitmenu2 = Menu(filemenu5,tearoff=False)
+            filemenu5.add_cascade(label='Engine settings', menu=sitmenu2, underline=0)
+            sitmenu2.add_command(label="Change to PYAE engine", command=c_to_pyae)
+            sitmenu2.add_command(label="Change to MSERT engine", command=c_to_msert)
             #sitwmenu = Menu(sitmenu,tearoff=False)
             #filemenu5.add_cascade(label='字體大小', menu=sitwmenu, underline=0)
             #sitwmenu.add_command(label="增大字體", command=sizeb)
@@ -1867,7 +1944,9 @@ def english_pro():
             aboutmenu = Menu(menubar,tearoff=False)
             #aboutmenu.add_command(label = '官方網站',command = website)
             aboutmenu.add_command(label = 'About us',command = about_en)
+            aboutmenu.add_separator()
             aboutmenu.add_command(label = 'Software version',command = version_en)
+            aboutmenu.add_command(label = 'Engine version',command = version_e_en)
             aboutmenu.add_separator()
             licmenu = Menu(aboutmenu,tearoff=False)
             aboutmenu.add_cascade(label='license terms', menu=licmenu, underline=0)
@@ -1884,7 +1963,7 @@ Error info: '''+str(e))
 
 def setup_pyas():
     try:
-        ft = open('PYASL.ini','r')
+        ft = open('Library/PYASL.ini','r')
         fe = ft.read()
         ft.close()
         if fe == 'english':
@@ -1898,12 +1977,23 @@ def setup_pyas():
 
 def setup_pyeg():
     try:
-        ft = open('PYASE.ini','r')
+        ft = open('Library/PYASE.ini','r')
         fe = ft.read()
         ft.close()
+        ft2 = open('Library/PYASL.ini','r')
+        fe2 = ft2.read()
+        ft2.close()
+        if fe == 'pyae_engine' and fe2 =='english':
+            smart_scan_en()
+        elif fe == 'pyae_engine' and fe2 =='traditional_chinese':
+            smart_scan()
+        elif fe == 'microsoft_engine' and fe2 =='english':
+            smart_scan_m_en()
+        elif fe == 'microsoft_engine' and fe2 =='traditional_chinese':
+            smart_scan_m()
+        else:
+            smart_scan_en()
     except:
-        ft = open('PYASE.ini','w')
-        ft.write('''microsoft_engine''')
-        ft.close()
+        smart_scan_en()
         
 setup_pyas()

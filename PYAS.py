@@ -14,7 +14,7 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.0.0'
+pyas_virsion = '2.0.1'
 pyae_virsion = '1.1.0'
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 
@@ -237,6 +237,10 @@ def pyas_scan_smart_en():
 
 #定義檔案掃描
 def pyas_file_scan_en():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
@@ -257,6 +261,10 @@ def pyas_file_scan_en():
 
 #定義路徑掃描
 def pyas_scan_path_init_en():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
@@ -295,6 +303,10 @@ def pyas_scan_path_en(path,rfp):
 
 #定義全盤掃描
 def pyas_scan_disk_init_en():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
@@ -440,7 +452,14 @@ def process_kill_en(app):
             done = True
             break
         else:
-            textPad.insert("insert", 'Process not found "'+str(app)+'"')
+            try:
+                of = subprocess.call('taskkill /f /im '+str(app),shell=True)
+                if of == 0:
+                    textPad.insert("insert", en_success)
+                else:
+                    textPad.insert("insert", en_failed)
+            except:
+                textPad.insert("insert", 'Process not found "'+str(app)+'"')
             done = True
             break
 
@@ -790,6 +809,28 @@ def system_disk_clean_en():
     os.system('cleanmgr /autoclean')
     pyas_clear()
 
+def change_user_password_init_en():
+    pyas_clear()
+    messagebox.showinfo('Version','''Before changing the user password, please make sure you have entered the safe mode before using this function.''')
+    t=Toplevel(root)
+    t.title('Change Password')
+    t.geometry('260x60')
+    t.transient(root)
+    Label(t,text='User Name: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    Label(t,text='New PassWord: ').grid(row=1,column=0,sticky='e')
+    v2=StringVar()
+    e2=Entry(t,width=20,textvariable=v2)
+    e2.grid(row=1,column=1,padx=2,pady=2,sticky='we')
+    e2.focus_set()
+    Button(t,text='OK',command=lambda :change_user_password_en(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=0)
+
+def change_user_password_en(user,password):
+    os.system('net user '+str(user)+' "'+str(password)+'"')
+
 ################################################################################
 
 #關於
@@ -867,6 +908,8 @@ def english():
             submenu.add_separator()
             submenu.add_command(label = 'Send Message',command = input_send_text_en)
             submenu.add_command(label = 'Receive Message',command = input_receive_text_en)
+            submenu.add_separator()
+            submenu.add_command(label = 'Change User Password',command = change_user_password_init_en)
             submenu.add_separator()
             submenu.add_command(label = 'Internet Location Query',command = ip_detect_en)
             submenu.add_command(label = 'Reset System Network',command = reset_network_en)
@@ -985,6 +1028,10 @@ def pyas_scan_start(file,rfp):
 
 #定義智能掃描
 def pyas_scan_smart_zh():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
@@ -999,6 +1046,10 @@ def pyas_scan_smart_zh():
 
 #定義檔案掃描
 def pyas_file_scan_zh():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
@@ -1019,6 +1070,10 @@ def pyas_file_scan_zh():
 
 #定義路徑掃描
 def pyas_scan_path_init_zh():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
@@ -1057,6 +1112,10 @@ def pyas_scan_path_zh(path,rfp):
 
 #定義全盤掃描
 def pyas_scan_disk_init_zh():
+    try:
+        os.remove('Library/PYASV.tmp')
+    except:
+        pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
@@ -1202,7 +1261,14 @@ def process_kill_zh(app):
             done = True
             break
         else:
-            textPad.insert("insert", '未找到進程: "'+str(app)+'"')
+            try:
+                of = subprocess.call('taskkill /f /im '+str(app),shell=True)
+                if of == 0:
+                    textPad.insert("insert", zh_success)
+                else:
+                    textPad.insert("insert", zh_failed)
+            except:
+                textPad.insert("insert", '未找到進程: "'+str(app)+'"')
             done = True
             break
 
@@ -1552,6 +1618,28 @@ def system_disk_clean_zh():
     os.system('cleanmgr /autoclean')
     pyas_clear()
 
+def change_user_password_init_zh():
+    pyas_clear()
+    messagebox.showinfo('Version','''變更用戶密碼前，請先確保您已經進入安全模式再使用此功能。''')
+    t=Toplevel(root)
+    t.title('變更密碼')
+    t.geometry('260x60')
+    t.transient(root)
+    Label(t,text=' 用戶名: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    Label(t,text=' 新密碼: ').grid(row=1,column=0,sticky='e')
+    v2=StringVar()
+    e2=Entry(t,width=20,textvariable=v2)
+    e2.grid(row=1,column=1,padx=2,pady=2,sticky='we')
+    e2.focus_set()
+    Button(t,text='確定',command=lambda :change_user_password_zh(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=0)
+
+def change_user_password_zh(user,password):
+    os.system('net user '+str(user)+' "'+str(password)+'"')
+
 ################################################################################
 
 #關於
@@ -1630,6 +1718,8 @@ def traditional_chinese():
             submenu.add_command(label = '傳送訊息',command = input_send_text_zh)
             submenu.add_command(label = '接收訊息',command = input_receive_text_zh)
             submenu.add_separator()
+            submenu.add_command(label = '更改用戶密碼',command = change_user_password_init_zh)
+            submenu.add_separator()
             submenu.add_command(label = '網路位置查詢',command = ip_detect_zh)
             submenu.add_command(label = '重製系統網路',command = reset_network_zh)
             devmenu = Menu(filemenu3,tearoff=False)
@@ -1685,6 +1775,29 @@ def simplified_chinese():
 
 ####################################################################################
 
+#初始化驗證
+def pyas_key():
+    pyas_clear()
+    file = './PYAS.exe'
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = md5(bytes).hexdigest();
+        f.close()
+        ft = open('./Library/PYAS/PYAS.key','r')
+        fe = ft.read()
+        ft.close()
+        if fe == readable_hash:
+            setup_pyas()
+        else:
+            messagebox.showerror('Error', '''The PYAS antivirus software you are using is not genuine. To ensure your safety, please download genuine antivirus software from the
+Official website: https://xiaomi69ai.wixsite.com/pyas''')
+    else:
+        pyas_clear()
+
+
+####################################################################################
+
 #初始化選項
 def setup_pyas():
     try:
@@ -1700,6 +1813,9 @@ def setup_pyas():
         else:
             english()
     except Exception as e:
-        messagebox.showinfo('Welcome',en_welcome)
+        #messagebox.showinfo('Welcome',en_welcome)
         english()
-setup_pyas()
+try:
+    pyas_key()
+except:
+    pass

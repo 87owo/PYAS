@@ -14,7 +14,7 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.0.1'
+pyas_virsion = '2.0.2'
 pyae_virsion = '1.1.0'
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 
@@ -86,7 +86,7 @@ pyas_divider = '='*80
 
 #載入模組套件
 try:
-    import os, time, sys, psutil, socket, subprocess, binascii, platform, cryptocode, webbrowser, requests
+    import os, time, sys, psutil, socket, subprocess, binascii, platform, cryptocode, webbrowser, requests, threading
     from cv2 import VideoCapture
     from ctypes import windll
     from pefile import PE
@@ -101,7 +101,8 @@ except Exception as e:
 #載入窗口介面
 root = Tk()
 root.title('PYAS V'+pyas_virsion)
-root.geometry('800x450')
+sx,sy = root.winfo_screenwidth(),root.winfo_screenheight()
+root.geometry('800x450+'+str(int(sx/2-400))+'+'+str(int(sy/2-225)))
 textPad=Text(root,undo=True)
 textPad.pack(expand=YES,fill=BOTH)
 scroll=Scrollbar(textPad)
@@ -118,7 +119,6 @@ en_welcome = '''Welcome To Python Antivirus Software !!!
 
 Language: Setting > Change Language
 '''#Help Info: About > PYAS Help
-
 
 ####################################################################################
 
@@ -218,6 +218,40 @@ def pyas_scan_start(file,rfp):
             return True
     except:
         pass
+
+####################################################################################
+
+#定義防護
+def protect_threading_init_en():
+    if messagebox.askokcancel('Warning','''Enable Real Time Protection Needs More Then 4GB Of RAM. Do you want to continue?''', default="cancel", icon="warning"):
+        textPad.insert("insert", en_init_file)
+        root.update()
+        t = threading.Thread(target = pyas_protect_init_en)
+        t.start()
+    else:
+        pass
+
+#定義全盤掃描
+def pyas_protect_init_en():
+    with open('Library/MD5/Viruslist.md5','r') as fp:
+        rfp = fp.read()
+    pyas_clear()
+    textPad.insert("insert", en_success)
+    root.update()
+    while 1:
+        for p in psutil.process_iter():
+            try:
+                if pyas_scan_start(p.exe(),rfp):
+                    pyas_clear()
+                    of = subprocess.call('taskkill /f /im '+str(p.name()),shell=True)
+                    if of == 0:
+                        textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
+                    else:
+                        textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
+                else:
+                    pass
+            except:
+                pass
 
 ####################################################################################
 
@@ -633,7 +667,7 @@ def input_custom_regedit_command_en():
     pyas_clear()
     if messagebox.askokcancel('Warning','''Improper use of custom commands may have serious consequences. Do you want to continue?''', default="cancel", icon="warning"):
         t=Toplevel(root)
-        t.title('自訂指令')
+        t.title('Custom Command')
         t.geometry('260x110')
         t.transient(root)
         Label(t,text=' Path: ').grid(row=0,column=0,sticky='e')
@@ -771,7 +805,7 @@ def input_receive_text_en():
     pyas_clear()
     if messagebox.askokcancel('Warning','''Waiting for the receiving process will take a while, do you want to continue?''', default="cancel", icon="warning"):
         t=Toplevel(root)
-        t.title('接收訊息')
+        t.title('Receive Text')
         t.geometry('260x70')
         t.transient(root)
         Label(t,text='   IP: ').grid(row=1,column=0,sticky='e')
@@ -875,10 +909,11 @@ def english():
             filemenu.add_command(label = 'full Scan',command = pyas_scan_disk_init_en)
             menubar.add_cascade(label = ' Scan',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
-            #filemenu2.add_command(label = 'Data Protect',command = #)
+            filemenu2.add_command(label = 'Enable Real Time Protection',command = protect_threading_init_en)
+            #filemenu2.add_command(label = 'Disable Auto Protect',command = dprotect_threading_init_en)
             #filemenu2.add_command(label = 'Behavioural Protect',command = #)
             #filemenu2.add_command(label = 'Network Protect',command = #)
-            #menubar.add_cascade(label = 'Protect',menu = filemenu2)
+            menubar.add_cascade(label = 'Protect',menu = filemenu2)
             filemenu3 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = 'Tools',menu = filemenu3)
             sub2menu = Menu(filemenu3,tearoff=False)
@@ -961,6 +996,41 @@ Error Info: '''+str(e))
 
 ###########################################################################################################################################################################################
 
+#定義防護
+def protect_threading_init_zh():
+    if messagebox.askokcancel('Warning','''啟動實時防護需要 4GB 以上的 RAM，是否繼續?''', default="cancel", icon="warning"):
+        pyas_clear()
+        textPad.insert("insert", zh_init_file)
+        root.update()
+        t = threading.Thread(target = pyas_protect_init_zh)
+        t.start()
+    else:
+        pass
+
+#定義全盤掃描
+def pyas_protect_init_zh():
+    with open('Library/MD5/Viruslist.md5','r') as fp:
+        rfp = fp.read()
+    pyas_clear()
+    textPad.insert("insert", zh_success)
+    root.update()
+    while 1:
+        for p in psutil.process_iter():
+            try:
+                if pyas_scan_start(p.exe(),rfp):
+                    pyas_clear()
+                    of = subprocess.call('taskkill /f /im '+str(p.name()),shell=True)
+                    if of == 0:
+                        textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
+                    else:
+                        textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
+                else:
+                    pass
+            except:
+                pass
+
+####################################################################################
+        
 #定義紀錄掃描
 def pyas_scan_write_zh(file):
     ft = open('Library/PYASV.tmp','a')
@@ -1678,16 +1748,17 @@ def traditional_chinese():
             menubar = Menu(root)
             root.config(menu = menubar)
             filemenu = Menu(menubar,tearoff=False)
-            #filemenu.add_command(label = 'Smart Scan',command = pyas_scan_smart_zh)
+            #filemenu.add_command(label = '',command = )
             filemenu.add_command(label = '檔案掃描',command = pyas_file_scan_zh)
             filemenu.add_command(label = '路徑掃描',command = pyas_scan_path_init_zh)
             filemenu.add_command(label = '全盤掃描',command = pyas_scan_disk_init_zh)
             menubar.add_cascade(label = ' 掃描',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
-            #filemenu2.add_command(label = 'Data Protect',command = #)
+            filemenu2.add_command(label = '啟動實時防護',command = protect_threading_init_zh)
+            #filemenu2.add_command(label = '關閉實時防護',command = dprotect_threading_init_zh)
             #filemenu2.add_command(label = 'Behavioural Protect',command = #)
             #filemenu2.add_command(label = 'Network Protect',command = #)
-            #menubar.add_cascade(label = 'Protect',menu = filemenu2)
+            menubar.add_cascade(label = '防護',menu = filemenu2)
             filemenu3 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = '工具',menu = filemenu3)
             sub2menu = Menu(filemenu3,tearoff=False)

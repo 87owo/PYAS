@@ -1,8 +1,8 @@
 ####################################################################################
 # Coding Python 3 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.0.0 (2020.12.17)
-# PYAE Ver: PYAS V1.1.0 (2022.03.04)
+# PYAS Ver: PYAS V2.1.1 (2020.12.17)
+# PYAE Ver: PYAS V1.2.0 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
 # PYAS Git: https://github.com/87owo/PYAS
@@ -14,9 +14,10 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.0.2'
-pyae_virsion = '1.1.0'
+pyas_virsion = '2.1.1'
+pyae_virsion = '1.2.0'
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
+pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
 
 ####################################################################################
 
@@ -29,7 +30,7 @@ pyinstaller_versionfile.create_versionfile(
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
-    legal_copyright=pyas_copyright,
+    legal_copyright=pyas_legal_copyright,
     original_filename="PYAS.exe",
     product_name="PYAS")
 '''
@@ -86,9 +87,10 @@ pyas_divider = '='*80
 
 #載入模組套件
 try:
-    import os, time, sys, psutil, socket, subprocess, binascii, platform, cryptocode, webbrowser, requests, threading
+    import os, time, sys, psutil, socket, subprocess, binascii, platform, cryptocode, webbrowser, requests, threading, pygame, pathlib
     from cv2 import VideoCapture
     from ctypes import windll
+    import requests as req
     from pefile import PE
     from hashlib import md5
     from tkinter import messagebox, filedialog
@@ -158,30 +160,64 @@ def pyas_clear():
 
 #定義紀錄掃描
 def pyas_scan_write_en(file):
-    ft = open('Library/PYASV.tmp','a')
+    ft = open('Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
     fe = ft.write(file+'\n')
     ft.close()
 
 #定義讀取紀錄
 def pyas_scan_read_en():
     try:
-        ft = open('Library/PYASV.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
         fe = ft.read()
+        lines = ft.readlines()
         ft.close()
-        return en_virus_true+'\n'+pyas_divider+'\n'+fe
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+            pygame.mixer.music.play()
+        return en_virus_true+'\n'+pyas_divider+'\n'+fe###
     except:
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load('./Library/PYAS/Audio/Complete.ogg')
+            pygame.mixer.music.play()
         return en_virus_false
 
 #定義移除紀錄
 def pyas_scan_del_en():
-    os.remove('Library/PYASV.tmp')
+    os.remove('Library/PYAS/Temp/PYASV.tmp')
 
 #定義掃描結果
 def pyas_scan_answer_en():
     pyas_clear()
     textPad.insert("insert", pyas_scan_read_en())
+    try:####
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+        lines = ft.readlines()
+        ft.close()
+        if messagebox.askokcancel('Warning',"Do you want to remove these malware?", default="cancel", icon="warning"):
+            try:
+                for line in lines:
+                    if 'C:/Windows' not in line:
+                        pyas_clear()
+                        root.update()
+                        textPad.insert("insert", 'Deleting:'+'\n'+pyas_divider+'\n'+str(line))
+                        os.remove(str(line[:-1]))
+                    else:
+                        pass
+                pyas_clear()
+                textPad.insert("insert", en_success)
+            except Exception as e:
+                pyas_clear()
+                textPad.insert("insert", en_failed+'\n'+pyas_divider+'\n'+str(e))
+                print(e)
+                pass
+    except Exception as e:
+        print(e)###
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
 
@@ -194,10 +230,26 @@ def software_update_en():
 
 def engine_update_en():
     pyas_clear()
+    textPad.insert("insert", 'Update Please Wait...')
+    root.update()
+    v = open('Library/PYAE/Hashes/Viruslist.version','r')
+    ver = int(v.read())+1
+    v.close()
     try:
-        file = req.get('https://virusshare.com/hashfiles/VirusShare_'+str(y)+'.md5', allow_redirects=True)
-        open('Library/MD5/Viruslist.md5', 'wb').write(file.content)
+        for i in range(ver,10000):
+            root.update()
+            pyas_clear()
+            textPad.insert("insert", 'Update Version: '+str(i))
+            x = 5 - len(str(i))
+            y = '0'*x+str(i)
+            file = req.get('https://virusshare.com/hashfiles/VirusShare_'+str(y)+'.md5', allow_redirects=True)
+            open('Library/PYAE/Hashes/Viruslist.md5', 'a').write(str(file.content)+'\n')
     except:
+        v = open('Library/PYAE/Hashes/Viruslist.version','w')
+        v.write(str(i-1))
+        v.close()
+        pyas_clear()
+        textPad.insert("insert", 'Update Complete, PYAE Version: '+str(pyae_virsion)+'_'+str(i-1))
         pass
 
 ####################################################################################
@@ -233,7 +285,7 @@ def protect_threading_init_en():
 
 #定義全盤掃描
 def pyas_protect_init_en():
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     pyas_clear()
     textPad.insert("insert", en_success)
@@ -241,15 +293,21 @@ def pyas_protect_init_en():
     while 1:
         for p in psutil.process_iter():
             try:
-                if pyas_scan_start(p.exe(),rfp):
-                    pyas_clear()
-                    of = subprocess.call('taskkill /f /im '+str(p.name()),shell=True)
-                    if of == 0:
-                        textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
+                if 'C:/Windows' not in str(p.exe()):
+                    if pyas_scan_start(p.exe(),rfp):
+                        pyas_clear()
+                        of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
+                        if of == 0:
+                            textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
+                            pygame.mixer.init()
+                            pygame.mixer.music.set_volume(1.0)
+                            if not pygame.mixer.music.get_busy():
+                                pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                pygame.mixer.music.play()
+                        else:
+                            textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
                     else:
-                        textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
-                else:
-                    pass
+                        pass
             except:
                 pass
 
@@ -260,7 +318,7 @@ def pyas_scan_smart_en():
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     fp.close()
     pyas_scan_path_en("Desktop/",rfp)
@@ -272,20 +330,35 @@ def pyas_scan_smart_en():
 #定義檔案掃描
 def pyas_file_scan_en():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
+    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        rfn = fn.read()
     file = filedialog.askopenfilename()
     if file != "":
         if pyas_scan_start(file,rfp):
             pyas_scan_write_en(file)
             textPad.insert("insert", en_virus_true+'\n')
+        else:
+            fts = 0
+            pe = PE(file)
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                for function in entry.imports:
+                    root.update()
+                    if str(function.name) in rfn:
+                        fts = fts + 1
+            if fts != 0:
+                pyas_scan_write_en(file)
+                fts = 0
+                textPad.insert("insert", en_virus_true+'\n')
         fp.close()
+        fn.close()
         pyas_scan_answer_en()
     else:
         pyas_clear()
@@ -296,24 +369,27 @@ def pyas_file_scan_en():
 #定義路徑掃描
 def pyas_scan_path_init_en():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
+    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        rfn = fn.read()
     fp.close()
+    fn.close()
     file = filedialog.askdirectory()
     if file != "":
-        pyas_scan_path_en(file,rfp)
+        pyas_scan_path_en(file,rfp,rfn,0)
         pyas_scan_answer_en()
     else:
         pyas_clear()
         textPad.insert("insert", none_file_en+'\n')
 
-def pyas_scan_path_en(path,rfp):
+def pyas_scan_path_en(path,rfp,rfn,fts):
     try:
         for fd in os.listdir(path):
             try:
@@ -323,11 +399,48 @@ def pyas_scan_path_en(path,rfp):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_en(fullpath,rfp)
                 else:
-                    if '.exe' in str(fd):
+                    if '.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_en(fullpath)
+                        else:
+                            pe = PE(fullpath)
+                            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                for function in entry.imports:
+                                    root.update()
+                                    if str(function.name) in rfn:
+                                        fts = fts + 1
+                            if fts != 0:
+                                pyas_scan_write_en(str(fullpath))
+                                fts = 0
+                    elif '.cmd' in str(fd) or '.CMD' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.bat' in str(fd) or '.BAT' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.com' in str(fd) or '.COM' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.vbs' in str(fd) or '.VBS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.zip' in str(fd) or '.COM' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    else:
+                        pass
             except:
                 continue
     except:
@@ -338,13 +451,13 @@ def pyas_scan_path_en(path,rfp):
 #定義全盤掃描
 def pyas_scan_disk_init_en():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", en_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     pyas_scan_disk_en('A:/',rfp)
     pyas_scan_disk_en('B:/',rfp)
@@ -384,11 +497,38 @@ def pyas_scan_disk_en(path,rfp):
                 if os.path.isdir(fullpath):
                     pyas_scan_disk_en(fullpath,rfp)
                 else:
-                    if '.exe' in str(fd):
+                    if '.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start_en(fullpath,rfp):
-                            pyas_scan_write_en(file)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.cmd' in str(fd) or '.CMD' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.bat' in str(fd) or '.BAT' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.com' in str(fd) or '.COM' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.vbs' in str(fd) or '.VBS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    else:
+                        pass
             except:
                 continue
     except:
@@ -572,12 +712,12 @@ def find_files_info_en(ffile):
         findfile_en('Y:/',ffile,fss,start)
         findfile_en('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('Library/PYASF.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r')
         fe = ft.read()
         ft.close()
         pyas_clear()
         textPad.insert("insert", '''Find result:\n'''+pyas_divider+'\n'+str(fe))
-        os.remove('Library/PYASF.tmp')
+        os.remove('Library/PYAS/Temp/PYASF.tmp')
     except:
         pass
 
@@ -594,7 +734,7 @@ def findfile_en(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    ft = open('Library/PYASF.tmp','a')
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','a')
                     ft.write('File found: '+str(fullpath)+'\n'+'Create date: '+str(date)+'\n'+'\n')
                     ft.close()
                     continue
@@ -734,9 +874,9 @@ def input_encrypt_en():
     e2.focus_set()
     c=IntVar()
     fss = 0
-    Button(t,text='OK',command=lambda :encrypt(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
+    Button(t,text='OK',command=lambda :encrypt_en(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
 
-def encrypt(e,e2):
+def encrypt_en(e,e2):
     pyas_clear()
     textPad.insert("insert", 'Your encrypted content: \n'+str(cryptocode.encrypt(e,e2)))
 
@@ -758,9 +898,9 @@ def input_decrypt_en():
     e2.focus_set()
     c=IntVar()
     fss = 0
-    Button(t,text='OK',command=lambda :decrypt(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
+    Button(t,text='OK',command=lambda :decrypt_en(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
 
-def decrypt(e,e2):
+def decrypt_en(e,e2):
     pyas_clear()
     textPad.insert("insert", 'Your decrypted content: \n'+str(cryptocode.decrypt(e, e2)))
 
@@ -865,6 +1005,12 @@ def change_user_password_init_en():
 def change_user_password_en(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
+def install_windows10_en():
+    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win10.exe"')
+
+def install_windows11_en():
+    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win11.exe"')
+
 ################################################################################
 
 #關於
@@ -897,7 +1043,7 @@ def english():
     if is_admin():
         try:
             pyas_clear()
-            ft = open('./Library/PYAS/PYAS.ini','w')
+            ft = open('./Library/PYAS/Setup/PYAS.ini','w')
             ft.write('''english''')
             ft.close()
             menubar = Menu(root)
@@ -956,6 +1102,9 @@ def english():
             devmenu.add_command(label = 'Analyze EXE Hashes',command = exe_analyze_md5_en)
             devmenu.add_command(label = 'Analyze EXE Bytes',command = exe_analyze_file_en)
             devmenu.add_command(label = 'Analyze EXE Function',command = exe_analyze_function_en)
+            #devmenu.add_separator()
+            #devmenu.add_command(label = 'Install Win10 System',command = install_windows10_en)
+            #devmenu.add_command(label = 'Install Win11 System',command = install_windows11_en)
             filemenu5 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = 'Settings',menu = filemenu5)
             sitmenu = Menu(filemenu5,tearoff=False)
@@ -964,7 +1113,7 @@ def english():
             #sitmenu.add_command(label=" Auto Startup", command=#)
             #sitmenu.add_separator()
             sitmenu.add_command(label="Update Antivirus Software", command=software_update_en)
-            #sitmenu.add_command(label="Update Antivirus Engine", command=software_update_en)
+            sitmenu.add_command(label="Update Antivirus Engine", command=engine_update_en)
             sitmenu2 = Menu(filemenu5,tearoff=False)
             #filemenu5.add_cascade(label='Engine Settings', menu=sitmenu2, underline=0)
             #sitmenu2.add_command(label="Enable Quick Scan", command=#)
@@ -1009,7 +1158,7 @@ def protect_threading_init_zh():
 
 #定義全盤掃描
 def pyas_protect_init_zh():
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     pyas_clear()
     textPad.insert("insert", zh_success)
@@ -1017,15 +1166,21 @@ def pyas_protect_init_zh():
     while 1:
         for p in psutil.process_iter():
             try:
-                if pyas_scan_start(p.exe(),rfp):
-                    pyas_clear()
-                    of = subprocess.call('taskkill /f /im '+str(p.name()),shell=True)
-                    if of == 0:
-                        textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
+                if 'C:/Windows' not in str(p.exe()):
+                    if pyas_scan_start(p.exe(),rfp):
+                        pyas_clear()
+                        of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
+                        if of == 0:
+                            textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
+                            pygame.mixer.init()
+                            pygame.mixer.music.set_volume(1.0)
+                            if not pygame.mixer.music.get_busy():
+                                pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                pygame.mixer.music.play()
+                        else:
+                            textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
                     else:
-                        textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
-                else:
-                    pass
+                        pass
             except:
                 pass
 
@@ -1033,30 +1188,63 @@ def pyas_protect_init_zh():
         
 #定義紀錄掃描
 def pyas_scan_write_zh(file):
-    ft = open('Library/PYASV.tmp','a')
+    ft = open('Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
     fe = ft.write(file+'\n')
     ft.close()
 
 #定義讀取紀錄
 def pyas_scan_read_zh():
     try:
-        ft = open('Library/PYASV.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+            pygame.mixer.music.play()
         return zh_virus_true+'\n'+pyas_divider+'\n'+fe
     except:
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load('./Library/PYAS/Audio/Complete.ogg')
+            pygame.mixer.music.play()
         return zh_virus_false
 
 #定義移除紀錄
 def pyas_scan_del_zh():
-    os.remove('Library/PYASV.tmp')
+    os.remove('Library/PYAS/Temp/PYASV.tmp')
 
 #定義掃描結果
 def pyas_scan_answer_zh():
     pyas_clear()
     textPad.insert("insert", pyas_scan_read_zh())
+    try:####
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+        lines = ft.readlines()
+        ft.close()
+        if messagebox.askokcancel('Warning',"是否要刪除這些惡意軟件?", default="cancel", icon="warning"):
+            try:
+                for line in lines:
+                    if 'C:/Windows' not in line:
+                        pyas_clear()
+                        root.update()
+                        textPad.insert("insert", '正在移除:'+'\n'+pyas_divider+'\n'+str(line))
+                        os.remove(str(line[:-1]))
+                    else:
+                        pass
+                pyas_clear()
+                textPad.insert("insert", zh_success)
+            except Exception as e:
+                pyas_clear()
+                textPad.insert("insert", zh_failed+'\n'+pyas_divider+'\n'+str(e))
+                print(e)
+                pass
+    except Exception as e:
+        print(e)###
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
 
@@ -1069,10 +1257,26 @@ def software_update_zh():
 
 def engine_update_zh():
     pyas_clear()
+    textPad.insert("insert", '正在更新中，請稍等。')
+    root.update()
+    v = open('Library/PYAE/Hashes/Viruslist.version','r')
+    ver = int(v.read())+1
+    v.close()
     try:
-        file = req.get('https://virusshare.com/hashfiles/VirusShare_'+str(y)+'.md5', allow_redirects=True)
-        open('Library/MD5/Viruslist.md5', 'wb').write(file.content)
+        for i in range(ver,10000):
+            root.update()
+            pyas_clear()
+            textPad.insert("insert", '正在更新: '+str(i))
+            x = 5 - len(str(i))
+            y = '0'*x+str(i)
+            file = req.get('https://virusshare.com/hashfiles/VirusShare_'+str(y)+'.md5', allow_redirects=True)
+            open('Library/PYAE/Hashes/Viruslist.md5', 'a').write(str(file.content)+'\n')
     except:
+        v = open('Library/PYAE/Hashes/Viruslist.version','w')
+        v.write(str(i-1))
+        v.close()
+        pyas_clear()
+        textPad.insert("insert", '更新完成，當前 PYAE 版本: '+str(pyae_virsion)+'_'+str(i-1))
         pass
 
 ####################################################################################
@@ -1099,13 +1303,13 @@ def pyas_scan_start(file,rfp):
 #定義智能掃描
 def pyas_scan_smart_zh():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     fp.close()
     pyas_scan_path_zh("Desktop/",rfp)
@@ -1117,20 +1321,35 @@ def pyas_scan_smart_zh():
 #定義檔案掃描
 def pyas_file_scan_zh():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
+    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        rfn = fn.read()
     file = filedialog.askopenfilename()
     if file != "":
         if pyas_scan_start(file,rfp):
             pyas_scan_write_zh(file)
             textPad.insert("insert", zh_virus_true+'\n')
+        else:
+            fts = 0
+            pe = PE(file)
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                for function in entry.imports:
+                    root.update()
+                    if str(function.name) in rfn:
+                        fts = fts + 1
+            if fts != 0:
+                pyas_scan_write_zh(file)
+                fts = 0
+                textPad.insert("insert", zh_virus_true+'\n')
         fp.close()
+        fn.close()
         pyas_scan_answer_zh()
     else:
         pyas_clear()
@@ -1141,24 +1360,27 @@ def pyas_file_scan_zh():
 #定義路徑掃描
 def pyas_scan_path_init_zh():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
+    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        rfn = fn.read()
     fp.close()
+    fn.close()
     file = filedialog.askdirectory()
     if file != "":
-        pyas_scan_path_zh(file,rfp)
+        pyas_scan_path_zh(file,rfp,rfn,0)
         pyas_scan_answer_zh()
     else:
         pyas_clear()
         textPad.insert("insert", none_file_zh+'\n')
 
-def pyas_scan_path_zh(path,rfp):
+def pyas_scan_path_zh(path,rfp,rfn,fts):
     try:
         for fd in os.listdir(path):
             try:
@@ -1168,12 +1390,50 @@ def pyas_scan_path_zh(path,rfp):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_zh(fullpath,rfp)
                 else:
-                    if '.exe' in str(fd):
+                    if '.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_zh(fullpath)
-            except:
+                        else:
+                            pe = PE(fullpath)
+                            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                for function in entry.imports:
+                                    root.update()
+                                    if str(function.name) in rfn:
+                                        fts = fts + 1
+                            if fts != 0:
+                                pyas_scan_write_zh(str(fullpath))
+                                fts = 0
+                    elif '.cmd' in str(fd) or '.CMD' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.bat' in str(fd) or '.BAT' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.com' in str(fd) or '.COM' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.vbs' in str(fd) or '.VBS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    else:
+                        pass
+            except Exception as e:
+                print(e)
                 continue
     except:
         pass
@@ -1183,13 +1443,13 @@ def pyas_scan_path_zh(path,rfp):
 #定義全盤掃描
 def pyas_scan_disk_init_zh():
     try:
-        os.remove('Library/PYASV.tmp')
+        os.remove('Library/PYAS/Temp/PYASV.tmp')
     except:
         pass
     pyas_clear()
     textPad.insert("insert", zh_init_file+'\n')
     root.update()
-    with open('Library/MD5/Viruslist.md5','r') as fp:
+    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     pyas_scan_disk_zh('A:/',rfp)
     pyas_scan_disk_zh('B:/',rfp)
@@ -1229,11 +1489,38 @@ def pyas_scan_disk_zh(path,rfp):
                 if os.path.isdir(fullpath):
                     pyas_scan_disk_zh(fullpath,rfp)
                 else:
-                    if '.exe' in str(fd):
+                    if '.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start_zh(fullpath,rfp):
-                            pyas_scan_write_zh(file)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.cmd' in str(fd) or '.CMD' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.bat' in str(fd) or '.BAT' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.com' in str(fd) or '.COM' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.vbs' in str(fd) or '.VBS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    else:
+                        pass
             except:
                 continue
     except:
@@ -1417,12 +1704,12 @@ def find_files_info_zh(ffile):
         findfile_zh('Y:/',ffile,fss,start)
         findfile_zh('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('Library/PYASF.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r')
         fe = ft.read()
         ft.close()
         pyas_clear()
         textPad.insert("insert", '''尋找結果:\n'''+pyas_divider+'\n'+str(fe))
-        os.remove('Library/PYASF.tmp')
+        os.remove('Library/PYAS/Temp/PYASF.tmp')
     except:
         pass
 
@@ -1439,7 +1726,7 @@ def findfile_zh(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    ft = open('Library/PYASF.tmp','a')
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','a')
                     ft.write('找到檔案: '+str(fullpath)+'\n'+'創建日期: '+str(date)+'\n'+'\n')
                     ft.close()
                     continue
@@ -1579,9 +1866,9 @@ def input_encrypt_zh():
     e2.focus_set()
     c=IntVar()
     fss = 0
-    Button(t,text='確定',command=lambda :encrypt(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
+    Button(t,text='確定',command=lambda :encrypt_zh(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
 
-def encrypt(e,e2):
+def encrypt_zh(e,e2):
     pyas_clear()
     textPad.insert("insert", '您的加密內容: \n'+str(cryptocode.encrypt(e,e2)))
 
@@ -1603,9 +1890,9 @@ def input_decrypt_zh():
     e2.focus_set()
     c=IntVar()
     fss = 0
-    Button(t,text='確定',command=lambda :decrypt(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
+    Button(t,text='確定',command=lambda :decrypt_zh(e.get(),e2.get())).grid(row=1,column=2,sticky='e'+'w',pady=2)
 
-def decrypt(e,e2):
+def decrypt_zh(e,e2):
     pyas_clear()
     textPad.insert("insert", '您的解密內容: \n'+str(cryptocode.decrypt(e, e2)))
 
@@ -1710,6 +1997,21 @@ def change_user_password_init_zh():
 def change_user_password_zh(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
+def install_windows10_zh():
+    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win10.exe"')
+
+def install_windows11_zh():
+    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win11.exe"')
+
+'''
+def system_debug_zh():
+    of = subprocess.call('taskmgr',shell=True)
+    if of == 0:
+        of = subprocess.call('cmd',shell=True)
+        if of == 0:
+            of = subprocess.call('taskmgr',shell=True)
+            if of == 0:
+'''
 ################################################################################
 
 #關於
@@ -1742,7 +2044,7 @@ def traditional_chinese():
     if is_admin():
         try:
             pyas_clear()
-            ft = open('./Library/PYAS/PYAS.ini','w')
+            ft = open('./Library/PYAS/Setup/PYAS.ini','w')
             ft.write('''traditional_chinese''')
             ft.close()
             menubar = Menu(root)
@@ -1801,6 +2103,9 @@ def traditional_chinese():
             devmenu.add_command(label = '分析 EXE 哈希',command = exe_analyze_md5_zh)
             devmenu.add_command(label = '分析 EXE 位元',command = exe_analyze_file_zh)
             devmenu.add_command(label = '分析 EXE 函數',command = exe_analyze_function_zh)
+            #devmenu.add_separator()
+            #devmenu.add_command(label = '重灌 Win10 系統',command = install_windows10_zh)
+            #devmenu.add_command(label = '重灌 Win11 系統',command = install_windows11_zh)
             filemenu5 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = '設置',menu = filemenu5)
             sitmenu = Menu(filemenu5,tearoff=False)
@@ -1809,7 +2114,7 @@ def traditional_chinese():
             #sitmenu.add_command(label=" Auto Startup", command=#)
             #sitmenu.add_separator()
             sitmenu.add_command(label="更新防毒軟體", command=software_update_zh)
-            #sitmenu.add_command(label="Update Antivirus Engine", command=software_update_en)
+            sitmenu.add_command(label="更新掃毒引擎", command=engine_update_zh)
             sitmenu2 = Menu(filemenu5,tearoff=False)
             #filemenu5.add_cascade(label='引擎設置', menu=sitmenu2, underline=0)
             #sitmenu2.add_command(label="Enable Quick Scan", command=#)
@@ -1855,7 +2160,7 @@ def pyas_key():
             bytes = f.read()
             readable_hash = md5(bytes).hexdigest();
         f.close()
-        ft = open('./Library/PYAS/PYAS.key','r')
+        ft = open('./Library/PYAS/Setup/PYAS.key','r')
         fe = ft.read()
         ft.close()
         if fe == readable_hash:
@@ -1872,7 +2177,7 @@ Official website: https://xiaomi69ai.wixsite.com/pyas''')
 #初始化選項
 def setup_pyas():
     try:
-        ft = open('./Library/PYAS/PYAS.ini','r')
+        ft = open('./Library/PYAS/Setup/PYAS.ini','r')
         fe = ft.readlines(0)
         ft.close()
         if 'english' in fe:

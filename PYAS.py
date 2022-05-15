@@ -14,8 +14,8 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.1.1'
-pyae_virsion = '1.2.0'
+pyas_virsion = '2.1.2'
+pyae_virsion = '1.2.1'
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
 
@@ -287,30 +287,62 @@ def protect_threading_init_en():
 def pyas_protect_init_en():
     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
+    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        rfn = fn.read()
     pyas_clear()
     textPad.insert("insert", en_success)
     root.update()
     while 1:
         for p in psutil.process_iter():
             try:
-                if 'C:/Windows' not in str(p.exe()):
+                if 'C:\Windows' in str(p.exe()):
+                    pass
+                elif 'C:\Program Files' in str(p.exe()):
+                    pass
+                else:
                     if pyas_scan_start(p.exe(),rfp):
                         pyas_clear()
                         of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
-                        if of == 0:
-                            textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
-                            pygame.mixer.init()
-                            pygame.mixer.music.set_volume(1.0)
-                            if not pygame.mixer.music.get_busy():
-                                pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
-                                pygame.mixer.music.play()
-                        else:
-                            textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
+                        try:
+                            if of == 0:
+                                textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
+                                pygame.mixer.init()
+                                pygame.mixer.music.set_volume(1.0)
+                                if not pygame.mixer.music.get_busy():
+                                    pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                    pygame.mixer.music.play()
+                            else:
+                                textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
+                        except:
+                            pass
                     else:
-                        pass
-            except:
+                        fts = 0
+                        pe = PE(p.exe())
+                        for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                            for function in entry.imports:
+                                root.update()
+                                if str(function.name) in rfn:
+                                    fts = fts + 1
+                        if fts != 0:
+                            fts = 0
+                            pyas_clear()
+                            of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
+                            try:
+                                if of == 0:
+                                    textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
+                                    pygame.mixer.init()
+                                    pygame.mixer.music.set_volume(1.0)
+                                    if not pygame.mixer.music.get_busy():
+                                        pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                        pygame.mixer.music.play()
+                                else:
+                                    textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
+                            except:
+                                pass
+            except Exception as e:
+                print(e)
                 pass
-
+pyas_protect_init_en()
 ####################################################################################
 
 #定義智能掃描
@@ -321,9 +353,9 @@ def pyas_scan_smart_en():
     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     fp.close()
-    pyas_scan_path_en("Desktop/",rfp)
-    pyas_scan_path_en("Documents/",rfp)
-    pyas_scan_path_en("Downloads/",rfp)
+    pyas_scan_path_en("Desktop/",rfp,rfn,fts)
+    pyas_scan_path_en("Documents/",rfp,rfn,fts)
+    pyas_scan_path_en("Downloads/",rfp,rfn,fts)
 
 ####################################################################################
 
@@ -397,7 +429,7 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                 fullpath = os.path.join(path,fd)
                 print(fullpath)
                 if os.path.isdir(fullpath):
-                    pyas_scan_path_en(fullpath,rfp)
+                    pyas_scan_path_en(fullpath,rfp,rfn,fts)
                 else:
                     if '.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
@@ -435,6 +467,36 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_en(fullpath)
                     elif '.zip' in str(fd) or '.COM' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.js' in str(fd) or '.JS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.xls' in str(fd) or '.XLS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.doc' in str(fd) or '.DOC' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.dll' in str(fd) or '.DLL' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.scr' in str(fd) or '.SCR' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
@@ -523,6 +585,36 @@ def pyas_scan_disk_en(path,rfp):
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_en(fullpath)
                     elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.js' in str(fd) or '.JS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.xls' in str(fd) or '.XLS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.doc' in str(fd) or '.DOC' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.dll' in str(fd) or '.DLL' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.scr' in str(fd) or '.SCR' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
@@ -1160,30 +1252,61 @@ def protect_threading_init_zh():
 def pyas_protect_init_zh():
     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
+    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        rfn = fn.read()
     pyas_clear()
     textPad.insert("insert", zh_success)
     root.update()
     while 1:
         for p in psutil.process_iter():
             try:
-                if 'C:/Windows' not in str(p.exe()):
+                if 'C:\Windows' in str(p.exe()):
+                    pass
+                elif 'C:\Program Files' in str(p.exe()):
+                    pass
+                else:
                     if pyas_scan_start(p.exe(),rfp):
                         pyas_clear()
                         of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
-                        if of == 0:
-                            textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
-                            pygame.mixer.init()
-                            pygame.mixer.music.set_volume(1.0)
-                            if not pygame.mixer.music.get_busy():
-                                pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
-                                pygame.mixer.music.play()
-                        else:
-                            textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
+                        try:
+                            if of == 0:
+                                textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
+                                pygame.mixer.init()
+                                pygame.mixer.music.set_volume(1.0)
+                                if not pygame.mixer.music.get_busy():
+                                    pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                    pygame.mixer.music.play()
+                            else:
+                                textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
+                        except:
+                            pass
                     else:
-                        pass
+                        fts = 0
+                        pe = PE(p.exe())
+                        for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                            for function in entry.imports:
+                                root.update()
+                                if str(function.name) in rfn:
+                                    fts = fts + 1
+                        if fts != 0:
+                            fts = 0
+                            pyas_clear()
+                            of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
+                            try:
+                                if of == 0:
+                                    textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
+                                    pygame.mixer.init()
+                                    pygame.mixer.music.set_volume(1.0)
+                                    if not pygame.mixer.music.get_busy():
+                                        pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                        pygame.mixer.music.play()
+                                else:
+                                    textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
+                            except:
+                                pass
             except:
                 pass
-
+#pyas_protect_init_zh()
 ####################################################################################
         
 #定義紀錄掃描
@@ -1312,9 +1435,9 @@ def pyas_scan_smart_zh():
     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
     fp.close()
-    pyas_scan_path_zh("Desktop/",rfp)
-    pyas_scan_path_zh("Documents/",rfp)
-    pyas_scan_path_zh("Downloads/",rfp)
+    pyas_scan_path_zh("Desktop/",rfp,rfn,fts)
+    pyas_scan_path_zh("Documents/",rfp,rfn,fts)
+    pyas_scan_path_zh("Downloads/",rfp,rfn,fts)
 
 ####################################################################################
 
@@ -1388,7 +1511,7 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                 fullpath = os.path.join(path,fd)
                 print(fullpath)
                 if os.path.isdir(fullpath):
-                    pyas_scan_path_zh(fullpath,rfp)
+                    pyas_scan_path_zh(fullpath,rfp,rfn,fts)
                 else:
                     if '.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
@@ -1426,6 +1549,36 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_zh(fullpath)
                     elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.js' in str(fd) or '.JS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.xls' in str(fd) or '.XLS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.doc' in str(fd) or '.DOC' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.dll' in str(fd) or '.DLL' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.scr' in str(fd) or '.SCR' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
@@ -1515,6 +1668,36 @@ def pyas_scan_disk_zh(path,rfp):
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_zh(fullpath)
                     elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.js' in str(fd) or '.JS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.xls' in str(fd) or '.XLS' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.doc' in str(fd) or '.DOC' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.dll' in str(fd) or '.DLL' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.scr' in str(fd) or '.SCR' in str(fd):
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):

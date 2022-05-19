@@ -14,8 +14,9 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.1.2'
-pyae_virsion = '1.2.1'
+pyas_virsion = '2.1.3'
+pyae_virsion = '1.2.2'
+dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
 
@@ -229,29 +230,21 @@ def software_update_en():
     webbrowser.open('https://xiaomi69ai.wixsite.com/pyas')
 
 def engine_update_en():
-    pyas_clear()
-    textPad.insert("insert", 'Update Please Wait...')
-    root.update()
-    v = open('Library/PYAE/Hashes/Viruslist.version','r')
-    ver = int(v.read())+1
-    v.close()
-    try:
-        for i in range(ver,10000):
-            root.update()
-            pyas_clear()
-            textPad.insert("insert", 'Update Version: '+str(i))
-            x = 5 - len(str(i))
-            y = '0'*x+str(i)
-            file = req.get('https://virusshare.com/hashfiles/VirusShare_'+str(y)+'.md5', allow_redirects=True)
-            open('Library/PYAE/Hashes/Viruslist.md5', 'a').write(str(file.content)+'\n')
-    except:
-        v = open('Library/PYAE/Hashes/Viruslist.version','w')
-        v.write(str(i-1))
-        v.close()
+    if messagebox.askokcancel('Warning','Update Antivirus Engine ,Do You want to continue?', default="cancel", icon="warning"):
         pyas_clear()
-        textPad.insert("insert", 'Update Complete, PYAE Version: '+str(pyae_virsion)+'_'+str(i-1))
-        pass
-
+        textPad.insert("insert", 'Update Please Wait...')
+        root.update()
+        try:
+            file = req.get('https://github.com/87owo/ViruslistMD5/releases/download/v420/Viruslist.md5', allow_redirects=True)
+            open('Library/PYAE/Hashes/Viruslist.md5', 'w').write(str(file.content)+'\n')
+            pyas_clear()
+            textPad.insert("insert", 'Update Complete.')
+            root.update()
+        except Exception as e:
+            pyas_clear()
+            textPad.insert("insert", 'Update Failed: '+str(e))
+            pass
+        
 ####################################################################################
 
 #定義開始掃描
@@ -273,6 +266,17 @@ def pyas_scan_start(file,rfp):
 
 ####################################################################################
 
+def protect_background_en():
+    textPad.insert("insert", en_init_file)
+    root.update()
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAE\Engine\PYAE.exe"')
+    pyas_clear()
+
+####################################################################################
+
 #定義防護
 def protect_threading_init_en():
     if messagebox.askokcancel('Warning','''Enable Real Time Protection Needs More Then 4GB Of RAM. Do you want to continue?''', default="cancel", icon="warning"):
@@ -280,6 +284,7 @@ def protect_threading_init_en():
         root.update()
         t = threading.Thread(target = pyas_protect_init_en)
         t.start()
+        #t.join()
     else:
         pass
 
@@ -287,8 +292,8 @@ def protect_threading_init_en():
 def pyas_protect_init_en():
     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
-    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-        rfn = fn.read()
+    #with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        #rfn = fn.read()
     pyas_clear()
     textPad.insert("insert", en_success)
     root.update()
@@ -315,34 +320,10 @@ def pyas_protect_init_en():
                                 textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
                         except:
                             pass
-                    else:
-                        fts = 0
-                        pe = PE(p.exe())
-                        for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                            for function in entry.imports:
-                                root.update()
-                                if str(function.name) in rfn:
-                                    fts = fts + 1
-                        if fts != 0:
-                            fts = 0
-                            pyas_clear()
-                            of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
-                            try:
-                                if of == 0:
-                                    textPad.insert("insert", 'Successfully blocked a malware: '+str(p.name()))
-                                    pygame.mixer.init()
-                                    pygame.mixer.music.set_volume(1.0)
-                                    if not pygame.mixer.music.get_busy():
-                                        pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
-                                        pygame.mixer.music.play()
-                                else:
-                                    textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
-                            except:
-                                pass
             except Exception as e:
                 print(e)
                 pass
-pyas_protect_init_en()
+#pyas_protect_init_en()
 ####################################################################################
 
 #定義智能掃描
@@ -1098,17 +1079,74 @@ def change_user_password_en(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
 def install_windows10_en():
-    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win10.exe"')
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Win10.exe"')
+    pyas_clear()
 
 def install_windows11_en():
-    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win11.exe"')
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Win11.exe"')
+    pyas_clear()
+
+def start_repair_mode_en():
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Others\WinTWS.exe"')
+    pyas_clear()
 
 ################################################################################
 
 #關於
 def about_pyas_en():
     pyas_clear()
-    messagebox.showinfo('Copyright','''Website: https://xiaomi69ai.wixsite.com/pyas
+    try:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','r')
+        dev_edition_times = int(er.read())
+        er.close()
+    except:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
+        er.write('0')
+        er.close()
+        dev_edition_times = 0
+    if dev_edition_times >= 3:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
+        er.write('0')
+        er.close()
+        messagebox.showinfo('????????','''????????????????????????????????????''')
+        textPad.insert("insert",'''PYAS Infomation:
+'''+str(pyas_divider)+'''
+PYAS Developer: PYAS_Dev#0629 , Mtkiao192#3921 , Dragon#5381
+
+Official Email: xiaomi69ai@gmail.com
+
+Official Website: https://xiaomi69ai.wixsite.com/pyas
+
+PYAS Create Date: 2020/12/17
+
+PYAS Version: 2.1.3
+
+PYAE Version: 1.2.2
+
+FUNC Version: 1.0.0
+
+HASH Version: 420 MD5
+
+TKINTER Version: 3.0 (Select Mode Not Type Mode)''')
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load('./Library/PYAS/Audio/Easteregg.mp3')
+            pygame.mixer.music.play()
+    else:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
+        er.write(str(dev_edition_times + 1))
+        er.close()
+        messagebox.showinfo('Copyright','''Website: https://xiaomi69ai.wixsite.com/pyas
 Copyright© 2020-2022 PYAS Python Antivirus Software''')
 
 def software_version_en():
@@ -1148,6 +1186,7 @@ def english():
             menubar.add_cascade(label = ' Scan',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
             filemenu2.add_command(label = 'Enable Real Time Protection',command = protect_threading_init_en)
+            #filemenu2.add_command(label = 'Enable Background Protection',command = protect_background_en)
             #filemenu2.add_command(label = 'Disable Auto Protect',command = dprotect_threading_init_en)
             #filemenu2.add_command(label = 'Behavioural Protect',command = #)
             #filemenu2.add_command(label = 'Network Protect',command = #)
@@ -1162,6 +1201,7 @@ def english():
             sub2menu.add_separator()
             sub2menu.add_command(label = 'Repair System Files',command = repair_system_files_en)
             sub2menu.add_command(label = 'Repair System Permissions',command = fix_cmd_permissions_en)
+            #sub2menu.add_command(label = 'Enable Dev Repair Mode',command = start_repair_mode_en)
             sub2menu.add_separator()
             sub2menu.add_command(label = 'Enable Safe Mode',command = start_safe_mode_en)
             sub2menu.add_command(label = 'Disable safe mode',command = close_safe_Mode_en)
@@ -1245,6 +1285,7 @@ def protect_threading_init_zh():
         root.update()
         t = threading.Thread(target = pyas_protect_init_zh)
         t.start()
+        #t.join()
     else:
         pass
 
@@ -1252,8 +1293,8 @@ def protect_threading_init_zh():
 def pyas_protect_init_zh():
     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
         rfp = fp.read()
-    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-        rfn = fn.read()
+    #with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+        #rfn = fn.read()
     pyas_clear()
     textPad.insert("insert", zh_success)
     root.update()
@@ -1280,33 +1321,21 @@ def pyas_protect_init_zh():
                                 textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
                         except:
                             pass
-                    else:
-                        fts = 0
-                        pe = PE(p.exe())
-                        for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                            for function in entry.imports:
-                                root.update()
-                                if str(function.name) in rfn:
-                                    fts = fts + 1
-                        if fts != 0:
-                            fts = 0
-                            pyas_clear()
-                            of = subprocess.call('taskkill /f /im "'+str(p.name())+'"',shell=True)
-                            try:
-                                if of == 0:
-                                    textPad.insert("insert", '成功攔截了一個惡意軟體: '+str(p.name()))
-                                    pygame.mixer.init()
-                                    pygame.mixer.music.set_volume(1.0)
-                                    if not pygame.mixer.music.get_busy():
-                                        pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
-                                        pygame.mixer.music.play()
-                                else:
-                                    textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
-                            except:
-                                pass
             except:
                 pass
 #pyas_protect_init_zh()
+####################################################################################
+
+def protect_background_zh():
+    textPad.insert("insert", zh_init_file)
+    root.update()
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAE\Engine\PYAE.exe"')
+    pyas_clear()
+    #textPad.insert("insert", zh_success)
+
 ####################################################################################
         
 #定義紀錄掃描
@@ -1379,28 +1408,20 @@ def software_update_zh():
     webbrowser.open('https://xiaomi69ai.wixsite.com/pyas')
 
 def engine_update_zh():
-    pyas_clear()
-    textPad.insert("insert", '正在更新中，請稍等。')
-    root.update()
-    v = open('Library/PYAE/Hashes/Viruslist.version','r')
-    ver = int(v.read())+1
-    v.close()
-    try:
-        for i in range(ver,10000):
-            root.update()
-            pyas_clear()
-            textPad.insert("insert", '正在更新: '+str(i))
-            x = 5 - len(str(i))
-            y = '0'*x+str(i)
-            file = req.get('https://virusshare.com/hashfiles/VirusShare_'+str(y)+'.md5', allow_redirects=True)
-            open('Library/PYAE/Hashes/Viruslist.md5', 'a').write(str(file.content)+'\n')
-    except:
-        v = open('Library/PYAE/Hashes/Viruslist.version','w')
-        v.write(str(i-1))
-        v.close()
+    if messagebox.askokcancel('Warning','更新掃毒引擎需要花費一些時間，是否繼續?', default="cancel", icon="warning"):
         pyas_clear()
-        textPad.insert("insert", '更新完成，當前 PYAE 版本: '+str(pyae_virsion)+'_'+str(i-1))
-        pass
+        textPad.insert("insert", '正在更新中，請稍等。')
+        root.update()
+        try:
+            file = req.get('https://github.com/87owo/ViruslistMD5/releases/download/v420/Viruslist.md5', allow_redirects=True)
+            open('Library/PYAE/Hashes/Viruslist.md5', 'w').write(str(file.content)+'\n')
+            pyas_clear()
+            textPad.insert("insert", '更新完成。')
+            root.update()
+        except Exception as e:
+            pyas_clear()
+            textPad.insert("insert", '更新失敗: '+str(e))
+            pass
 
 ####################################################################################
 
@@ -2181,10 +2202,25 @@ def change_user_password_zh(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
 def install_windows10_zh():
-    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win10.exe"')
-
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Win10.exe"')
+    pyas_clear()
+#install_windows10_zh()
 def install_windows11_zh():
-    os.system(str(pathlib.Path(__file__).parent.absolute())+'\\Library\\PYAP\\Windows\\Win11.exe"')
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Win11.exe"')
+    pyas_clear()
+
+def start_repair_mode_zh():
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Others\WinTWS.exe"')
+    pyas_clear()
 
 '''
 def system_debug_zh():
@@ -2200,7 +2236,49 @@ def system_debug_zh():
 #關於
 def about_pyas_zh():
     pyas_clear()
-    messagebox.showinfo('Copyright','''官方網站: https://xiaomi69ai.wixsite.com/pyas
+    try:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','r')
+        dev_edition_times = int(er.read())
+        er.close()
+    except:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
+        er.write('0')
+        er.close()
+        dev_edition_times = 0
+    if dev_edition_times >= 3:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
+        er.write('0')
+        er.close()
+        messagebox.showinfo('????????','''????????????????????????????????????''')
+        textPad.insert("insert",'''PYAS 詳細資訊:
+'''+str(pyas_divider)+'''
+開發人員: PYAS_Dev#0629 , Mtkiao192#3921 , Dragon#5381
+
+官方郵件: xiaomi69ai@gmail.com
+
+官方網站: https://xiaomi69ai.wixsite.com/pyas
+
+創建日期: 2020/12/17
+
+PYAS 版本: 2.1.3
+
+PYAE 版本: 1.2.2
+
+FUNC 版本: 1.0.0
+
+HASH 版本: 420 MD5
+
+介面版本: 3.0 (選取模式非輸入模式)''')
+        pygame.mixer.init()
+        pygame.mixer.music.set_volume(1.0)
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load('./Library/PYAS/Audio/Easteregg.mp3')
+            pygame.mixer.music.play()
+    else:
+        er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
+        er.write(str(dev_edition_times + 1))
+        er.close()
+        messagebox.showinfo('Copyright','''官方網站: https://xiaomi69ai.wixsite.com/pyas
 版權所有© 2020-2022 PYAS Python Antivirus Software''')
 
 def software_version_zh():
@@ -2240,7 +2318,7 @@ def traditional_chinese():
             menubar.add_cascade(label = ' 掃描',menu = filemenu)
             filemenu2 = Menu(menubar,tearoff=False)
             filemenu2.add_command(label = '啟動實時防護',command = protect_threading_init_zh)
-            #filemenu2.add_command(label = '關閉實時防護',command = dprotect_threading_init_zh)
+            #filemenu2.add_command(label = '啟動後台防護',command = protect_background_zh)
             #filemenu2.add_command(label = 'Behavioural Protect',command = #)
             #filemenu2.add_command(label = 'Network Protect',command = #)
             menubar.add_cascade(label = '防護',menu = filemenu2)
@@ -2254,6 +2332,7 @@ def traditional_chinese():
             sub2menu.add_separator()
             sub2menu.add_command(label = '修復系統檔案',command = repair_system_files_zh)
             sub2menu.add_command(label = '修復系統權限',command = fix_cmd_permissions_zh)
+            #sub2menu.add_command(label = '啟動進階修復',command = start_repair_mode_zh)
             sub2menu.add_separator()
             sub2menu.add_command(label = '啟動安全模式',command = start_safe_mode_zh)
             sub2menu.add_command(label = '關閉安全模式',command = close_safe_Mode_zh)

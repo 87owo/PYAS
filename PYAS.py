@@ -1,8 +1,8 @@
 ####################################################################################
 # Coding Python 3 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.1.1 (2020.12.17)
-# PYAE Ver: PYAS V1.2.0 (2022.03.04)
+# PYAS Ver: PYAS V2.1.5 (2020.12.17)
+# PYAE Ver: PYAS V1.2.3 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
 # PYAS Git: https://github.com/87owo/PYAS
@@ -14,8 +14,8 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.1.3'
-pyae_virsion = '1.2.2'
+pyas_virsion = '2.1.5'
+pyae_virsion = '1.2.3'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
@@ -127,6 +127,7 @@ Language: Setting > Change Language
 
 #許可條款
 def pyas_license_terms_en():
+    pyas_clear()
     textPad.insert("insert", '''PYTHON ANTIVIRUS SOFTWARE LICENSE TERMS
 #Use PYAS anti-virus software and services means that you accept these terms. If you do not accept them, please do not use them.
 #Use PYAS anti-virus software and services, if you comply with the PYAS anti-virus software license terms, you will have the following rights.
@@ -150,6 +151,13 @@ File read and write management permissions
 Command prompt execution permission
 Login editor management authority
 ''')
+
+####################################################################################
+
+def easter_game():#not cplt
+    block = '█'
+    ax = '-----'
+    go = 'Game Over'
 
 ####################################################################################
 
@@ -427,63 +435,11 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                             if fts != 0:
                                 pyas_scan_write_en(str(fullpath))
                                 fts = 0
-                    elif '.cmd' in str(fd) or '.CMD' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.bat' in str(fd) or '.BAT' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.com' in str(fd) or '.COM' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.vbs' in str(fd) or '.VBS' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.zip' in str(fd) or '.COM' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.js' in str(fd) or '.JS' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.xls' in str(fd) or '.XLS' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.doc' in str(fd) or '.DOC' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.dll' in str(fd) or '.DLL' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.scr' in str(fd) or '.SCR' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
-                    elif '.tmp' in str(fd) or '.TMP' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
                     else:
-                        pass
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
             except:
                 continue
     except:
@@ -1099,6 +1055,10 @@ def start_repair_mode_en():
     subprocess.run('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Others\WinTWS.exe"')
     pyas_clear()
 
+def run_vmware_windows():
+    os.system('start "'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\VMware\vmware-kvm.exe" "'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Windows 11.vmx"')
+    print('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\VMware\vmware-kvm.exe" "'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Windows 11.vmx"')
+#run_vmware_windows()
 ################################################################################
 
 #關於
@@ -1113,42 +1073,41 @@ def about_pyas_en():
         er.write('0')
         er.close()
         dev_edition_times = 0
-    if dev_edition_times >= 3:
+    if dev_edition_times >= 2:
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write('0')
         er.close()
-        messagebox.showinfo('????????','''????????????????????????????????????''')
-        textPad.insert("insert",'''PYAS Infomation:
-'''+str(pyas_divider)+'''
-PYAS Developer: PYAS_Dev#0629 , Mtkiao192#3921 , Dragon#5381
-
+        messagebox.showinfo('?????????','''???????????????????????????????????????????????????''')
+        x = ''
+        pdinfo = '''
+PYAS Developer: PYAS_Dev#0629 , Mtkiao129#3921 , Dragon#5381
 Official Email: xiaomi69ai@gmail.com
-
+Official Github: https://github.com/87owo/PYAS
 Official Website: https://xiaomi69ai.wixsite.com/pyas
-
 PYAS Create Date: 2020/12/17
-
-PYAS Version: 2.1.3
-
-PYAE Version: 1.2.2
-
-FUNC Version: 1.0.0
-
-HASH Version: 420 MD5
-
-TKINTER Version: 3.0 (Select Mode Not Type Mode)''')
+PYAS Version: 2.1.5
+PYAE Version: 1.2.3
+Special Thanks: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
+'''
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
         if not pygame.mixer.music.get_busy():
-            pygame.mixer.music.load('./Library/PYAS/Audio/Easteregg.mp3')
+            pygame.mixer.music.load('./Library/PYAS/Audio/Easteregg.ogg')
             pygame.mixer.music.play()
+        for i in pdinfo:
+            x = x+i
+            time.sleep(0.1)
+            pyas_clear()
+            textPad.insert("insert",'''PYAS Infomation:
+'''+str(pyas_divider)+str(x)+'_')
+            root.update()
     else:
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write(str(dev_edition_times + 1))
         er.close()
         messagebox.showinfo('Copyright','''Website: https://xiaomi69ai.wixsite.com/pyas
 Copyright© 2020-2022 PYAS Python Antivirus Software''')
-
+#about_pyas_en()
 def software_version_en():
     pyas_clear()
     messagebox.showinfo('Version','''Software Version: '''+pyas_virsion)
@@ -1549,63 +1508,11 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                             if fts != 0:
                                 pyas_scan_write_zh(str(fullpath))
                                 fts = 0
-                    elif '.cmd' in str(fd) or '.CMD' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.bat' in str(fd) or '.BAT' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.com' in str(fd) or '.COM' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.vbs' in str(fd) or '.VBS' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.zip' in str(fd) or '.ZIP' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.js' in str(fd) or '.JS' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.xls' in str(fd) or '.XLS' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.doc' in str(fd) or '.DOC' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.dll' in str(fd) or '.DLL' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.scr' in str(fd) or '.SCR' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
-                    elif '.tmp' in str(fd) or '.TMP' in str(fd):
-                        textPad.delete(1.0,END)
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
                     else:
-                        pass
+                        textPad.delete(1.0,END)
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
             except Exception as e:
                 print(e)
                 continue
@@ -2245,35 +2152,34 @@ def about_pyas_zh():
         er.write('0')
         er.close()
         dev_edition_times = 0
-    if dev_edition_times >= 3:
+    if dev_edition_times >= 2:
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write('0')
         er.close()
-        messagebox.showinfo('????????','''????????????????????????????????????''')
-        textPad.insert("insert",'''PYAS 詳細資訊:
-'''+str(pyas_divider)+'''
-開發人員: PYAS_Dev#0629 , Mtkiao192#3921 , Dragon#5381
-
-官方郵件: xiaomi69ai@gmail.com
-
+        messagebox.showinfo('?????????','''???????????????????????????????????????????????????''')
+        x = ''
+        pdinfo = '''
+開發人員: PYAS_Dev#0629 , Mtkiao129#3921 , Dragon#5381
+官方郵箱: xiaomi69ai@gmail.com
+官方GIT: https://github.com/87owo/PYAS
 官方網站: https://xiaomi69ai.wixsite.com/pyas
-
-創建日期: 2020/12/17
-
-PYAS 版本: 2.1.3
-
-PYAE 版本: 1.2.2
-
-FUNC 版本: 1.0.0
-
-HASH 版本: 420 MD5
-
-介面版本: 3.0 (選取模式非輸入模式)''')
+創立日期: 2020/12/17
+PYAS 版本: 2.1.5
+PYAE 版本: 1.2.3
+特別感謝: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
+'''
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
         if not pygame.mixer.music.get_busy():
-            pygame.mixer.music.load('./Library/PYAS/Audio/Easteregg.mp3')
+            pygame.mixer.music.load('./Library/PYAS/Audio/Easteregg.ogg')
             pygame.mixer.music.play()
+        for i in pdinfo:
+            x = x+i
+            time.sleep(0.1)
+            pyas_clear()
+            textPad.insert("insert",'''PYAS Infomation:
+'''+str(pyas_divider)+str(x)+'_')
+            root.update()
     else:
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write(str(dev_edition_times + 1))

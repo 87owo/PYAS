@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.1.6 (2020.12.17)
+# PYAS Ver: PYAS V2.1.7 (2020.12.17)
 # PYAE Ver: PYAS V1.2.3 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -14,7 +14,7 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.1.6'
+pyas_virsion = '2.1.7'
 pyae_virsion = '1.2.3'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -1085,7 +1085,7 @@ Official Email: xiaomi69ai@gmail.com
 Official Github: https://github.com/87owo/PYAS
 Official Website: https://xiaomi69ai.wixsite.com/pyas
 PYAS Create Date: 2020/12/17
-PYAS Version: 2.1.6
+PYAS Version: 2.1.7
 PYAE Version: 1.2.3
 Special Thanks: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 Thanks For Using PYAS Python Antivirus Software'''
@@ -2164,7 +2164,7 @@ def about_pyas_zh():
 官方GIT: https://github.com/87owo/PYAS
 官方網站: https://xiaomi69ai.wixsite.com/pyas
 創立日期: 2020/12/17
-PYAS 版本: 2.1.6
+PYAS 版本: 2.1.7
 PYAE 版本: 1.2.3
 特別感謝: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感謝您使用 PYAS 防毒軟體'''
@@ -3242,7 +3242,7 @@ def about_pyas_cn():
 官方GIT: https://github.com/87owo/PYAS
 官方网站: https://xiaomi69ai.wixsite.com/pyas
 创立日期: 2020/12/17
-PYAS 版本: 2.1.6
+PYAS 版本: 2.1.7
 PYAE 版本: 1.2.3
 特别感谢: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感谢您使用 PYAS 防毒软件'''
@@ -3316,7 +3316,7 @@ def simplified_chinese():
             filemenu3.add_cascade(label='隐私工具', menu=insmenu, underline=0)
             insmenu.add_command(label = '相机隐私检测',command = camera_check_cn)
             #insmenu.add_command(label = 'Protect Privacy Archives',command = #)
-            insmenu.add_command(label = '移除私密檔案',command = destroy_files_cn)
+            insmenu.add_command(label = '移除私密档案',command = destroy_files_cn)
             submenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='更多工具', menu=submenu, underline=0)
             submenu.add_command(label = '寻找档案',command = find_files_init_cn)
@@ -3391,12 +3391,17 @@ def pyas_key():
             bytes = f.read()
             readable_hash = md5(bytes).hexdigest();
         f.close()
-        ft = open('./Library/PYAS/Setup/PYAS.key','r')
-        fe = ft.read()
-        ft.close()
-        if fe == readable_hash:
-            setup_pyas()
-        else:
+        try:
+            ft = open('./Library/PYAS/Setup/PYAS.key','r')
+            fe = ft.read()
+            ft.close()
+            if fe == readable_hash:
+                setup_pyas()
+            else:
+                messagebox.showerror('Error', '''The PYAS antivirus software you are using is not genuine. To ensure your safety, please download genuine antivirus software from the
+Official website: https://xiaomi69ai.wixsite.com/pyas''')
+        except:
+            print('fail')
             messagebox.showerror('Error', '''The PYAS antivirus software you are using is not genuine. To ensure your safety, please download genuine antivirus software from the
 Official website: https://xiaomi69ai.wixsite.com/pyas''')
     else:

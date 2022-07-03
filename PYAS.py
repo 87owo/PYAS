@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.1.7 (2020.12.17)
+# PYAS Ver: PYAS V2.1.8 (2020.12.17)
 # PYAE Ver: PYAS V1.2.3 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -14,7 +14,7 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.1.7'
+pyas_virsion = '2.1.8'
 pyae_virsion = '1.2.3'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -367,24 +367,27 @@ def pyas_file_scan_en():
             pyas_scan_write_en(file)
             textPad.insert("insert", en_virus_true+'\n')
         else:
-            fts = 0
-            pe = PE(file)
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for function in entry.imports:
-                    root.update()
-                    if str(function.name) in rfn:
-                        fts = fts + 1
-            if fts != 0:
-                pyas_scan_write_en(file)
+            try:
                 fts = 0
-                textPad.insert("insert", en_virus_true+'\n')
+                pe = PE(file)
+                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    for function in entry.imports:
+                        root.update()
+                        if str(function.name) in rfn:
+                            fts = fts + 1
+                if fts != 0:
+                    pyas_scan_write_en(file)
+                    fts = 0
+                    textPad.insert("insert", en_virus_true+'\n')
+            except:
+                pass
         fp.close()
         fn.close()
         pyas_scan_answer_en()
     else:
         pyas_clear()
         textPad.insert("insert", none_file_en+'\n')
-
+#pyas_file_scan_en()
 ####################################################################################
 
 #定義路徑掃描
@@ -741,7 +744,7 @@ def find_files_info_en(ffile):
         findfile_en('Y:/',ffile,fss,start)
         findfile_en('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('Library/PYAS/Temp/PYASF.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
         pyas_clear()
@@ -763,7 +766,7 @@ def findfile_en(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    ft = open('Library/PYAS/Temp/PYASF.tmp','a')
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding='utf-8')
                     ft.write('File found: '+str(fullpath)+'\n'+'Create date: '+str(date)+'\n'+'\n')
                     ft.close()
                     continue
@@ -957,11 +960,11 @@ def input_send_text_en():
         e3.focus_set()
         c=IntVar()
         fss = 0
-        Button(t,text='OK',command=lambda :send_text(e.get(),e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='OK',command=lambda :send_text_en(e.get(),e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
     else:
         pass
 
-def send_text(message,HOST,PORT):
+def send_text_en(message,HOST,PORT):
     pyas_clear()
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -989,11 +992,11 @@ def input_receive_text_en():
         e3.focus_set()
         c=IntVar()
         fss = 0
-        Button(t,text='OK',command=lambda :receive_text(e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='OK',command=lambda :receive_text_en(e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
     else:
         pass
     
-def receive_text(HOST,PORT):
+def receive_text_en(HOST,PORT):
     pyas_clear()
     max_connect = 5
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -1059,6 +1062,7 @@ def run_vmware_windows():
     os.system('start "'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\VMware\vmware-kvm.exe" "'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Windows 11.vmx"')
     print('"'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\VMware\vmware-kvm.exe" "'+str(pathlib.Path(__file__).parent.absolute())+'\Library\PYAP\Windows\Windows 11.vmx"')
 #run_vmware_windows()
+    
 ################################################################################
 
 #關於
@@ -1085,7 +1089,7 @@ Official Email: xiaomi69ai@gmail.com
 Official Github: https://github.com/87owo/PYAS
 Official Website: https://xiaomi69ai.wixsite.com/pyas
 PYAS Create Date: 2020/12/17
-PYAS Version: 2.1.7
+PYAS Version: 2.1.8
 PYAE Version: 1.2.3
 Special Thanks: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 Thanks For Using PYAS Python Antivirus Software'''
@@ -1440,17 +1444,20 @@ def pyas_file_scan_zh():
             pyas_scan_write_zh(file)
             textPad.insert("insert", zh_virus_true+'\n')
         else:
-            fts = 0
-            pe = PE(file)
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for function in entry.imports:
-                    root.update()
-                    if str(function.name) in rfn:
-                        fts = fts + 1
-            if fts != 0:
-                pyas_scan_write_zh(file)
+            try:
                 fts = 0
-                textPad.insert("insert", zh_virus_true+'\n')
+                pe = PE(file)
+                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    for function in entry.imports:
+                        root.update()
+                        if str(function.name) in rfn:
+                            fts = fts + 1
+                if fts != 0:
+                    pyas_scan_write_zh(file)
+                    fts = 0
+                    textPad.insert("insert", zh_virus_true+'\n')
+            except:
+                pass
         fp.close()
         fn.close()
         pyas_scan_answer_zh()
@@ -1815,7 +1822,7 @@ def find_files_info_zh(ffile):
         findfile_zh('Y:/',ffile,fss,start)
         findfile_zh('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('Library/PYAS/Temp/PYASF.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
         pyas_clear()
@@ -1837,13 +1844,14 @@ def findfile_zh(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    ft = open('Library/PYAS/Temp/PYASF.tmp','a')
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding='utf-8')
                     ft.write('找到檔案: '+str(fullpath)+'\n'+'創建日期: '+str(date)+'\n'+'\n')
                     ft.close()
                     continue
-    except:
+    except Exception as e:
+        print(e)
         pass
-
+#find_files_init_zh()
 def repair_system_files_zh():
     pyas_clear()
     if messagebox.askokcancel('Warning','''這個功能需要花費一些時間，是否繼續?''', default="cancel", icon="warning"):
@@ -2031,11 +2039,11 @@ def input_send_text_zh():
         e3.focus_set()
         c=IntVar()
         fss = 0
-        Button(t,text='確定',command=lambda :send_text(e.get(),e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='確定',command=lambda :send_text_zh(e.get(),e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
     else:
         pass
 
-def send_text(message,HOST,PORT):
+def send_text_zh(message,HOST,PORT):
     pyas_clear()
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -2063,11 +2071,11 @@ def input_receive_text_zh():
         e3.focus_set()
         c=IntVar()
         fss = 0
-        Button(t,text='確定',command=lambda :receive_text(e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='確定',command=lambda :receive_text_zh(e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
     else:
         pass
     
-def receive_text(HOST,PORT):
+def receive_text_zh(HOST,PORT):
     pyas_clear()
     max_connect = 5
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -2164,7 +2172,7 @@ def about_pyas_zh():
 官方GIT: https://github.com/87owo/PYAS
 官方網站: https://xiaomi69ai.wixsite.com/pyas
 創立日期: 2020/12/17
-PYAS 版本: 2.1.7
+PYAS 版本: 2.1.8
 PYAE 版本: 1.2.3
 特別感謝: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感謝您使用 PYAS 防毒軟體'''
@@ -2518,17 +2526,20 @@ def pyas_file_scan_cn():
             pyas_scan_write_cn(file)
             textPad.insert("insert", cn_virus_true+'\n')
         else:
-            fts = 0
-            pe = PE(file)
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for function in entry.imports:
-                    root.update()
-                    if str(function.name) in rfn:
-                        fts = fts + 1
-            if fts != 0:
-                pyas_scan_write_cn(file)
+            try:
                 fts = 0
-                textPad.insert("insert", cn_virus_true+'\n')
+                pe = PE(file)
+                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    for function in entry.imports:
+                        root.update()
+                        if str(function.name) in rfn:
+                            fts = fts + 1
+                if fts != 0:
+                    pyas_scan_write_cn(file)
+                    fts = 0
+                    textPad.insert("insert", cn_virus_true+'\n')
+            except:
+                pass
         fp.close()
         fn.close()
         pyas_scan_answer_cn()
@@ -2893,7 +2904,7 @@ def find_files_info_cn(ffile):
         findfile_cn('Y:/',ffile,fss,start)
         findfile_cn('Z:/',ffile,fss,start)
         end = time.time()
-        ft = open('Library/PYAS/Temp/PYASF.tmp','r')
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
         pyas_clear()
@@ -2915,7 +2926,7 @@ def findfile_cn(path,ffile,fss,start):
                 fss = fss + 1
                 if ffile in str(fd):
                     date = time.ctime(os.path.getmtime(fullpath))
-                    ft = open('Library/PYAS/Temp/PYASF.tmp','a')
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding='utf-8')
                     ft.write('找到档案: '+str(fullpath)+'\n'+'创建日期: '+str(date)+'\n'+'\n')
                     ft.close()
                     continue
@@ -3109,11 +3120,11 @@ def input_send_text_cn():
         e3.focus_set()
         c=IntVar()
         fss = 0
-        Button(t,text='确定',command=lambda :send_text(e.get(),e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='确定',command=lambda :send_text_cn(e.get(),e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
     else:
         pass
 
-def send_text(message,HOST,PORT):
+def send_text_cn(message,HOST,PORT):
     pyas_clear()
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -3141,11 +3152,11 @@ def input_receive_text_cn():
         e3.focus_set()
         c=IntVar()
         fss = 0
-        Button(t,text='确定',command=lambda :receive_text(e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
+        Button(t,text='确定',command=lambda :receive_text_cn(e2.get(),e3.get())).grid(row=2,column=2,sticky='e'+'w',pady=0)
     else:
         pass
     ##
-def receive_text(HOST,PORT):
+def receive_text_cn(HOST,PORT):
     pyas_clear()
     max_connect = 5
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -3242,7 +3253,7 @@ def about_pyas_cn():
 官方GIT: https://github.com/87owo/PYAS
 官方网站: https://xiaomi69ai.wixsite.com/pyas
 创立日期: 2020/12/17
-PYAS 版本: 2.1.7
+PYAS 版本: 2.1.8
 PYAE 版本: 1.2.3
 特别感谢: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感谢您使用 PYAS 防毒软件'''

@@ -1,8 +1,8 @@
 ####################################################################################
 # Coding Python 3 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.1.8 (2020.12.17)
-# PYAE Ver: PYAS V1.2.3 (2022.03.04)
+# PYAS Ver: PYAS V2.1.9 (2020.12.17)
+# PYAE Ver: PYAE V1.2.3 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
 # PYAS Git: https://github.com/87owo/PYAS
@@ -14,8 +14,8 @@
 ####################################################################################
 
 #版本資訊
-pyas_virsion = '2.1.8'
-pyae_virsion = '1.2.3'
+pyas_version = '2.1.9'
+pyae_version = '1.2.3'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
@@ -27,7 +27,7 @@ pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
 import pyinstaller_versionfile
 pyinstaller_versionfile.create_versionfile(
     output_file="versionfile.txt",
-    version=pyas_virsion,
+    version=pyas_version,
     company_name="PYAS",
     file_description="Python Antivirus Software",
     internal_name="PYAS",
@@ -88,7 +88,7 @@ pyas_divider = '='*80
 
 #載入模組套件
 try:
-    import os, time, sys, psutil, socket, subprocess, binascii, platform, cryptocode, webbrowser, requests, threading, pygame, pathlib
+    import os, time, sys, psutil, socket, subprocess, binascii, platform, cryptocode, webbrowser, requests, threading, pygame, pathlib, virustotal_python
     from cv2 import VideoCapture
     from ctypes import windll
     import requests as req
@@ -96,6 +96,7 @@ try:
     from hashlib import md5
     from tkinter import messagebox, filedialog
     from tkinter import *
+    #from pprint import pprint
 except Exception as e:
     print(e)
 
@@ -103,7 +104,7 @@ except Exception as e:
 
 #載入窗口介面
 root = Tk()
-root.title('PYAS V'+pyas_virsion)
+root.title('PYAS V'+pyas_version)
 sx,sy = root.winfo_screenwidth(),root.winfo_screenheight()
 root.geometry('800x450+'+str(int(sx/2-400))+'+'+str(int(sy/2-225)))
 textPad=Text(root,undo=True)
@@ -119,8 +120,11 @@ group.pack(anchor='e')
 
 #觀迎使用
 en_welcome = '''Welcome To Python Antivirus Software !!!
-
+========================================
 Language: Setting > Change Language
+Update: Setting > Software Settings
+========================================
+PYAS Version: 2.1.9, PYAE Version: 1.2.3
 '''#Help Info: About > PYAS Help
 
 ####################################################################################
@@ -332,6 +336,45 @@ def pyas_protect_init_en():
                 print(e)
                 pass
 #pyas_protect_init_en()
+####################################################################################
+
+def input_virustotal_scan_en():
+    pyas_clear()
+    t=Toplevel(root)
+    t.title('Virustotal Api Key')
+    t.geometry('260x40')
+    t.transient(root)
+    Label(t,text=' KEY: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    c=IntVar()
+    fss = 0
+    Button(t,text='OK',command=lambda :virustotal_scan_en(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
+
+def virustotal_scan_en(key):
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        try:
+            with open(file,"rb") as f:
+                bytes = f.read()
+                readable_hash = md5(bytes).hexdigest();
+                # The ID (either SHA-256, SHA-1 or MD5 hash) identifying the file
+                FILE_ID = str(readable_hash)
+                with virustotal_python.Virustotal(key) as vtotal:
+                    resp = vtotal.request(f"files/{FILE_ID}")
+                    FILE_ID = resp.data["id"]
+                    webbrowser.open('https://www.virustotal.com/gui/file/'+str(FILE_ID))
+            f.close()
+        except Exception as e:
+            print(e)
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_en+'\n')
+
+#virustotal_scan()
 ####################################################################################
 
 #定義智能掃描
@@ -1089,7 +1132,7 @@ Official Email: xiaomi69ai@gmail.com
 Official Github: https://github.com/87owo/PYAS
 Official Website: https://xiaomi69ai.wixsite.com/pyas
 PYAS Create Date: 2020/12/17
-PYAS Version: 2.1.8
+PYAS Version: 2.1.9
 PYAE Version: 1.2.3
 Special Thanks: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 Thanks For Using PYAS Python Antivirus Software'''
@@ -1114,11 +1157,11 @@ Copyright© 2020-2022 PYAS Python Antivirus Software''')
 #about_pyas_en()
 def software_version_en():
     pyas_clear()
-    messagebox.showinfo('Version','''Software Version: '''+pyas_virsion)
+    messagebox.showinfo('Version','''Software Version: '''+pyas_version)
 
 def engine_version_en():
     pyas_clear()
-    messagebox.showinfo('Version','''Engine Version: '''+pyae_virsion)
+    messagebox.showinfo('Version','''Engine Version: '''+pyae_version)
 
 ####################################################################################
 
@@ -1197,6 +1240,8 @@ def english():
             devmenu.add_command(label = 'Analyze EXE Hashes',command = exe_analyze_md5_en)
             devmenu.add_command(label = 'Analyze EXE Bytes',command = exe_analyze_file_en)
             devmenu.add_command(label = 'Analyze EXE Function',command = exe_analyze_function_en)
+            devmenu.add_separator()
+            devmenu.add_command(label = 'Online File Analyze',command = input_virustotal_scan_en)
             #devmenu.add_separator()
             #devmenu.add_command(label = 'Install Win10 System',command = install_windows10_en)
             #devmenu.add_command(label = 'Install Win11 System',command = install_windows11_en)
@@ -1385,6 +1430,44 @@ def engine_update_zh():
             pyas_clear()
             textPad.insert("insert", '更新失敗: '+str(e))
             pass
+
+####################################################################################
+
+def input_virustotal_scan_zh():
+    pyas_clear()
+    t=Toplevel(root)
+    t.title('Virustotal Api Key')
+    t.geometry('260x40')
+    t.transient(root)
+    Label(t,text=' 密鑰: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    c=IntVar()
+    fss = 0
+    Button(t,text='確定',command=lambda :virustotal_scan_zh(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
+
+def virustotal_scan_zh(key):
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        try:
+            with open(file,"rb") as f:
+                bytes = f.read()
+                readable_hash = md5(bytes).hexdigest();
+                # The ID (either SHA-256, SHA-1 or MD5 hash) identifying the file
+                FILE_ID = str(readable_hash)
+                with virustotal_python.Virustotal(key) as vtotal:
+                    resp = vtotal.request(f"files/{FILE_ID}")
+                    FILE_ID = resp.data["id"]
+                    webbrowser.open('https://www.virustotal.com/gui/file/'+str(FILE_ID))
+            f.close()
+        except Exception as e:
+            print(e)
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_zh+'\n')
 
 ####################################################################################
 
@@ -2172,7 +2255,7 @@ def about_pyas_zh():
 官方GIT: https://github.com/87owo/PYAS
 官方網站: https://xiaomi69ai.wixsite.com/pyas
 創立日期: 2020/12/17
-PYAS 版本: 2.1.8
+PYAS 版本: 2.1.9
 PYAE 版本: 1.2.3
 特別感謝: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感謝您使用 PYAS 防毒軟體'''
@@ -2197,11 +2280,11 @@ PYAE 版本: 1.2.3
 
 def software_version_zh():
     pyas_clear()
-    messagebox.showinfo('Version','''防毒軟體版本: '''+pyas_virsion)
+    messagebox.showinfo('Version','''防毒軟體版本: '''+pyas_version)
 
 def engine_version_zh():
     pyas_clear()
-    messagebox.showinfo('Version','''掃毒引擎版本: '''+pyae_virsion)
+    messagebox.showinfo('Version','''掃毒引擎版本: '''+pyae_version)
 
 ####################################################################################
 
@@ -2279,6 +2362,8 @@ def traditional_chinese():
             devmenu.add_command(label = '分析 EXE 哈希',command = exe_analyze_md5_zh)
             devmenu.add_command(label = '分析 EXE 位元',command = exe_analyze_file_zh)
             devmenu.add_command(label = '分析 EXE 函數',command = exe_analyze_function_zh)
+            devmenu.add_separator()
+            devmenu.add_command(label = '線上檔案分析',command = input_virustotal_scan_zh)
             #devmenu.add_separator()
             #devmenu.add_command(label = '重灌 Win10 系統',command = install_windows10_zh)
             #devmenu.add_command(label = '重灌 Win11 系統',command = install_windows11_zh)
@@ -2467,6 +2552,44 @@ def engine_update_cn():
             pyas_clear()
             textPad.insert("insert", '更新失败: '+str(e))
             pass
+
+####################################################################################
+
+def input_virustotal_scan_cn():
+    pyas_clear()
+    t=Toplevel(root)
+    t.title('Virustotal Api Key')
+    t.geometry('260x40')
+    t.transient(root)
+    Label(t,text=' 密钥: ').grid(row=0,column=0,sticky='e')
+    v=StringVar()
+    e=Entry(t,width=20,textvariable=v)
+    e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
+    e.focus_set()
+    c=IntVar()
+    fss = 0
+    Button(t,text='确定',command=lambda :virustotal_scan_cn(e.get())).grid(row=0,column=2,sticky='e'+'w',pady=2)
+
+def virustotal_scan_cn(key):
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        try:
+            with open(file,"rb") as f:
+                bytes = f.read()
+                readable_hash = md5(bytes).hexdigest();
+                # The ID (either SHA-256, SHA-1 or MD5 hash) identifying the file
+                FILE_ID = str(readable_hash)
+                with virustotal_python.Virustotal(key) as vtotal:
+                    resp = vtotal.request(f"files/{FILE_ID}")
+                    FILE_ID = resp.data["id"]
+                    webbrowser.open('https://www.virustotal.com/gui/file/'+str(FILE_ID))
+            f.close()
+        except Exception as e:
+            print(e)
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_cn+'\n')
 
 ####################################################################################
 
@@ -3253,7 +3376,7 @@ def about_pyas_cn():
 官方GIT: https://github.com/87owo/PYAS
 官方网站: https://xiaomi69ai.wixsite.com/pyas
 创立日期: 2020/12/17
-PYAS 版本: 2.1.8
+PYAS 版本: 2.1.9
 PYAE 版本: 1.2.3
 特别感谢: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感谢您使用 PYAS 防毒软件'''
@@ -3278,11 +3401,11 @@ PYAE 版本: 1.2.3
 
 def software_version_cn():
     pyas_clear()
-    messagebox.showinfo('Version','''防毒软件版本: '''+pyas_virsion)
+    messagebox.showinfo('Version','''防毒软件版本: '''+pyas_version)
 
 def engine_version_cn():
     pyas_clear()
-    messagebox.showinfo('Version','''扫毒引擎版本: '''+pyae_virsion)
+    messagebox.showinfo('Version','''扫毒引擎版本: '''+pyae_version)
 
 ###########################################################################################################################################################################################
 
@@ -3350,6 +3473,8 @@ def simplified_chinese():
             devmenu.add_command(label = '分析 EXE 哈希',command = exe_analyze_md5_cn)
             devmenu.add_command(label = '分析 EXE 位元',command = exe_analyze_file_cn)
             devmenu.add_command(label = '分析 EXE 函数',command = exe_analyze_function_cn)
+            devmenu.add_separator()
+            devmenu.add_command(label = '在线挡案分析',command = input_virustotal_scan_cn)
             #devmenu.add_separator()
             #devmenu.add_command(label = '重灌 Win10 系統',command = install_windows10_zh)
             #devmenu.add_command(label = '重灌 Win11 系統',command = install_windows11_zh)
@@ -3436,7 +3561,7 @@ def setup_pyas():
         else:
             english()
     except Exception as e:
-        #messagebox.showinfo('Welcome',en_welcome)
+        messagebox.showinfo('Welcome',en_welcome)
         english()
 try:
     pyas_key()

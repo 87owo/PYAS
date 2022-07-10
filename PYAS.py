@@ -1,8 +1,8 @@
 ####################################################################################
 # Coding Python 3 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.1.9 (2020.12.17)
-# PYAE Ver: PYAE V1.2.3 (2022.03.04)
+# PYAS Ver: PYAS V2.2.0 (2020.12.17)
+# PYAE Ver: PYAE V1.2.4 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
 # PYAS Git: https://github.com/87owo/PYAS
@@ -14,8 +14,8 @@
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.1.9'
-pyae_version = '1.2.3'
+pyas_version = '2.2.0'
+pyae_version = '1.2.4'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 pyas_legal_copyright = 'Copyright© 2020-2022 PYAS'
@@ -124,7 +124,7 @@ en_welcome = '''Welcome To Python Antivirus Software !!!
 Language: Setting > Change Language
 Update: Setting > Software Settings
 ========================================
-PYAS Version: 2.1.9, PYAE Version: 1.2.3
+PYAS Version: 2.2.0, PYAE Version: 1.2.4
 '''#Help Info: About > PYAS Help
 
 ####################################################################################
@@ -177,19 +177,26 @@ def pyas_scan_write_en(file):
     fe = ft.write(file+'\n')
     ft.close()
 
+def pyas_scan_write_d_en(file):
+    ft = open('Library/PYAS/Temp/PYASD.tmp','a',encoding='utf-8')
+    fe = ft.write(file+'\n')
+    ft.close()
+
 #定義讀取紀錄
 def pyas_scan_read_en():
     try:
         ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
         fe = ft.read()
-        lines = ft.readlines()
+        ft.close()
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+        lines = len(ft.readlines())
         ft.close()
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
         if not pygame.mixer.music.get_busy():
             pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
             pygame.mixer.music.play()
-        return en_virus_true+'\n'+pyas_divider+'\n'+fe###
+        return en_virus_true+' ('+str(lines)+' items)'+'\n'+pyas_divider+'\n'+fe###
     except:
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
@@ -217,7 +224,10 @@ def pyas_scan_answer_en():
                         pyas_clear()
                         root.update()
                         textPad.insert("insert", 'Deleting:'+'\n'+pyas_divider+'\n'+str(line))
-                        os.remove(str(line[:-1]))
+                        try:
+                            os.remove(str(line[:-1]))
+                        except:
+                            continue
                     else:
                         pass
                 pyas_clear()
@@ -239,7 +249,7 @@ def pyas_scan_answer_en():
 #定義更新選項
 def software_update_en():
     pyas_clear()
-    webbrowser.open('https://xiaomi69ai.wixsite.com/pyas')
+    webbrowser.open('https://xiaomi69ai.wixsite.com/pyas?lang=en')
 
 def engine_update_en():
     if messagebox.askokcancel('Warning','Update Antivirus Engine ,Do You want to continue?', default="cancel", icon="warning"):
@@ -268,7 +278,7 @@ def pyas_scan_start(file,rfp):
             readable_hash = md5(bytes).hexdigest();
             if str(readable_hash) in str(rfp):
                 virus_found = True
-                f.close()
+        f.close()
         if not virus_found:
             return False
         else:
@@ -466,21 +476,24 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_en(fullpath,rfp,rfn,fts)
                 else:
-                    if '.exe' in str(fd) or '.EXE' in str(fd):
+                    if 1:#'.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_en(fullpath)
                         else:
-                            pe = PE(fullpath)
-                            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                for function in entry.imports:
-                                    root.update()
-                                    if str(function.name) in rfn:
-                                        fts = fts + 1
-                            if fts != 0:
-                                pyas_scan_write_en(str(fullpath))
-                                fts = 0
+                            try:
+                                pe = PE(fullpath)
+                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                    for function in entry.imports:
+                                        root.update()
+                                        if str(function.name) in rfn:
+                                            fts = fts + 1
+                                if fts != 0:
+                                    pyas_scan_write_en(str(fullpath))
+                                    fts = 0
+                            except:
+                                pass
                     else:
                         textPad.delete(1.0,END)
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
@@ -1132,8 +1145,8 @@ Official Email: xiaomi69ai@gmail.com
 Official Github: https://github.com/87owo/PYAS
 Official Website: https://xiaomi69ai.wixsite.com/pyas
 PYAS Create Date: 2020/12/17
-PYAS Version: 2.1.9
-PYAE Version: 1.2.3
+PYAS Version: 2.2.0
+PYAE Version: 1.2.4
 Special Thanks: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 Thanks For Using PYAS Python Antivirus Software'''
         pygame.mixer.init()
@@ -1287,7 +1300,7 @@ Error Info: '''+str(e))
 
 #定義防護
 def protect_threading_init_zh():
-    if messagebox.askokcancel('Warning','''啟動實時防護需要 4GB 以上的 RAM，是否繼續?''', default="cancel", icon="warning"):
+    if messagebox.askokcancel('Warning','''啟動實時防護需要 4GB 以上的記憶體，是否繼續?''', default="cancel", icon="warning"):
         pyas_clear()
         textPad.insert("insert", zh_init_file)
         root.update()
@@ -1358,12 +1371,15 @@ def pyas_scan_read_zh():
         ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+        lines = len(ft.readlines())
+        ft.close()
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
         if not pygame.mixer.music.get_busy():
             pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
             pygame.mixer.music.play()
-        return zh_virus_true+'\n'+pyas_divider+'\n'+fe
+        return zh_virus_true+' ('+str(lines)+' 項)'+'\n'+pyas_divider+'\n'+fe
     except:
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
@@ -1391,7 +1407,10 @@ def pyas_scan_answer_zh():
                         pyas_clear()
                         root.update()
                         textPad.insert("insert", '正在移除:'+'\n'+pyas_divider+'\n'+str(line))
-                        os.remove(str(line[:-1]))
+                        try:
+                            os.remove(str(line[:-1]))
+                        except:
+                            continue
                     else:
                         pass
                 pyas_clear()
@@ -1468,25 +1487,6 @@ def virustotal_scan_zh(key):
     else:
         pyas_clear()
         textPad.insert("insert", none_file_zh+'\n')
-
-####################################################################################
-
-#定義開始掃描
-def pyas_scan_start(file,rfp):
-    try:
-        virus_found = False
-        with open(file,"rb") as f:
-            bytes = f.read()
-            readable_hash = md5(bytes).hexdigest();
-            if str(readable_hash) in str(rfp):
-                virus_found = True
-                f.close()
-        if not virus_found:
-            return False
-        else:
-            return True
-    except:
-        pass
 
 ####################################################################################
 
@@ -1583,21 +1583,24 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_zh(fullpath,rfp,rfn,fts)
                 else:
-                    if '.exe' in str(fd) or '.EXE' in str(fd):
+                    if 1:#'.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_zh(fullpath)
                         else:
-                            pe = PE(fullpath)
-                            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                for function in entry.imports:
-                                    root.update()
-                                    if str(function.name) in rfn:
-                                        fts = fts + 1
-                            if fts != 0:
-                                pyas_scan_write_zh(str(fullpath))
-                                fts = 0
+                            try:
+                                pe = PE(fullpath)
+                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                    for function in entry.imports:
+                                        root.update()
+                                        if str(function.name) in rfn:
+                                            fts = fts + 1
+                                if fts != 0:
+                                    pyas_scan_write_zh(str(fullpath))
+                                    fts = 0
+                            except:
+                                pass
                     else:
                         textPad.delete(1.0,END)
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
@@ -1978,7 +1981,7 @@ def input_custom_cmd_command_zh():
         t.title('自訂指令')
         t.geometry('260x40')
         t.transient(root)
-        Label(t,text=' CMD: ').grid(row=0,column=0,sticky='e')
+        Label(t,text=' 指令: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
         e=Entry(t,width=20,textvariable=v)
         e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
@@ -2004,22 +2007,22 @@ def input_custom_regedit_command_zh():
         t.title('自訂指令')
         t.geometry('260x110')
         t.transient(root)
-        Label(t,text=' Path: ').grid(row=0,column=0,sticky='e')
+        Label(t,text=' 路徑: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
         e=Entry(t,width=20,textvariable=v)
         e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
         e.focus_set()
-        Label(t,text=' Name: ').grid(row=1,column=0,sticky='e')
+        Label(t,text=' 名稱: ').grid(row=1,column=0,sticky='e')
         v2=StringVar()
         e2=Entry(t,width=20,textvariable=v2)
         e2.grid(row=1,column=1,padx=2,pady=2,sticky='we')
         e2.focus_set()
-        Label(t,text=' Type: ').grid(row=2,column=0,sticky='e')
+        Label(t,text=' 類型: ').grid(row=2,column=0,sticky='e')
         v3=StringVar()
         e3=Entry(t,width=20,textvariable=v3)
         e3.grid(row=2,column=1,padx=2,pady=2,sticky='we')
         e3.focus_set()
-        Label(t,text=' Num: ').grid(row=3,column=0,sticky='e')
+        Label(t,text=' 數值: ').grid(row=3,column=0,sticky='e')
         v4=StringVar()
         e4=Entry(t,width=20,textvariable=v4)
         e4.grid(row=3,column=1,padx=2,pady=2,sticky='we')
@@ -2255,8 +2258,8 @@ def about_pyas_zh():
 官方GIT: https://github.com/87owo/PYAS
 官方網站: https://xiaomi69ai.wixsite.com/pyas
 創立日期: 2020/12/17
-PYAS 版本: 2.1.9
-PYAE 版本: 1.2.3
+PYAS 版本: 2.2.0
+PYAE 版本: 1.2.4
 特別感謝: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感謝您使用 PYAS 防毒軟體'''
         pygame.mixer.init()
@@ -2480,12 +2483,15 @@ def pyas_scan_read_cn():
         ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
+        ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+        lines = len(ft.readlines())
+        ft.close()
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
         if not pygame.mixer.music.get_busy():
             pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
             pygame.mixer.music.play()
-        return cn_virus_true+'\n'+pyas_divider+'\n'+fe
+        return cn_virus_true+' ('+str(lines)+' 项)'+'\n'+pyas_divider+'\n'+fe
     except:
         pygame.mixer.init()
         pygame.mixer.music.set_volume(1.0)
@@ -2513,7 +2519,10 @@ def pyas_scan_answer_cn():
                         pyas_clear()
                         root.update()
                         textPad.insert("insert", '正在移除:'+'\n'+pyas_divider+'\n'+str(line))
-                        os.remove(str(line[:-1]))
+                        try:
+                            os.remove(str(line[:-1]))
+                        except:
+                            continue
                     else:
                         pass
                 pyas_clear()
@@ -2590,25 +2599,6 @@ def virustotal_scan_cn(key):
     else:
         pyas_clear()
         textPad.insert("insert", none_file_cn+'\n')
-
-####################################################################################
-
-#定義開始掃描
-def pyas_scan_start(file,rfp):
-    try:
-        virus_found = False
-        with open(file,"rb") as f:
-            bytes = f.read()
-            readable_hash = md5(bytes).hexdigest();
-            if str(readable_hash) in str(rfp):
-                virus_found = True
-                f.close()
-        if not virus_found:
-            return False
-        else:
-            return True
-    except:
-        pass
 
 ####################################################################################
 
@@ -2705,21 +2695,24 @@ def pyas_scan_path_cn(path,rfp,rfn,fts):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_cn(fullpath,rfp,rfn,fts)
                 else:
-                    if '.exe' in str(fd) or '.EXE' in str(fd):
+                    if 1:#'.exe' in str(fd) or '.EXE' in str(fd):
                         textPad.delete(1.0,END)
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
                             pyas_scan_write_cn(fullpath)
                         else:
-                            pe = PE(fullpath)
-                            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                for function in entry.imports:
-                                    root.update()
-                                    if str(function.name) in rfn:
-                                        fts = fts + 1
-                            if fts != 0:
-                                pyas_scan_write_cn(str(fullpath))
-                                fts = 0
+                            try:
+                                pe = PE(fullpath)
+                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                    for function in entry.imports:
+                                        root.update()
+                                        if str(function.name) in rfn:
+                                            fts = fts + 1
+                                if fts != 0:
+                                    pyas_scan_write_cn(str(fullpath))
+                                    fts = 0
+                            except:
+                                pass
                     else:
                         textPad.delete(1.0,END)
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
@@ -3099,7 +3092,7 @@ def input_custom_cmd_command_cn():
         t.title('自订指令')
         t.geometry('260x40')
         t.transient(root)
-        Label(t,text=' CMD: ').grid(row=0,column=0,sticky='e')
+        Label(t,text=' 指令: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
         e=Entry(t,width=20,textvariable=v)
         e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
@@ -3125,22 +3118,22 @@ def input_custom_regedit_command_cn():
         t.title('自订指令')
         t.geometry('260x110')
         t.transient(root)
-        Label(t,text=' Path: ').grid(row=0,column=0,sticky='e')
+        Label(t,text=' 路径: ').grid(row=0,column=0,sticky='e')
         v=StringVar()
         e=Entry(t,width=20,textvariable=v)
         e.grid(row=0,column=1,padx=2,pady=2,sticky='we')
         e.focus_set()
-        Label(t,text=' Name: ').grid(row=1,column=0,sticky='e')
+        Label(t,text=' 名称: ').grid(row=1,column=0,sticky='e')
         v2=StringVar()
         e2=Entry(t,width=20,textvariable=v2)
         e2.grid(row=1,column=1,padx=2,pady=2,sticky='we')
         e2.focus_set()
-        Label(t,text=' Type: ').grid(row=2,column=0,sticky='e')
+        Label(t,text=' 类型: ').grid(row=2,column=0,sticky='e')
         v3=StringVar()
         e3=Entry(t,width=20,textvariable=v3)
         e3.grid(row=2,column=1,padx=2,pady=2,sticky='we')
         e3.focus_set()
-        Label(t,text=' Num: ').grid(row=3,column=0,sticky='e')
+        Label(t,text=' 数值: ').grid(row=3,column=0,sticky='e')
         v4=StringVar()
         e4=Entry(t,width=20,textvariable=v4)
         e4.grid(row=3,column=1,padx=2,pady=2,sticky='we')
@@ -3376,8 +3369,8 @@ def about_pyas_cn():
 官方GIT: https://github.com/87owo/PYAS
 官方网站: https://xiaomi69ai.wixsite.com/pyas
 创立日期: 2020/12/17
-PYAS 版本: 2.1.9
-PYAE 版本: 1.2.3
+PYAS 版本: 2.2.0
+PYAE 版本: 1.2.4
 特别感谢: Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
 感谢您使用 PYAS 防毒软件'''
         pygame.mixer.init()
@@ -3523,11 +3516,11 @@ def pyas_key():
     pyas_clear()
     file = './PYAS.exe'
     if file != '':
-        with open(file,"rb") as f:
-            bytes = f.read()
-            readable_hash = md5(bytes).hexdigest();
-        f.close()
         try:
+            with open(file,"rb") as f:
+                bytes = f.read()
+                readable_hash = md5(bytes).hexdigest();
+            f.close()
             ft = open('./Library/PYAS/Setup/PYAS.key','r')
             fe = ft.read()
             ft.close()
@@ -3541,8 +3534,7 @@ Official website: https://xiaomi69ai.wixsite.com/pyas''')
             messagebox.showerror('Error', '''The PYAS antivirus software you are using is not genuine. To ensure your safety, please download genuine antivirus software from the
 Official website: https://xiaomi69ai.wixsite.com/pyas''')
     else:
-        pyas_clear()
-
+        pass
 
 ####################################################################################
 

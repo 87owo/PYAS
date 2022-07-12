@@ -1,8 +1,8 @@
 ####################################################################################
 # Coding Python 3.8 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.2.1 (2020.12.17)
-# PYAE Ver: PYAE V1.2.4 (2022.03.04)
+# PYAS Ver: PYAS V2.2.2 (2020.12.17)
+# PYAE Ver: PYAE V1.2.5 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
 # PYAS Git: https://github.com/87owo/PYAS
@@ -15,7 +15,7 @@
 
 #載入模組套件
 try:
-    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, webbrowser, threading, pygame, pathlib, virustotal_python
+    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, webbrowser, threading, pygame, pathlib, virustotal_python, win32api, win32con
     from cv2 import VideoCapture
     from ctypes import windll
     import requests as req
@@ -29,8 +29,8 @@ except Exception as e:
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.2.1'
-pyae_version = '1.2.4'
+pyas_version = '2.2.2'
+pyae_version = '1.2.5'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
 
@@ -274,6 +274,7 @@ def pyas_scan_start(file,rfp):
 
 #定義防護
 def protect_threading_init_en():
+    pyas_clear()
     if messagebox.askokcancel('Warning','''Enable Real Time Protection Needs More Then 4GB Of RAM. Do you want to continue?''', default="cancel", icon="warning"):
         textPad.insert("insert", en_init_file)
         root.update()
@@ -373,7 +374,11 @@ def pyas_file_scan_en():
             pyas_scan_write_en(file)
             textPad.insert("insert", en_virus_true+'\n')
         else:
-            if 'C:/Windows' not in str(file):
+            if 'C:/Windows' in str(file):
+                pass
+            elif 'C:/Program Files' in str(file):
+                pass
+            else:
                 try:
                     fts = 0
                     pe = PE(file)
@@ -430,7 +435,17 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_en(fullpath,rfp,rfn,fts)
                 else:
-                    if 'C:/Windows' not in str(fullpath):#'.exe' in str(fd) or '.EXE' in str(fd):
+                    if 'C:/Windows' in str(fullpath):#'.exe' in str(fd) or '.EXE' in str(fd):
+                        pyas_clear()
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    elif 'C:/Program Files' in str(fullpath):
+                        pyas_clear()
+                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_en(fullpath)
+                    else:
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
@@ -448,11 +463,6 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                                     fts = 0
                             except:
                                 pass
-                    else:
-                        pyas_clear()
-                        textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
             except:
                 continue
     except:
@@ -1045,6 +1055,494 @@ def change_user_password_init_en():
 def change_user_password_en(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
+def recover_Wallpaper_en():
+    pyas_clear()
+    if messagebox.askokcancel('Warning','''Recover System Wallpaper, Do you want to continue?''', default="cancel", icon="warning"):
+        try:
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'Wallpapers')
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
+            win32api.RegSetValue(key, 'BackgroundHistoryPath0', win32con.REG_SZ, r'c:\windows\web\wallpaper\windows\img0.jpg')
+            user32dll = windll.LoadLibrary(r"C:\Windows\System32\user32.dll") 
+            user32dll.SystemParametersInfoW(20, 0, r'c:\windows\web\wallpaper\windows\img0.jpg', 0)
+            pyas_clear()
+            textPad.insert("insert", en_success)
+        except Exception as e:
+            pyas_clear()
+            textPad.insert("insert", en_failed+'\n'+pyas_divider+'\n'+str(e))
+
+def fixlimit_en():
+    pyas_clear()
+    if messagebox.askokcancel('Warning','''Repair System Restrictions, Do you want to continue?''', default="cancel", icon="warning"):
+        if 1:
+            try:
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'Explorer')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass
+                    
+                try:
+                    win32api.RegDeleteValue(key, 'NoDrives')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFileMenu')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFind')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRealMode')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolders')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewOnDrive')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoClose')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRun')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContexMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'HideClock')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMorePrograms')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyGames')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyMusic')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuNetworkPlaces')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuPinnedList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktopChanges')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoChangeStartMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'ClearRecentDocsOnExit')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFavoritesMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsHistory')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetTaskbar')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSMHelp')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoTrayContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWindowsUpdate')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWinKeys')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'StartMenuLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSimpleNetlDList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLowDiskSpaceChecks')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableLockWorkstation')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoManageMyComputerVerb')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'RestrictRun')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'Explorer')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass
+                    
+                try:
+                    win32api.RegDeleteValue(key, 'NoDrives')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFileMenu')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFind')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRealMode')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolders')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewOnDrive')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoClose')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRun')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContexMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'HideClock')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMorePrograms')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyGames')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyMusic')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuNetworkPlaces')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuPinnedList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktopChanges')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoChangeStartMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'ClearRecentDocsOnExit')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFavoritesMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsHistory')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetTaskbar')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSMHelp')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoTrayContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWindowsUpdate')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWinKeys')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'StartMenuLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSimpleNetlDList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLowDiskSpaceChecks')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableLockWorkstation')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoManageMyComputerVerb')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'RestrictRun')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableTaskMgr')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableRegistryTools')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableChangePassword')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'Wallpaper')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableTaskMgr')
+                except:
+                    pass       
+                try:
+                    win32api.RegDeleteValue(key, 'DisableRegistryTools')
+                except:
+                    pass        
+                try:
+                    win32api.RegDeleteValue(key, 'DisableChangePassword')
+                except:
+                    pass           
+                try:
+                    win32api.RegDeleteValue(key, 'Wallpaper')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'ActiveDesktop')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoComponents')
+                except:
+                    pass          
+                try:
+                    win32api.RegDeleteValue(key, 'NoAddingComponents')
+                except:
+                    pass                  
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableCMD')
+                except:
+                    pass                    
+                win32api.RegCloseKey(key)
+        
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableCMD')
+                except:
+                    pass    
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    try:
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                    except:
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
+                        win32api.RegCreateKey(key,'MMC')
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'Restrict_Run')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+                pyas_clear()
+                textPad.insert("insert", en_success)
+            except Exception as e:
+                pyas_clear()
+                textPad.insert("insert", en_failed+'\n'+pyas_divider+'\n'+str(e))
+
 ################################################################################
 
 #關於
@@ -1143,7 +1641,9 @@ def english():
             sub2menu.add_command(label = 'Clean Up System Disk',command = system_disk_clean_en)
             sub2menu.add_separator()
             sub2menu.add_command(label = 'Repair System Files',command = repair_system_files_en)
+            sub2menu.add_command(label = 'Repair System Wallpaper',command = recover_Wallpaper_en)
             sub2menu.add_command(label = 'Repair System Permissions',command = fix_cmd_permissions_en)
+            sub2menu.add_command(label = 'Repair System Restrictions',command = fixlimit_en)
             sub2menu.add_separator()
             sub2menu.add_command(label = 'Enable Safe Mode',command = start_safe_mode_en)
             sub2menu.add_command(label = 'Disable Safe Mode',command = close_safe_Mode_en)
@@ -1216,6 +1716,7 @@ Error Info: '''+str(e))
 
 #定義防護
 def protect_threading_init_zh():
+    pyas_clear()
     if messagebox.askokcancel('Warning','''啟動實時防護需要 4GB 以上的記憶體，是否繼續?''', default="cancel", icon="warning"):
         pyas_clear()
         textPad.insert("insert", zh_init_file)
@@ -1407,7 +1908,11 @@ def pyas_file_scan_zh():
             pyas_scan_write_zh(file)
             textPad.insert("insert", zh_virus_true+'\n')
         else:
-            if 'C:/Windows' not in str(file):
+            if 'C:/Windows' in str(file):
+                pass
+            elif 'C:/Program Files' in str(file):
+                pass
+            else:
                 try:
                     fts = 0
                     pe = PE(file)
@@ -1464,7 +1969,17 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_zh(fullpath,rfp,rfn,fts)
                 else:
-                    if 'C:/Windows' not in str(fullpath):#'.exe' in str(fd) or '.EXE' in str(fd):
+                    if 'C:/Windows' in str(fullpath):#'.exe' in str(fd) or '.EXE' in str(fd):
+                        pyas_clear()
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    elif 'C:/Program Files' in str(fullpath):
+                        pyas_clear()
+                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_zh(fullpath)
+                    else:
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
@@ -1482,11 +1997,6 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                                     fts = 0
                             except:
                                 pass
-                    else:
-                        pyas_clear()
-                        textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
             except:# Exception as e:
                 #print(e)
                 continue
@@ -2080,6 +2590,494 @@ def change_user_password_init_zh():
 def change_user_password_zh(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
+def recover_Wallpaper_zh():
+    pyas_clear()
+    if messagebox.askokcancel('Warning','''修復系統桌布，是否繼續?''', default="cancel", icon="warning"):
+        try:
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'Wallpapers')
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
+            win32api.RegSetValue(key, 'BackgroundHistoryPath0', win32con.REG_SZ, r'c:\windows\web\wallpaper\windows\img0.jpg')
+            user32dll = windll.LoadLibrary(r"C:\Windows\System32\user32.dll") 
+            user32dll.SystemParametersInfoW(20, 0, r'c:\windows\web\wallpaper\windows\img0.jpg', 0)
+            pyas_clear()
+            textPad.insert("insert", zh_success)
+        except Exception as e:
+            pyas_clear()
+            textPad.insert("insert", zh_failed+'\n'+pyas_divider+'\n'+str(e))
+
+def fixlimit_zh():
+    pyas_clear()
+    if messagebox.askokcancel('Warning','''修復系統限制，是否繼續?''', default="cancel", icon="warning"):
+        if 1:
+            try:
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'Explorer')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass
+                    
+                try:
+                    win32api.RegDeleteValue(key, 'NoDrives')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFileMenu')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFind')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRealMode')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolders')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewOnDrive')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoClose')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRun')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContexMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'HideClock')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMorePrograms')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyGames')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyMusic')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuNetworkPlaces')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuPinnedList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktopChanges')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoChangeStartMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'ClearRecentDocsOnExit')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFavoritesMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsHistory')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetTaskbar')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSMHelp')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoTrayContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWindowsUpdate')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWinKeys')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'StartMenuLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSimpleNetlDList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLowDiskSpaceChecks')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableLockWorkstation')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoManageMyComputerVerb')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'RestrictRun')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'Explorer')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass
+                    
+                try:
+                    win32api.RegDeleteValue(key, 'NoDrives')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFileMenu')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFind')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRealMode')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolders')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewOnDrive')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoClose')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRun')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContexMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'HideClock')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMorePrograms')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyGames')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyMusic')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuNetworkPlaces')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuPinnedList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktopChanges')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoChangeStartMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'ClearRecentDocsOnExit')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFavoritesMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsHistory')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetTaskbar')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSMHelp')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoTrayContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWindowsUpdate')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWinKeys')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'StartMenuLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSimpleNetlDList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLowDiskSpaceChecks')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableLockWorkstation')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoManageMyComputerVerb')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'RestrictRun')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableTaskMgr')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableRegistryTools')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableChangePassword')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'Wallpaper')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableTaskMgr')
+                except:
+                    pass       
+                try:
+                    win32api.RegDeleteValue(key, 'DisableRegistryTools')
+                except:
+                    pass        
+                try:
+                    win32api.RegDeleteValue(key, 'DisableChangePassword')
+                except:
+                    pass           
+                try:
+                    win32api.RegDeleteValue(key, 'Wallpaper')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'ActiveDesktop')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoComponents')
+                except:
+                    pass          
+                try:
+                    win32api.RegDeleteValue(key, 'NoAddingComponents')
+                except:
+                    pass                  
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableCMD')
+                except:
+                    pass                    
+                win32api.RegCloseKey(key)
+        
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableCMD')
+                except:
+                    pass    
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    try:
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                    except:
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
+                        win32api.RegCreateKey(key,'MMC')
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'Restrict_Run')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+                pyas_clear()
+                textPad.insert("insert", zh_success)
+            except Exception as e:
+                pyas_clear()
+                textPad.insert("insert", zh_failed+'\n'+pyas_divider+'\n'+str(e))
+
 ################################################################################
 
 #關於
@@ -2169,7 +3167,9 @@ def traditional_chinese():
             sub2menu.add_command(label = '清理系統檔案',command = system_disk_clean_zh)
             sub2menu.add_separator()
             sub2menu.add_command(label = '修復系統檔案',command = repair_system_files_zh)
+            sub2menu.add_command(label = '修復系統桌布',command = recover_Wallpaper_zh)
             sub2menu.add_command(label = '修復系統權限',command = fix_cmd_permissions_zh)
+            sub2menu.add_command(label = '修復系統限制',command = fixlimit_zh)
             sub2menu.add_separator()
             sub2menu.add_command(label = '啟動安全模式',command = start_safe_mode_zh)
             sub2menu.add_command(label = '關閉安全模式',command = close_safe_Mode_zh)
@@ -2242,6 +3242,7 @@ def traditional_chinese():
 
 #定義防護
 def protect_threading_init_cn():
+    pyas_clear()
     if messagebox.askokcancel('Warning','''启动实时防护需要 4GB 以上的內存，是否继续?''', default="cancel", icon="warning"):
         pyas_clear()
         textPad.insert("insert", cn_init_file)
@@ -2433,7 +3434,11 @@ def pyas_file_scan_cn():
             pyas_scan_write_cn(file)
             textPad.insert("insert", cn_virus_true+'\n')
         else:
-            if 'C:/Windows' not in str(file):
+            if 'C:/Windows' in str(file):
+                pass
+            elif 'C:/Program Files' in str(file):
+                pass
+            else:
                 try:
                     fts = 0
                     pe = PE(file)
@@ -2490,7 +3495,17 @@ def pyas_scan_path_cn(path,rfp,rfn,fts):
                 if os.path.isdir(fullpath):
                     pyas_scan_path_cn(fullpath,rfp,rfn,fts)
                 else:
-                    if 'C:/Windows' not in str(fullpath):#'.exe' in str(fd) or '.EXE' in str(fd):
+                    if 'C:/Windows' in str(fullpath):#'.exe' in str(fd) or '.EXE' in str(fd):
+                        pyas_clear()
+                        textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_cn(fullpath)
+                    elif 'C:/Program Files' in str(fullpath):
+                        pyas_clear()
+                        textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
+                        if pyas_scan_start(fullpath,rfp):
+                            pyas_scan_write_cn(fullpath)
+                    else:
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
@@ -2508,11 +3523,6 @@ def pyas_scan_path_cn(path,rfp,rfn,fts):
                                     fts = 0
                             except:
                                 pass
-                    else:
-                        pyas_clear()
-                        textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
-                        if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
             except:# Exception as e:
                 #print(e)
                 continue
@@ -3106,6 +4116,494 @@ def change_user_password_init_cn():
 def change_user_password_cn(user,password):
     os.system('net user '+str(user)+' "'+str(password)+'"')
 
+def recover_Wallpaper_cn():
+    pyas_clear()
+    if messagebox.askokcancel('Warning','''修复系统壁纸，是否继续?''', default="cancel", icon="warning"):
+        try:
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'Wallpapers')
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
+            win32api.RegSetValue(key, 'BackgroundHistoryPath0', win32con.REG_SZ, r'c:\windows\web\wallpaper\windows\img0.jpg')
+            user32dll = windll.LoadLibrary(r"C:\Windows\System32\user32.dll") 
+            user32dll.SystemParametersInfoW(20, 0, r'c:\windows\web\wallpaper\windows\img0.jpg', 0)
+            pyas_clear()
+            textPad.insert("insert", cn_success)
+        except Exception as e:
+            pyas_clear()
+            textPad.insert("insert", cn_failed+'\n'+pyas_divider+'\n'+str(e))
+
+def fixlimit_cn():
+    pyas_clear()
+    if messagebox.askokcancel('Warning','''修复系统限制，是否继续?''', default="cancel", icon="warning"):
+        if 1:
+            try:
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'Explorer')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass
+                    
+                try:
+                    win32api.RegDeleteValue(key, 'NoDrives')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFileMenu')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFind')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRealMode')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolders')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewOnDrive')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoClose')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRun')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContexMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'HideClock')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMorePrograms')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyGames')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyMusic')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuNetworkPlaces')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuPinnedList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktopChanges')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoChangeStartMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'ClearRecentDocsOnExit')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFavoritesMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsHistory')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetTaskbar')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSMHelp')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoTrayContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWindowsUpdate')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWinKeys')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'StartMenuLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSimpleNetlDList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLowDiskSpaceChecks')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableLockWorkstation')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoManageMyComputerVerb')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'RestrictRun')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'Explorer')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass
+                    
+                try:
+                    win32api.RegDeleteValue(key, 'NoDrives')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoControlPanel')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFileMenu')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoFind')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRealMode')
+                except:
+                    pass                
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolders')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewOnDrive')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoClose')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRun')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFolderOptions')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContexMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'HideClock')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMorePrograms')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyGames')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuMyMusic')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuNetworkPlaces')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoStartMenuPinnedList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetActiveDesktop')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoActiveDesktopChanges')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoChangeStartMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'ClearRecentDocsOnExit')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoFavoritesMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoRecentDocsHistory')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSetTaskbar')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSMHelp')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoTrayContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoViewContextMenu')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWindowsUpdate')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoWinKeys')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'StartMenuLogOff')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoSimpleNetlDList')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoLowDiskSpaceChecks')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableLockWorkstation')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'NoManageMyComputerVerb')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'RestrictRun')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableTaskMgr')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableRegistryTools')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'DisableChangePassword')
+                except:
+                    pass
+                try:
+                    win32api.RegDeleteValue(key, 'Wallpaper')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableTaskMgr')
+                except:
+                    pass       
+                try:
+                    win32api.RegDeleteValue(key, 'DisableRegistryTools')
+                except:
+                    pass        
+                try:
+                    win32api.RegDeleteValue(key, 'DisableChangePassword')
+                except:
+                    pass           
+                try:
+                    win32api.RegDeleteValue(key, 'Wallpaper')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'ActiveDesktop')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'NoComponents')
+                except:
+                    pass          
+                try:
+                    win32api.RegDeleteValue(key, 'NoAddingComponents')
+                except:
+                    pass                  
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableCMD')
+                except:
+                    pass                    
+                win32api.RegCloseKey(key)
+        
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'System')
+                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'DisableCMD')
+                except:
+                    pass    
+                win32api.RegCloseKey(key)
+
+
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    try:
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                    except:
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
+                        win32api.RegCreateKey(key,'MMC')
+                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+                try:
+                    win32api.RegDeleteValue(key, 'Restrict_Run')
+                except:
+                    pass
+                win32api.RegCloseKey(key)
+                pyas_clear()
+                textPad.insert("insert", cn_success)
+            except Exception as e:
+                pyas_clear()
+                textPad.insert("insert", cn_failed+'\n'+pyas_divider+'\n'+str(e))
+
 ################################################################################
 
 #關於
@@ -3194,7 +4692,9 @@ def simplified_chinese():
             sub2menu.add_command(label = '清理系统档案',command = system_disk_clean_cn)
             sub2menu.add_separator()
             sub2menu.add_command(label = '修复系统档案',command = repair_system_files_cn)
+            sub2menu.add_command(label = '修复系统壁纸',command = recover_Wallpaper_cn)
             sub2menu.add_command(label = '修复系统权限',command = fix_cmd_permissions_cn)
+            sub2menu.add_command(label = '修复系统限制',command = fixlimit_cn)
             sub2menu.add_separator()
             sub2menu.add_command(label = '启动安全模式',command = start_safe_mode_cn)
             sub2menu.add_command(label = '关闭安全模式',command = close_safe_Mode_cn)

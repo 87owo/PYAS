@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3.8 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.2.2 (2020.12.17)
+# PYAS Ver: PYAS V2.2.3 (2020.12.17)
 # PYAE Ver: PYAE V1.2.5 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -29,7 +29,7 @@ except Exception as e:
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.2.2'
+pyas_version = '2.2.3'
 pyae_version = '1.2.5'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -387,6 +387,7 @@ def pyas_file_scan_en():
                             root.update()
                             if str(function.name) in rfn:
                                 fts = fts + 1
+                    PE.close(pe)
                     if fts != 0:
                         pyas_scan_write_en(file)
                         fts = 0
@@ -458,6 +459,7 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                                         root.update()
                                         if str(function.name) in rfn:
                                             fts = fts + 1
+                                PE.close(pe)
                                 if fts != 0:
                                     pyas_scan_write_en(str(fullpath))
                                     fts = 0
@@ -628,6 +630,7 @@ def exe_analyze_file_en():
         for section in pe.sections:
             root.update()
             textPad.insert("insert", section.Name, hex(section.VirtualAddress),hex(section.Misc_VirtualSize), section.SizeOfRawData)
+        PE.close(pe)
     else:
         pyas_clear()
         textPad.insert("insert", none_file_en+'\n')
@@ -641,6 +644,7 @@ def exe_analyze_function_en():
             for function in entry.imports:
                 root.update()
                 textPad.insert("insert", str(function.name)+'\n')
+        PE.close(pe)
     else:
         pyas_clear()
         textPad.insert("insert", none_file_en+'\n')
@@ -1921,6 +1925,7 @@ def pyas_file_scan_zh():
                             root.update()
                             if str(function.name) in rfn:
                                 fts = fts + 1
+                    PE.close(pe)
                     if fts != 0:
                         pyas_scan_write_zh(file)
                         fts = 0
@@ -1992,6 +1997,7 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                                         root.update()
                                         if str(function.name) in rfn:
                                             fts = fts + 1
+                                PE.close(pe)
                                 if fts != 0:
                                     pyas_scan_write_zh(str(fullpath))
                                     fts = 0
@@ -2163,6 +2169,7 @@ def exe_analyze_file_zh():
         for section in pe.sections:
             root.update()
             textPad.insert("insert", section.Name, hex(section.VirtualAddress),hex(section.Misc_VirtualSize), section.SizeOfRawData)
+        PE.close(pe)
     else:
         pyas_clear()
         textPad.insert("insert", none_file_zh+'\n')
@@ -2176,6 +2183,7 @@ def exe_analyze_function_zh():
             for function in entry.imports:
                 root.update()
                 textPad.insert("insert", str(function.name)+'\n')
+        PE.close(pe)
     else:
         pyas_clear()
         textPad.insert("insert", none_file_zh+'\n')
@@ -3447,6 +3455,7 @@ def pyas_file_scan_cn():
                             root.update()
                             if str(function.name) in rfn:
                                 fts = fts + 1
+                    PE.close(pe)
                     if fts != 0:
                         pyas_scan_write_cn(file)
                         fts = 0
@@ -3518,6 +3527,7 @@ def pyas_scan_path_cn(path,rfp,rfn,fts):
                                         root.update()
                                         if str(function.name) in rfn:
                                             fts = fts + 1
+                                PE.close(pe)
                                 if fts != 0:
                                     pyas_scan_write_cn(str(fullpath))
                                     fts = 0
@@ -3689,6 +3699,7 @@ def exe_analyze_file_cn():
         for section in pe.sections:
             root.update()
             textPad.insert("insert", section.Name, hex(section.VirtualAddress),hex(section.Misc_VirtualSize), section.SizeOfRawData)
+        PE.close(pe)
     else:
         pyas_clear()
         textPad.insert("insert", none_file_cn+'\n')
@@ -3702,6 +3713,7 @@ def exe_analyze_function_cn():
             for function in entry.imports:
                 root.update()
                 textPad.insert("insert", str(function.name)+'\n')
+        PE.close(pe)
     else:
         pyas_clear()
         textPad.insert("insert", none_file_cn+'\n')

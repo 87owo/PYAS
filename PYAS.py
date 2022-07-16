@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3.8 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.2.3 (2020.12.17)
+# PYAS Ver: PYAS V2.2.5 (2020.12.17)
 # PYAE Ver: PYAE V1.2.5 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -29,7 +29,7 @@ except Exception as e:
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.2.3'
+pyas_version = '2.2.5'
 pyae_version = '1.2.5'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -310,11 +310,12 @@ def pyas_protect_init_en():
                                     pygame.mixer.music.load('Library/PYAS/Audio/Virusfound.ogg')
                                     pygame.mixer.music.play()
                             else:
+                                pyas_clear()
                                 textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
                         except:
                             pass
             except:# Exception as e:
-                pass#print(e)
+                continue#print(e)
 
 ####################################################################################
 
@@ -740,6 +741,7 @@ def find_files_init_en():
 def find_files_info_en(ffile):
     try:
         fss = 0
+        start = 0
         findfile_en('A:/',ffile,fss,start)
         findfile_en('B:/',ffile,fss,start)
         findfile_en('C:/',ffile,fss,start)
@@ -769,8 +771,11 @@ def find_files_info_en(ffile):
         ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
+        lines = len(ft.readlines())
+        ft.close()
         pyas_clear()
-        textPad.insert("insert", '''Find result:\n'''+pyas_divider+'\n'+str(fe))
+        textPad.insert("insert", 'Find result: ('+str(int(lines/3))+' items)\n'+pyas_divider+'\n'+str(fe))
         os.remove('Library/PYAS/Temp/PYASF.tmp')
     except:
         pass
@@ -1034,7 +1039,7 @@ def system_disk_clean_en():
     pyas_clear()
     textPad.insert("insert",en_app_use)
     root.update()
-    os.system('cleanmgr /autoclean')
+    os.system('cleanmgr')
     pyas_clear()
 
 def change_user_password_init_en():
@@ -1061,7 +1066,7 @@ def change_user_password_en(user,password):
 
 def recover_Wallpaper_en():
     pyas_clear()
-    if messagebox.askokcancel('Warning','''Recover System Wallpaper, Do you want to continue?''', default="cancel", icon="warning"):
+    if messagebox.askokcancel('Warning','''Repair System Wallpaper, Do you want to continue?''', default="cancel", icon="warning"):
         try:
             try:
                 key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Wallpapers',0,win32con.KEY_ALL_ACCESS)
@@ -1757,11 +1762,12 @@ def pyas_protect_init_zh():
                                     pygame.mixer.music.load('Library/PYAS/Audio/Virusfound.ogg')
                                     pygame.mixer.music.play()
                             else:
+                                pyas_clear()
                                 textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
                         except:
                             pass
             except:
-                pass
+                continue
 
 ####################################################################################
         
@@ -2279,6 +2285,7 @@ def find_files_init_zh():
 def find_files_info_zh(ffile):
     try:
         fss = 0
+        start = 0
         findfile_zh('A:/',ffile,fss,start)
         findfile_zh('B:/',ffile,fss,start)
         findfile_zh('C:/',ffile,fss,start)
@@ -2308,8 +2315,11 @@ def find_files_info_zh(ffile):
         ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
+        lines = len(ft.readlines())
+        ft.close()
         pyas_clear()
-        textPad.insert("insert", '''尋找結果:\n'''+pyas_divider+'\n'+str(fe))
+        textPad.insert("insert", '尋找結果: ('+str(int(lines/3))+' 項)\n'+pyas_divider+'\n'+str(fe))
         os.remove('Library/PYAS/Temp/PYASF.tmp')
     except:
         pass
@@ -2573,7 +2583,7 @@ def system_disk_clean_zh():
     pyas_clear()
     textPad.insert("insert",zh_app_use)
     root.update()
-    os.system('cleanmgr /autoclean')
+    os.system('cleanmgr')
     pyas_clear()
 
 def change_user_password_init_zh():
@@ -3287,11 +3297,12 @@ def pyas_protect_init_cn():
                                     pygame.mixer.music.load('Library/PYAS/Audio/Virusfound.ogg')
                                     pygame.mixer.music.play()
                             else:
+                                pyas_clear()
                                 textPad.insert("insert", '恶意软件拦截失败: '+str(p.name()))
                         except:
                             pass
             except:
-                pass
+                continue
 
 ####################################################################################
         
@@ -3809,6 +3820,7 @@ def find_files_init_cn():
 def find_files_info_cn(ffile):
     try:
         fss = 0
+        start = 0
         findfile_cn('A:/',ffile,fss,start)
         findfile_cn('B:/',ffile,fss,start)
         findfile_cn('C:/',ffile,fss,start)
@@ -3838,8 +3850,11 @@ def find_files_info_cn(ffile):
         ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
         fe = ft.read()
         ft.close()
+        ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding='utf-8')
+        lines = len(ft.readlines())
+        ft.close()
         pyas_clear()
-        textPad.insert("insert", '''寻找结果:\n'''+pyas_divider+'\n'+str(fe))
+        textPad.insert("insert", '寻找结果: ('+str(int(lines/3))+' 项)\n'+pyas_divider+'\n'+str(fe))
         os.remove('Library/PYAS/Temp/PYASF.tmp')
     except:
         pass
@@ -4103,7 +4118,7 @@ def system_disk_clean_cn():
     pyas_clear()
     textPad.insert("insert",cn_app_use)
     root.update()
-    os.system('cleanmgr /autoclean')
+    os.system('cleanmgr')
     pyas_clear()
 
 def change_user_password_init_cn():

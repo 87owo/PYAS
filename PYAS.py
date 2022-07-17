@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3.8 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.2.5 (2020.12.17)
+# PYAS Ver: PYAS V2.2.6 (2020.12.17)
 # PYAE Ver: PYAE V1.2.5 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -20,7 +20,7 @@ try:
     from ctypes import windll
     import requests as req
     from pefile import PE
-    from hashlib import md5
+    from hashlib import md5, sha1, sha256
     from tkinter import messagebox, filedialog
     from tkinter import *
 except Exception as e:
@@ -29,7 +29,7 @@ except Exception as e:
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.2.5'
+pyas_version = '2.2.6'
 pyae_version = '1.2.5'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -618,6 +618,32 @@ def exe_analyze_md5_en():
             bytes = f.read()
             readable_hash = md5(bytes).hexdigest();
             textPad.insert("insert", 'MD5: '+str(readable_hash))
+        f.close()
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_en+'\n')
+
+def exe_analyze_sha1_en():
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = sha1(bytes).hexdigest();
+            textPad.insert("insert", 'SHA1: '+str(readable_hash))
+        f.close()
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_en+'\n')
+
+def exe_analyze_sha256_en():
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = sha256(bytes).hexdigest();
+            textPad.insert("insert", 'SHA256: '+str(readable_hash))
         f.close()
     else:
         pyas_clear()
@@ -1552,6 +1578,90 @@ def fixlimit_en():
                 pyas_clear()
                 textPad.insert("insert", en_failed+'\n'+pyas_divider+'\n'+str(e))
 
+def open_cmd_en():
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    run = subprocess.call('start cmd.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", en_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", en_failed)
+
+def open_regedit_en():
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    run = subprocess.call('regedit.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", en_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", en_failed)
+
+def open_taskmgr_en():
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    run = subprocess.call('taskmgr.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", en_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", en_failed)
+
+def open_powershell_en():
+    pyas_clear()
+    textPad.insert("insert",en_app_use)
+    root.update()
+    run = subprocess.call('start powershell.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", en_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", en_failed)
+
+def system_check_en():
+    fail = 0
+    try:
+        pyas_clear()
+        textPad.insert("insert", 'Checking CMD')
+        run = subprocess.call('cmd.exe',shell=True)
+        if run == 0:
+            pyas_clear()
+            textPad.insert("insert", en_success)
+        else:
+            pyas_clear()
+            textPad.insert("insert", en_failed)
+            fail += 1
+        pyas_clear()
+        textPad.insert("insert", 'Checking REG')
+        run = subprocess.call('regedit.exe',shell=True)
+        if run == 0:
+            pyas_clear()
+            textPad.insert("insert", en_success)
+        else:
+            pyas_clear()
+            textPad.insert("insert", en_failed)
+            fail += 1
+        pyas_clear()
+        textPad.insert("insert", 'Checking Taskmgr')
+        run = subprocess.call('taskmgr.exe',shell=True)
+        if run == 0:
+            pyas_clear()
+            textPad.insert("insert", en_success)
+        else:
+            pyas_clear()
+            textPad.insert("insert", en_failed)
+            fail += 1
+    except:
+        pass
+    
 ################################################################################
 
 #關於
@@ -1658,6 +1768,14 @@ def english():
             sub2menu.add_command(label = 'Disable Safe Mode',command = close_safe_Mode_en)
             sub2menu.add_separator()
             sub2menu.add_command(label = 'System Version Info',command = computer_info_en)
+            sysapp = Menu(filemenu3,tearoff=False)###
+            filemenu3.add_cascade(label='System Apps', menu=sysapp, underline=0)
+            sysapp.add_command(label = 'Open Taskmgr',command = open_taskmgr_en)
+            sysapp.add_separator()
+            sysapp.add_command(label = 'Open Regedit',command = open_regedit_en)
+            sysapp.add_separator()
+            sysapp.add_command(label = 'Open Command',command = open_cmd_en)
+            sysapp.add_command(label = 'Open PowerShell',command = open_powershell_en)###
             insmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='Privacy Tools', menu=insmenu, underline=0)
             insmenu.add_command(label = 'Camera Privacy Detection',command = camera_check_en)
@@ -1678,14 +1796,17 @@ def english():
             submenu.add_command(label = 'Reset System Network',command = reset_network_en)
             devmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='Dev Tools', menu=devmenu, underline=0)
+            devmenu.add_command(label = 'Online File Analyze',command = input_virustotal_scan_en)
+            devmenu.add_separator()
             devmenu.add_command(label = 'Custom REG Command',command = input_custom_regedit_command_en)
             devmenu.add_command(label = 'Custom CMD Command',command = input_custom_cmd_command_en)
             devmenu.add_separator()
-            devmenu.add_command(label = 'Analyze EXE Hashes',command = exe_analyze_md5_en)
             devmenu.add_command(label = 'Analyze EXE Bytes',command = exe_analyze_file_en)
             devmenu.add_command(label = 'Analyze EXE Function',command = exe_analyze_function_en)
             devmenu.add_separator()
-            devmenu.add_command(label = 'Online File Analyze',command = input_virustotal_scan_en)
+            devmenu.add_command(label = 'Analyze EXE MD5 Hashes',command = exe_analyze_md5_en)
+            devmenu.add_command(label = 'Analyze EXE SHA1 Hashes',command = exe_analyze_sha1_en)
+            devmenu.add_command(label = 'Analyze EXE SHA256 Hashes',command = exe_analyze_sha256_en)
             filemenu5 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = 'Settings',menu = filemenu5)
             sitmenu = Menu(filemenu5,tearoff=False)
@@ -2162,6 +2283,32 @@ def exe_analyze_md5_zh():
             bytes = f.read()
             readable_hash = md5(bytes).hexdigest();
             textPad.insert("insert", 'MD5: '+str(readable_hash))
+        f.close()
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_zh+'\n')
+
+def exe_analyze_sha1_zh():
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = sha1(bytes).hexdigest();
+            textPad.insert("insert", 'SHA1: '+str(readable_hash))
+        f.close()
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_zh+'\n')
+
+def exe_analyze_sha256_zh():
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = sha256(bytes).hexdigest();
+            textPad.insert("insert", 'SHA256: '+str(readable_hash))
         f.close()
     else:
         pyas_clear()
@@ -3096,6 +3243,54 @@ def fixlimit_zh():
                 pyas_clear()
                 textPad.insert("insert", zh_failed+'\n'+pyas_divider+'\n'+str(e))
 
+def open_cmd_zh():
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    run = subprocess.call('start cmd.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", zh_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", zh_failed)
+
+def open_regedit_zh():
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    run = subprocess.call('regedit.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", zh_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", zh_failed)
+
+def open_taskmgr_zh():
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    run = subprocess.call('taskmgr.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", zh_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", zh_failed)
+
+def open_powershell_zh():
+    pyas_clear()
+    textPad.insert("insert",zh_app_use)
+    root.update()
+    run = subprocess.call('start powershell.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", zh_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", zh_failed)
+
 ################################################################################
 
 #關於
@@ -3193,6 +3388,14 @@ def traditional_chinese():
             sub2menu.add_command(label = '關閉安全模式',command = close_safe_Mode_zh)
             sub2menu.add_separator()
             sub2menu.add_command(label = '系統版本資訊',command = computer_info_zh)
+            sysapp = Menu(filemenu3,tearoff=False)###
+            filemenu3.add_cascade(label='系統程式', menu=sysapp, underline=0)
+            sysapp.add_command(label = '開啟工作管理員',command = open_taskmgr_zh)
+            sysapp.add_separator()
+            sysapp.add_command(label = '開啟登入編輯器',command = open_regedit_zh)
+            sysapp.add_separator()
+            sysapp.add_command(label = '開啟命令提示字元',command = open_cmd_zh)
+            sysapp.add_command(label = '開啟 PowerShell',command = open_powershell_zh)###
             insmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='隱私工具', menu=insmenu, underline=0)
             insmenu.add_command(label = '相機隱私檢測',command = camera_check_zh)
@@ -3213,14 +3416,17 @@ def traditional_chinese():
             submenu.add_command(label = '重製系統網路',command = reset_network_zh)
             devmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='開發工具', menu=devmenu, underline=0)
+            devmenu.add_command(label = '線上檔案分析',command = input_virustotal_scan_zh)
+            devmenu.add_separator()
             devmenu.add_command(label = '自訂 REG 指令',command = input_custom_regedit_command_zh)
             devmenu.add_command(label = '自訂 CMD 指令',command = input_custom_cmd_command_zh)
             devmenu.add_separator()
-            devmenu.add_command(label = '分析 EXE 哈希',command = exe_analyze_md5_zh)
             devmenu.add_command(label = '分析 EXE 位元',command = exe_analyze_file_zh)
             devmenu.add_command(label = '分析 EXE 函數',command = exe_analyze_function_zh)
             devmenu.add_separator()
-            devmenu.add_command(label = '線上檔案分析',command = input_virustotal_scan_zh)
+            devmenu.add_command(label = '分析 EXE MD5 哈希',command = exe_analyze_md5_zh)
+            devmenu.add_command(label = '分析 EXE SHA1 哈希',command = exe_analyze_sha1_zh)
+            devmenu.add_command(label = '分析 EXE SHA256 哈希',command = exe_analyze_sha256_zh)
             filemenu5 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = '設置',menu = filemenu5)
             sitmenu = Menu(filemenu5,tearoff=False)
@@ -3697,6 +3903,32 @@ def exe_analyze_md5_cn():
             bytes = f.read()
             readable_hash = md5(bytes).hexdigest();
             textPad.insert("insert", 'MD5: '+str(readable_hash))
+        f.close()
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_cn+'\n')
+
+def exe_analyze_sha1_cn():
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = sha1(bytes).hexdigest();
+            textPad.insert("insert", 'SHA1: '+str(readable_hash))
+        f.close()
+    else:
+        pyas_clear()
+        textPad.insert("insert", none_file_cn+'\n')
+
+def exe_analyze_sha256_cn():
+    pyas_clear()
+    file = filedialog.askopenfilename()
+    if file != '':
+        with open(file,"rb") as f:
+            bytes = f.read()
+            readable_hash = sha256(bytes).hexdigest();
+            textPad.insert("insert", 'SHA256: '+str(readable_hash))
         f.close()
     else:
         pyas_clear()
@@ -4631,6 +4863,54 @@ def fixlimit_cn():
                 pyas_clear()
                 textPad.insert("insert", cn_failed+'\n'+pyas_divider+'\n'+str(e))
 
+def open_cmd_cn():
+    pyas_clear()
+    textPad.insert("insert",cn_app_use)
+    root.update()
+    run = subprocess.call('start cmd.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", cn_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", cn_failed)
+
+def open_regedit_cn():
+    pyas_clear()
+    textPad.insert("insert",cn_app_use)
+    root.update()
+    run = subprocess.call('regedit.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", cn_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", cn_failed)
+
+def open_taskmgr_cn():
+    pyas_clear()
+    textPad.insert("insert",cn_app_use)
+    root.update()
+    run = subprocess.call('taskmgr.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", cn_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", cn_failed)
+
+def open_powershell_cn():
+    pyas_clear()
+    textPad.insert("insert",cn_app_use)
+    root.update()
+    run = subprocess.call('start powershell.exe',shell=True)
+    if run == 0:
+        pyas_clear()
+        textPad.insert("insert", cn_success)
+    else:
+        pyas_clear()
+        textPad.insert("insert", cn_failed)
+
 ################################################################################
 
 #關於
@@ -4727,6 +5007,14 @@ def simplified_chinese():
             sub2menu.add_command(label = '关闭安全模式',command = close_safe_Mode_cn)
             sub2menu.add_separator()
             sub2menu.add_command(label = '系统版本资讯',command = computer_info_cn)
+            sysapp = Menu(filemenu3,tearoff=False)###
+            filemenu3.add_cascade(label='系统应用', menu=sysapp, underline=0)
+            sysapp.add_command(label = '开启工作管理员',command = open_taskmgr_cn)
+            sysapp.add_separator()
+            sysapp.add_command(label = '开启注册表编辑器',command = open_regedit_cn)
+            sysapp.add_separator()
+            sysapp.add_command(label = '开启命令提示字符',command = open_cmd_cn)
+            sysapp.add_command(label = '开启 PowerShell',command = open_powershell_cn)###
             insmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='隐私工具', menu=insmenu, underline=0)
             insmenu.add_command(label = '相机隐私检测',command = camera_check_cn)
@@ -4747,14 +5035,17 @@ def simplified_chinese():
             submenu.add_command(label = '重制系统网络',command = reset_network_cn)
             devmenu = Menu(filemenu3,tearoff=False)
             filemenu3.add_cascade(label='开发工具', menu=devmenu, underline=0)
+            devmenu.add_command(label = '在线挡案分析',command = input_virustotal_scan_cn)
+            devmenu.add_separator()
             devmenu.add_command(label = '自订 REG 指令',command = input_custom_regedit_command_cn)
             devmenu.add_command(label = '自订 CMD 指令',command = input_custom_cmd_command_cn)
             devmenu.add_separator()
-            devmenu.add_command(label = '分析 EXE 哈希',command = exe_analyze_md5_cn)
             devmenu.add_command(label = '分析 EXE 位元',command = exe_analyze_file_cn)
             devmenu.add_command(label = '分析 EXE 函数',command = exe_analyze_function_cn)
             devmenu.add_separator()
-            devmenu.add_command(label = '在线挡案分析',command = input_virustotal_scan_cn)
+            devmenu.add_command(label = '分析 EXE MD5 哈希',command = exe_analyze_md5_cn)
+            devmenu.add_command(label = '分析 EXE SHA1 哈希',command = exe_analyze_sha1_cn)
+            devmenu.add_command(label = '分析 EXE SHA256 哈希',command = exe_analyze_sha256_cn)
             filemenu5 = Menu(menubar,tearoff=False)
             menubar.add_cascade(label = '设置',menu = filemenu5)
             sitmenu = Menu(filemenu5,tearoff=False)

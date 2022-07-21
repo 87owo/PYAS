@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3.8 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.2.6 (2020.12.17)
+# PYAS Ver: PYAS V2.2.7 (2020.12.17)
 # PYAE Ver: PYAE V1.2.5 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -29,7 +29,7 @@ except Exception as e:
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.2.6'
+pyas_version = '2.2.7'
 pyae_version = '1.2.5'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -312,6 +312,10 @@ def pyas_protect_init_en():
                             else:
                                 pyas_clear()
                                 textPad.insert("insert", 'Malware blocking failed: '+str(p.name()))
+                            try:
+                                os.remove(str(p.exe()))
+                            except:
+                                pass
                         except:
                             pass
             except:# Exception as e:
@@ -1885,6 +1889,10 @@ def pyas_protect_init_zh():
                             else:
                                 pyas_clear()
                                 textPad.insert("insert", '惡意軟體攔截失敗: '+str(p.name()))
+                            try:
+                                os.remove(str(p.exe()))
+                            except:
+                                pass
                         except:
                             pass
             except:
@@ -3505,6 +3513,10 @@ def pyas_protect_init_cn():
                             else:
                                 pyas_clear()
                                 textPad.insert("insert", '恶意软件拦截失败: '+str(p.name()))
+                            try:
+                                os.remove(str(p.exe()))
+                            except:
+                                pass
                         except:
                             pass
             except:

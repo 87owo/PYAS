@@ -1,5 +1,5 @@
 Official website:
-https://xiaomi69ai.wixsite.com/pyas , 
+https://pyantivirus.wixsite.com/pyas , 
 https://github.com/87owo/PYAS
 
 Special thanks to:

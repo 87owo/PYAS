@@ -6,8 +6,8 @@
 # Support: Windows 7,8,10,11 64-bit
 #
 # PYAS Git: https://github.com/87owo/PYAS
-# PYAS Web: https://xiaomi69ai.wixsite.com/pyas
-# PYDT Web: https://xiaomi69ai.wixsite.com/pydt
+# PYAS Web: https://pyantivirus.wixsite.com/pyas
+# PYDT Web: https://pyantivirus.wixsite.com/pydt
 #
 # PYAS is managed by PYDT (Python Development Team)
 # Copyright© 2020-2022 PYAS Python Antivirus Software.
@@ -15,7 +15,7 @@
 
 #載入模組套件
 try:
-    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, webbrowser, threading, pygame, pathlib, virustotal_python, win32api, win32con
+    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, webbrowser, threading, pygame, virustotal_python, win32api, win32con
     from cv2 import VideoCapture
     from ctypes import windll
     import requests as req
@@ -135,7 +135,7 @@ The software is forbidden to be sold or copied by others without permission. You
 You can get the software directly from the official website of PYAS antivirus software, or you can get it through the official GitHub.
 If you have obtained this software from a third-party application store that has not been authorized by the official website of PYAS antivirus software,
 Then we cannot guarantee that the software can be used normally, and we are not responsible for any related losses caused to you.
-Official website: https://xiaomi69ai.wixsite.com/pyas
+Official website: https://pyantivirus.wixsite.com/pyas
 Official Git: https://github.com/87owo/PYAS
 3.Personal information and privacy protection.
 You can register your email and name on the official website of PYAS anti-virus software, which will be used for feedback contact.
@@ -233,7 +233,7 @@ def pyas_scan_answer_en():
 #定義更新選項
 def software_update_en():
     pyas_clear()
-    webbrowser.open('https://xiaomi69ai.wixsite.com/pyas?lang=en')
+    webbrowser.open('https://pyantivirus.wixsite.com/pyas?lang=en')
 
 def engine_update_en():
     if messagebox.askokcancel('Warning','Update Antivirus Engine ,Do You want to continue?', default="cancel", icon="warning"):
@@ -1690,7 +1690,7 @@ def about_pyas_en():
 PYAS Developer: PYAS_Dev#0629 , Mtkiao129#3921 , Dragon#5381
 Official Email: xiaomi69ai@gmail.com
 Official Github: https://github.com/87owo/PYAS
-Official Website: https://xiaomi69ai.wixsite.com/pyas
+Official Website: https://pyantivirus.wixsite.com/pyas
 PYAS Create Date: 2020/12/17
 PYAS Version: '''+pyas_version+'''
 PYAE Version: '''+pyae_version+'''
@@ -1715,7 +1715,7 @@ Thanks For Using PYAS Python Antivirus Software'''
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write(str(dev_edition_times + 1))
         er.close()
-        messagebox.showinfo('Copyright','''Website: https://xiaomi69ai.wixsite.com/pyas
+        messagebox.showinfo('Copyright','''Website: https://pyantivirus.wixsite.com/pyas
 Copyright© 2020-2022 PYAS Python Antivirus Software''')
 
 def software_version_en():
@@ -1841,7 +1841,7 @@ def english():
             root.mainloop()
         except Exception as e:
             messagebox.showerror('Error', '''There was an error in the program, we're sorry.
-Report Error: https://xiaomi69ai.wixsite.com/pyas
+Report Error: https://pyantivirus.wixsite.com/pyas
 Error Info: '''+str(e))
     else:
         windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
@@ -1971,7 +1971,7 @@ def pyas_scan_answer_zh():
 #定義更新選項
 def software_update_zh():
     pyas_clear()
-    webbrowser.open('https://xiaomi69ai.wixsite.com/pyas')
+    webbrowser.open('https://pyantivirus.wixsite.com/pyas')
 
 def engine_update_zh():
     if messagebox.askokcancel('Warning','更新掃毒引擎需要花費一些時間，是否繼續?', default="cancel", icon="warning"):
@@ -3323,7 +3323,7 @@ def about_pyas_zh():
 開發人員: PYAS_Dev#0629 , Mtkiao129#3921 , Dragon#5381
 官方郵箱: xiaomi69ai@gmail.com
 官方GIT: https://github.com/87owo/PYAS
-官方網站: https://xiaomi69ai.wixsite.com/pyas
+官方網站: https://pyantivirus.wixsite.com/pyas
 創立日期: 2020/12/17
 PYAS 版本: '''+pyas_version+'''
 PYAE 版本: '''+pyae_version+'''
@@ -3348,7 +3348,7 @@ PYAE 版本: '''+pyae_version+'''
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write(str(dev_edition_times + 1))
         er.close()
-        messagebox.showinfo('Copyright','''官方網站: https://xiaomi69ai.wixsite.com/pyas
+        messagebox.showinfo('Copyright','''官方網站: https://pyantivirus.wixsite.com/pyas
 版權所有© 2020-2022 PYAS Python Antivirus Software''')
 
 def software_version_zh():
@@ -3465,7 +3465,7 @@ def traditional_chinese():
             root.mainloop()
         except Exception as e:
             messagebox.showerror('Error', '''此軟體出現了一些問題，我們感到很抱歉。
-回報錯誤: https://xiaomi69ai.wixsite.com/pyas
+回報錯誤: https://pyantivirus.wixsite.com/pyas
 錯誤資訊: '''+str(e))
     else:
         windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
@@ -3595,7 +3595,7 @@ def pyas_scan_answer_cn():
 #定義更新選項
 def software_update_cn():
     pyas_clear()
-    webbrowser.open('https://xiaomi69ai.wixsite.com/pyas')
+    webbrowser.open('https://pyantivirus.wixsite.com/pyas')
 
 def engine_update_cn():
     if messagebox.askokcancel('Warning','更新扫毒引擎需要花费一些时间，是否继续?', default="cancel", icon="warning"):
@@ -4947,7 +4947,7 @@ def about_pyas_cn():
 开发人员: PYAS_Dev#0629 , Mtkiao129#3921 , Dragon#5381
 官方邮箱: xiaomi69ai@gmail.com
 官方GIT: https://github.com/87owo/PYAS
-官方网站: https://xiaomi69ai.wixsite.com/pyas
+官方网站: https://pyantivirus.wixsite.com/pyas
 创立日期: 2020/12/17
 PYAS 版本: '''+pyas_version+'''
 PYAE 版本: '''+pyae_version+'''
@@ -4972,7 +4972,7 @@ PYAE 版本: '''+pyae_version+'''
         er = open('.\Library\PYAS\Temp\PYASE.tmp','w')
         er.write(str(dev_edition_times + 1))
         er.close()
-        messagebox.showinfo('Copyright','''官方网站: https://xiaomi69ai.wixsite.com/pyas
+        messagebox.showinfo('Copyright','''官方网站: https://pyantivirus.wixsite.com/pyas
 版权所有© 2020-2022 PYAS Python Antivirus Software''')
 
 def software_version_cn():
@@ -5088,7 +5088,7 @@ def simplified_chinese():
             root.mainloop()
         except Exception as e:
             messagebox.showerror('Error', '''此软件出现了一些问题,我们感到很抱歉。
-回报错误: https://xiaomi69ai.wixsite.com/pyas
+回报错误: https://pyantivirus.wixsite.com/pyas
 错误资讯: '''+str(e))
     else:
         windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
@@ -5109,10 +5109,10 @@ def pyas_key():
             setup_pyas()
         else:
             messagebox.showerror('Error', '''The PYAS antivirus software you are using is not genuine. To ensure your safety, please download genuine antivirus software from the
-Official website: https://xiaomi69ai.wixsite.com/pyas''')
+Official website: https://pyantivirus.wixsite.com/pyas''')
     except:
         messagebox.showerror('Error', '''The PYAS antivirus software you are using is not genuine. To ensure your safety, please download genuine antivirus software from the
-Official website: https://xiaomi69ai.wixsite.com/pyas''')
+Official website: https://pyantivirus.wixsite.com/pyas''')
 
 ####################################################################################
 

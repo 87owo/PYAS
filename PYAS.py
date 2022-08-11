@@ -1,7 +1,7 @@
 ####################################################################################
 # Coding Python 3.8 UTF-8 (Python IDLE)
 #
-# PYAS Ver: PYAS V2.2.7 (2020.12.17)
+# PYAS Ver: PYAS V2.2.8 (2020.12.17)
 # PYAE Ver: PYAE V1.2.5 (2022.03.04)
 # Support: Windows 7,8,10,11 64-bit
 #
@@ -29,7 +29,7 @@ except Exception as e:
 ####################################################################################
 
 #版本資訊
-pyas_version = '2.2.7'
+pyas_version = '2.2.8'
 pyae_version = '1.2.5'
 dev_edition_times = 0
 pyas_copyright = 'Copyright© 2020-2022 PYAS Python Antivirus Software.'
@@ -209,7 +209,7 @@ def pyas_scan_answer_en():
                         textPad.insert("insert", 'Deleting:'+'\n'+pyas_divider+'\n'+str(line))
                         root.update()
                         try:
-                            os.remove(str(line[:-1]))
+                            os.remove(str(line[7:-1]))
                         except:
                             continue
                     else:
@@ -376,7 +376,7 @@ def pyas_file_scan_en():
     file = filedialog.askopenfilename()
     if file != "":
         if pyas_scan_start(file,rfp):
-            pyas_scan_write_en(file)
+            pyas_scan_write_en('(MD5)  '+file)
             textPad.insert("insert", en_virus_true+'\n')
         else:
             if 'C:/Windows' in str(file):
@@ -394,7 +394,7 @@ def pyas_file_scan_en():
                                 fts = fts + 1
                     PE.close(pe)
                     if fts != 0:
-                        pyas_scan_write_en(file)
+                        pyas_scan_write_en('(FUNC) '+file)
                         fts = 0
                         textPad.insert("insert", en_virus_true+'\n')
                 except:
@@ -445,17 +445,17 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif 'C:/Program Files' in str(fullpath):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     else:
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                         else:
                             try:
                                 pe = PE(fullpath)
@@ -466,7 +466,7 @@ def pyas_scan_path_en(path,rfp,rfn,fts):
                                             fts = fts + 1
                                 PE.close(pe)
                                 if fts != 0:
-                                    pyas_scan_write_en(str(fullpath))
+                                    pyas_scan_write_en('(FUNC) '+str(fullpath))
                                     fts = 0
                             except:
                                 pass
@@ -530,62 +530,62 @@ def pyas_scan_disk_en(path,rfp):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.cmd' in str(fd) or '.CMD' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.bat' in str(fd) or '.BAT' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.com' in str(fd) or '.COM' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.vbs' in str(fd) or '.VBS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.zip' in str(fd) or '.ZIP' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.js' in str(fd) or '.JS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.xls' in str(fd) or '.XLS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.doc' in str(fd) or '.DOC' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.dll' in str(fd) or '.DLL' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.scr' in str(fd) or '.SCR' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", en_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_en(fullpath)
+                            pyas_scan_write_en('(MD5)  '+fullpath)
                     else:
                         pass
             except:
@@ -1947,7 +1947,7 @@ def pyas_scan_answer_zh():
                         textPad.insert("insert", '正在移除:'+'\n'+pyas_divider+'\n'+str(line))
                         root.update()
                         try:
-                            os.remove(str(line[:-1]))
+                            os.remove(str(line[7:-1]))
                         except:
                             continue
                     else:
@@ -2044,7 +2044,7 @@ def pyas_file_scan_zh():
     file = filedialog.askopenfilename()
     if file != "":
         if pyas_scan_start(file,rfp):
-            pyas_scan_write_zh(file)
+            pyas_scan_write_zh('(MD5)  '+file)
             textPad.insert("insert", zh_virus_true+'\n')
         else:
             if 'C:/Windows' in str(file):
@@ -2062,7 +2062,7 @@ def pyas_file_scan_zh():
                                 fts = fts + 1
                     PE.close(pe)
                     if fts != 0:
-                        pyas_scan_write_zh(file)
+                        pyas_scan_write_zh('(FUNC) '+file)
                         fts = 0
                         textPad.insert("insert", zh_virus_true+'\n')
                 except:
@@ -2113,17 +2113,17 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif 'C:/Program Files' in str(fullpath):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     else:
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                         else:
                             try:
                                 pe = PE(fullpath)
@@ -2134,7 +2134,7 @@ def pyas_scan_path_zh(path,rfp,rfn,fts):
                                             fts = fts + 1
                                 PE.close(pe)
                                 if fts != 0:
-                                    pyas_scan_write_zh(str(fullpath))
+                                    pyas_scan_write_zh('(FUNC) '+str(fullpath))
                                     fts = 0
                             except:
                                 pass
@@ -2199,62 +2199,62 @@ def pyas_scan_disk_zh(path,rfp):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.cmd' in str(fd) or '.CMD' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.bat' in str(fd) or '.BAT' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.com' in str(fd) or '.COM' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.vbs' in str(fd) or '.VBS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.zip' in str(fd) or '.ZIP' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.js' in str(fd) or '.JS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.xls' in str(fd) or '.XLS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.doc' in str(fd) or '.DOC' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.dll' in str(fd) or '.DLL' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.scr' in str(fd) or '.SCR' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", zh_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_zh(fullpath)
+                            pyas_scan_write_zh('(MD5)  '+fullpath)
                     else:
                         pass
             except:
@@ -3571,7 +3571,7 @@ def pyas_scan_answer_cn():
                         textPad.insert("insert", '正在移除:'+'\n'+pyas_divider+'\n'+str(line))
                         root.update()
                         try:
-                            os.remove(str(line[:-1]))
+                            os.remove(str(line[7:-1]))
                         except:
                             continue
                     else:
@@ -3668,7 +3668,7 @@ def pyas_file_scan_cn():
     file = filedialog.askopenfilename()
     if file != "":
         if pyas_scan_start(file,rfp):
-            pyas_scan_write_cn(file)
+            pyas_scan_write_cn('(MD5)  '+file)
             textPad.insert("insert", cn_virus_true+'\n')
         else:
             if 'C:/Windows' in str(file):
@@ -3686,7 +3686,7 @@ def pyas_file_scan_cn():
                                 fts = fts + 1
                     PE.close(pe)
                     if fts != 0:
-                        pyas_scan_write_cn(file)
+                        pyas_scan_write_cn('(FUNC) '+file)
                         fts = 0
                         textPad.insert("insert", cn_virus_true+'\n')
                 except:
@@ -3737,17 +3737,17 @@ def pyas_scan_path_cn(path,rfp,rfn,fts):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif 'C:/Program Files' in str(fullpath):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     else:
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                         else:
                             try:
                                 pe = PE(fullpath)
@@ -3758,7 +3758,7 @@ def pyas_scan_path_cn(path,rfp,rfn,fts):
                                             fts = fts + 1
                                 PE.close(pe)
                                 if fts != 0:
-                                    pyas_scan_write_cn(str(fullpath))
+                                    pyas_scan_write_cn('(FUNC) '+str(fullpath))
                                     fts = 0
                             except:
                                 pass
@@ -3823,62 +3823,62 @@ def pyas_scan_disk_cn(path,rfp):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.cmd' in str(fd) or '.CMD' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.bat' in str(fd) or '.BAT' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.com' in str(fd) or '.COM' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.vbs' in str(fd) or '.VBS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.zip' in str(fd) or '.ZIP' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.js' in str(fd) or '.JS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.xls' in str(fd) or '.XLS' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.doc' in str(fd) or '.DOC' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.dll' in str(fd) or '.DLL' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.scr' in str(fd) or '.SCR' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     elif '.tmp' in str(fd) or '.TMP' in str(fd):
                         pyas_clear()
                         textPad.insert("insert", cn_scaning+'\n'+pyas_divider+'\n'+fullpath)
                         if pyas_scan_start(fullpath,rfp):
-                            pyas_scan_write_cn(fullpath)
+                            pyas_scan_write_cn('(MD5)  '+fullpath)
                     else:
                         pass
             except:

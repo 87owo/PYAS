@@ -1,6 +1,8 @@
 english_list = {
 "已開啟":"On",
 "已關閉":"Off",
+"已开启":"On",
+"已关闭":"Off",
 "✔成功: 已執行成功。":"✔Success: Executed successfully.",
 "這台電腦目前很安全":"This computer is currently safe",
 "✖錯誤: 執行失敗。":"✖Error: Execution failed.",

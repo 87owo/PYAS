@@ -151,7 +151,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             try:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                    file.write("[Setting]\nshow_virus_scan_progress_bar = 0\nlanguage = english")
+                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
             except:
                 pass
         try:
@@ -170,14 +170,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             try:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                    file.write("[Setting]\nshow_virus_scan_progress_bar = 0\nlanguage = english")
+                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
             except:
                 pass
             self.language = "english"
             self.lang_init_en()
             self.ui.Languahe_English.setChecked(True)
         try:
-            if self.ini_config.getint("Setting","show_virus_scan_progress_bar") == 1:
+            if self.ini_config.getint("Setting","high_sensitivity") == 1:
                 self.show_virus_scan_progress_bar = 1
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -263,9 +263,9 @@ Login editor management authority''')
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.2"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.2 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -284,6 +284,8 @@ Login editor management authority''')
         self.ui.Protection_title.setText(_translate("MainWindow", "Real-time protection"))
         self.ui.Protection_illustrate.setText(_translate("MainWindow", "Enable this option to monitor and remove malware in the system in real time"))
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
+            self.ui.Protection_switch_Button.setText(_translate("MainWindow", "On"))
+        elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "On"))
         else:
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "Off"))
@@ -336,7 +338,7 @@ Login editor management authority''')
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
         self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.2"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.3"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
@@ -358,9 +360,11 @@ Login editor management authority''')
         self.ui.Value_Data_title.setText(_translate("MainWindow", "Value data:"))
         self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "OK"))
         self.ui.Value_HEKY_title.setText(_translate("MainWindow", "Value HEKY:"))
-        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "Show virus scan progress bar"))
-        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "When this option is turned on, you can know the progress of the scan (it will increase the initialization time)"))
+        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "High Sensitivity Mode"))
+        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "Turning this option on increases sensitivity when scanning, but it may also lead to manslaughter."))
         if self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已開啟"):
+            self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "On"))
+        elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已开启"):
             self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "On"))
         else:
             self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "Off"))
@@ -368,7 +372,7 @@ Login editor management authority''')
         self.ui.Language_title.setText(_translate("MainWindow", "Language"))
         self.ui.Language_illustrate.setText(_translate("MainWindow", "Please select language"))
         self.ui.License_terms_title.setText(_translate("MainWindow", "License terms:"))
-        self.ui.Theme_title.setText(_translate("MainWindow", "Color rendering theme"))
+        self.ui.Theme_title.setText(_translate("MainWindow", "Color Rendering Theme"))
         self.ui.Theme_illustrate.setText(_translate("MainWindow", "Please select a theme"))
         self.ui.Theme_White.setText(_translate("MainWindow", "White"))
         self.ui.Theme_Black.setText(_translate("MainWindow", "Black"))
@@ -381,9 +385,9 @@ Login editor management authority''')
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.2"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.2 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -402,6 +406,8 @@ Login editor management authority''')
         self.ui.Protection_title.setText(_translate("MainWindow", "实时防护"))
         self.ui.Protection_illustrate.setText(_translate("MainWindow", "启用该选项可以实时监控系统的恶意软件并清除"))
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
+            self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已开启"))
+        elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已开启"))
         else:
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已关闭"))
@@ -454,7 +460,7 @@ Login editor management authority''')
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.2"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.3"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
@@ -476,9 +482,11 @@ Login editor management authority''')
         self.ui.Value_Data_title.setText(_translate("MainWindow", "值资料:"))
         self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "确定"))
         self.ui.Value_HEKY_title.setText(_translate("MainWindow", "值HEKY:"))
-        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "显示病毒扫描进度条"))
-        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "开启此选项后可以知道扫描的进度(会增加初始化时间)"))
+        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "高灵敏度模式"))
+        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "开启此选项后可提高扫描时的灵敏度，但这也可能会导致误杀。"))
         if self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已開啟"):
+            self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "已开启"))
+        elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已开启"):
             self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "已开启"))
         else:
             self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "已关闭"))
@@ -500,9 +508,9 @@ Login editor management authority''')
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.2"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.2 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -521,6 +529,8 @@ Login editor management authority''')
         self.ui.Protection_title.setText(_translate("MainWindow", "實時防護"))
         self.ui.Protection_illustrate.setText(_translate("MainWindow", "啟用該選項可以實時監控系統的惡意軟體並清除"))
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
+            self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已開啟"))
+        elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已開啟"))
         else:
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已關閉"))
@@ -573,7 +583,7 @@ Login editor management authority''')
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.2"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.3"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
@@ -595,9 +605,11 @@ Login editor management authority''')
         self.ui.Value_Data_title.setText(_translate("MainWindow", "值資料:"))
         self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "確定"))
         self.ui.Value_HEKY_title.setText(_translate("MainWindow", "值HEKY:"))
-        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "顯示病毒掃描進度條"))
-        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "開啟此選項後可以知道掃描的進度(會增加初始化時間)"))
+        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "高靈敏度模式"))
+        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "開啟此選項後可提高掃描時的靈敏度，但這也可能會導致誤殺。"))
         if self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已開啟"):
+            self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "已開啟"))
+        elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已开启"):
             self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "已開啟"))
         else:
             self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(_translate("MainWindow", "已關閉"))
@@ -964,9 +976,9 @@ Login editor management authority''')
                         self.ui.Virus_Scan_Break_Button.hide()
                         break
                     fullpath = os.path.join(path,fd)
-                    if self.show_virus_scan_progress_bar != 0:
-                        self.quantity = self.quantity + 1
-                        self.ui.Virus_Scan_ProgressBar.setValue(self.quantity)
+                    #if self.show_virus_scan_progress_bar != 0:
+                        #self.quantity = self.quantity + 1
+                        #self.ui.Virus_Scan_ProgressBar.setValue(self.quantity)
                     if os.path.isdir(fullpath):
                         self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
                     else:
@@ -977,15 +989,16 @@ Login editor management authority''')
                             if self.pyas_scan_start(fullpath,rfp):
                                 self.pyas_scan_write_en(fullpath)
                             else:
-                                pe = PE(fullpath)
-                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                    for function in entry.imports:
-                                        if str(function.name) in rfn:
-                                            fts = fts + 1
-                                if fts != 0:
-                                    QApplication.processEvents()
-                                    self.pyas_scan_write_en(str(fullpath))
-                                    fts = 0
+                                if self.show_virus_scan_progress_bar != 0:
+                                    pe = PE(fullpath)
+                                    for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                        for function in entry.imports:
+                                            if str(function.name) in rfn:
+                                                fts = fts + 1
+                                    if fts != 0:
+                                        QApplication.processEvents()
+                                        self.pyas_scan_write_en(str(fullpath))
+                                        fts = 0
                         except:
                             self.ui.Virus_Scan_text.setText(scan_text + fullpath)
                             QApplication.processEvents()
@@ -1063,19 +1076,20 @@ b'LockFile'"""
                 self.pyas_scan_write_en(file)
                 self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
             else:
-                fts = 0
-                try:
-                    pe = PE(file)
-                    for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                        for function in entry.imports:
-                            if str(function.name) in rfn:
-                                fts = fts + 1
-                    if fts != 0:
-                        self.pyas_scan_write_en(file)
-                        fts = 0
-                        self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
-                except:
-                    self.ui.Virus_Scan_text.setText(self.text_Translate("✖掃描失敗。"))
+                if self.show_virus_scan_progress_bar != 0:
+                    fts = 0
+                    try:
+                        pe = PE(file)
+                        for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                            for function in entry.imports:
+                                if str(function.name) in rfn:
+                                    fts = fts + 1
+                        if fts != 0:
+                            self.pyas_scan_write_en(file)
+                            fts = 0
+                            self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
+                    except:
+                        self.ui.Virus_Scan_text.setText(self.text_Translate("✖掃描失敗。"))
             fp.close()
             fn.close()
             self.pyas_scan_answer_en()
@@ -1103,10 +1117,10 @@ b'LockFile'"""
             self.ui.Virus_Scan_choose_Button.hide()
             self.ui.Virus_Scan_Break_Button.show()
             QApplication.processEvents()
-            if self.show_virus_scan_progress_bar != 0:
-                self.quantity = 0
-                self.ui.Virus_Scan_ProgressBar.setMaximum(len(self.list_allfile(file,[])))
-                self.ui.Virus_Scan_ProgressBar.show()
+            #if self.show_virus_scan_progress_bar != 0:
+                #self.quantity = 0
+                #self.ui.Virus_Scan_ProgressBar.setMaximum(len(self.list_allfile(file,[])))
+                #self.ui.Virus_Scan_ProgressBar.show()
             try:
                 with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                     rfp = fp.read()
@@ -1871,7 +1885,7 @@ b'LockFile'"""
             self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
             try:
                 if self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已關閉"):
-                    self.ini_config.set("Setting", "show_virus_scan_progress_bar", 1)
+                    self.ini_config.set("Setting", "high_sensitivity", 1)
                     self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -1888,7 +1902,7 @@ b'LockFile'"""
                     """)
                     self.show_virus_scan_progress_bar = 1
                 else:
-                    self.ini_config.set("Setting", "show_virus_scan_progress_bar", 0)
+                    self.ini_config.set("Setting", "high_sensitivity", 0)
                     self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -1906,7 +1920,7 @@ b'LockFile'"""
                     self.show_virus_scan_progress_bar = 0
             except:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                    file.write("[Setting]\nshow_virus_scan_progress_bar = 0\nlanguage = english")
+                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
         except:
             pass
 

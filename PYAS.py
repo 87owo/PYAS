@@ -178,20 +178,36 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Languahe_English.setChecked(True)
         try:
             if self.ini_config.getint("Setting","high_sensitivity") == 1:
-                self.show_virus_scan_progress_bar = 1
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                QPushButton
-                {
-                    border:none;
-                    background-color:rgba(20,200,20,100);
-                    border-radius: 15px;
-                }
-                QPushButton:hover
-                {
-                    background-color:rgba(20,200,20,120);
-                }
-                """)
+                if self.ini_config.get("Setting","language") == "zh_TW":
+                    self.show_virus_scan_progress_bar = 1
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))#####
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                    QPushButton
+                    {
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;
+                    }
+                    QPushButton:hover
+                    {
+                        background-color:rgba(20,200,20,120);
+                    }
+                    """)
+                else:
+                    self.show_virus_scan_progress_bar = 1
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))#####
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                    QPushButton
+                    {
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;
+                    }
+                    QPushButton:hover
+                    {
+                        background-color:rgba(20,200,20,120);
+                    }
+                    """)
             else:
                 self.show_virus_scan_progress_bar = 0
         except:
@@ -263,9 +279,9 @@ Login editor management authority''')
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.4"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.4 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -385,9 +401,9 @@ Login editor management authority''')
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.4"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.4 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -508,9 +524,9 @@ Login editor management authority''')
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.4"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.3 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.4 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -898,7 +914,7 @@ Login editor management authority''')
             else:
                 return True
         except:
-            pass
+            return False
     #定義紀錄掃描
     def pyas_scan_write_en(self,file):
         try:
@@ -1195,7 +1211,7 @@ b'LockFile'"""
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                 rfp = self.fp.read()
         except Exception as e:
-            QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
+            QMessageBox.critical(self,"Error: ",str(e),QMessageBox.Ok)
             rfp = ""
         self.pyas_scan_disk_en('A:/',rfp)
         self.pyas_scan_disk_en('B:/',rfp)
@@ -1631,7 +1647,7 @@ b'LockFile'"""
                 fe = ft.read()
                 ft.close()
             except Exception as e:
-                QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,"Error: ",str(e),QMessageBox.Ok)
             self.ui.Look_for_File_output.setText("")
             self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
             QApplication.processEvents()
@@ -1785,6 +1801,23 @@ b'LockFile'"""
             QApplication.processEvents()
             self.Virus_Scan = 0
             self.pause = True
+        elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
+            self.ui.Protection_switch_Button.setText(self.text_Translate("已关闭"))
+            self.ui.Protection_switch_Button.setStyleSheet("""
+            QPushButton
+            {
+                border:none;
+                background-color:rgba(20,20,20,30);
+                border-radius: 15px;
+            }
+            QPushButton:hover
+            {
+                background-color:rgba(20,20,20,50);
+            }
+            """)
+            QApplication.processEvents()
+            self.Virus_Scan = 0
+            self.pause = True
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
             self.pause = False
@@ -1797,23 +1830,39 @@ b'LockFile'"""
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                 rfp = fp.read()
         except Exception as e:
-            QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
+            QMessageBox.critical(self,"Error: ",str(e),QMessageBox.Ok)
             rfp = ''
         self.Virus_Scan = 1
-        self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控系統的惡意軟體並清除"))
-        self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
-        self.ui.Protection_switch_Button.setStyleSheet("""
-        QPushButton
-        {
-            border:none;
-            background-color:rgba(20,200,20,100);
-            border-radius: 15px;
-        }
-        QPushButton:hover
-        {
-            background-color:rgba(20,200,20,120);
-        }
-        """)
+        if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
+            self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控系統中的惡意軟體並清除"))
+            self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.Protection_switch_Button.setStyleSheet("""
+            QPushButton
+            {
+                border:none;
+                background-color:rgba(20,200,20,100);
+                border-radius: 15px;
+            }
+            QPushButton:hover
+            {
+                background-color:rgba(20,200,20,120);
+            }
+            """)
+        else:
+            self.ui.Protection_illustrate.setText(self.text_Translate("启动此选项可以实时监控系统中的恶意软件并清除"))
+            self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
+            self.ui.Protection_switch_Button.setStyleSheet("""
+            QPushButton
+            {
+                border:none;
+                background-color:rgba(20,200,20,100);
+                border-radius: 15px;
+            }
+            QPushButton:hover
+            {
+                background-color:rgba(20,200,20,120);
+            }
+            """)
         QApplication.processEvents()
         while 1:
             if not self.pause:
@@ -1901,6 +1950,57 @@ b'LockFile'"""
                     }
                     """)
                     self.show_virus_scan_progress_bar = 1
+                elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已关闭"):
+                    self.ini_config.set("Setting", "high_sensitivity", 1)
+                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                    QPushButton
+                    {
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;
+                    }
+                    QPushButton:hover
+                    {
+                        background-color:rgba(20,200,20,120);
+                    }
+                    """)
+                    self.show_virus_scan_progress_bar = 1
+                elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已开启"):
+                    self.ini_config.set("Setting", "high_sensitivity", 0)
+                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已关闭"))
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                    QPushButton
+                    {
+                        border:none;
+                        background-color:rgba(20,20,20,30);
+                        border-radius: 15px;
+                    }
+                    QPushButton:hover
+                    {
+                        background-color:rgba(20,20,20,50);
+                    }
+                    """)
+                    self.show_virus_scan_progress_bar = 0
+                elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已開啟"):
+                    self.ini_config.set("Setting", "high_sensitivity", 0)
+                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                    QPushButton
+                    {
+                        border:none;
+                        background-color:rgba(20,20,20,30);
+                        border-radius: 15px;
+                    }
+                    QPushButton:hover
+                    {
+                        background-color:rgba(20,20,20,50);
+                    }
+                    """)
+                    self.show_virus_scan_progress_bar = 0
                 else:
                     self.ini_config.set("Setting", "high_sensitivity", 0)
                     self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
@@ -1918,6 +2018,7 @@ b'LockFile'"""
                     }
                     """)
                     self.show_virus_scan_progress_bar = 0
+                #print(str(self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()))
             except:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
@@ -1941,7 +2042,8 @@ b'LockFile'"""
                 self.language = "english"
                 self.ini_config.set("Setting", "language", "english") 
         except Exception as e:
-            QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
+            print(e)
+            #QMessageBox.critical(self,"Error: ",str(e),QMessageBox.Ok)
         try:
             self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
         except:

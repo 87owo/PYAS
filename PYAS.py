@@ -1,5 +1,5 @@
 try:
-    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser#, webbrowser
+    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser
     from PYAS_English import english_list
     from pefile import PE
     from hashlib import md5, sha1, sha256
@@ -1439,7 +1439,7 @@ If you do not download from the official website, we cannot guarantee the securi
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
         if CMD_Command == "never gonna give you up" or CMD_Command == "Never gonna give you up" \
         or CMD_Command == "rickroll" or CMD_Command == "Rickroll":
-            #webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+            webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
             self.ui.Customize_CMD_Command_output.setText(english_list["never gonna give you up"])
             return
         if CMD_Command != '':
@@ -1700,7 +1700,7 @@ If you do not download from the official website, we cannot guarantee the securi
                         p.kill()
         except:
             pass
-################實實防護##################
+################實時防護##################
 
     def protect_threading_init_zh(self):
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
@@ -1738,18 +1738,18 @@ If you do not download from the official website, we cannot guarantee the securi
             self.Virus_Scan = 0
             self.pause = True
         else:
-            self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
-            self.pause = False
-            QApplication.processEvents()
-            self.protect_threading = threading.Thread(target = self.pyas_protect_init_zh)
-            self.protect_threading.start()
+            try:
+                self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
+                self.pause = False
+                QApplication.processEvents()
+                self.protect_threading = threading.Thread(target = self.pyas_protect_init_zh)
+                self.protect_threading.start()
+            except Exception as e:
+                QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
 
     def pyas_protect_init_zh(self):
-        try:
-            with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                rfp = fp.read()
-        except Exception as e:
-            QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
+        with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+            rfp = fp.read()
         self.Virus_Scan = 1
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
@@ -1808,7 +1808,7 @@ If you do not download from the official website, we cannot guarantee the securi
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
                                 except Exception as e:
                                     pass
-                                    #print(str(e))
+                                    print(str(e))
                                 try:
                                     os.remove(str(p.exe()))
                                 except:
@@ -1816,10 +1816,10 @@ If you do not download from the official website, we cannot guarantee the securi
                     except Exception as e:
                         #print(str(e))
                         continue
-                else:
-                    rfp = ""
-                    fp.close()
-                    break
+            else:
+                rfp = ""
+                fp.close()
+                break
         
 #############設定###############
     def ShowMenu(self):

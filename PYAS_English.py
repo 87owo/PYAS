@@ -1,4 +1,5 @@
 english_list = {
+"提示":"Tips",
 "已開啟":"On",
 "已關閉":"Off",
 "已开启":"On",
@@ -8,6 +9,8 @@ english_list = {
 " 被創建":" Created",
 " 被刪除":" Deleted",
 " 被編輯":" Edited",
+"請輸入需要尋找的檔案":"Please enter the file you want to find",
+"请输入需要寻找的档案":"Please enter the file you want to find",
 "✔成功: 已執行成功。":"✔Success: Executed successfully.",
 "這台電腦目前很安全":"This computer is currently safe",
 "✖錯誤: 執行失敗。":"✖Error: Execution failed.",

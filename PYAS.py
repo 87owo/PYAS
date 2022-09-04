@@ -31,13 +31,22 @@ def pyas_key():
             bytes = f.read()
             readable_hash = md5(bytes).hexdigest();
         f.close()
-        ft = open('Library/PYAS/Setup/PYAS.key','r')
-        fe = ft.read()
-        ft.close()
-        if fe == readable_hash:
-            return True
-        else:
-            return False
+        try:
+            ft = open('Library/PYAS/Setup/PYAS.key','r')
+            fe = ft.read()
+            ft.close()
+            if fe == readable_hash:
+                return True
+            else:
+                return False
+        except:
+            ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.key','r')
+            fe = ft.read()
+            ft.close()
+            if fe == readable_hash:
+                return True
+            else:
+                return False
     except:
         return False
 
@@ -147,13 +156,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.pause = False
         self.ini_config = configparser.RawConfigParser()
         try:
-            self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+            try:
+                self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+            except:
+                self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
         except:
             try:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                file.close()
             except:
-                pass
+                with open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
+                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                file.close()
         try:
             if self.ini_config.get("Setting","language") == "zh_TW":
                 self.language = "zh_TW"
@@ -171,8 +186,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                file.close()
             except:
-                pass
+                with open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
+                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                file.close()
             self.language = "english"
             self.lang_init_en()
             self.ui.Languahe_English.setChecked(True)
@@ -275,9 +293,9 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.6"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.6 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -350,7 +368,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
         self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.6"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.8"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
@@ -359,8 +377,11 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Testers_Name.setText(_translate("MainWindow", "mtkiao129#3921, PYAS_Dev#0629"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "Website:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style= \" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-2022 PYAS Security"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V1.2.6"))
+        cy = datetime.datetime.now().strftime('%Y')
+        if int(cy) < 2020:
+            cy = str('2020')
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" PYAS Security"))
+        self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V1.2.7"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "Back"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "New password:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "Username:"))
@@ -397,9 +418,9 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.6"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.6 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -472,7 +493,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.6"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.8"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
@@ -481,8 +502,11 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Testers_Name.setText(_translate("MainWindow", "mtkiao129#3921, PYAS_Dev#0629"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方网站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-2022 PYAS Security"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V1.2.6"))
+        cy = datetime.datetime.now().strftime('%Y')
+        if int(cy) < 2020:
+            cy = str('2020')
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" PYAS Security"))
+        self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V1.2.7"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密码:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用户名:"))
@@ -520,9 +544,9 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.6"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.6 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -595,7 +619,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.6"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.8"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
@@ -604,8 +628,11 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Testers_Name.setText(_translate("MainWindow", "mtkiao129#3921, PYAS_Dev#0629"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-2022 PYAS Security"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V1.2.6"))
+        cy = datetime.datetime.now().strftime('%Y')
+        if int(cy) < 2020:
+            cy = str('2020')
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" PYAS Security"))
+        self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V1.2.7"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密碼:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用戶名:"))
@@ -858,15 +885,19 @@ If you do not download from the official website, we cannot guarantee the securi
     def Virus_Solve(self):
         try:
             for line in self.Virus_List:
-                if 'C:/Windows' not in line:
+                if 'C:/Windows' in str(line):
+                    pass
+                elif 'C:/Program' in str(file):
+                    pass
+                elif 'AppData' in str(file):
+                    pass
+                else:
                     self.ui.Virus_Scan_text.setText('Deleting:'+str(line))
                     QApplication.processEvents()
                     try:
                         os.remove(str(line))
                     except:
                         continue
-                else:
-                    pass
             self.ui.Virus_Scan_text.setText(self.text_Translate('✔成功: 已執行成功。'))
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
@@ -902,7 +933,7 @@ If you do not download from the official website, we cannot guarantee the securi
             with open(file,"rb") as f:
                 bytes = f.read()
                 readable_hash = md5(bytes).hexdigest()
-                if str(readable_hash)[:8] in str(rfp):
+                if str(readable_hash)[:10] in str(rfp):
                     virus_found = True
             f.close()
             if not virus_found:
@@ -914,18 +945,35 @@ If you do not download from the official website, we cannot guarantee the securi
     #定義紀錄掃描
     def pyas_scan_write_en(self,file):
         try:
-            ft = open('Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
-            self.Virus_List.append(file)
-            fe = ft.write(file+'\n')
-            ft.close()
+            if 'C:/Windows' in str(file):
+                pass
+            elif 'C:/Program' in str(file):
+                pass
+            elif 'AppData' in str(file):
+                pass
+            else:
+                try:
+                    ft = open('Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
+                    self.Virus_List.append(file)
+                    fe = ft.write(file+'\n')
+                    ft.close()
+                except:
+                    ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
+                    self.Virus_List.append(file)
+                    fe = ft.write(file+'\n')
+                    ft.close()
         except:
             pass
 
     #定義讀取紀錄
     def pyas_scan_read_en(self):
         try:
-            ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
-            ft.close()
+            try:
+                ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+                ft.close()
+            except:
+                ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+                ft.close()
             try:
                 pygame.mixer.init()
                 if not pygame.mixer.music.get_busy():
@@ -948,10 +996,16 @@ If you do not download from the official website, we cannot guarantee the securi
         except Exception as e:
             print(e)
             try:
-                pygame.mixer.init()
-                if not pygame.mixer.music.get_busy():
-                    pygame.mixer.music.load('./Library/PYAS/Audio/Complete.ogg')
-                    pygame.mixer.music.play()
+                try:
+                    pygame.mixer.init()
+                    if not pygame.mixer.music.get_busy():
+                        pygame.mixer.music.load('./Library/PYAS/Audio/Complete.ogg')
+                        pygame.mixer.music.play()
+                except:
+                    pygame.mixer.init()
+                    if not pygame.mixer.music.get_busy():
+                        pygame.mixer.music.load('C:/Program Files (x86)/PYAS/Library/PYAS/Audio/Complete.ogg')
+                        pygame.mixer.music.play()
             except:
                 pass
             self.ui.Virus_Scan_Break_Button.hide()
@@ -963,22 +1017,33 @@ If you do not download from the official website, we cannot guarantee the securi
     #定義移除紀錄
     def pyas_scan_del_en(self):
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
+            try:
+                os.remove('Library/PYAS/Temp/PYASV.tmp')
+            except:
+                os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
         except:
             pass
 
     def pyas_scan_answer_en(self):
         self.ui.Virus_Scan_text.setText(self.pyas_scan_read_en())
         try:
-            ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
-            self.lines = ft.readlines()
-            ft.close()
+            try:
+                ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+                self.lines = ft.readlines()
+                ft.close()
+            except:
+                ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
+                self.lines = ft.readlines()
+                ft.close()
         except Exception as e:
             print(e)
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
+            try:
+                os.remove('Library/PYAS/Temp/PYASV.tmp')
+            except:
+                os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
         except:
-            pass  
+            pass
 
     def pyas_scan_path_en(self,path,rfp,rfn,fts):
         try:
@@ -1031,7 +1096,10 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("病毒掃描"),"./",'')
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
+            try:
+                os.remove('Library/PYAS/Temp/PYASV.tmp')
+            except:
+                os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
         except:
             pass
         if file != "":
@@ -1040,10 +1108,16 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.Virus_Scan = 1
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                    rfp = fp.read()
-                with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                    rfn = fn.read()
+                try:
+                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        rfp = fp.read()
+                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                        rfn = fn.read()
+                except:
+                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        rfp = fp.read()
+                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
+                        rfn = fn.read()
                 if self.pyas_scan_start(file,rfp):
                     self.pyas_scan_write_en(file)
                     self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
@@ -1075,14 +1149,20 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
         self.ini_config = configparser.RawConfigParser()
-        self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+        try:
+            self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+        except:
+            self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
         self.Virus_List = []
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        file = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"./")    
+        file = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"./") 
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
+            try:
+                os.remove('Library/PYAS/Temp/PYASV.tmp')
+            except:
+                os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
         except:
             pass
         if file != "":
@@ -1096,10 +1176,16 @@ If you do not download from the official website, we cannot guarantee the securi
                     #self.quantity = 0
                     #self.ui.Virus_Scan_ProgressBar.setMaximum(len(self.list_allfile(file,[])))
                     #self.ui.Virus_Scan_ProgressBar.show()
-                with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                    rfp = fp.read()
-                with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                    rfn = fn.read()
+                try:
+                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        rfp = fp.read()
+                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                        rfn = fn.read()
+                except:
+                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        rfp = fp.read()
+                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
+                        rfn = fn.read()
                 fp.close()
                 fn.close()
                 self.pyas_scan_path_en(file,rfp,rfn,0)
@@ -1122,14 +1208,21 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         self.scaning = self.text_Translate("正在掃描:")
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
+            try:
+                os.remove('Library/PYAS/Temp/PYASV.tmp')
+            except:
+                os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
         except:
             pass
         try:
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
-                rfp = self.fp.read()
+            try:
+                with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
+                    rfp = self.fp.read()
+            except:
+                with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
+                    rfp = self.fp.read()
             self.pyas_scan_disk_en('A:/',rfp)
             self.pyas_scan_disk_en('B:/',rfp)
             self.pyas_scan_disk_en('C:/',rfp)
@@ -1169,71 +1262,78 @@ If you do not download from the official website, we cannot guarantee the securi
                     if os.path.isdir(fullpath):
                         self.pyas_scan_disk_en(fullpath,rfp)
                     else:
-                        if self.Virus_Scan == 0:
-                            self.ui.Virus_Scan_Break_Button.hide()
-                            break
-                        elif '.exe' in str(fd) or '.EXE' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.cmd' in str(fd) or '.CMD' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.bat' in str(fd) or '.BAT' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.com' in str(fd) or '.COM' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.vbs' in str(fd) or '.VBS' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.js' in str(fd) or '.JS' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.xls' in str(fd) or '.XLS' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.doc' in str(fd) or '.DOC' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.dll' in str(fd) or '.DLL' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        elif '.scr' in str(fd) or '.SCR' in str(fd):
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.pyas_scan_start(fullpath,rfp):
-                                self.pyas_scan_write_en(fullpath)
-                        #elif '.zip' in str(fd) or '.ZIP' in str(fd):
-                            #self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            #QApplication.processEvents()
-                            #if self.pyas_scan_start(fullpath,rfp):
-                                #self.pyas_scan_write_en(fullpath)
-                        #elif '.tmp' in str(fd) or '.TMP' in str(fd):
-                            #self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            #QApplication.processEvents()
-                            #if self.pyas_scan_start(fullpath,rfp):
-                                #self.pyas_scan_write_en(fullpath)
-                        else:
+                        if 'C:/Windows' in str(fullpath):
                             pass
+                        elif 'C:/Program' in str(fullpath):
+                            pass
+                        elif 'AppData' in str(fullpath):
+                            pass
+                        else:
+                            if self.Virus_Scan == 0:
+                                self.ui.Virus_Scan_Break_Button.hide()
+                                break
+                            elif '.exe' in str(fd) or '.EXE' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.cmd' in str(fd) or '.CMD' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.bat' in str(fd) or '.BAT' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.com' in str(fd) or '.COM' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.vbs' in str(fd) or '.VBS' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.js' in str(fd) or '.JS' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.xls' in str(fd) or '.XLS' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.doc' in str(fd) or '.DOC' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.dll' in str(fd) or '.DLL' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            elif '.scr' in str(fd) or '.SCR' in str(fd):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
+                            #elif '.zip' in str(fd) or '.ZIP' in str(fd):
+                                #self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                #QApplication.processEvents()
+                                #if self.pyas_scan_start(fullpath,rfp):
+                                    #self.pyas_scan_write_en(fullpath)
+                            #elif '.tmp' in str(fd) or '.TMP' in str(fd):
+                                #self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                #QApplication.processEvents()
+                                #if self.pyas_scan_start(fullpath,rfp):
+                                    #self.pyas_scan_write_en(fullpath)
+                            else:
+                                pass
                 except:
                     continue
         except:
@@ -1528,6 +1628,8 @@ If you do not download from the official website, we cannot guarantee the securi
         File_Name = self.ui.Look_for_File_input.text()
         if File_Name != "":
             self.find_files_info_zh(File_Name)
+        else:
+            QMessageBox.information(self,self.text_Translate("提示"),self.text_Translate("請輸入需要尋找的檔案"),QMessageBox.Ok)
 
 
     def find_files_info_zh(self,ffile):
@@ -1562,19 +1664,27 @@ If you do not download from the official website, we cannot guarantee the securi
             self.findfile_zh('Z:/',ffile,fss,start)
             end = time.time()
             try:
-                ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
-                fe = ft.read()
-                ft.close()
+                try:
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
+                    fe = ft.read()
+                    ft.close()
+                except:
+                    ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
+                    fe = ft.read()
+                    ft.close()
             except Exception as e:
                 QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
             self.ui.Look_for_File_output.setText("")
             self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
             QApplication.processEvents()
-            self.Change_Tools(self.ui.Look_for_File_widget)
+            self.Change_Tools(self.ui.Look_for_File_widget)            
+        except:
+            pass
+        try:
             try:
                 os.remove('Library/PYAS/Temp/PYASF.tmp')
             except:
-                pass
+                os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp')
         except:
             pass
 
@@ -1592,10 +1702,16 @@ If you do not download from the official website, we cannot guarantee the securi
                         if ffile in str(fd):
                             try:
                                 date = time.ctime(os.path.getmtime(fullpath))
-                                ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
-                                #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
-                                ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
-                                ft.close()
+                                try:
+                                    ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
+                                    #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                    ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                    ft.close()
+                                except:
+                                    ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
+                                    #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                    ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                    ft.close()
                                 continue
                             except:
                                 pass
@@ -1748,8 +1864,12 @@ If you do not download from the official website, we cannot guarantee the securi
                 QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
 
     def pyas_protect_init_zh(self):
-        with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-            rfp = fp.read()
+        try:
+            with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                rfp = fp.read()
+        except:
+            with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                rfp = fp.read()
         self.Virus_Scan = 1
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
@@ -1798,10 +1918,16 @@ If you do not download from the official website, we cannot guarantee the securi
                                     if of == 0:
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
                                         try:
-                                            pygame.mixer.init()
-                                            if not pygame.mixer.music.get_busy():
-                                                pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
-                                                pygame.mixer.music.play()
+                                            try:
+                                                pygame.mixer.init()
+                                                if not pygame.mixer.music.get_busy():
+                                                    pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
+                                                    pygame.mixer.music.play()
+                                            except:
+                                                pygame.mixer.init()
+                                                if not pygame.mixer.music.get_busy():
+                                                    pygame.mixer.music.load('C:/Program Files (x86)/PYAS/Library/PYAS/Audio/Virusfound.ogg')
+                                                    pygame.mixer.music.play()
                                         except:
                                             pass
                                     else:
@@ -1850,12 +1976,19 @@ If you do not download from the official website, we cannot guarantee the securi
 
     def Show_Virus_Scan_Progress_Bar_switch(self):
         try:
-            self.ini_config = configparser.RawConfigParser()
-            self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+            try:
+                self.ini_config = configparser.RawConfigParser()
+                self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+            except:
+                self.ini_config = configparser.RawConfigParser()
+                self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
             try:
                 if self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已關閉"):
                     self.ini_config.set("Setting", "high_sensitivity", 1)
-                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    try:
+                        self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    except:
+                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
@@ -1872,7 +2005,10 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.show_virus_scan_progress_bar = 1
                 elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已关闭"):
                     self.ini_config.set("Setting", "high_sensitivity", 1)
-                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    try:
+                        self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    except:
+                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
@@ -1889,7 +2025,10 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.show_virus_scan_progress_bar = 1
                 elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已开启"):
                     self.ini_config.set("Setting", "high_sensitivity", 0)
-                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    try:
+                        self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    except:
+                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已关闭"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
@@ -1906,7 +2045,10 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.show_virus_scan_progress_bar = 0
                 elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已開啟"):
                     self.ini_config.set("Setting", "high_sensitivity", 0)
-                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    try:
+                        self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    except:
+                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
@@ -1923,7 +2065,10 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.show_virus_scan_progress_bar = 0
                 else:
                     self.ini_config.set("Setting", "high_sensitivity", 0)
-                    self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    try:
+                        self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+                    except:
+                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
@@ -1940,15 +2085,25 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.show_virus_scan_progress_bar = 0
                 #print(str(self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()))
             except:
-                with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                try:
+                    with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
+                        file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                    file.close()
+                except:
+                    with open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
+                        file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
+                    file.close()
         except:
             pass
 
     def Change_language(self):
         try:
-            self.ini_config = configparser.RawConfigParser()
-            self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+            try:
+                self.ini_config = configparser.RawConfigParser()
+                self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
+            except:
+                self.ini_config = configparser.RawConfigParser()
+                self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
             if self.ui.Language_Traditional_Chinese.isChecked():
                 self.lang_init_zh_tw()
                 self.language = "zh_TW"
@@ -1965,7 +2120,10 @@ If you do not download from the official website, we cannot guarantee the securi
             print(e)
             #QMessageBox.critical(self,"Error: ",str(e),QMessageBox.Ok)
         try:
-            self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+            try:
+                self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
+            except:
+                self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
         except:
             pass
 

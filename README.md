@@ -6,7 +6,7 @@ https://pyantivirus.wixsite.com/pyas,
 https://github.com/87owo/PYAS
 
 ## Support System
-Windows 8.1, 10, 11 (64-bit)
+Windows 8.1, 10, 11 (64-bit) or higher
 
 ## Special Thanks
 Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens

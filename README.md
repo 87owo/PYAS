@@ -5,6 +5,9 @@ PYAS contains a large number of databases, with an average of 200,000 new data s
 https://pyantivirus.wixsite.com/pyas , 
 https://github.com/87owo/PYAS
 
+## Hashes Library
+https://github.com/87owo/ViruslistMD5/releases
+
 ## Support System
 Windows 8.1, 10, 11 (64-bit) or higher
 

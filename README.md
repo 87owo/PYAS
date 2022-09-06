@@ -6,7 +6,7 @@ https://pyantivirus.wixsite.com/pyas ,
 https://github.com/87owo/PYAS
 
 ## Support System
-Windows 8.1, 10, 11 (64-bit)
+Windows 8.1, 10, 11 (64-bit) or higher
 
 ## Import Module
 os, time, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser, PYAS_English, pefile, hashlib, PyQt5, PYAS_UI, win32api,win32con

@@ -9,6 +9,7 @@ https://github.com/87owo/PYAS
 Windows 8.1, 10, 11 (64-bit) or higher
 
 ## Special Thanks
-Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, LenStevens
+Wix, Avast, Github, Google, Microsoft, VirusTotal, VirusShare, LenStevens
+
 
 Copyright© 2020~2022 PYAS Security

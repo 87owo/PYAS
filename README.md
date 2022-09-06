@@ -11,5 +11,4 @@ Windows 8.1, 10, 11 (64-bit) or higher
 ## Special Thanks
 Wix, Avast, Github, Google, Microsoft, VirusTotal, VirusShare, LenStevens
 
-
 Copyright© 2020~2022 PYAS Security

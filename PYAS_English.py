@@ -75,6 +75,20 @@ english_list = {
 '{} > [實時防護] 惡意軟體攔截失敗:':'{} > [Real-Time Protect] Malware blocking failed:',
 '修復系統權限':"Repair System Permissions",
 '啟用該選項可以實時監控系統的檔案讀寫變更行為。':"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",
+'PYAS':"""PYAS Python Antivirus Software Security
+========================================
+PYAS Create Date: 2020/12/17
+Official Email: xiaomi69ai@gmail.com
+Official Github: https://github.com/87owo/PYAS
+Official Website: https://pyantivirus.wixsite.com/pyas
+PYAS Core Developer: PYAS_Dev#0629
+PYAS GUI Developer: Mtkiao129#3921
+PYAS Testers: PYAS_Dev#0629, Mtkiao129#3921
+Special Thanks: Wix, Avast, Github, Google, Python,
+Microsoft, VirusTotal, VirusShare, LenStevens
+========================================
+Thanks For Using PYAS Python Antivirus Software
+""",
 "never gonna give you up":"""We are no strangers to love
 You know the rules and so do I
 A full commitment′s what I am thinking of

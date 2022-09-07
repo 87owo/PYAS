@@ -230,7 +230,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.show_virus_scan_progress_bar = 0
         except:
             self.show_virus_scan_progress_bar = 0
-        self.ui.License_terms.setText('''PYAS Antivirus Software Security License Terms V2.0
+        self.ui.License_terms.setText('''PYAS Python Antivirus Software Security License Terms V2.0
 =====================================================
 #Use of PYAS antivirus software and services means that you accept these terms, if you do not accept, please do not use PYAS services.
 =====================================================
@@ -293,9 +293,9 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -368,7 +368,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
         self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.8"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.9"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
@@ -418,9 +418,9 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -493,7 +493,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.8"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.9"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
@@ -544,9 +544,9 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.8 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -619,7 +619,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.8"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.9"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
@@ -1542,6 +1542,15 @@ If you do not download from the official website, we cannot guarantee the securi
             webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
             self.ui.Customize_CMD_Command_output.setText(english_list["never gonna give you up"])
             return
+        if CMD_Command == "python antivirus software" or CMD_Command == "Python Antivirus Software" \
+        or CMD_Command == "PYAS" or CMD_Command == "pyas":
+            self.ui.Customize_CMD_Command_output.setText(english_list["PYAS"])
+            return
+        #if CMD_Command == "OLD" or CMD_Command == "old" \
+        #or CMD_Command == "TK" or CMD_Command == "tk" \
+        #or CMD_Command == "TKINTER" or CMD_Command == "tkinter":
+            #import PYAS_Old
+            #return
         if CMD_Command != '':
             try:
                 si = subprocess.STARTUPINFO()
@@ -1695,26 +1704,27 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     QApplication.processEvents()
                     fullpath = os.path.join(path,fd)
-                    if os.path.isdir(fullpath):
-                        self.findfile_zh(fullpath,ffile,fss,start)
-                    else:
-                        fss = fss + 1
-                        if ffile in str(fd):
-                            try:
-                                date = time.ctime(os.path.getmtime(fullpath))
+                    if 'C:/Windows' not in fullpath:
+                        if os.path.isdir(fullpath):
+                            self.findfile_zh(fullpath,ffile,fss,start)
+                        else:
+                            fss = fss + 1
+                            if ffile in str(fd):
                                 try:
-                                    ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
-                                    #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
-                                    ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
-                                    ft.close()
+                                    date = time.ctime(os.path.getmtime(fullpath))
+                                    try:
+                                        ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
+                                        #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                        ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                        ft.close()
+                                    except:
+                                        ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
+                                        #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                        ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                                        ft.close()
+                                    continue
                                 except:
-                                    ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
-                                    #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
-                                    ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
-                                    ft.close()
-                                continue
-                            except:
-                                pass
+                                    pass
                 except:
                     continue
         except Exception as e:
@@ -1865,6 +1875,12 @@ If you do not download from the official website, we cannot guarantee the securi
 
     def pyas_protect_init_zh(self):
         try:
+            ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
+            fe = ft.write('')
+            ft.close()
+        except:
+            pass
+        try:
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                 rfp = fp.read()
         except:
@@ -1904,12 +1920,20 @@ If you do not download from the official website, we cannot guarantee the securi
         QApplication.processEvents()
         while 1:
             if not self.pause:
+                try:
+                    ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
+                    fe = ft.read()
+                    ft.close()
+                except:
+                    sys.exit()
                 self.Virus_Scan = 1
                 for p in psutil.process_iter():
                     try:
                         if 'C:\Windows' in str(p.exe()):
                             pass
-                        elif 'C:\Program Files' in str(p.exe()):
+                        elif 'C:\Program' in str(p.exe()):
+                            pass
+                        elif 'AppData' in str(p.exe()):
                             pass
                         else:
                             if self.pyas_scan_start(p.exe(),rfp):
@@ -2257,6 +2281,10 @@ If you do not download from the official website, we cannot guarantee the securi
         pat2.drawRoundedRect(rect, 1, 1)
 
 if __name__ == '__main__':
+    try:
+        os.remove('Library/PYAS/Temp/PYASP.tmp')
+    except:
+        pass
     import sys
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow_Controller()

@@ -1,6 +1,7 @@
 # PYAS (Python Antivirus Software)
 PYAS contains a large number of databases, with an average of 200,000 new data sets added every month,PYAS can also detect unknown computer viruses in advance through functional scanning.
-![State](https://user-images.githubusercontent.com/85057800/189009684-4ed938b7-22ff-4829-b0d2-fae617657d7b.png) 
+![State](https://user-images.githubusercontent.com/85057800/189521814-5bff7e32-8000-4453-9aa9-dd839bfa8322.png)
+![Scan](https://user-images.githubusercontent.com/85057800/189521818-bfa304cc-59ef-4ca4-a164-16b48952003f.png)
 
 ## Official Website 
 https://pyantivirus.wixsite.com/pyas , 

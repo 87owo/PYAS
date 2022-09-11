@@ -1,5 +1,7 @@
+import time
+start = time.time()
 try:
-    import os, time, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser
+    import os, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser, random
     from PYAS_English import english_list
     from pefile import PE
     from hashlib import md5, sha1, sha256
@@ -10,7 +12,8 @@ try:
     from PYAS_UI import Ui_MainWindow
     try:
         from Library.PYAS.Setup.chinese_converter import *
-    except:
+    except Exception as e:
+        print('Error: '+str(e))
         def resource_path(relative_path):
             if getattr(sys, 'frozen', False): #是否Bundle Resource
                 base_path = sys._MEIPASS
@@ -23,9 +26,11 @@ try:
         resource_path(os.path.join("Library\PYAS\Setup","bigram.json"))
         resource_path(os.path.join("Library\PYAS\Setup","__init__.json"))
 except Exception as e:
-    print("Error:{}".format(str(e)))
+    print('Error: '+str(e))
+print('Loading mods: '+str(time.time()-start)+' sec')
 
 def pyas_key():
+    start = time.time()
     try:
         with open('PYAS.exe',"rb") as f:
             bytes = f.read()
@@ -36,22 +41,35 @@ def pyas_key():
             fe = ft.read()
             ft.close()
             if fe == readable_hash:
+                print('Loading Key: '+str(time.time()-start)+' sec')
                 return True
             else:
+                print('Loading Key: '+str(time.time()-start)+' sec')
                 return False
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.key','r')
             fe = ft.read()
             ft.close()
             if fe == readable_hash:
+                print('Loading Key: '+str(time.time()-start)+' sec')
                 return True
             else:
+                print('Loading Key: '+str(time.time()-start)+' sec')
                 return False
-    except:
+    except Exception as e:
+        print('Error: '+str(e))
+        print('Loading Key: '+str(time.time()-start)+' sec')
         return False
+
+def pyas_bug_log(e):
+    ft = open('Library/PYAS/Temp/PYASB.log','w',encoding='utf-8')
+    fe = ft.write(e)
+    ft.close()
 
 class MainWindow_Controller(QtWidgets.QMainWindow):
     def __init__(self):
+        start = time.time()
         # in python3, super(Class, self).xxx = super().xxx
         super(MainWindow_Controller, self).__init__()
         self.ui = Ui_MainWindow() #繼承
@@ -59,8 +77,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
         self.ui.setupUi(self)
         self.setup_control()
+        print('Loading GUI: '+str(time.time()-start)+' sec')
 
     def setup_control(self):
+        start = time.time()
         # TODO
         self.init()#調用本地函數"init"
         self.ui.Close_Button.clicked.connect(self.close)#讓物件名稱"Close_Button"連接到函數"close"
@@ -139,10 +159,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_Pink.clicked.connect(self.Change_Theme)
         self.ui.Theme_Blue.clicked.connect(self.Change_Theme)
         self.ui.Theme_Red.clicked.connect(self.Change_Theme)
+        print('Loading Func: '+str(time.time()-start)+' sec')
 
 
     
     def init(self):
+        start = time.time()
         self.ui.widget_2.lower()
         self.ui.Navigation_Bar.raise_()
         self.ui.Window_widget.raise_()
@@ -158,14 +180,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             try:
                 self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             try:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
                 file.close()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 with open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
                 file.close()
@@ -182,12 +207,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.language = "english"
                 self.lang_init_en()
                 self.ui.Languahe_English.setChecked(True)
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             try:
                 with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
                 file.close()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 with open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
                 file.close()
@@ -228,7 +255,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     """)
             else:
                 self.show_virus_scan_progress_bar = 0
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             self.show_virus_scan_progress_bar = 0
         self.ui.License_terms.setText('''PYAS Python Antivirus Software Security License Terms V2.0
 =====================================================
@@ -288,14 +316,18 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Setting_widget.hide()
         
         # self.lang_init_en()
+        print('Loading INI: '+str(time.time()-start)+' sec')
 
     def lang_init_en(self):
+        start = time.time()
         _translate = QtCore.QCoreApplication.translate
+        self.ui.State_output.clear()
+        self.ui.State_output.append("[Tips] Real-time Protect is not enabled")
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.0"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.0 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -320,9 +352,9 @@ If you do not download from the official website, we cannot guarantee the securi
         else:
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "Off"))
         if self.Safe:
-            self.ui.State_title.setText(_translate("MainWindow", "This computer is currently safe"))
+            self.ui.State_title.setText(_translate("MainWindow", "This device has been protected"))
         else:
-            self.ui.State_title.setText(_translate("MainWindow", "This computer is currently unsafe"))
+            self.ui.State_title.setText(_translate("MainWindow", "This device is currently unsafe"))
         self.ui.State_log.setText(_translate("MainWindow", "Log:"))
         self.ui.System_Tools_Button.setText(_translate("MainWindow", "System Tools"))
         self.ui.Privacy_Tools_Button.setText(_translate("MainWindow", "Privacy Tools"))
@@ -368,7 +400,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
         self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.9"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.0"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
@@ -376,7 +408,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Testers_title.setText(_translate("MainWindow", "Testers:"))
         self.ui.Testers_Name.setText(_translate("MainWindow", "mtkiao129#3921, PYAS_Dev#0629"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "Website:"))
-        self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style= \" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
+        self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas?lang=en\"><span style= \" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
@@ -409,18 +441,22 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Theme_illustrate.setText(_translate("MainWindow", "Please select a theme"))
         self.ui.Theme_White.setText(_translate("MainWindow", "White"))
         self.ui.Theme_Black.setText(_translate("MainWindow", "Black"))
-        self.ui.Theme_Pink.setText(_translate("MainWindow", "Pink"))
+        self.ui.Theme_Pink.setText(_translate("MainWindow", "Random"))
         self.ui.Theme_Red.setText(_translate("MainWindow", "Red"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "Green"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "Blue"))
+        print('Loading Lang: '+str(time.time()-start)+' sec')
 
     def lang_init_zh_cn(self):
+        start = time.time()
         _translate = QtCore.QCoreApplication.translate
+        self.ui.State_output.clear()
+        self.ui.State_output.append('[提示] 尚未启用实时防护')
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.0"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.0 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -445,9 +481,9 @@ If you do not download from the official website, we cannot guarantee the securi
         else:
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已关闭"))
         if self.Safe:
-            self.ui.State_title.setText(_translate("MainWindow", "这台电脑目前很安全"))
+            self.ui.State_title.setText(_translate("MainWindow", "这部装置已受到保护"))
         else:
-            self.ui.State_title.setText(_translate("MainWindow", "这台电脑目前不安全"))
+            self.ui.State_title.setText(_translate("MainWindow", "这部装置目前不安全"))
         self.ui.State_log.setText(_translate("MainWindow", "日志:"))
         self.ui.System_Tools_Button.setText(_translate("MainWindow", "系统工具"))
         self.ui.Privacy_Tools_Button.setText(_translate("MainWindow", "隐私工具"))
@@ -493,7 +529,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.9"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.0"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
@@ -534,19 +570,22 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Theme_illustrate.setText(_translate("MainWindow", "请选择主题"))
         self.ui.Theme_White.setText(_translate("MainWindow", "白色主题"))
         self.ui.Theme_Black.setText(_translate("MainWindow", "黑色主题"))
-        self.ui.Theme_Pink.setText(_translate("MainWindow", "粉色主题"))
+        self.ui.Theme_Pink.setText(_translate("MainWindow", "随机主题"))
         self.ui.Theme_Red.setText(_translate("MainWindow", "红色主题"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "绿色主题"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "蓝色主题"))
-
+        print('Loading Lang: '+str(time.time()-start)+' sec')
 
     def lang_init_zh_tw(self):
+        start = time.time()
         _translate = QtCore.QCoreApplication.translate
+        self.ui.State_output.clear()
+        self.ui.State_output.append('[提示] 尚未啟用實時防護')
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.0"))
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.3.9 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.0 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -571,9 +610,9 @@ If you do not download from the official website, we cannot guarantee the securi
         else:
             self.ui.Protection_switch_Button.setText(_translate("MainWindow", "已關閉"))
         if self.Safe:
-            self.ui.State_title.setText(_translate("MainWindow", "這台電腦目前很安全"))
+            self.ui.State_title.setText(_translate("MainWindow", "這部裝置已受到保護"))
         else:
-            self.ui.State_title.setText(_translate("MainWindow", "這台電腦目前不安全"))
+            self.ui.State_title.setText(_translate("MainWindow", "這部裝置目前不安全"))
         self.ui.State_log.setText(_translate("MainWindow", "日誌:"))
         self.ui.System_Tools_Button.setText(_translate("MainWindow", "系統工具"))
         self.ui.Privacy_Tools_Button.setText(_translate("MainWindow", "隱私工具"))
@@ -619,7 +658,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.3.9"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.0"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
@@ -660,10 +699,11 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Theme_illustrate.setText(_translate("MainWindow", "請選擇主題"))
         self.ui.Theme_White.setText(_translate("MainWindow", "白色主題"))
         self.ui.Theme_Black.setText(_translate("MainWindow", "黑色主題"))
-        self.ui.Theme_Pink.setText(_translate("MainWindow", "粉色主題"))
+        self.ui.Theme_Pink.setText(_translate("MainWindow", "隨機主題"))
         self.ui.Theme_Red.setText(_translate("MainWindow", "紅色主題"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "綠色主題"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "藍色主題"))
+        print('Loading Lang: '+str(time.time()-start)+' sec')
 
     def text_Translate(self,text):
         if self.language == "zh_CN":
@@ -887,25 +927,26 @@ If you do not download from the official website, we cannot guarantee the securi
             for line in self.Virus_List:
                 if 'C:/Windows' in str(line):
                     pass
-                elif 'C:/Program' in str(file):
+                elif 'C:/Program' in str(line):
                     pass
-                elif 'AppData' in str(file):
+                elif 'AppData' in str(line):
                     pass
                 else:
                     self.ui.Virus_Scan_text.setText('Deleting:'+str(line))
                     QApplication.processEvents()
                     try:
                         os.remove(str(line))
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         continue
             self.ui.Virus_Scan_text.setText(self.text_Translate('✔成功: 已執行成功。'))
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
-            self.ui.State_title.setText(self.text_Translate("這台電腦目前很安全"))
+            self.ui.State_title.setText(self.text_Translate("這部裝置已受到保護"))
             self.Safe = True
         except Exception as e:
             self.ui.Virus_Scan_text.setText(self.text_Translate("✖錯誤: 執行失敗。"))
-            print(e)
+            print('Error: '+str(e))
             self.Safe = False
 
     def Virus_Scan_Break(self):
@@ -924,7 +965,8 @@ If you do not download from the official website, we cannot guarantee the securi
                 else:
                     all_files.append(os.path.join(path,file))
             return all_files
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             return 0
 
     def pyas_scan_start(self,file,rfp):
@@ -940,7 +982,8 @@ If you do not download from the official website, we cannot guarantee the securi
                 return False
             else:
                 return True
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             return False
     #定義紀錄掃描
     def pyas_scan_write_en(self,file):
@@ -957,12 +1000,14 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.Virus_List.append(file)
                     fe = ft.write(file+'\n')
                     ft.close()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
                     self.Virus_List.append(file)
                     fe = ft.write(file+'\n')
                     ft.close()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     #定義讀取紀錄
@@ -971,7 +1016,8 @@ If you do not download from the official website, we cannot guarantee the securi
             try:
                 ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
                 ft.close()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
                 ft.close()
             try:
@@ -979,14 +1025,15 @@ If you do not download from the official website, we cannot guarantee the securi
                 if not pygame.mixer.music.get_busy():
                     pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
                     pygame.mixer.music.play()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 pass
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             now_time = datetime.datetime.now()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(" > [病毒掃描] 掃描出") + str(len(self.Virus_List)) + self.text_Translate("個病毒"))
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
-            self.ui.State_title.setText(self.text_Translate("這台電腦目前不安全"))
+            self.ui.State_title.setText(self.text_Translate("這部裝置目前不安全"))
             self.ui.Virus_Scan_Solve_Button.show()
             self.ui.Virus_Scan_choose_Button.show()
             self.ui.Virus_Scan_Break_Button.hide()
@@ -994,19 +1041,21 @@ If you do not download from the official website, we cannot guarantee the securi
             self.Safe = False
             return self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List))
         except Exception as e:
-            print(e)
+            print('Error: '+str(e))
             try:
                 try:
                     pygame.mixer.init()
                     if not pygame.mixer.music.get_busy():
                         pygame.mixer.music.load('./Library/PYAS/Audio/Complete.ogg')
                         pygame.mixer.music.play()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     pygame.mixer.init()
                     if not pygame.mixer.music.get_busy():
                         pygame.mixer.music.load('C:/Program Files (x86)/PYAS/Library/PYAS/Audio/Complete.ogg')
                         pygame.mixer.music.play()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 pass
             self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
@@ -1019,9 +1068,11 @@ If you do not download from the official website, we cannot guarantee the securi
         try:
             try:
                 os.remove('Library/PYAS/Temp/PYASV.tmp')
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def pyas_scan_answer_en(self):
@@ -1031,18 +1082,21 @@ If you do not download from the official website, we cannot guarantee the securi
                 ft = open('Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
                 self.lines = ft.readlines()
                 ft.close()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp','r',encoding='utf-8')
                 self.lines = ft.readlines()
                 ft.close()
         except Exception as e:
-            print(e)
+            print('Error: '+str(e))
         try:
             try:
                 os.remove('Library/PYAS/Temp/PYASV.tmp')
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def pyas_scan_path_en(self,path,rfp,rfn,fts):
@@ -1076,14 +1130,17 @@ If you do not download from the official website, we cannot guarantee the securi
                                         QApplication.processEvents()
                                         self.pyas_scan_write_en(str(fullpath))
                                         fts = 0
-                        except:
+                        except Exception as e:
+                            print('Error: '+str(e))
                             self.ui.Virus_Scan_text.setText(scan_text + fullpath)
                             QApplication.processEvents()
                             if self.pyas_scan_start(fullpath,rfp):
                                 self.pyas_scan_write_en(fullpath)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     continue
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def File_Scan(self):
@@ -1098,9 +1155,11 @@ If you do not download from the official website, we cannot guarantee the securi
         try:
             try:
                 os.remove('Library/PYAS/Temp/PYASV.tmp')
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
         if file != "":
             try:
@@ -1113,7 +1172,8 @@ If you do not download from the official website, we cannot guarantee the securi
                         rfp = fp.read()
                     with open('Library/PYAE/Function/Viruslist.func','r') as fn:
                         rfn = fn.read()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                     with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
@@ -1134,7 +1194,8 @@ If you do not download from the official website, we cannot guarantee the securi
                                 self.pyas_scan_write_en(file)
                                 fts = 0
                                 self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
-                        except:
+                        except Exception as e:
+                            print('Error: '+str(e))
                             self.ui.Virus_Scan_text.setText(self.text_Translate("✖掃描失敗。"))
                 fp.close()
                 fn.close()
@@ -1151,7 +1212,8 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ini_config = configparser.RawConfigParser()
         try:
             self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
         self.Virus_List = []
         self.Virus_List_output=QStringListModel()
@@ -1161,9 +1223,11 @@ If you do not download from the official website, we cannot guarantee the securi
         try:
             try:
                 os.remove('Library/PYAS/Temp/PYASV.tmp')
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
         if file != "":
             try:
@@ -1181,7 +1245,8 @@ If you do not download from the official website, we cannot guarantee the securi
                         rfp = fp.read()
                     with open('Library/PYAE/Function/Viruslist.func','r') as fn:
                         rfn = fn.read()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                     with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
@@ -1210,9 +1275,11 @@ If you do not download from the official website, we cannot guarantee the securi
         try:
             try:
                 os.remove('Library/PYAS/Temp/PYASV.tmp')
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASV.tmp')
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
         try:
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
@@ -1220,7 +1287,8 @@ If you do not download from the official website, we cannot guarantee the securi
             try:
                 with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                     rfp = self.fp.read()
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                     rfp = self.fp.read()
             self.pyas_scan_disk_en('A:/',rfp)
@@ -1334,9 +1402,11 @@ If you do not download from the official website, we cannot guarantee the securi
                                     #self.pyas_scan_write_en(fullpath)
                             else:
                                 pass
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     continue
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def Virus_Scan_Choose_Menu(self):
@@ -1362,7 +1432,8 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     #開啟註冊表鍵
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
                     #創建鍵
                     win32api.RegCreateKey(key,'Explorer')
@@ -1371,7 +1442,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     try:
                         #刪除值
                         win32api.RegDeleteValue(key,i)
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         pass
                 #關閉已打開的鍵
                 win32api.RegCloseKey(key)
@@ -1379,7 +1451,8 @@ If you do not download from the official website, we cannot guarantee the securi
 
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
                     win32api.RegCreateKey(key,'Explorer')
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
@@ -1387,85 +1460,98 @@ If you do not download from the official website, we cannot guarantee the securi
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         pass
                 win32api.RegCloseKey(key)
 
                 Permission = ['DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper']
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
                     win32api.RegCreateKey(key,'System')
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         pass
                 win32api.RegCloseKey(key)
 
 
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
                     win32api.RegCreateKey(key,'System')
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         pass
                 win32api.RegCloseKey(key)
 
                 Permission = ['NoComponents', 'NoAddingComponents']
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
                     win32api.RegCreateKey(key,'ActiveDesktop')
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         pass
                 win32api.RegCloseKey(key)
 
 
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
                     win32api.RegCreateKey(key,'System')
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
                 try:
                     win32api.RegDeleteValue(key, 'DisableCMD')
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     pass                    
                 win32api.RegCloseKey(key)
         
 
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
                     win32api.RegCreateKey(key,'System')
                     key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
                 try:
                     win32api.RegDeleteValue(key, 'DisableCMD')
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     pass    
                 win32api.RegCloseKey(key)
 
 
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     try:
                         key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
                         win32api.RegCreateKey(key,'MMC')
                         key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
@@ -1473,7 +1559,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
                 try:
                     win32api.RegDeleteValue(key, 'Restrict_Run')
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     pass
                 win32api.RegCloseKey(key)
 
@@ -1532,7 +1619,8 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     os.remove(file)
                     QMessageBox.information(self,self.text_Translate("刪除成功"),self.text_Translate("刪除成功"),QMessageBox.Ok)
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     QMessageBox.critical(self,self.text_Translate("刪除失敗"),self.text_Translate("刪除失敗"),QMessageBox.Ok)
 
     def Customize_CMD_Command(self):
@@ -1562,7 +1650,8 @@ If you do not download from the official website, we cannot guarantee the securi
                 out = p.stdout.read()
                 self.ui.Customize_CMD_Command_output.setText(str(out))
                 QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("運行成功"),QMessageBox.Ok,QMessageBox.Ok)
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 QMessageBox.critical(self,self.text_Translate('錯誤'), '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
         
     def Customize_REG_Command(self):
@@ -1677,7 +1766,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
                     fe = ft.read()
                     ft.close()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
                     fe = ft.read()
                     ft.close()
@@ -1687,14 +1777,17 @@ If you do not download from the official website, we cannot guarantee the securi
             self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
             QApplication.processEvents()
             self.Change_Tools(self.ui.Look_for_File_widget)            
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
         try:
             try:
                 os.remove('Library/PYAS/Temp/PYASF.tmp')
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 os.remove('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp')
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def findfile_zh(self,path,ffile,fss,start):
@@ -1717,18 +1810,21 @@ If you do not download from the official website, we cannot guarantee the securi
                                         #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
                                         ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
                                         ft.close()
-                                    except:
+                                    except Exception as e:
+                                        print('Error: '+str(e))
                                         ft = open('C:/Program Files (x86)/PYAS/Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
                                         #print(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
                                         ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
                                         ft.close()
                                     continue
-                                except:
+                                except Exception as e:
+                                    print('Error: '+str(e))
                                     pass
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     continue
         except Exception as e:
-            print(e)
+            print('Error: '+str(e))
             pass
 
     def Process_list(self):
@@ -1745,7 +1841,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.Process_list_app_exe.append(p.exe())
                     self.Process_list_app_name.append(p.name())
                     self.Process_list_app_user.append(p.username())
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     self.Process_list_app.append(p.name() +"   "+ str(p.pid))
                     self.Process_list_app_pid.append(p.pid)
                     self.Process_list_app_exe.append('None')
@@ -1793,7 +1890,8 @@ If you do not download from the official website, we cannot guarantee the securi
             s.connect(("8.8.8.8", 80))
             QMessageBox.information(self,self.text_Translate("IP查詢"),self.text_Translate("您的ip地址為:{}").format(s.getsockname()[0]),QMessageBox.Ok)
             s.close()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def reset_network(self):
@@ -1824,7 +1922,8 @@ If you do not download from the official website, we cannot guarantee the securi
                 for p in psutil.process_iter():
                     if p.pid == self.pid:
                         p.kill()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 ################實時防護##################
 
@@ -1878,12 +1977,14 @@ If you do not download from the official website, we cannot guarantee the securi
             ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
             fe = ft.write('')
             ft.close()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
         try:
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                 rfp = fp.read()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                 rfp = fp.read()
         self.Virus_Scan = 1
@@ -1924,7 +2025,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
                     fe = ft.read()
                     ft.close()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     sys.exit()
                 self.Virus_Scan = 1
                 for p in psutil.process_iter():
@@ -1947,12 +2049,14 @@ If you do not download from the official website, we cannot guarantee the securi
                                                 if not pygame.mixer.music.get_busy():
                                                     pygame.mixer.music.load('./Library/PYAS/Audio/Virusfound.ogg')
                                                     pygame.mixer.music.play()
-                                            except:
+                                            except Exception as e:
+                                                print('Error: '+str(e))
                                                 pygame.mixer.init()
                                                 if not pygame.mixer.music.get_busy():
                                                     pygame.mixer.music.load('C:/Program Files (x86)/PYAS/Library/PYAS/Audio/Virusfound.ogg')
                                                     pygame.mixer.music.play()
-                                        except:
+                                        except Exception as e:
+                                            print('Error: '+str(e))
                                             pass
                                     else:
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
@@ -1961,7 +2065,8 @@ If you do not download from the official website, we cannot guarantee the securi
                                     print(str(e))
                                 try:
                                     os.remove(str(p.exe()))
-                                except:
+                                except Exception as e:
+                                    print('Error: '+str(e))
                                     pass
                     except Exception as e:
                         #print(str(e))
@@ -2003,7 +2108,8 @@ If you do not download from the official website, we cannot guarantee the securi
             try:
                 self.ini_config = configparser.RawConfigParser()
                 self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 self.ini_config = configparser.RawConfigParser()
                 self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
             try:
@@ -2011,7 +2117,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.ini_config.set("Setting", "high_sensitivity", 1)
                     try:
                         self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -2031,7 +2138,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.ini_config.set("Setting", "high_sensitivity", 1)
                     try:
                         self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -2051,7 +2159,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.ini_config.set("Setting", "high_sensitivity", 0)
                     try:
                         self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已关闭"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -2071,7 +2180,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.ini_config.set("Setting", "high_sensitivity", 0)
                     try:
                         self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -2091,7 +2201,8 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.ini_config.set("Setting", "high_sensitivity", 0)
                     try:
                         self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
-                    except:
+                    except Exception as e:
+                        print('Error: '+str(e))
                         self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -2108,16 +2219,19 @@ If you do not download from the official website, we cannot guarantee the securi
                     """)
                     self.show_virus_scan_progress_bar = 0
                 #print(str(self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()))
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 try:
                     with open(r"./Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                         file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
                     file.close()
-                except:
+                except Exception as e:
+                    print('Error: '+str(e))
                     with open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                         file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
                     file.close()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def Change_language(self):
@@ -2125,7 +2239,8 @@ If you do not download from the official website, we cannot guarantee the securi
             try:
                 self.ini_config = configparser.RawConfigParser()
                 self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 self.ini_config = configparser.RawConfigParser()
                 self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
             if self.ui.Language_Traditional_Chinese.isChecked():
@@ -2141,14 +2256,16 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.language = "english"
                 self.ini_config.set("Setting", "language", "english") 
         except Exception as e:
-            print(e)
+            print('Error: '+str(e))
             #QMessageBox.critical(self,"Error: ",str(e),QMessageBox.Ok)
         try:
             try:
                 self.ini_config.write(open(r"./Library/PYAS/Setup/PYAS.ini", 'w'))
-            except:
+            except Exception as e:
+                print('Error: '+str(e))
                 self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
 
     def Change_Theme(self):
@@ -2181,12 +2298,12 @@ If you do not download from the official website, we cannot guarantee the securi
         elif self.ui.Theme_Black.isChecked():
             self.ui.Window_widget.setStyleSheet("""
             QWidget#Window_widget {
-                background-color:rgba(90,90,90,200);
+                background-color:rgba(90,90,90,150);
             }
             """)
             self.ui.Navigation_Bar.setStyleSheet("""
             QWidget#Navigation_Bar {
-                background-color:rgba(80,80,80,210);
+                background-color:rgba(80,80,80,160);
             }
             """)
             return
@@ -2204,15 +2321,16 @@ If you do not download from the official website, we cannot guarantee the securi
             """)
             return
 
-        elif self.ui.Theme_Pink.isChecked():
+        elif self.ui.Theme_Pink.isChecked():######1
+            r,g,b = random.randrange(50, 250),random.randrange(50, 250),random.randrange(50, 250)
             self.ui.Window_widget.setStyleSheet("""
             QWidget#Window_widget {
-                background-color:rgba(255,190,200,240);
+                background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);
             }
             """)
             self.ui.Navigation_Bar.setStyleSheet("""
             QWidget#Navigation_Bar {
-                background-color:rgba(255,180,190,240);
+                background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);
             }
             """)
             return
@@ -2245,7 +2363,8 @@ If you do not download from the official website, we cannot guarantee the securi
             if Qt.LeftButton and self.m_flag: 
                 self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
                 QMouseEvent.accept()
-        except:
+        except Exception as e:
+            print('Error: '+str(e))
             pass
         
     def mouseReleaseEvent(self, QMouseEvent):
@@ -2283,7 +2402,8 @@ If you do not download from the official website, we cannot guarantee the securi
 if __name__ == '__main__':
     try:
         os.remove('Library/PYAS/Temp/PYASP.tmp')
-    except:
+    except Exception as e:
+        print('Error: '+str(e))
         pass
     import sys
     app = QtWidgets.QApplication(sys.argv)

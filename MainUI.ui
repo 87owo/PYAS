@@ -3639,9 +3639,9 @@ QPushButton:hover
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>450</y>
+        <y>440</y>
         <width>621</width>
-        <height>31</height>
+        <height>41</height>
        </rect>
       </property>
       <property name="font">
@@ -3696,7 +3696,7 @@ QPushButton:hover
         <x>20</x>
         <y>350</y>
         <width>621</width>
-        <height>101</height>
+        <height>91</height>
        </rect>
       </property>
       <property name="styleSheet">

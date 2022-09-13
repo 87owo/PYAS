@@ -11,7 +11,7 @@ https://github.com/87owo/PYAS
 https://github.com/87owo/ViruslistMD5/releases
 
 ## Support System
-Windows 8.1, 10, 11 (64-bit) or higher
+Windows 8.1, 10, 11 (64-bit) Ram 1GB, Rom 500MB or higher
 
 ## Import Module
 os, time, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser, PYAS_English, pefile, hashlib, PyQt5, PYAS_UI, win32api,win32con

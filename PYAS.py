@@ -1630,11 +1630,22 @@ If you do not download from the official website, we cannot guarantee the securi
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate("禁用失敗"),QMessageBox.Ok)  
 
     def System_Info_update(self):
-        self.ui.System_Info_View.setText('System information:'+'\n'+str(platform.platform())+'\n'+str(platform.architecture())+'\n'+str(platform.node())+'\n'+str(platform.processor()))
+        self.ui.System_Info_View.setText('System information:'+
+                                         '\nCore version: '+str(platform.platform())+
+                                         '\nMachine type: '+str(platform.machine())+
+                                         '\nSystem Info: '+str(platform.architecture())+
+                                         '\nComputer Name: '+str(platform.node())+
+                                         '\nProcessor Name'+str(platform.processor()))
 
     def Delete_Private_File(self):
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"./",'')
-        if file !="":
+        if file =="":
+            pass
+        elif "PYAS.exe" in file:
+            QMessageBox.critical(self,"Error",self.text_Translate('存取被拒'),QMessageBox.Ok)
+            pass
+        else:
+            print(file)
             question = QMessageBox.warning(self,self.text_Translate('刪除檔案'),self.text_Translate("您確定刪除該檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 try:
@@ -2085,6 +2096,7 @@ If you do not download from the official website, we cannot guarantee the securi
                         else:
                             if self.pyas_scan_start(p.exe(),rfp):
                                 of = subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True)
+                                vfile = str(p.exe())
                                 try:
                                     if of == 0:
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
@@ -2109,7 +2121,7 @@ If you do not download from the official website, we cannot guarantee the securi
                                     pass
                                     print(str(e))
                                 try:
-                                    os.remove(str(p.exe()))
+                                    os.remove(vfile)
                                 except Exception as e:
                                     print('Error: '+str(e))
                                     pass

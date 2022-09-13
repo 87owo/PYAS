@@ -4,6 +4,7 @@ english_list = {
 "已關閉":"Off",
 "已开启":"On",
 "已关闭":"Off",
+"存取被拒":"Access denied",
 " > [行為檢測] ":" > [Behavior Detect] ",
 " 被移動":" Moved",
 " 被創建":" Created",

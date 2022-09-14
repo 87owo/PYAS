@@ -323,7 +323,7 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.1"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.2"))
             now_time = datetime.datetime.now()
             try:
                 ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
@@ -334,7 +334,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.1 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.2 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -407,7 +407,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
         self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.1"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.2"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
@@ -459,7 +459,7 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.1"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.2"))
             now_time = datetime.datetime.now()
             try:
                 ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
@@ -470,7 +470,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.1 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.2 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -543,7 +543,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.1"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.2"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
@@ -595,7 +595,7 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.1"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.2"))
             now_time = datetime.datetime.now()
             try:
                 ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
@@ -606,7 +606,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.1 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.2 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -679,7 +679,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.1"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.2"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
@@ -1995,6 +1995,8 @@ If you do not download from the official website, we cannot guarantee the securi
             QApplication.processEvents()
             self.Virus_Scan = 0
             self.pause = True
+            self.ui.State_output.clear()
+            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未啟用實時防護'))
         elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
             try:
                 os.remove('Library/PYAS/Temp/PYASP.tmp')
@@ -2017,6 +2019,8 @@ If you do not download from the official website, we cannot guarantee the securi
             QApplication.processEvents()
             self.Virus_Scan = 0
             self.pause = True
+            self.ui.State_output.clear()
+            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未启用实时防护'))
         else:
             try:
                 self.ui.State_output.clear()

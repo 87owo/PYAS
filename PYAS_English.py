@@ -5,6 +5,8 @@ english_list = {
 "已开启":"On",
 "已关闭":"Off",
 "存取被拒":"Access denied",
+" > [提示] 尚未啟用實時防護":" > [Tips] Real-time Protect is not enabled",
+" > [提示] 尚未启用实时防护":" > [Tips] Real-time Protect is not enabled",
 " > [行為檢測] ":" > [Behavior Detect] ",
 " 被移動":" Moved",
 " 被創建":" Created",

@@ -28,6 +28,7 @@ try:
 except Exception as e:
     print('Error: '+str(e))
 print('Loading mods: '+str(time.time()-start)+' sec')
+#print(str(sys.argv))
 
 def pyas_key():
     start = time.time()
@@ -1996,6 +1997,7 @@ If you do not download from the official website, we cannot guarantee the securi
             self.Virus_Scan = 0
             self.pause = True
             self.ui.State_output.clear()
+            now_time = datetime.datetime.now()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未啟用實時防護'))
         elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
             try:
@@ -2020,6 +2022,7 @@ If you do not download from the official website, we cannot guarantee the securi
             self.Virus_Scan = 0
             self.pause = True
             self.ui.State_output.clear()
+            now_time = datetime.datetime.now()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未启用实时防护'))
         else:
             try:

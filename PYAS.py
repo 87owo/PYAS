@@ -2090,6 +2090,7 @@ If you do not download from the official website, we cannot guarantee the securi
                     ft.close()
                 except Exception as e:
                     print('Error: '+str(e))
+                    fp.close()
                     sys.exit()
                 self.Virus_Scan = 1
                 for p in psutil.process_iter():

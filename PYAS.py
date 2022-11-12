@@ -11,7 +11,7 @@
 import time
 start = time.time()
 try:
-    import os, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser, random
+    import os, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser, random, locale, ctypes
     from PYAS_English import english_list
     from pefile import PE
     import requests as req
@@ -21,9 +21,20 @@ try:
     from PyQt5.QtGui import *
     from PyQt5.QtCore import *
     from PYAS_UI import Ui_MainWindow
+    from watchdog.observers import Observer
+    from watchdog.events import FileSystemEventHandler
 except Exception as e:
     print('Error: '+str(e))
 print('Loading mods: '+str(time.time()-start)+' sec')
+
+def pyas_vl_md5r():#不穩定
+    try:
+        with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+            global rfp
+            rfp = fp.read()
+        fp.close()
+    except Exception as e:
+        print('Error: 1'+str(e))
 
 def pyas_bug_log(e):
     try:
@@ -69,18 +80,15 @@ def pyas_key():
         return False
 
 def pyas_vl_update():
-    now_time = datetime.datetime.now()
     try:
         v = open('Library/PYAE/Hashes/Viruslist.num','r').read()
     except:
         v = 0
     try:
         for i in range(int(v),10000):
-            #print(str(i))
             try:
                 x = 5 - len(str(i))
                 y = '0'*x+str(i)
-                #print('a: '+y)
                 file = req.get('https://virusshare.com/hashfiles/VirusShare_'+y+'.md5', allow_redirects=True)
                 open('Library/PYAE/Hashes/'+y+'.md5', 'wb').write(file.content)
                 with open('Library/PYAE/Hashes/'+str(y)+'.md5',"rb") as f:
@@ -105,7 +113,6 @@ def pyas_vl_update():
                         print(str(e)+'=1')
                     v = open('Library/PYAE/Hashes/Viruslist.num','w').write(str(i+1))
                     os.remove('Library/PYAE/Hashes/'+str(y)+'.md5')
-                    now_time = datetime.datetime.now()
             except Exception as e:
                 pass
                 #print(str(e)+'=2')
@@ -114,16 +121,7 @@ def pyas_vl_update():
         print(str(e)+'=3')
         pyas_bug_log(e)
 
-def perf_info():
-    while 1:
-        print('test')
-        x = str(psutil.cpu_percent(interval=1))
-        y = str(psutil.virtual_memory().percent)
-        print('CPU Used: '+x+'%')
-        print('RAM Used: '+y+'%')
-        self.ui.State_output.append('CPU Used: '+x+'%\n'+'RAM Used: '+y+'%')
-
-class MainWindow_Controller(QtWidgets.QMainWindow):
+class MainWindow_Controller(QtWidgets.QMainWindow,FileSystemEventHandler):
     def __init__(self):
         start = time.time()
         super(MainWindow_Controller, self).__init__()
@@ -239,9 +237,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 self.ini_config.read(r"./Library/PYAS/Setup/PYAS.ini")
             except Exception as e:
-                print('Error: '+str(e))
-                pyas_bug_log(e)
-                self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
+                try:
+                    self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
+                except Exception as e:
+                    print('Error: '+str(e))
+                    pyas_bug_log(e)
         except Exception as e:
             print('Error: '+str(e))
             pyas_bug_log(e)
@@ -384,12 +384,32 @@ If you do not download from the official website, we cannot guarantee the securi
         
         print('Loading INI: '+str(time.time()-start)+' sec')
 
+    def on_created(self, event):
+        print("檔案被創建: "+str(event.src_path))
+        with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+            rfp = fp.read()
+        fp.close()
+        if self.pyas_scan_start(event.src_path,rfp):
+            try:
+                os.remove(str(event.src_path))
+                #self.ui.State_output.clear()
+                #self.ui.State_output.append(self.text_Translate('{} > [行為防護] 成功攔截了惡意檔案創建行為。').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S'))))
+            except Exception as e:
+                print(str(e))
+                pass
+
+    #def on_deleted(self, event):
+        #print("檔案被刪除: "+str(event.src_path))
+
+    #def on_modified(self, event):
+        #print("檔案被編輯: "+str(event.src_path))
+
     def lang_init_en(self):
         start = time.time()
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.5"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.6"))
             now_time = datetime.datetime.now()
             try:
                 ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
@@ -397,12 +417,14 @@ If you do not download from the official website, we cannot guarantee the securi
                 ft.close()
             except Exception as e:
                 print('Error: '+str(e))
-                pyas_bug_log(e)
+                #pyas_bug_log(e)
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
             #self.pyas_vl_update()
+            #self.perf = threading.Thread(target = self.perf_info)
+            #self.perf.start()
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.5 (Security Key Error)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.6 (Security Key Error)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -474,7 +496,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
         self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.5"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.6"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
@@ -530,7 +552,7 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.5"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.6"))
             now_time = datetime.datetime.now()
             try:
                 ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
@@ -538,11 +560,11 @@ If you do not download from the official website, we cannot guarantee the securi
                 ft.close()
             except Exception as e:
                 print('Error: '+str(e))
-                pyas_bug_log(e)
+                #pyas_bug_log(e)
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.5 (安全密钥错误)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.6 (安全密钥错误)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -614,7 +636,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.5"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.6"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
@@ -670,7 +692,7 @@ If you do not download from the official website, we cannot guarantee the securi
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.5"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.6"))
             now_time = datetime.datetime.now()
             try:
                 ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
@@ -678,11 +700,11 @@ If you do not download from the official website, we cannot guarantee the securi
                 ft.close()
             except Exception as e:
                 print('Error: '+str(e))
-                pyas_bug_log(e)
+                #pyas_bug_log(e)
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
         else:
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.5 (安全密鑰錯誤)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V2.4.6 (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
             self.ui.State_output.clear()
             self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -754,7 +776,7 @@ If you do not download from the official website, we cannot guarantee the securi
         self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
         self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
         self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.5"))
+        self.ui.PYAS_Version.setText(_translate("MainWindow", "PYAS V2.4.6"))
         self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
@@ -1287,15 +1309,22 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
-                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                        rfn = fn.read()
+                    #pyas_vl_md5r()
+                    try:
+                        with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                            rfn = fn.read()
+                    except:
+                        pass
                 except Exception as e:
                     print('Error: '+str(e))
                     pyas_bug_log(e)
-                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        rfp = fp.read()
-                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
-                        rfn = fn.read()
+                    #with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        #rfp = fp.read()
+                    try:
+                        with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
+                            rfn = fn.read()
+                    except:
+                        pass
                 if self.pyas_scan_start(file,rfp):
                     self.pyas_scan_write_en(file)
                     self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
@@ -1320,6 +1349,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 fn.close()
                 self.pyas_scan_answer_en()
             except Exception as e:
+                print(e)
                 QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
         else:
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -1361,15 +1391,22 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
-                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                        rfn = fn.read()
+                    #pyas_vl_md5r()
+                    try:
+                        with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                            rfn = fn.read()
+                    except:
+                        pass
                 except Exception as e:
                     print('Error: '+str(e))
                     pyas_bug_log(e)
-                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        rfp = fp.read()
-                    with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
-                        rfn = fn.read()
+                    #with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        #rfp = fp.read()
+                    try:
+                        with open('C:/Program Files (x86)/PYAS/Library/PYAE/Function/Viruslist.func','r') as fn:
+                            rfn = fn.read()
+                    except:
+                        pass
                 fp.close()
                 fn.close()
                 self.pyas_scan_path_en(file,rfp,rfn,0)
@@ -1408,11 +1445,12 @@ If you do not download from the official website, we cannot guarantee the securi
             try:
                 with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                     rfp = self.fp.read()
+                #pyas_vl_md5r()
             except Exception as e:
                 print('Error: '+str(e))
                 pyas_bug_log(e)
-                with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
-                    rfp = self.fp.read()
+                #with open('C:/Program Files (x86)/PYAS/Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
+                    #rfp = self.fp.read()
             self.pyas_scan_disk_en('A:/',rfp)
             self.pyas_scan_disk_en('B:/',rfp)
             self.pyas_scan_disk_en('C:/',rfp)
@@ -2278,6 +2316,10 @@ If you do not download from the official website, we cannot guarantee the securi
                         fp.close()
                     except Exception as e:
                         print('Error: '+str(e))
+                    try:
+                        observer.stop()
+                    except:
+                        pass
                     sys.exit()
                 self.Virus_Scan = 1
                 for p in psutil.process_iter():
@@ -2314,6 +2356,13 @@ If you do not download from the official website, we cannot guarantee the securi
                                             pass
                                     else:
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
+                                    try:
+                                        observer = Observer()
+                                        file_handler = MainWindow_Controller()
+                                        observer.schedule(file_handler, os.path.dirname(p.exe()), False)#需檢測的路徑
+                                        observer.start()
+                                    except:
+                                        pass
                                 except Exception as e:
                                     pass
                                     print(str(e))
@@ -2330,6 +2379,10 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     rfp = ""
                     fp.close()
+                    try:
+                        observer.stop()
+                    except:
+                        pass
                 except Exception as e:
                     print('Error: '+str(e))
                     pyas_bug_log(e)
@@ -2666,6 +2719,25 @@ if __name__ == '__main__':
         pass
     try:
         os.remove('Library/PYAS/Temp/PYASB.log')
+    except Exception as e:
+        print('Error: '+str(e))
+        pass
+    try:
+        path = 'Library/PYAS/Temp'
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        path = 'Library/PYAS/Setup'
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        path = 'Library/PYAS/Audio'
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        path = 'Library/PYAE/Function'
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        path = 'Library/PYAE/Hashes'
+        if not os.path.isdir(path):
+            os.makedirs(path)
     except Exception as e:
         print('Error: '+str(e))
         pass

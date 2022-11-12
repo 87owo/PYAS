@@ -9,7 +9,7 @@ english_list = {
 "存取被拒":"Access denied",
 " > [提示] 尚未啟用實時防護":" > [Tips] Real-time Protect is not enabled",
 " > [提示] 尚未启用实时防护":" > [Tips] Real-time Protect is not enabled",
-" > [行為檢測] ":" > [Behavior Detect] ",
+" > [行為防護] 成功攔截了惡意檔案創建行為。":" > [Behavior Protection] Successfully blocked malicious file creation behavior.",
 " 被移動":" Moved",
 " 被創建":" Created",
 " 被刪除":" Deleted",
@@ -83,12 +83,12 @@ english_list = {
 'PYAS':"""PYAS Python Antivirus Software Security
 ========================================
 PYAS Create Date: 2020/12/17
-Official Email: xiaomi69ai@gmail.com
 Official Github: https://github.com/87owo/PYAS
 Official Website: https://pyantivirus.wixsite.com/pyas
-PYAS Core Developer: PYAS_Dev#0629
-PYAS GUI Developer: Mtkiao129#3921
-PYAS Testers: PYAS_Dev#0629, Mtkiao129#3921
+PYAS Core Developer: 87owo
+PYAS GUI Developer: litesans
+PYAS Data Collector: yang5487
+PYAS Testers: 87owo, litesans
 Special Thanks: Wix, Avast, Github, Google, Python,
 Microsoft, VirusTotal, VirusShare, LenStevens
 ========================================

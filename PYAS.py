@@ -14,16 +14,16 @@ try:
     import time
     start = time.time()
     import os, sys, psutil, subprocess, cryptocode, threading, configparser, datetime
-    from PYAS_English import english_list
-    from PyQt5 import QtWidgets, QtGui, QtCore
+    from pefile import PE
     from hashlib import md5, sha1, sha256
-    from watchdog.events import FileSystemEventHandler
-    from watchdog.observers import Observer
+    from PYAS_English import english_list
     from PyQt5.QtWidgets import *
     from PyQt5.QtGui import *
     from PyQt5.QtCore import *
+    from PyQt5 import QtWidgets, QtGui, QtCore
     from PYAS_UI import Ui_MainWindow
-    from pefile import PE
+    #from watchdog.events import FileSystemEventHandler
+    #from watchdog.observers import Observer
 except Exception as e:
     print('Error: '+str(e))
 print('Loading Mods: '+str(time.time()-start)+' sec')
@@ -153,7 +153,7 @@ def pyas_vl_update():
 
 ###################################### 主要程式 #####################################
 
-class MainWindow_Controller(QtWidgets.QMainWindow,FileSystemEventHandler):
+class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
     def __init__(self):
         start = time.time()
         super(MainWindow_Controller, self).__init__()
@@ -334,16 +334,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow,FileSystemEventHandler):
             print('Error: '+str(e))
             pyas_bug_log(e)
             self.show_virus_scan_progress_bar = 0
-        try:
-            QApplication.processEvents()
-            ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
-            fe = ft.read()
-            ft.close()
-            QApplication.processEvents()
-            self.protect_threading = threading.Thread(target = self.pyas_protect_init_zh)
-            self.protect_threading.start()
-        except:
-            pass
 
 ###################################### 許可條款 #####################################
     
@@ -406,11 +396,10 @@ If you do not download from the official website, we cannot guarantee the securi
         
 #################################### 檔案行為防護 ####################################
     
-    def on_created(self, event):
+    def on_created(self, event): #不穩定(已停用)
         print("File Create: "+str(event.src_path))
         with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
             rfp = fp.read()
-        fp.close()
         if self.pyas_scan_start(event.src_path, rfp):
             try:
                 os.remove(str(event.src_path))
@@ -419,6 +408,9 @@ If you do not download from the official website, we cannot guarantee the securi
             except Exception as e:
                 print('Error: '+str(e))
                 pass
+        rfp = ""
+        fp.close()
+        print(rfp)
 
     #def on_deleted(self, event):
         #print("檔案被刪除: "+str(event.src_path))
@@ -2160,7 +2152,7 @@ If you do not download from the official website, we cannot guarantee the securi
             fe = ft.write('')
             ft.close()
         except Exception as e:
-            #print('Error: '+str(e))
+            print('Error: '+str(e))
             pyas_bug_log(e)
             pass
         try:
@@ -2209,16 +2201,11 @@ If you do not download from the official website, we cannot guarantee the securi
                     fe = ft.read()
                     ft.close()
                 except:
-                    #print('Error: '+str(e))
                     try:
                         rfp = ""
                         fp.close()
                     except Exception as e:
                         print('Error: '+str(e))
-                    try:
-                        observer.stop()
-                    except:
-                        pass
                     sys.exit()
                 self.Virus_Scan = 1
                 for p in psutil.process_iter():
@@ -2238,12 +2225,12 @@ If you do not download from the official website, we cannot guarantee the securi
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
                                     else:
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
-                                    try:
-                                        observer = Observer()
-                                        observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
-                                        observer.start()
-                                    except Exception as e:
-                                        print(str(e))
+                                    #try:
+                                        #observer = Observer()
+                                        #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
+                                        #observer.start()
+                                    #except Exception as e:
+                                        #print(str(e))
                                 except:
                                     pass
                                 try:
@@ -2258,10 +2245,10 @@ If you do not download from the official website, we cannot guarantee the securi
                 try:
                     rfp = ""
                     fp.close()
-                    try:
-                        observer.stop()
-                    except:
-                        pass
+                    #try:
+                        #observer.stop()
+                    #except:
+                        #pass
                 except Exception as e:
                     print('Error: '+str(e))
                     pyas_bug_log(e)
@@ -2595,6 +2582,7 @@ If you do not download from the official website, we cannot guarantee the securi
 
 if __name__ == '__main__':
     import sys
+    pyasp_remove()
     pyas_library()
     pyas_version = "2.4.7"
     pyae_version = "2.1.9"

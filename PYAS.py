@@ -1279,7 +1279,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.pyas_scan_answer_en()
             except Exception as e:
                 print('[Error] '+str(e))
-                QMessageBox.critical(self,"Error","[Error] "+str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
         else:
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
 
@@ -1324,7 +1324,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.pyas_scan_answer_en()
             except Exception as e:
                 print('[Error] '+str(e))
-                QMessageBox.critical(self,"Error","[Error] "+str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
         else:
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
 
@@ -1385,7 +1385,7 @@ If you do not download from the official website, we cannot guarantee the securi
             self.pyas_scan_answer_en()
         except Exception as e:
             print('[Error] '+str(e))
-            QMessageBox.critical(self,"Error",str(e),QMessageBox.Ok)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def pyas_scan_disk_en(self,path,rfp):
         try:
@@ -1631,7 +1631,7 @@ If you do not download from the official website, we cannot guarantee the securi
 
                 QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成!"),QMessageBox.Ok,QMessageBox.Ok)
             except Exception as e:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def Repair_System_Files(self):
         question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
@@ -1642,7 +1642,7 @@ If you do not download from the official website, we cannot guarantee the securi
                     pass
                     #QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成"),QMessageBox.Ok)
                 else:
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate("修復失敗"),QMessageBox.Ok)
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
             except Exception as e:
                 print('[Error] '+str(e))
 
@@ -1655,7 +1655,7 @@ If you do not download from the official website, we cannot guarantee the securi
                     pass
                     #QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("清理完成"),QMessageBox.Ok)
                 else:
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate("清理失敗"),QMessageBox.Ok)
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("清理失敗"),QMessageBox.Ok)
             except Exception as e:
                 print('[Error] '+str(e))
 
@@ -1668,7 +1668,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 if question == 16384:
                     os.system('shutdown -r -t 0')
             else:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate("啟用失敗"),QMessageBox.Ok)  
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("啟用失敗"),QMessageBox.Ok)  
 
     def Disable_Safe_Mode(self):
         question = QMessageBox.warning(self,self.text_Translate('禁用安全模式'),self.text_Translate("您確定禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
@@ -1679,7 +1679,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 if question == 16384:
                     os.system('shutdown -r -t 0')
             else:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate("禁用失敗"),QMessageBox.Ok)  
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("禁用失敗"),QMessageBox.Ok)  
 
     def System_Info_update(self):
         import platform
@@ -1695,7 +1695,7 @@ If you do not download from the official website, we cannot guarantee the securi
         if file =="":
             pass
         elif "PYAS.exe" in file:
-            QMessageBox.critical(self,"Error","[Error] "+self.text_Translate('存取被拒'),QMessageBox.Ok)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('存取被拒'),QMessageBox.Ok)
             pass
         else:
             question = QMessageBox.warning(self,self.text_Translate('刪除檔案'),self.text_Translate("您確定刪除該檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
@@ -1706,10 +1706,12 @@ If you do not download from the official website, we cannot guarantee the securi
                 except Exception as e:
                     print('[Error] '+str(e))
                     pyas_bug_log(e)
-                    QMessageBox.critical(self,self.text_Translate("刪除失敗"),"[Error] "+self.text_Translate("刪除失敗"),QMessageBox.Ok)
-
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("刪除失敗"),QMessageBox.Ok)
+     
     def Customize_CMD_Command(self):
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
+        if CMD_Command == "":
+            return
         if CMD_Command == "never gonna give you up" or CMD_Command == "Never gonna give you up" \
         or CMD_Command == "rickroll" or CMD_Command == "Rickroll":
             import webbrowser
@@ -1783,7 +1785,7 @@ If you do not download from the official website, we cannot guarantee the securi
                                     return
         except Exception as e:
             print('[Error] '+str(e))
-            QMessageBox.critical(self,self.text_Translate('錯誤'), '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+ '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
             return
         if CMD_Command != '':
             try:
@@ -1803,7 +1805,7 @@ If you do not download from the official website, we cannot guarantee the securi
             except Exception as e:
                 print('[Error] '+str(e))
                 pyas_bug_log(e)
-                QMessageBox.critical(self,self.text_Translate('錯誤'), '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+ '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
         
     def Customize_REG_Command(self):
         import win32api,win32con
@@ -1824,7 +1826,7 @@ If you do not download from the official website, we cannot guarantee the securi
         elif Value_HEKY == "HKEY_CURRENT_CONFIG":
             Value_HEKY = win32con.HKEY_CURRENT_CONFIG
         else:
-            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate("您輸入了錯誤的HEKY"),QMessageBox.Ok)
+            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate('錯誤: ')+self.text_Translate("您輸入了錯誤的HEKY"),QMessageBox.Ok)
             continue_v = False
         if continue_v:
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要新增值或是修改值嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -1833,7 +1835,7 @@ If you do not download from the official website, we cannot guarantee the securi
                     win32api.RegSetValueEx(key, Value_name,0,Value_Type,Value_Data)
                     QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("成功的創建或修改註冊表值"),QMessageBox.Ok)
                 except Exception as e:
-                    QMessageBox.critical(self,self.text_Translate("錯誤"),str(e),QMessageBox.Ok)
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def Analyze_EXE(self,button):
         if button == self.ui.Analyze_EXE_Funtion_Button:
@@ -1884,7 +1886,7 @@ If you do not download from the official website, we cannot guarantee the securi
         if File_Name != "":
             self.find_files_info_zh(File_Name)
         else:
-            QMessageBox.information(self,self.text_Translate("提示"),self.text_Translate("請輸入需要尋找的檔案"),QMessageBox.Ok)
+            QMessageBox.information(self,self.text_Translate("提示"),'['+self.text_Translate("提示")+'] '+self.text_Translate("請輸入需要尋找的檔案"),QMessageBox.Ok)
 
 
     def find_files_info_zh(self,ffile):
@@ -1922,7 +1924,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 fe = ft.read()
                 ft.close()
             except Exception as e:
-                QMessageBox.critical(self,"Error","[Error] "+str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
             self.ui.Look_for_File_output.setText("")
             self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
             QApplication.processEvents()
@@ -1977,7 +1979,7 @@ If you do not download from the official website, we cannot guarantee the securi
             self.Process_list_app_name = []
             self.Process_list_app_user = []
             for p in psutil.process_iter():
-                if p.name() == '' or p.name() == 'System' or p.name() == 'System Idle Process':
+                if p.name() == '' or p.name() == 'System' or p.name() == 'System Idle Process' or p.name() == 'Registry':
                     pass
                 else:
                     try:
@@ -2026,7 +2028,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 else:
                     subprocess.call("net user {} {}".format(username,password))
             except Exception as e:
-                QMessageBox.critical(self,self.text_Translate("錯誤"),"[Error] "+str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def Internet_location_Query(self):
         try:
@@ -2046,7 +2048,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 subprocess.call("netsh winsock reset", shell=True)
                 QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("重置網路配置成功"),QMessageBox.Ok)
             except Exception as e:
-                QMessageBox.critical(self,self.text_Translate("錯誤"),"[Error] "+str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def Setting_Back(self):
         self.ui.Navigation_Bar.show()
@@ -2126,7 +2128,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 QApplication.processEvents()
                 threading.Thread(target = self.pyas_protect_init_zh).start()
             except Exception as e:
-                QMessageBox.critical(self,"Error","[Error] "+str(e),QMessageBox.Ok)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def pyas_protect_init_zh(self):
         try:

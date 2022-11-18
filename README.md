@@ -14,7 +14,7 @@ https://github.com/87owo/ViruslistMD5/releases
 Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 
 ## Import Module
-os, time, sys, psutil, socket, subprocess, platform, cryptocode, threading, pygame, datetime, configparser, webbrowser, PYAS_English, pefile, hashlib, PyQt5, PYAS_UI, win32api,win32con
+os, sys, psutil, subprocess, cryptocode, threading, configparser, datetime, webbrowser, pefile, PYAS_English, pefile, hashlib, PyQt5, PYAS_UI, pywin32
 
 ## Special Thanks
 Wix, Avast, Github, Google, Python, Microsoft, VirusTotal, VirusShare, litesans, LenStevens

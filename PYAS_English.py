@@ -78,7 +78,7 @@ english_list = {
 "启用该选项可以实时监控进程中的恶意软件并清除。":"Enable this option to monitor and remove malware in the system in real time.",
 "啟用該選項可以提高掃描靈敏度，但這也可能會造成誤殺。":"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",
 "启用该选项可以提高扫描灵敏度，但这也可能会造成误杀。":"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",
-'{} > [實時防護] 成功攔截了一個惡意軟體:':'{} > [Real-Time Protect] Successfully blocked a malware:',
+'{} > [實時防護] 成功攔截了一個惡意軟體:':'{} > [Real-Time Protect] Malware blocking success:',
 '{} > [實時防護] 惡意軟體攔截失敗:':'{} > [Real-Time Protect] Malware blocking failed:',
 '修復系統權限':"Repair System Permissions",
 '啟用該選項可以實時監控系統的檔案讀寫變更行為。':"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",

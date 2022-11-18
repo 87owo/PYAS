@@ -55,10 +55,16 @@ def pyas_bug_log(e):
 def pyas_key():
     start = time.time()
     try:
-        with open('PYAS.exe',"rb") as f:
-            bytes = f.read()
-            readable_hash = str(md5(bytes).hexdigest())
-        f.close()
+        try:
+            with open('PYAS.exe',"rb") as f:
+                bytes = f.read()
+                readable_hash = str(md5(bytes).hexdigest())
+            f.close()
+        except:
+            with open('PYAS.py',"rb") as f:
+                bytes = f.read()
+                readable_hash = str(md5(bytes).hexdigest())
+            f.close()
         try:
             ft = open('Library/PYAS/Setup/PYAS.key','r')
             fe = ft.read()
@@ -1158,12 +1164,14 @@ If you do not download from the official website, we cannot guarantee the securi
             self.ui.Virus_Scan_Break_Button.hide()
             self.Virus_Scan = 0
             self.Safe = False
+            print('[INFO] Malware has been detected')
             return self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List))
         except:
             self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
             self.Virus_Scan = 0
             self.Safe = True
+            print('[INFO] No malware currently found')
             return self.text_Translate('✔當前未發現惡意軟體。')
         
     def pyas_scan_answer_en(self):
@@ -1226,6 +1234,7 @@ If you do not download from the official website, we cannot guarantee the securi
 ##################################### 檔案掃描 #####################################
     
     def File_Scan(self):
+        print('[INFO] Start Scan Action (File Scan)')
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
@@ -1245,6 +1254,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
                 try:
+                    print('[INFO] Reading Viruslist Database')
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                     fp.close()
@@ -1271,6 +1281,7 @@ If you do not download from the official website, we cannot guarantee the securi
                             if fts:
                                 self.pyas_scan_write_en(file)
                                 fts = False
+                                print('[INFO] Malware has been detected')
                                 self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                         except Exception as e:
                             print('[Error] '+str(e))
@@ -1286,6 +1297,7 @@ If you do not download from the official website, we cannot guarantee the securi
 ##################################### 路徑掃描 #####################################
     
     def Path_Scan(self):
+        print('[INFO] Start Scan Action (Path Scan)')
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
@@ -1312,6 +1324,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
                 try:
+                    print('[INFO] Reading Viruslist Database')
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                     fp.close()
@@ -1331,6 +1344,7 @@ If you do not download from the official website, we cannot guarantee the securi
 ##################################### 全盤掃描 #####################################
     
     def pyas_scan_disk_init_en(self):
+        print('[INFO] Start Scan Action (Disk Scan)')
         self.Virus_Scan = 1
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
@@ -1350,6 +1364,7 @@ If you do not download from the official website, we cannot guarantee the securi
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
             try:
+                print('[INFO] Reading Viruslist Database')
                 with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                     rfp = self.fp.read()
                 self.fp.close()
@@ -1694,7 +1709,7 @@ If you do not download from the official website, we cannot guarantee the securi
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/",'')
         if file =="":
             pass
-        elif "PYAS.exe" in file:
+        elif "PYAS" in file:
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('存取被拒'),QMessageBox.Ok)
             pass
         else:
@@ -1999,7 +2014,10 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.Process_sim.setStringList(self.Process_list_app)
                 self.ui.Process_list.setModel(self.Process_sim)
         except Exception as e:
-            print('[Error] '+str(e))
+            if str(type(e)) == "<class 'psutil.AccessDenied'>":
+                print('[Error] Psutil Permission Denied')
+            else:
+                print('[Error] '+str(e))
 
     def Encryption_Text(self):
         input_text = self.ui.Encryption_Text_input.toPlainText()
@@ -2130,6 +2148,7 @@ If you do not download from the official website, we cannot guarantee the securi
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def pyas_protect_init_zh(self):
+        print('[INFO] Start Action (Real-time Protect)')
         try:
             ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
             fe = ft.write('')
@@ -2139,6 +2158,7 @@ If you do not download from the official website, we cannot guarantee the securi
             pyas_bug_log(e)
             pass
         try:
+            print('[INFO] Reading Viruslist Database')
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                 rfp = fp.read()
             fp.close()
@@ -2185,8 +2205,9 @@ If you do not download from the official website, we cannot guarantee the securi
                     self.pause = True
                     break
                 self.Virus_Scan = 1
+                #print('[INFO] Real-time Protect Process Refresh')
                 for p in psutil.process_iter():
-                    #time.sleep(0.01)
+                    #time.sleep(0.001)
                     try:
                         if '' == str(p.exe()):
                             pass
@@ -2198,8 +2219,10 @@ If you do not download from the official website, we cannot guarantee the securi
                             if self.pyas_scan_start(p.exe(),rfp):
                                 try:
                                     if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
+                                        print('[INFO] Malware blocking success: '+str(p.name()))
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
                                     else:
+                                        print('[INFO] Malware blocking failed: '+str(p.name()))
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
                                     #try:
                                         #observer = Observer()

@@ -105,6 +105,12 @@ def pyas_library():
 
 ##################################### 移除暫存檔 ####################################
 
+def pyasb_remove():
+    try:
+        os.remove('Library/PYAS/Temp/PYASB.log')
+    except:
+        pass
+
 def pyasp_remove():
     try:
         os.remove('Library/PYAS/Temp/PYASP.tmp')
@@ -2568,6 +2574,7 @@ If you do not download from the official website, we cannot guarantee the securi
 
 if __name__ == '__main__':
     try:
+        pyasb_remove()
         pyasp_remove()
         pyas_library()
         pyas_version = "2.4.7"

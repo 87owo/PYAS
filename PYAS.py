@@ -128,7 +128,7 @@ def pyas_vl_update():
                 if '449a34c34a7507dffe1d39afad3eeac9' == readable_hash:
                     v = open('Library/PYAE/Hashes/Viruslist.num','w').write(str(i))
                     os.remove('Library/PYAE/Hashes/'+str(y)+'.md5')
-                    print('[INFO] MD5 Hashes Update Complete')
+                    print('[INFO] Hashes Update Complete (V'+str(i-1)+')')
                     break
                 else:
                     try:
@@ -1723,7 +1723,6 @@ If you do not download from the official website, we cannot guarantee the securi
             self.ui.Customize_CMD_Command_output.setText(english_list["PYAS"])
             return
         try:
-            print(str(cryptocode.decrypt(CMD_Command,pyas_version)))
             if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional':
                 self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition)')
                 return
@@ -1736,8 +1735,8 @@ If you do not download from the official website, we cannot guarantee the securi
             if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business_ltsc':
                 self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition LTSC)')
                 return
-        except Exception as e:
-            print('[Error] '+str(e))
+        except:
+            pass
         try:
             if CMD_Command.split()[0] == "/add" or CMD_Command.split()[0] == "/ADD":
                 self.ui.Customize_CMD_Command_output.setText("Tips: Custom rules need to wait for the rule conditions to be met before proceeding to the next step.")
@@ -2522,9 +2521,7 @@ If you do not download from the official website, we cannot guarantee the securi
             if Qt.LeftButton and self.m_flag: 
                 self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
                 QMouseEvent.accept()
-        except Exception as e:
-            print('[Error] '+str(e))
-            #pyas_bug_log(e)
+        except:
             pass
         
     def mouseReleaseEvent(self, QMouseEvent):
@@ -2557,6 +2554,7 @@ if __name__ == '__main__':
         window = MainWindow_Controller()
         window.show()
         print('[LOAD] Total: '+str(time.time()-start_all)+' sec')
+        print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         sys.exit(app.exec_())
     except Exception as e:
         print('[Error] '+str(e))

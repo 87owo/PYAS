@@ -8,6 +8,7 @@ https://pyantivirus.wixsite.com/pyas ,
 https://github.com/87owo/PYAS
 
 ## Hashes Library
+https://virusshare.com/hashes , 
 https://github.com/87owo/ViruslistMD5/releases
 
 ## Support System

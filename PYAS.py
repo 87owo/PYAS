@@ -1750,7 +1750,7 @@ If you do not download from the official website, we cannot guarantee the securi
                                 vm.write(str(value)[:10]+'\n')
                             self.ui.Customize_CMD_Command_output.setText("Successfully added MD5 to the database!")
                         except:
-                            self.ui.Customize_CMD_Command_output.setText("Error: Add failed!")
+                            self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
                         return
                     if CMD_Command.split()[2] == "-func" or CMD_Command.split()[2] == "-FUNC":
                         try:
@@ -1759,7 +1759,7 @@ If you do not download from the official website, we cannot guarantee the securi
                                 vm.write(str(value)+'\n')
                             self.ui.Customize_CMD_Command_output.setText("Successfully added Function to the database!")
                         except:
-                            self.ui.Customize_CMD_Command_output.setText("Error: Add failed!")
+                            self.ui.Customize_CMD_Command_output.setText("Error: Add Function database failed")
                         return
                 if CMD_Command.split()[1] == "-rules" or CMD_Command.split()[1] == "-RULES":
                     if CMD_Command.split()[2] == "-reg" or CMD_Command.split()[2] == "-REG":
@@ -2548,7 +2548,6 @@ If you do not download from the official website, we cannot guarantee the securi
 
 if __name__ == '__main__':
     try:
-        import sys
         pyasp_remove()
         pyas_library()
         pyas_version = "2.4.7"

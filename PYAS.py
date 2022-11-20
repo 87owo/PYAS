@@ -310,7 +310,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
             if self.ini_config.getint("Setting","high_sensitivity") == 1:
                 if self.ini_config.get("Setting","language") == "zh_TW":
                     self.show_virus_scan_progress_bar = 1
-                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))#####
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
                     {
@@ -325,7 +325,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                     """)
                 else:
                     self.show_virus_scan_progress_bar = 1
-                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))#####
+                    self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton
                     {
@@ -2450,86 +2450,40 @@ If you do not download from the official website, we cannot guarantee the securi
 
 ##################################### 主題顏色 #####################################
     
-    def Change_Theme(self):
+    def Change_Theme(self):#update here
         if self.ui.Theme_Red.isChecked():
-            self.ui.Window_widget.setStyleSheet("""
-            QWidget#Window_widget {
-                background-color:rgba(255,110,110,200);
-            }
-            """)
-            self.ui.Navigation_Bar.setStyleSheet("""
-            QWidget#Navigation_Bar {
-                background-color:rgba(255,100,100,210);
-            }
-            """)
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,140,140,200);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,130,130,200);}""")
             return
 
         elif self.ui.Theme_White.isChecked():
-            self.ui.Window_widget.setStyleSheet("""
-            QWidget#Window_widget {
-                background-color:rgb(240,240,240);
-            }
-            """)
-            self.ui.Navigation_Bar.setStyleSheet("""
-            QWidget#Navigation_Bar {
-                background-color:rgb(230,230,230);
-            }
-            """)
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
             return
 
         elif self.ui.Theme_Black.isChecked():
-            self.ui.Window_widget.setStyleSheet("""
-            QWidget#Window_widget {
-                background-color:rgba(90,90,90,150);
-            }
-            """)
-            self.ui.Navigation_Bar.setStyleSheet("""
-            QWidget#Navigation_Bar {
-                background-color:rgba(80,80,80,160);
-            }
-            """)
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(90,90,90,130);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(80,80,80,150);}""")
             return
 
         elif self.ui.Theme_Green.isChecked():
-            self.ui.Window_widget.setStyleSheet("""
-            QWidget#Window_widget {
-                background-color:rgba(120,250,130,200);
-            }
-            """)
-            self.ui.Navigation_Bar.setStyleSheet("""
-            QWidget#Navigation_Bar {
-                background-color:rgba(100,250,110,210);
-            }
-            """)
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(120,240,130,180);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(100,240,110,200);}""")
             return
 
         elif self.ui.Theme_Pink.isChecked():
             import random
             r,g,b = random.randrange(50, 250),random.randrange(50, 250),random.randrange(50, 250)
             self.ui.Window_widget.setStyleSheet("""
-            QWidget#Window_widget {
-                background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);
-            }
-            """)
+            QWidget#Window_widget {background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);}""")
             self.ui.Navigation_Bar.setStyleSheet("""
-            QWidget#Navigation_Bar {
-                background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);
-            }
-            """)
+            QWidget#Navigation_Bar {background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);}""")
             return
 
         elif self.ui.Theme_Blue.isChecked():
-            self.ui.Window_widget.setStyleSheet("""
-            QWidget#Window_widget {
-                background-color:rgba(0,120,250,100);
-
-            }
-            """)
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,120,240,100);}""")
             self.ui.Navigation_Bar.setStyleSheet("""
-            QWidget#Navigation_Bar {
-                    background-color:rgba(0,130,255,130);
-            }
-            """)
+            QWidget#Navigation_Bar {background-color:rgba(0,120,240,120);}""")
             return
         
 ##################################### 操作事件 #####################################
@@ -2574,7 +2528,7 @@ if __name__ == '__main__':
         pyasb_remove()
         pyasp_remove()
         pyas_library()
-        pyas_version = "2.4.7"
+        pyas_version = "2.4.8"
         pyae_version = "2.1.9"
         threading.Thread(target = pyas_vl_update).start()
         app = QtWidgets.QApplication(sys.argv)

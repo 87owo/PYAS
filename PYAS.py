@@ -1789,7 +1789,6 @@ If you do not download from the official website, we cannot guarantee the securi
                         #return
                         while 1:
                             QApplication.processEvents()
-                            time.sleep(0.01)
                             x = int(psutil.cpu_percent(interval=0.1))
                             if x > int(value):
                                 print(str(x))
@@ -1799,7 +1798,6 @@ If you do not download from the official website, we cannot guarantee the securi
                         value = CMD_Command.split()[3]
                         while 1:
                             QApplication.processEvents()
-                            time.sleep(0.01)
                             for p in psutil.process_iter():
                                 if str(value) == str(p.name()):
                                     return
@@ -2213,7 +2211,6 @@ If you do not download from the official website, we cannot guarantee the securi
                 self.Virus_Scan = 1
                 #print('[INFO] Real-time Protect Process Refresh')
                 for p in psutil.process_iter():
-                    #time.sleep(0.001)
                     try:
                         if '' == str(p.exe()):
                             pass

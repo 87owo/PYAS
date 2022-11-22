@@ -2394,10 +2394,11 @@ If you do not download from the official website, we cannot guarantee the securi
             self.m_flag=True
             self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
             event.accept()
+            window.setWindowOpacity(0.8)
         
     def mouseMoveEvent(self, QMouseEvent):
         try:
-            if Qt.LeftButton and self.m_flag: 
+            if Qt.LeftButton and self.m_flag:
                 self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
                 QMouseEvent.accept()
         except:
@@ -2406,6 +2407,7 @@ If you do not download from the official website, we cannot guarantee the securi
     def mouseReleaseEvent(self, QMouseEvent):
         self.m_flag=False
         self.setCursor(QCursor(Qt.ArrowCursor))
+        window.setWindowOpacity(1)
 
     def paintEvent(self, event):
         # 圓角
@@ -2434,6 +2436,7 @@ if __name__ == '__main__':
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
         window = MainWindow_Controller()
+        window.setWindowOpacity(1)
         window.show()
         print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         print('[LOAD] Total: '+str(time.time()-start_m)+' sec')

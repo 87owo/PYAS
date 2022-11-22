@@ -12,8 +12,7 @@
 
 try:
     import time
-    start_all = time.time()
-    start = time.time()
+    start_m = time.time()
     import os, sys, psutil, subprocess, cryptocode, threading, configparser, datetime
     from pefile import PE
     from hashlib import md5, sha1, sha256
@@ -23,11 +22,11 @@ try:
     from PyQt5.QtCore import *
     from PyQt5 import QtWidgets, QtGui, QtCore
     from PYAS_UI import Ui_MainWindow
-    #from watchdog.events import FileSystemEventHandler
+    #from watchdog.events import FileSystemEventHandler #Beta Not Cplt
     #from watchdog.observers import Observer
 except Exception as e:
     print('[Error] '+str(e))
-print('[LOAD] Mods: '+str(time.time()-start)+' sec')
+print('[LOAD] Mods: '+str(time.time()-start_m)+' sec')
 
 ###################################### 錯誤日誌 #####################################
 
@@ -525,7 +524,7 @@ If you do not download from the official website, we cannot guarantee the securi
             else:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version+" (Library Version: "+str(int(vl)-1)+")"))
         except:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version))
+            self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version+" (Downloading Library...)"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "Back"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "New password:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "Username:"))
@@ -668,7 +667,7 @@ If you do not download from the official website, we cannot guarantee the securi
             else:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version+" (数据庫版本: "+str(int(vl)-1)+")"))
         except:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version))
+            self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version+" (正在下载数据庫...)"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密码:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用户名:"))
@@ -811,7 +810,7 @@ If you do not download from the official website, we cannot guarantee the securi
             else:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version+" (資料庫版本: "+str(int(vl)-1)+")"))
         except:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version))
+            self.ui.PYAE_Version.setText(_translate("MainWindow", "PYAE V"+pyae_version+" (正在下載資料庫...)"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密碼:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用戶名:"))
@@ -1711,17 +1710,15 @@ If you do not download from the official website, we cannot guarantee the securi
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
         if CMD_Command == "":
             return
-        if CMD_Command == "never gonna give you up" or CMD_Command == "Never gonna give you up" \
-        or CMD_Command == "rickroll" or CMD_Command == "Rickroll":
+        if CMD_Command.lower() == "never gonna give you up" or CMD_Command.lower() == "rickroll" or CMD_Command.lower() == "rick roll":
             import webbrowser
-            webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-            self.ui.Customize_CMD_Command_output.setText(english_list["never gonna give you up"])
+            webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")#rickroll easter egg
             return
         if CMD_Command == "python antivirus software" or CMD_Command == "Python Antivirus Software" \
         or CMD_Command == "PYAS" or CMD_Command == "pyas":
-            self.ui.Customize_CMD_Command_output.setText(english_list["PYAS"])
+            self.ui.Customize_CMD_Command_output.setText(english_list["PYAS"])#about pyas
             return
-        try:
+        try: #Not Cplt
             if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional':
                 self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition)')
                 return
@@ -1737,11 +1734,11 @@ If you do not download from the official website, we cannot guarantee the securi
         except:
             pass
         try:
-            if CMD_Command.split()[0] == "/add" or CMD_Command.split()[0] == "/ADD":
+            if CMD_Command.split()[0].lower() == "/add" or CMD_Command.split()[0].lower() == "/a":
                 self.ui.Customize_CMD_Command_output.setText("Tips: Custom rules need to wait for the rule conditions to be met before proceeding to the next step.")
                 QApplication.processEvents()
-                if CMD_Command.split()[1] == "-library" or CMD_Command.split()[1] == "-LIBRARY":
-                    if CMD_Command.split()[2] == "-md5" or CMD_Command.split()[2] == "-MD5":
+                if CMD_Command.split()[1].lower() == "-library" or CMD_Command.split()[1].lower() == "-l":
+                    if CMD_Command.split()[2].lower() == "-md5" or CMD_Command.split()[2].lower() == "-m":
                         try:
                             value = str(CMD_Command.split()[3])
                             with open('Library/PYAE/Hashes/Viruslist.md5','a') as vm:
@@ -1750,7 +1747,7 @@ If you do not download from the official website, we cannot guarantee the securi
                         except:
                             self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
                         return
-                    if CMD_Command.split()[2] == "-func" or CMD_Command.split()[2] == "-FUNC":
+                    if CMD_Command.split()[2].lower() == "-func" or CMD_Command.split()[2].lower() == "-f":
                         try:
                             value = CMD_Command.split()[3]
                             with open('Library/PYAE/Function/Viruslist.func','a') as vm:
@@ -1759,20 +1756,19 @@ If you do not download from the official website, we cannot guarantee the securi
                         except:
                             self.ui.Customize_CMD_Command_output.setText("Error: Add Function database failed")
                         return
-                if CMD_Command.split()[1] == "-rules" or CMD_Command.split()[1] == "-RULES":
-                    if CMD_Command.split()[2] == "-reg" or CMD_Command.split()[2] == "-REG":
+                if CMD_Command.split()[1].lower() == "-rules" or CMD_Command.split()[1].lower() == "-r":
+                    if CMD_Command.split()[2].lower() == "-reg" or CMD_Command.split()[2].lower() == "-r":
                         value = CMD_Command.split()[3]
-                    if CMD_Command.split()[2] == "-perf" or CMD_Command.split()[2] == "-PERF":
+                    if CMD_Command.split()[2].lower() == "-perf" or CMD_Command.split()[2].lower() == "-p":
                         value = CMD_Command.split()[3]
-                        #return
                         while 1:
                             QApplication.processEvents()
                             x = int(psutil.cpu_percent(interval=0.1))
                             if x > int(value):
                                 print(str(x))
-                    if CMD_Command.split()[2] == "-file" or CMD_Command.split()[2] == "-FILE":
+                    if CMD_Command.split()[2].lower() == "-file" or CMD_Command.split()[2].lower() == "-f":
                         value = CMD_Command.split()[3]
-                    if CMD_Command.split()[2] == "-task" or CMD_Command.split()[2] == "-TASK":
+                    if CMD_Command.split()[2].lower() == "-task" or CMD_Command.split()[2].lower() == "-t":
                         value = CMD_Command.split()[3]
                         while 1:
                             QApplication.processEvents()
@@ -1787,10 +1783,7 @@ If you do not download from the official website, we cannot guarantee the securi
             try:
                 si = subprocess.STARTUPINFO()
                 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                p = subprocess.Popen(CMD_Command,
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        )#encoding='utf-8')
+                p = subprocess.Popen(CMD_Command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,)#encoding='utf-8')
                 out = p.stdout.read()
                 try:
                     self.ui.Customize_CMD_Command_output.setText(str(out.decode('utf-8')))
@@ -2162,7 +2155,7 @@ If you do not download from the official website, we cannot guarantee the securi
                             pass
                         elif 'C:\Windows' in str(p.exe()) or 'C:\Program' in str(p.exe()):
                             pass
-                        elif 'MemCompression' in str(p.exe()) or 'Registry' in str(p.exe()):
+                        elif 'MemCompression' in str(p.exe()) or 'Registry' in str(p.exe()) or 'PYAS' in str(p.exe()):
                             pass
                         else:
                             if self.pyas_scan_start(p.exe(),rfp):
@@ -2173,12 +2166,6 @@ If you do not download from the official website, we cannot guarantee the securi
                                     else:
                                         print('[INFO] Malware blocking failed: '+str(p.name()))
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
-                                        #try:
-                                            #self.ui.State_output.append(self.text_Translate('{} > [實時防護] 正在嘗試修復系統權限').format(datetime.datetime.now()))
-                                            #Repair_System_Permission_rt(self)
-                                            #subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True)
-                                        #except:
-                                            #pass
                                     #try:
                                         #observer = Observer()
                                         #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
@@ -2442,14 +2429,14 @@ if __name__ == '__main__':
         pyas_library()
         pyas_version = "2.4.8"
         pyae_version = "2.1.9"
-        print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         threading.Thread(target = pyas_vl_update).start()
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
         window = MainWindow_Controller()
         window.show()
-        print('[LOAD] Total: '+str(time.time()-start_all)+' sec')
+        print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
+        print('[LOAD] Total: '+str(time.time()-start_m)+' sec')
         sys.exit(app.exec_())
     except Exception as e:
         pyas_bug_log(e)

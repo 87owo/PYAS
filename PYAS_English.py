@@ -88,58 +88,11 @@ PYAS Create Date: 2020/12/17
 Official Github: https://github.com/87owo/PYAS
 Official Website: https://pyantivirus.wixsite.com/pyas
 PYAS Core Developer: 87owo
-PYAS GUI Developer: litesans
+PYAS GUI Developer: mtkiao
 PYAS Data Collector: yang5487
-PYAS Testers: 87owo, litesans
+PYAS Testers: 87owo, mtkiao
 Special Thanks: Wix, Avast, Github, Google, Python,
 Microsoft, VirusTotal, VirusShare, LenStevens
 ========================================
 Thanks For Using PYAS Python Antivirus Software
-""",
-"never gonna give you up":"""We are no strangers to love
-You know the rules and so do I
-A full commitment′s what I am thinking of
-You wouldn′t get this from any other guy
-I just want to tell you how I am feeling
-Gotta make you understand
-Never gonna give you up never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry never gonna say goodbye
-Never gonna tell a lie and hurt you
-We′ve known each other for so long
-Your heart′s been aching but You are too shy to say it
-Inside we both know what′s been going on
-We know the game and We are gonna play it
-And if you ask me how I am feeling
-Don′t tell me You are too blind to see
-Never gonna give you up never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry never gonna say goodbye
-Never gonna tell a lie and hurt you
-Never gonna give you up never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry never gonna say goodbye
-Never gonna tell a lie and hurt you
-Ooh give you up
-Ooh give you up
-Never gonna give never gonna give give you up
-Never gonna give never gonna give give you up
-We′ve known each other for so long
-Your heart′s been aching but You are too shy to say it
-Inside we both know what′s been going on
-We know the game and We are gonna play it
-I just want to tell you how I am feeling
-Gotta make you understand
-Never gonna give you up never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry never gonna say goodbye
-Never gonna tell a lie and hurt you
-Never gonna give you up never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry never gonna say goodbye
-Never gonna tell a lie and hurt you
-Never gonna give you up never gonna let you down
-Never gonna run around and desert you
-Never gonna make you cry never gonna say goodbye
-Never gonna tell a lie and hurt you""",
-}
+"""}

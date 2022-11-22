@@ -167,6 +167,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         start = time.time()
         super(MainWindow_Controller, self).__init__()
         self.ui = Ui_MainWindow() #繼承
+        self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
         #self.setWindowFlags(Qt.WindowStaysOnTopHint|self.windowFlags()) #窗口置頂
@@ -2394,7 +2395,11 @@ If you do not download from the official website, we cannot guarantee the securi
             self.m_flag=True
             self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
             event.accept()
-            window.setWindowOpacity(0.8)
+            while self.ui.pyas_opacity > 60 and self.m_flag == True:
+                time.sleep(0.01)
+                self.ui.pyas_opacity -= 2
+                window.setWindowOpacity(self.ui.pyas_opacity/100)
+                QApplication.processEvents()
         
     def mouseMoveEvent(self, QMouseEvent):
         try:
@@ -2407,7 +2412,11 @@ If you do not download from the official website, we cannot guarantee the securi
     def mouseReleaseEvent(self, QMouseEvent):
         self.m_flag=False
         self.setCursor(QCursor(Qt.ArrowCursor))
-        window.setWindowOpacity(1)
+        while self.ui.pyas_opacity < 100 and self.m_flag == False:
+            time.sleep(0.01)
+            self.ui.pyas_opacity += 2
+            window.setWindowOpacity(self.ui.pyas_opacity/100)
+            QApplication.processEvents()
 
     def paintEvent(self, event):
         # 圓角

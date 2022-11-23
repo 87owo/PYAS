@@ -155,7 +155,8 @@ def pyas_vl_update():
                     v = open('Library/PYAE/Hashes/Viruslist.num','w').write(str(i+1))
                     os.remove('Library/PYAE/Hashes/'+str(y)+'.md5')
             except:
-                pass
+                print('[INFO] Hashes Update Fail (V'+str(i-1)+')')
+                break
     except Exception as e:
         pyas_bug_log(e)
         sys.exit()

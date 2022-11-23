@@ -1276,7 +1276,7 @@ QPushButton:pressed
       <property name="geometry">
        <rect>
         <x>20</x>
-        <y>20</y>
+        <y>30</y>
         <width>631</width>
         <height>111</height>
        </rect>
@@ -1293,9 +1293,9 @@ QPushButton:pressed
       <widget class="QLabel" name="Protection_title">
        <property name="geometry">
         <rect>
-         <x>20</x>
+         <x>30</x>
          <y>10</y>
-         <width>351</width>
+         <width>341</width>
          <height>41</height>
         </rect>
        </property>
@@ -1319,7 +1319,7 @@ QPushButton:pressed
       <widget class="QLabel" name="Protection_illustrate">
        <property name="geometry">
         <rect>
-         <x>20</x>
+         <x>30</x>
          <y>50</y>
          <width>421</width>
          <height>51</height>
@@ -1351,7 +1351,7 @@ QPushButton:pressed
       <widget class="QPushButton" name="Protection_switch_Button">
        <property name="geometry">
         <rect>
-         <x>490</x>
+         <x>500</x>
          <y>35</y>
          <width>91</width>
          <height>31</height>
@@ -1621,7 +1621,7 @@ QPushButton:pressed
          <property name="font">
           <font>
            <family>Microsoft YaHei</family>
-           <pointsize>16</pointsize>
+           <pointsize>15</pointsize>
            <stylestrategy>PreferAntialias</stylestrategy>
           </font>
          </property>

@@ -1264,7 +1264,7 @@ If you do not download from the official website, we cannot guarantee the securi
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                     fp.close()
-                    if self.show_virus_scan_progress_bar != 0:
+                    if self.show_virus_scan_progress_bar != 0 and os.path.isfile(filepath) == True:
                         with open('Library/PYAE/Function/Viruslist.func','r') as fn:
                             rfn = fn.read()
                         fn.close()
@@ -1908,16 +1908,19 @@ If you do not download from the official website, we cannot guarantee the securi
             self.findfile_zh('Y:/',ffile,start)
             self.findfile_zh('Z:/',ffile,start)
             end = time.time()
-            try:
-                ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
-                fe = ft.read()
-                ft.close()
-            except Exception as e:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
-            self.ui.Look_for_File_output.setText("")
-            self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
-            QApplication.processEvents()
-            self.Change_Tools(self.ui.Look_for_File_widget)            
+            if os.path.isfile('Library/PYAS/Temp/PYASF.tmp'):
+                try:
+                    ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
+                    fe = ft.read()
+                    ft.close()
+                except Exception as e:
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
+                self.ui.Look_for_File_output.setText("")
+                self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
+                QApplication.processEvents()
+                self.Change_Tools(self.ui.Look_for_File_widget)
+            else:
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('未找到檔案'),QMessageBox.Ok)
         except Exception as e:
             pyas_bug_log(e)
             pass
@@ -2142,46 +2145,41 @@ If you do not download from the official website, we cannot guarantee the securi
                 background-color:rgba(20,200,20,120);}""")
         while 1:
             if not self.pause:
-                try:
-                    ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
-                    ft.close()
-                except:
+                if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                     self.pause = True
                     break
-                self.Virus_Scan = 1
-                #print('[INFO] Real-time Protect Process Refresh')
-                for p in psutil.process_iter():
-                    try:
-                        if '' == str(p.exe()):
-                            pass
-                        elif 'C:\Windows' in str(p.exe()) or 'C:\Program' in str(p.exe()):
-                            pass
-                        elif 'MemCompression' in str(p.exe()) or 'Registry' in str(p.exe()) or 'PYAS' in str(p.exe()):
-                            pass
-                        else:
-                            if self.pyas_scan_start(p.exe(),rfp):
-                                try:
-                                    if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
-                                        print('[INFO] Malware blocking success: '+str(p.name()))
-                                        self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
-                                    else:
-                                        print('[INFO] Malware blocking failed: '+str(p.name()))
-                                        self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
-                                    #try:
-                                        #observer = Observer()
-                                        #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
-                                        #observer.start()
-                                    #except Exception as e:
-                                        #pass
-                                except:
-                                    pass
-                                try:
-                                    os.remove(str(p.exe()))
-                                except Exception as e:
-                                    pyas_bug_log(e)
-                                    pass
-                    except:
-                        continue
+                else:
+                    self.Virus_Scan = 1
+                    #print('[INFO] Real-time Protect Process Refresh')
+                    for p in psutil.process_iter():
+                        try:
+                            if '' == str(p.exe()):
+                                pass
+                            elif 'C:\Windows' in str(p.exe()) or 'C:\Program' in str(p.exe()):
+                                pass
+                            elif 'MemCompression' in str(p.exe()) or 'Registry' in str(p.exe()) or 'PYAS' in str(p.exe()):
+                                pass
+                            else:
+                                if self.pyas_scan_start(p.exe(),rfp):
+                                    try:
+                                        if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
+                                            print('[INFO] Malware blocking success: '+str(p.name()))
+                                            self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
+                                        else:
+                                            print('[INFO] Malware blocking failed: '+str(p.name()))
+                                            self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
+                                        #try:
+                                            #observer = Observer()
+                                            #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
+                                            #observer.start()
+                                        #except Exception as e:
+                                            #pass
+                                        os.remove(str(p.exe()))
+                                    except Exception as e:
+                                        pyas_bug_log(e)
+                                        pass
+                        except:
+                            continue
             else:
                 break
 

@@ -154,7 +154,7 @@
       <widget class="QPushButton" name="Show_Virus_Scan_Progress_Bar_switch_Button">
        <property name="geometry">
         <rect>
-         <x>680</x>
+         <x>660</x>
          <y>30</y>
          <width>91</width>
          <height>31</height>
@@ -349,7 +349,7 @@ QPushButton:hover
          <rect>
           <x>0</x>
           <y>10</y>
-          <width>421</width>
+          <width>431</width>
           <height>81</height>
          </rect>
         </property>
@@ -489,7 +489,7 @@ QPushButton:hover
         <rect>
          <x>390</x>
          <y>0</y>
-         <width>391</width>
+         <width>401</width>
          <height>101</height>
         </rect>
        </property>
@@ -503,7 +503,7 @@ QPushButton:hover
          <rect>
           <x>0</x>
           <y>10</y>
-          <width>381</width>
+          <width>391</width>
           <height>80</height>
          </rect>
         </property>
@@ -620,7 +620,7 @@ QPushButton:hover
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -676,7 +676,7 @@ QPushButton:hover
         <x>19</x>
         <y>59</y>
         <width>631</width>
-        <height>421</height>
+        <height>401</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="More_Tools_verticalLayout">
@@ -962,7 +962,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -1069,9 +1069,9 @@ QPushButton:pressed
      <widget class="QTextEdit" name="Encryption_Text_input">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>100</y>
-        <width>311</width>
+        <width>301</width>
         <height>291</height>
        </rect>
       </property>
@@ -1088,7 +1088,7 @@ QPushButton:pressed
        <rect>
         <x>340</x>
         <y>100</y>
-        <width>311</width>
+        <width>301</width>
         <height>291</height>
        </rect>
       </property>
@@ -1103,9 +1103,9 @@ QPushButton:pressed
      <widget class="QLineEdit" name="Encryption_Text_Password_input">
       <property name="geometry">
        <rect>
-        <x>160</x>
+        <x>140</x>
         <y>400</y>
-        <width>261</width>
+        <width>281</width>
         <height>31</height>
        </rect>
       </property>
@@ -1122,7 +1122,7 @@ QPushButton:pressed
        <rect>
         <x>340</x>
         <y>60</y>
-        <width>311</width>
+        <width>301</width>
         <height>31</height>
        </rect>
       </property>
@@ -1147,9 +1147,9 @@ QPushButton:pressed
      <widget class="QLabel" name="Encryption_Text_Password_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>400</y>
-        <width>131</width>
+        <width>111</width>
         <height>31</height>
        </rect>
       </property>
@@ -1174,9 +1174,9 @@ QPushButton:pressed
      <widget class="QLabel" name="Encryption_Text_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>60</y>
-        <width>271</width>
+        <width>301</width>
         <height>31</height>
        </rect>
       </property>
@@ -1201,7 +1201,7 @@ QPushButton:pressed
      <widget class="QPushButton" name="Decrypt_Text_Run_Button">
       <property name="geometry">
        <rect>
-        <x>550</x>
+        <x>540</x>
         <y>400</y>
         <width>101</width>
         <height>31</height>
@@ -1275,10 +1275,10 @@ QPushButton:pressed
      <widget class="QWidget" name="Real_time_Protection_widget" native="true">
       <property name="geometry">
        <rect>
-        <x>30</x>
-        <y>30</y>
-        <width>611</width>
-        <height>101</height>
+        <x>20</x>
+        <y>20</y>
+        <width>631</width>
+        <height>111</height>
        </rect>
       </property>
       <property name="acceptDrops">
@@ -1310,7 +1310,7 @@ QPushButton:pressed
         <string notr="true">color: rgb(70,70,70);</string>
        </property>
        <property name="text">
-        <string>實時防護</string>
+        <string>進程防護</string>
        </property>
        <property name="alignment">
         <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -1621,7 +1621,7 @@ QPushButton:pressed
          <property name="font">
           <font>
            <family>Microsoft YaHei</family>
-           <pointsize>15</pointsize>
+           <pointsize>16</pointsize>
            <stylestrategy>PreferAntialias</stylestrategy>
           </font>
          </property>
@@ -1757,7 +1757,7 @@ QPushButton:pressed
         <x>45</x>
         <y>90</y>
         <width>581</width>
-        <height>71</height>
+        <height>61</height>
        </rect>
       </property>
       <property name="font">
@@ -1867,7 +1867,7 @@ QPushButton:hover
       <property name="geometry">
        <rect>
         <x>45</x>
-        <y>170</y>
+        <y>160</y>
         <width>581</width>
         <height>291</height>
        </rect>
@@ -1917,7 +1917,7 @@ outline: none;
         <rect>
          <x>0</x>
          <y>0</y>
-         <width>141</width>
+         <width>151</width>
          <height>101</height>
         </rect>
        </property>
@@ -2090,9 +2090,9 @@ QPushButton:pressed
      <widget class="QPushButton" name="Virus_Scan_Solve_Button">
       <property name="geometry">
        <rect>
-        <x>330</x>
+        <x>320</x>
         <y>45</y>
-        <width>141</width>
+        <width>151</width>
         <height>31</height>
        </rect>
       </property>
@@ -2245,9 +2245,9 @@ QPushButton:hover
       <property name="geometry">
        <rect>
         <x>45</x>
-        <y>157</y>
-        <width>581</width>
-        <height>12</height>
+        <y>158</y>
+        <width>591</width>
+        <height>20</height>
        </rect>
       </property>
       <property name="value">
@@ -2280,10 +2280,10 @@ QPushButton:hover
      <widget class="QLabel" name="State_title">
       <property name="geometry">
        <rect>
-        <x>104</x>
-        <y>240</y>
-        <width>461</width>
-        <height>51</height>
+        <x>34</x>
+        <y>230</y>
+        <width>601</width>
+        <height>41</height>
        </rect>
       </property>
       <property name="font">
@@ -2308,10 +2308,10 @@ QPushButton:hover
      <widget class="QLabel" name="State_icon">
       <property name="geometry">
        <rect>
-        <x>265</x>
-        <y>90</y>
-        <width>141</width>
-        <height>131</height>
+        <x>255</x>
+        <y>70</y>
+        <width>161</width>
+        <height>151</height>
        </rect>
       </property>
       <property name="font">
@@ -2334,10 +2334,10 @@ QPushButton:hover
      <widget class="QTextEdit" name="State_output">
       <property name="geometry">
        <rect>
-        <x>105</x>
+        <x>95</x>
         <y>320</y>
-        <width>461</width>
-        <height>121</height>
+        <width>481</width>
+        <height>131</height>
        </rect>
       </property>
       <property name="font">
@@ -2363,9 +2363,9 @@ QPushButton:hover
       <property name="geometry">
        <rect>
         <x>95</x>
-        <y>290</y>
-        <width>61</width>
-        <height>21</height>
+        <y>280</y>
+        <width>481</width>
+        <height>41</height>
        </rect>
       </property>
       <property name="font">
@@ -2384,7 +2384,7 @@ QPushButton:hover
        <string>日誌:</string>
       </property>
       <property name="alignment">
-       <set>Qt::AlignCenter</set>
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
       </property>
      </widget>
     </widget>
@@ -2412,7 +2412,7 @@ QPushButton:hover
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -2467,7 +2467,7 @@ QPushButton:hover
        <rect>
         <x>30</x>
         <y>200</y>
-        <width>471</width>
+        <width>481</width>
         <height>31</height>
        </rect>
       </property>
@@ -2537,7 +2537,7 @@ QPushButton:hover
        <rect>
         <x>30</x>
         <y>120</y>
-        <width>471</width>
+        <width>481</width>
         <height>31</height>
        </rect>
       </property>
@@ -2551,9 +2551,9 @@ QPushButton:hover
      <widget class="QPushButton" name="Change_Users_Password_Run_Button">
       <property name="geometry">
        <rect>
-        <x>520</x>
-        <y>140</y>
-        <width>91</width>
+        <x>530</x>
+        <y>160</y>
+        <width>101</width>
         <height>31</height>
        </rect>
       </property>
@@ -2627,7 +2627,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -2680,10 +2680,10 @@ QPushButton:hover
      <widget class="QTextEdit" name="System_Info_View">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>60</y>
-        <width>631</width>
-        <height>411</height>
+        <width>611</width>
+        <height>391</height>
        </rect>
       </property>
       <property name="font">
@@ -2722,7 +2722,7 @@ QPushButton:hover
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -2778,7 +2778,7 @@ QPushButton:hover
         <x>20</x>
         <y>60</y>
         <width>631</width>
-        <height>421</height>
+        <height>401</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="Develop_verticalLayout">
@@ -3064,7 +3064,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -3117,7 +3117,7 @@ QPushButton:hover
      <widget class="QPushButton" name="Look_for_File_Run_Button">
       <property name="geometry">
        <rect>
-        <x>550</x>
+        <x>540</x>
         <y>70</y>
         <width>101</width>
         <height>31</height>
@@ -3171,9 +3171,9 @@ QPushButton:pressed
      <widget class="QLineEdit" name="Look_for_File_input">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>70</y>
-        <width>521</width>
+        <width>501</width>
         <height>31</height>
        </rect>
       </property>
@@ -3181,10 +3181,10 @@ QPushButton:pressed
      <widget class="QTextEdit" name="Look_for_File_output">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>120</y>
-        <width>631</width>
-        <height>351</height>
+        <width>611</width>
+        <height>331</height>
        </rect>
       </property>
      </widget>
@@ -3213,7 +3213,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -3269,7 +3269,7 @@ QPushButton:hover
         <x>20</x>
         <y>60</y>
         <width>631</width>
-        <height>81</height>
+        <height>91</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="Private_verticalLayout">
@@ -3363,7 +3363,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>91</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -3416,8 +3416,8 @@ QPushButton:hover
      <widget class="QLabel" name="PYAS_Version">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>60</y>
+        <x>30</x>
+        <y>50</y>
         <width>131</width>
         <height>41</height>
        </rect>
@@ -3444,8 +3444,8 @@ QPushButton:hover
      <widget class="QLabel" name="GUI_Made_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>110</y>
+        <x>30</x>
+        <y>100</y>
         <width>131</width>
         <height>41</height>
        </rect>
@@ -3471,9 +3471,9 @@ QPushButton:hover
      <widget class="QLabel" name="GUI_Made_Name">
       <property name="geometry">
        <rect>
-        <x>160</x>
-        <y>110</y>
-        <width>461</width>
+        <x>190</x>
+        <y>100</y>
+        <width>451</width>
         <height>41</height>
        </rect>
       </property>
@@ -3498,8 +3498,8 @@ QPushButton:hover
      <widget class="QLabel" name="Core_Made_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>160</y>
+        <x>30</x>
+        <y>140</y>
         <width>131</width>
         <height>41</height>
        </rect>
@@ -3525,9 +3525,9 @@ QPushButton:hover
      <widget class="QLabel" name="Core_Made_Name">
       <property name="geometry">
        <rect>
-        <x>160</x>
-        <y>160</y>
-        <width>461</width>
+        <x>190</x>
+        <y>140</y>
+        <width>451</width>
         <height>41</height>
        </rect>
       </property>
@@ -3552,8 +3552,8 @@ QPushButton:hover
      <widget class="QLabel" name="Testers_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>210</y>
+        <x>30</x>
+        <y>180</y>
         <width>131</width>
         <height>41</height>
        </rect>
@@ -3579,9 +3579,9 @@ QPushButton:hover
      <widget class="QLabel" name="Testers_Name">
       <property name="geometry">
        <rect>
-        <x>160</x>
-        <y>210</y>
-        <width>461</width>
+        <x>190</x>
+        <y>180</y>
+        <width>451</width>
         <height>41</height>
        </rect>
       </property>
@@ -3606,9 +3606,9 @@ QPushButton:hover
      <widget class="QLabel" name="PYAS_URL_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>260</y>
-        <width>181</width>
+        <x>30</x>
+        <y>220</y>
+        <width>131</width>
         <height>41</height>
        </rect>
       </property>
@@ -3633,9 +3633,9 @@ QPushButton:hover
      <widget class="QLabel" name="PYAS_URL">
       <property name="geometry">
        <rect>
-        <x>160</x>
-        <y>260</y>
-        <width>461</width>
+        <x>190</x>
+        <y>220</y>
+        <width>451</width>
         <height>41</height>
        </rect>
       </property>
@@ -3663,9 +3663,9 @@ QPushButton:hover
      <widget class="QLabel" name="PYAS_CopyRight">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>440</y>
-        <width>621</width>
+        <x>30</x>
+        <y>430</y>
+        <width>611</width>
         <height>41</height>
        </rect>
       </property>
@@ -3690,9 +3690,9 @@ QPushButton:hover
      <widget class="QLabel" name="PYAE_Version">
       <property name="geometry">
        <rect>
-        <x>160</x>
-        <y>60</y>
-        <width>461</width>
+        <x>190</x>
+        <y>50</y>
+        <width>451</width>
         <height>41</height>
        </rect>
       </property>
@@ -3718,10 +3718,10 @@ QPushButton:hover
      <widget class="QTextEdit" name="License_terms">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>350</y>
-        <width>621</width>
-        <height>91</height>
+        <x>30</x>
+        <y>300</y>
+        <width>611</width>
+        <height>131</height>
        </rect>
       </property>
       <property name="styleSheet">
@@ -3734,10 +3734,10 @@ QPushButton:hover
      <widget class="QLabel" name="License_terms_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>310</y>
-        <width>211</width>
-        <height>31</height>
+        <x>30</x>
+        <y>260</y>
+        <width>611</width>
+        <height>41</height>
        </rect>
       </property>
       <property name="font">
@@ -3783,7 +3783,7 @@ QPushButton:hover
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -3944,9 +3944,9 @@ QPushButton:hover
      <widget class="QLineEdit" name="Value_Path_input">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>190</x>
         <y>80</y>
-        <width>431</width>
+        <width>441</width>
         <height>31</height>
        </rect>
       </property>
@@ -3961,9 +3961,9 @@ QPushButton:hover
      <widget class="QLineEdit" name="Value_Type_input">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>190</x>
         <y>160</y>
-        <width>431</width>
+        <width>441</width>
         <height>31</height>
        </rect>
       </property>
@@ -3978,9 +3978,9 @@ QPushButton:hover
      <widget class="QLineEdit" name="Value_Name_input">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>190</x>
         <y>120</y>
-        <width>431</width>
+        <width>441</width>
         <height>31</height>
        </rect>
       </property>
@@ -3995,9 +3995,9 @@ QPushButton:hover
      <widget class="QLineEdit" name="Value_Data_input">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>190</x>
         <y>200</y>
-        <width>431</width>
+        <width>441</width>
         <height>31</height>
        </rect>
       </property>
@@ -4093,9 +4093,9 @@ QPushButton:pressed
      <widget class="QLineEdit" name="Value_HEKY_input">
       <property name="geometry">
        <rect>
-        <x>210</x>
+        <x>190</x>
         <y>240</y>
-        <width>431</width>
+        <width>441</width>
         <height>31</height>
        </rect>
       </property>
@@ -4359,7 +4359,7 @@ QToolButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -4412,10 +4412,10 @@ QPushButton:hover
      <widget class="QListView" name="Process_list">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>60</y>
-        <width>631</width>
-        <height>371</height>
+        <width>611</width>
+        <height>361</height>
        </rect>
       </property>
       <property name="font">
@@ -4481,8 +4481,8 @@ outline: none;
      <widget class="QLabel" name="Process_Total_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
-        <y>435</y>
+        <x>30</x>
+        <y>425</y>
         <width>141</width>
         <height>41</height>
        </rect>
@@ -4508,9 +4508,9 @@ outline: none;
      <widget class="QLineEdit" name="Process_Total_View">
       <property name="geometry">
        <rect>
-        <x>170</x>
-        <y>440</y>
-        <width>481</width>
+        <x>180</x>
+        <y>430</y>
+        <width>461</width>
         <height>31</height>
        </rect>
       </property>
@@ -4551,7 +4551,7 @@ outline: none;
         <x>20</x>
         <y>60</y>
         <width>631</width>
-        <height>421</height>
+        <height>401</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="System_verticalLayout">
@@ -4913,7 +4913,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -4988,7 +4988,7 @@ QPushButton:hover
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -5041,10 +5041,10 @@ QPushButton:hover
      <widget class="QTextEdit" name="Analyze_EXE_Output">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>60</y>
-        <width>631</width>
-        <height>411</height>
+        <width>611</width>
+        <height>391</height>
        </rect>
       </property>
       <property name="font">
@@ -5083,7 +5083,7 @@ QPushButton:hover
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>
@@ -5136,9 +5136,9 @@ QPushButton:hover
      <widget class="QLineEdit" name="Customize_CMD_Command_lineEdit">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>70</y>
-        <width>521</width>
+        <width>511</width>
         <height>31</height>
        </rect>
       </property>
@@ -5158,7 +5158,7 @@ QPushButton:hover
        <rect>
         <x>550</x>
         <y>70</y>
-        <width>101</width>
+        <width>91</width>
         <height>31</height>
        </rect>
       </property>
@@ -5210,10 +5210,10 @@ QPushButton:pressed
      <widget class="QTextEdit" name="Customize_CMD_Command_output">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>140</y>
-        <width>631</width>
-        <height>321</height>
+        <width>611</width>
+        <height>311</height>
        </rect>
       </property>
       <property name="font">
@@ -5230,9 +5230,9 @@ QPushButton:pressed
      <widget class="QLabel" name="Customize_CMD_Command_output_title">
       <property name="geometry">
        <rect>
-        <x>20</x>
+        <x>30</x>
         <y>105</y>
-        <width>631</width>
+        <width>611</width>
         <height>31</height>
        </rect>
       </property>
@@ -5280,7 +5280,7 @@ QPushButton:pressed
         <x>20</x>
         <y>60</y>
         <width>631</width>
-        <height>421</height>
+        <height>401</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="Tools_verticalLayout">
@@ -5498,7 +5498,7 @@ QPushButton:pressed
        <rect>
         <x>10</x>
         <y>10</y>
-        <width>111</width>
+        <width>101</width>
         <height>41</height>
        </rect>
       </property>

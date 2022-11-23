@@ -65,6 +65,7 @@ english_list = {
 '尋找結果:':'Find result:',
 '正在尋找: ':'Searching: ',
 '找到檔案:':'File found:',
+'未找到檔案':'File Not Found',
 '創建日期:':'Created Date:',
 "您確定要修改用戶密碼嗎?":"Are you sure you want to change the user password?",
 "IP查詢":"IP query",

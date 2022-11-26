@@ -5,7 +5,7 @@
 # PYAS Web: https://pyantivirus.wixsite.com/pyas
 #
 # PYAS is managed by PYDT (Python Development Team)
-# Copyright© 2020-2022 PYAS Python Antivirus Software.
+# Copyright© 2022 87owo PYAS Python Antivirus Software.
 ####################################################################################
 #
 ##################################### 載入必要模組 ###################################
@@ -337,7 +337,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
 
 ###################################### 許可條款 #####################################
     
-        self.ui.License_terms.setText('''Copyright (C) 2022 87owo
+        self.ui.License_terms.setText('''Copyright (C) 2022 87owo PYAS
 =====================================================
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
@@ -505,7 +505,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" PYAS Security"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" PYAS Security (87owo)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -648,7 +648,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" PYAS Security"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" PYAS Security (87owo)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -791,7 +791,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" PYAS Security"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" PYAS Security (87owo)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -2440,4 +2440,4 @@ if __name__ == '__main__':
         pyas_bug_log(e)
 
 ####################################################################################
-#Copyright© 2020-2022 PYAS Python Antivirus Software.
+#Copyright© 2022 87owo PYAS Python Antivirus Software.

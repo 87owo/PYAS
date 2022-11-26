@@ -337,24 +337,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
 
 ###################################### 許可條款 #####################################
     
-        self.ui.License_terms.setText('''PYAS Python Antivirus Software Security License Terms V2.0
+        self.ui.License_terms.setText('''Copyright (C) 2022 87owo
 =====================================================
-#Use of PYAS antivirus software and services means that you accept these terms, if you do not accept, please do not use PYAS services.
-=====================================================
-1. Copyright notice
-You can use this software for free, or use the open source code of this software for research, but imitation and sales of this software are strictly prohibited.
-=====================================================
-2. Legal Requirements
-Please abide by the current regional laws and regulations, it is strictly prohibited to use PYAS to do illegal things.
-=====================================================
-3. User privacy protection
-PYAS does not collect any personal privacy data, except for the email address required to fill in the feedback.
-=====================================================
-4. Permission is required to use PYAS
-System Administrator, File management, And command execution rights.
-=====================================================
-5. Get genuine PYAS
-If you do not download from the official website, we cannot guarantee the security of your data, and we are not responsible for any loss caused.''')
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
         self.effect_shadow = QtWidgets.QGraphicsDropShadowEffect(self)
         self.effect_shadow.setOffset(0,0) # 偏移
         self.effect_shadow.setBlurRadius(10) # 阴影半径

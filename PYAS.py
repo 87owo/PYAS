@@ -1222,7 +1222,7 @@ If you do not download from the official website, we cannot guarantee the securi
                                             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                                 for function in entry.imports:
                                                     if fts != True:
-                                                        if str(function.name) in rfn:
+                                                        if str(function.name.decode('utf-8')) in rfn:
                                                             fts = True
                                             if fts:
                                                 self.pyas_scan_write_en(fullpath)
@@ -1282,7 +1282,7 @@ If you do not download from the official website, we cannot guarantee the securi
                             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                 for function in entry.imports:
                                     if fts != True:
-                                        if str(function.name) in rfn:
+                                        if str(function.name.decode('utf-8')) in rfn:
                                             fts = True
                             if fts:
                                 self.pyas_scan_write_en(file)
@@ -1739,8 +1739,8 @@ If you do not download from the official website, we cannot guarantee the securi
             if CMD_Command.split()[0].lower() == "/add" or CMD_Command.split()[0].lower() == "/a":
                 self.ui.Customize_CMD_Command_output.setText("Tips: Custom rules need to wait for the rule conditions to be met before proceeding to the next step.")
                 QApplication.processEvents()
-                if CMD_Command.split()[1].lower() == "-library" or CMD_Command.split()[1].lower() == "-l":
-                    if CMD_Command.split()[2].lower() == "-md5" or CMD_Command.split()[2].lower() == "-m":
+                if CMD_Command.split()[1].lower() == "--library" or CMD_Command.split()[1].lower() == "-l":
+                    if CMD_Command.split()[2].lower() == "--md5" or CMD_Command.split()[2].lower() == "-m":
                         try:
                             value = str(CMD_Command.split()[3])
                             with open('Library/PYAE/Hashes/Viruslist.md5','a') as vm:
@@ -1749,7 +1749,7 @@ If you do not download from the official website, we cannot guarantee the securi
                         except:
                             self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
                         return
-                    if CMD_Command.split()[2].lower() == "-func" or CMD_Command.split()[2].lower() == "-f":
+                    if CMD_Command.split()[2].lower() == "--func" or CMD_Command.split()[2].lower() == "-f":
                         try:
                             value = CMD_Command.split()[3]
                             with open('Library/PYAE/Function/Viruslist.func','a') as vm:
@@ -1758,19 +1758,19 @@ If you do not download from the official website, we cannot guarantee the securi
                         except:
                             self.ui.Customize_CMD_Command_output.setText("Error: Add Function database failed")
                         return
-                if CMD_Command.split()[1].lower() == "-rules" or CMD_Command.split()[1].lower() == "-r":
-                    if CMD_Command.split()[2].lower() == "-reg" or CMD_Command.split()[2].lower() == "-r":
+                if CMD_Command.split()[1].lower() == "--rules" or CMD_Command.split()[1].lower() == "-r":
+                    if CMD_Command.split()[2].lower() == "--reg" or CMD_Command.split()[2].lower() == "-r":
                         value = CMD_Command.split()[3]
-                    if CMD_Command.split()[2].lower() == "-perf" or CMD_Command.split()[2].lower() == "-p":
+                    if CMD_Command.split()[2].lower() == "--perf" or CMD_Command.split()[2].lower() == "-p":
                         value = CMD_Command.split()[3]
                         while 1:
                             QApplication.processEvents()
                             x = int(psutil.cpu_percent(interval=0.1))
                             if x > int(value):
                                 print(str(x))
-                    if CMD_Command.split()[2].lower() == "-file" or CMD_Command.split()[2].lower() == "-f":
+                    if CMD_Command.split()[2].lower() == "--file" or CMD_Command.split()[2].lower() == "-f":
                         value = CMD_Command.split()[3]
-                    if CMD_Command.split()[2].lower() == "-task" or CMD_Command.split()[2].lower() == "-t":
+                    if CMD_Command.split()[2].lower() == "--task" or CMD_Command.split()[2].lower() == "-t":
                         value = CMD_Command.split()[3]
                         while 1:
                             QApplication.processEvents()

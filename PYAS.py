@@ -5,9 +5,20 @@
 # PYAS Web: https://pyantivirus.wixsite.com/pyas
 #
 # PYAS is managed by PYDT (Python Development Team)
-# Copyright© 2022 87owo PYAS Python Antivirus Software.
+# Copyright© 2022 87owo (PYAS Security)
 ####################################################################################
 #
+###################################### 錯誤日誌 #####################################
+
+def pyas_bug_log(e):
+    try:
+        print('[Error] '+str(e))
+        ft = open('Library/PYAS/Temp/PYASB.log','a',encoding='utf-8')
+        fe = ft.write(str(e)+'\n')
+        ft.close()
+    except:
+        pass
+
 ##################################### 載入必要模組 ###################################
 
 try:
@@ -25,30 +36,8 @@ try:
     #from watchdog.events import FileSystemEventHandler #Beta Not Cplt
     #from watchdog.observers import Observer
 except Exception as e:
-    print('[Error] '+str(e))
+    pyas_bug_log(e)
 print('[LOAD] Mods: '+str(time.time()-start_m)+' sec')
-
-###################################### 錯誤日誌 #####################################
-
-def pyas_bug_log(e):
-    try:
-        print('[Error] '+str(e))
-        ft = open('Library/PYAS/Temp/PYASB.log','a',encoding='utf-8')
-        fe = ft.write(str(e)+'\n')
-        ft.close()
-    except:
-        pass
-
-##################################### 測試版項目 ####################################
-
-def pyas_vl_md5r():#不穩定
-    try:
-        with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-            global rfp
-            rfp = fp.read()
-        fp.close()
-    except Exception as e:
-        pyas_bug_log(e)
 
 ###################################### 密鑰認證 #####################################
 
@@ -337,7 +326,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
 
 ###################################### 許可條款 #####################################
     
-        self.ui.License_terms.setText('''Copyright (C) 2022 87owo PYAS
+        self.ui.License_terms.setText('''Copyright (C) 2022 87owo (PYAS Security)
 =====================================================
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
@@ -505,7 +494,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" PYAS Security (87owo)"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" 87owo (PYAS Security)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -648,7 +637,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" PYAS Security (87owo)"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" 87owo (PYAS Security)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -791,7 +780,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" PYAS Security (87owo)"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" 87owo (PYAS Security)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -1114,9 +1103,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def pyas_scan_start(self,file,rfp):
         try:
             with open(file,"rb") as f:
+                QApplication.processEvents()
                 bytes = f.read()
             f.close()
-            QApplication.processEvents()
             readable_hash = str(md5(bytes).hexdigest())
             if readable_hash[:10] in str(rfp):
                 return True
@@ -1191,7 +1180,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         break
                     else:
                         fullpath = os.path.join(path,fd)
-                        if 'C:/Windows' in str(fullpath) or 'C:/Program' in str(fullpath) or 'AppData' in str(fullpath):
+                        if 'C:/Windows' in str(fullpath) or 'C:/Program' in str(fullpath) or 'AppData' in str(fullpath) or 'PerfLogs' in str(fullpath):
                             pass
                         else:
                             if os.path.isdir(fullpath):
@@ -1208,6 +1197,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                             pe = PE(fullpath)
                                             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                                 for function in entry.imports:
+                                                    QApplication.processEvents()
                                                     if fts != True:
                                                         if str(function.name.decode('utf-8')) in rfn:
                                                             fts = True
@@ -1249,11 +1239,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 QApplication.processEvents()
                 try:
                     print('[INFO] Reading Viruslist Database')
-                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:                        
+                        QApplication.processEvents()
                         rfp = fp.read()
                     fp.close()
                     if self.show_virus_scan_progress_bar != 0 and os.path.isfile(filepath) == True:
                         with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                            QApplication.processEvents()
                             rfn = fn.read()
                         fn.close()
                 except Exception as e:
@@ -1317,9 +1309,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 try:
                     print('[INFO] Reading Viruslist Database')
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                        QApplication.processEvents()
                         rfp = fp.read()
                     fp.close()
                     with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                        QApplication.processEvents()
                         rfn = fn.read()
                     fn.close()
                 except Exception as e:
@@ -1357,6 +1351,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             try:
                 print('[INFO] Reading Viruslist Database')
                 with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
+                    QApplication.processEvents()
                     rfp = self.fp.read()
                 self.fp.close()
             except Exception as e:
@@ -1400,7 +1395,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     if os.path.isdir(fullpath):
                         self.pyas_scan_disk_en(fullpath,rfp)
                     else:
-                        if 'C:/Windows' in str(fullpath) or 'C:/Program' in str(fullpath) or 'AppData' in str(fullpath):
+                        if 'C:/Windows' in str(fullpath) or 'C:/Program' in str(fullpath) or 'AppData' in str(fullpath) or 'PerfLogs' in str(fullpath):
                             pass
                         else:
                             if self.Virus_Scan == 0:
@@ -1925,7 +1920,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 try:
                     QApplication.processEvents()
                     fullpath = os.path.join(path,fd)
-                    if 'C:/Windows' in fullpath or 'AppData' in fullpath:
+                    if 'C:/Windows' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                         pass
                     else:
                         if os.path.isdir(fullpath):
@@ -2143,7 +2138,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         try:
                             if '' == str(p.exe()):
                                 pass
-                            elif 'C:\Windows' in str(p.exe()) or 'C:\Program' in str(p.exe()):
+                            elif 'C:\Windows' in str(p.exe()) or 'C:\Program' in str(p.exe()) or 'AppData' in str(p.exe()) or 'PerfLogs' in str(p.exe()):
                                 pass
                             elif 'MemCompression' in str(p.exe()) or 'Registry' in str(p.exe()) or 'PYAS' in str(p.exe()):
                                 pass
@@ -2206,8 +2201,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
             except Exception as e:
                 pyas_bug_log(e)
-                self.ini_config = configparser.RawConfigParser()
-                self.ini_config.read(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini")
             try:
                 if self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已關閉"):
                     self.ini_config.set("Setting", "high_sensitivity", 1)
@@ -2215,7 +2208,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
                     except Exception as e:
                         pyas_bug_log(e)
-                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton{
@@ -2231,7 +2223,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
                     except Exception as e:
                         pyas_bug_log(e)
-                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton{
@@ -2247,7 +2238,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
                     except Exception as e:
                         pyas_bug_log(e)
-                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已关闭"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton{
@@ -2263,7 +2253,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
                     except Exception as e:
                         pyas_bug_log(e)
-                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton{
@@ -2279,7 +2268,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
                     except Exception as e:
                         pyas_bug_log(e)
-                        self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                     QPushButton{
@@ -2329,7 +2317,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
             except Exception as e:
                 pyas_bug_log(e)
-                self.ini_config.write(open(r"C:/Program Files (x86)/PYAS/Library/PYAS/Setup/PYAS.ini", 'w'))
         except Exception as e:
             pyas_bug_log(e)
             pass
@@ -2391,6 +2378,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         try:
             if Qt.LeftButton and self.m_flag:
                 self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
+                QApplication.processEvents()
                 QMouseEvent.accept()
         except:
             pass
@@ -2424,8 +2412,8 @@ if __name__ == '__main__':
         pyasb_remove()
         pyasp_remove()
         pyas_library()
-        pyas_version = "2.4.8"
-        pyae_version = "2.1.9"
+        pyas_version = "2.4.9"
+        pyae_version = "2.2.0"
         threading.Thread(target = pyas_vl_update).start()
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
@@ -2440,4 +2428,4 @@ if __name__ == '__main__':
         pyas_bug_log(e)
 
 ####################################################################################
-#Copyright© 2022 87owo PYAS Python Antivirus Software.
+#Copyright© 2022 87owo (PYAS Security)

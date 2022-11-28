@@ -14,7 +14,7 @@ def pyas_bug_log(e):
     try:
         print('[Error] '+str(e))
         ft = open('Library/PYAS/Temp/PYASB.log','a',encoding='utf-8')
-        fe = ft.write(str(e)+'\n')
+        ft.write(str(e)+'\n')
         ft.close()
     except:
         pass
@@ -1103,31 +1103,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def pyas_scan_start(self,file,rfp):
         try:
             with open(file,"rb") as f:
-                QApplication.processEvents()
-                bytes = f.read()
-            f.close()
-            readable_hash = str(md5(bytes).hexdigest())
-            if readable_hash[:10] in str(rfp):
-                return True
-            else:
-                return False
-        except Exception as e:
-            pyas_bug_log(e)
+                if str(md5(f.read()).hexdigest())[:10] in str(rfp):
+                    f.close()
+                    return True
+                else:
+                    return False
+        except:
             return False
         
     #定義紀錄掃描
     def pyas_scan_write_en(self,file):
         try:
-            if 'C:/Windows' in str(file):
-                pass
-            else:
-                try:
-                    ft = open('Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
-                    self.Virus_List.append(file)
-                    fe = ft.write(file+'\n')
-                    ft.close()
-                except:
-                    pass
+            ft = open('Library/PYAS/Temp/PYASV.tmp','a',encoding='utf-8')
+            ft.write(file+'\n')
+            ft.close()
+            self.Virus_List.append(file)
+            self.Virus_List_output.setStringList(self.Virus_List)
+            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         except Exception as e:
             pyas_bug_log(e)
             pass
@@ -1180,15 +1172,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         break
                     else:
                         fullpath = os.path.join(path,fd)
-                        if 'C:/Windows' in str(fullpath) or 'C:/Program' in str(fullpath) or 'AppData' in str(fullpath) or 'PerfLogs' in str(fullpath):
+                        if 'C:/Windows' in str(fullpath) or 'AppData' in str(fullpath) or 'PerfLogs' in str(fullpath):
                             pass
                         else:
                             if os.path.isdir(fullpath):
                                 self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
                             else:
-                                scan_text = self.text_Translate('正在掃描: ')
                                 try:
-                                    self.ui.Virus_Scan_text.setText(scan_text + fullpath)
+                                    self.ui.Virus_Scan_text.setText(self.text_Translate('正在掃描: ') + fullpath)
                                     QApplication.processEvents()
                                     if self.pyas_scan_start(fullpath,rfp):
                                         self.pyas_scan_write_en(fullpath)
@@ -1205,10 +1196,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                                 self.pyas_scan_write_en(fullpath)
                                                 fts = False
                                 except:
-                                    self.ui.Virus_Scan_text.setText(scan_text + fullpath)
-                                    QApplication.processEvents()
-                                    if self.pyas_scan_start(fullpath,rfp):
-                                        self.pyas_scan_write_en(fullpath)
+                                    pass
                 except:
                     continue
         except Exception as e:
@@ -2093,7 +2081,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         print('[INFO] Start Action (Real-time Protect)')
         try:
             ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
-            fe = ft.write('')
+            ft.write('')
             ft.close()
         except Exception as e:
             pyas_bug_log(e)

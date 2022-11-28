@@ -25,6 +25,7 @@ english_list = {
 "✖當前已發現惡意軟體共{}項。":"✖A total of {} items of malware have been found so far.",
 '✔當前未發現惡意軟體。':'✔ No malware currently found.',
 '正在掃描: ':'Scanning: ',
+'正在扫描: ':'Scanning: ',
 "病毒掃描":"Virus scan",
 "正在初始化中，請稍後...":"Initializing, please wait...",
 "✖當前已發現惡意軟體。":"✖Malware has currently been detected.",

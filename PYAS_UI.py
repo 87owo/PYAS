@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\Windows\Documents\程式語言\Python\PYDT開發團隊\PYAS防毒軟體\PYAS_程式碼\MainUI.ui'
+# Form implementation generated from reading ui file 'C:\Users\Windows\Documents\Project\Python\PYDT開發團隊\PYAS防毒軟體\PYAS_程式碼\MainUI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -22,7 +22,7 @@ class Ui_MainWindow(object):
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.TabFocus)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("C:\\Users\\Windows\\Documents\\程式語言\\Python\\PYDT開發團隊\\PYAS防毒軟體\\PYAS_程式碼\\Library/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("Library/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setIconSize(QtCore.QSize(24, 24))
         MainWindow.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
@@ -883,7 +883,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_widget.setStyleSheet("background-color:rgba(255, 255, 255,240);")
         self.Virus_Scan_widget.setObjectName("Virus_Scan_widget")
         self.Virus_Scan_title = QtWidgets.QLabel(self.Virus_Scan_widget)
-        self.Virus_Scan_title.setGeometry(QtCore.QRect(45, 40, 201, 41))
+        self.Virus_Scan_title.setGeometry(QtCore.QRect(45, 40, 281, 41))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(18)
@@ -1068,7 +1068,7 @@ class Ui_MainWindow(object):
         self.Disk_Scan_Button.setObjectName("Disk_Scan_Button")
         self.Virus_Scan_choose_verticalLayout.addWidget(self.Disk_Scan_Button)
         self.Virus_Scan_Solve_Button = QtWidgets.QPushButton(self.Virus_Scan_widget)
-        self.Virus_Scan_Solve_Button.setGeometry(QtCore.QRect(320, 45, 151, 31))
+        self.Virus_Scan_Solve_Button.setGeometry(QtCore.QRect(330, 45, 141, 31))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -1138,7 +1138,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Break_Button.setFlat(False)
         self.Virus_Scan_Break_Button.setObjectName("Virus_Scan_Break_Button")
         self.Virus_Scan_ProgressBar = QtWidgets.QProgressBar(self.Virus_Scan_widget)
-        self.Virus_Scan_ProgressBar.setGeometry(QtCore.QRect(45, 158, 591, 20))
+        self.Virus_Scan_ProgressBar.setGeometry(QtCore.QRect(45, 137, 581, 21))
         self.Virus_Scan_ProgressBar.setProperty("value", 0)
         self.Virus_Scan_ProgressBar.setTextVisible(False)
         self.Virus_Scan_ProgressBar.setObjectName("Virus_Scan_ProgressBar")

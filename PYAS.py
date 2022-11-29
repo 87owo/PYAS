@@ -1167,34 +1167,38 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         try:
             for fd in os.listdir(path):
                 try:
-                    if self.Virus_Scan == 0:
-                        self.ui.Virus_Scan_Break_Button.hide()
-                        break
-                    else:
-                        fullpath = os.path.join(path,fd)
-                        if 'C:/Windows' in str(fullpath) or 'AppData' in str(fullpath) or 'PerfLogs' in str(fullpath):
-                            pass
+                    fullpath = os.path.join(path,fd)
+                    if 'C:/Users' in fullpath or 'C:/Program' in fullpath:
+                        if os.path.isdir(fullpath):
+                            QApplication.processEvents()
+                            self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
                         else:
-                            if os.path.isdir(fullpath):
-                                self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
+                            if self.Virus_Scan == 0:
+                                self.ui.Virus_Scan_Break_Button.hide()
+                                break
                             else:
                                 try:
-                                    self.ui.Virus_Scan_text.setText(self.text_Translate('正在掃描: ') + fullpath)
+                                    self.ui.Virus_Scan_text.setText("正在掃描: "+fullpath)
                                     QApplication.processEvents()
-                                    if self.pyas_scan_start(fullpath,rfp):
-                                        self.pyas_scan_write_en(fullpath)
-                                    else:
-                                        if self.show_virus_scan_progress_bar != 0:
-                                            pe = PE(fullpath)
-                                            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                                for function in entry.imports:
-                                                    QApplication.processEvents()
-                                                    if fts != True:
-                                                        if str(function.name.decode('utf-8')) in rfn:
-                                                            fts = True
-                                            if fts:
-                                                self.pyas_scan_write_en(fullpath)
-                                                fts = False
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    sflist = ['.exe','.dll','.msi','.doc','.docx','.xls','.vbs','.js','.cmd','.bat','.com','.reg','.scr']
+                                    if sfd in sflist:
+                                        if self.pyas_scan_start(fullpath,rfp):
+                                            self.pyas_scan_write_en(fullpath)
+                                        else:
+                                            sflistf = ['.exe','.dll']
+                                            if self.show_virus_scan_progress_bar != 0 and sfd in sflistf:
+                                                pe = PE(fullpath)
+                                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                                    for function in entry.imports:
+                                                        QApplication.processEvents()
+                                                        if fts != True:
+                                                            if str(function.name.decode('utf-8')) in rfn:
+                                                                fts = True
+                                                if fts:
+                                                    self.pyas_scan_write_en(fullpath)
+                                                    fts = False
                                 except:
                                     pass
                 except:
@@ -1379,68 +1383,43 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         try:
             for fd in os.listdir(path):
                 try:
-                    fullpath = os.path.join(path,fd)
-                    if os.path.isdir(fullpath):
-                        self.pyas_scan_disk_en(fullpath,rfp)
-                    else:
-                        if 'C:/Windows' in str(fullpath) or 'C:/Program' in str(fullpath) or 'AppData' in str(fullpath) or 'PerfLogs' in str(fullpath):
-                            pass
-                        else:
-                            if self.Virus_Scan == 0:
-                                self.ui.Virus_Scan_Break_Button.hide()
-                                break
-                            elif '.exe' in str(fd) or '.EXE' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                    fullpath = str(os.path.join(path,fd))
+                    if self.show_virus_scan_progress_bar == 0:
+                        sflist = ['.exe','.dll','.msi','.doc','.docx','.cmd','.bat','.com']
+                        if 'C:/Users' in fullpath:
+                            if os.path.isdir(fullpath):
                                 QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.cmd' in str(fd) or '.CMD' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.bat' in str(fd) or '.BAT' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.com' in str(fd) or '.COM' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.vbs' in str(fd) or '.VBS' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.js' in str(fd) or '.JS' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.xls' in str(fd) or '.XLS' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.doc' in str(fd) or '.DOC' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.dll' in str(fd) or '.DLL' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
-                            elif '.scr' in str(fd) or '.SCR' in str(fd):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
+                                self.pyas_scan_disk_en(fullpath,rfp)
                             else:
-                                pass
+                                if self.Virus_Scan == 0:
+                                    self.ui.Virus_Scan_Break_Button.hide()
+                                    break
+                                else:
+                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                    QApplication.processEvents()
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    if sfd in sflist:
+                                        if self.pyas_scan_start(fullpath,rfp):
+                                            self.pyas_scan_write_en(fullpath)
+                    else:
+                        sflist = ['.exe','.dll','.msi','.doc','.docx','.xls','.vbs','.js','.cmd','.bat','.com','.reg','.scr']
+                        if 'C:/Users' in fullpath or 'C:/Program' in fullpath:
+                            if os.path.isdir(fullpath):
+                                QApplication.processEvents()
+                                self.pyas_scan_disk_en(fullpath,rfp)
+                            else:
+                                if self.Virus_Scan == 0:
+                                    self.ui.Virus_Scan_Break_Button.hide()
+                                    break
+                                else:
+                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                    QApplication.processEvents()
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    if sfd in sflist:
+                                        if self.pyas_scan_start(fullpath,rfp):
+                                            self.pyas_scan_write_en(fullpath)
                 except:
                     continue
         except:
@@ -2114,45 +2093,41 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 border-radius: 15px;}
             QPushButton:hover{
                 background-color:rgba(20,200,20,120);}""")
-        while 1:
-            if not self.pause:
-                if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-                    self.pause = True
-                    break
-                else:
-                    self.Virus_Scan = 1
-                    #print('[INFO] Real-time Protect Process Refresh')
-                    for p in psutil.process_iter():
-                        try:
-                            if '' == str(p.exe()):
-                                pass
-                            elif 'C:\Windows' in str(p.exe()) or 'C:\Program' in str(p.exe()) or 'AppData' in str(p.exe()) or 'PerfLogs' in str(p.exe()):
-                                pass
-                            elif 'MemCompression' in str(p.exe()) or 'Registry' in str(p.exe()) or 'PYAS' in str(p.exe()):
-                                pass
-                            else:
-                                if self.pyas_scan_start(p.exe(),rfp):
-                                    try:
-                                        if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
-                                            print('[INFO] Malware blocking success: '+str(p.name()))
-                                            self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
-                                        else:
-                                            print('[INFO] Malware blocking failed: '+str(p.name()))
-                                            self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
-                                        #try:
-                                            #observer = Observer()
-                                            #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
-                                            #observer.start()
-                                        #except Exception as e:
-                                            #pass
-                                        os.remove(str(p.exe()))
-                                    except Exception as e:
-                                        pyas_bug_log(e)
-                                        pass
-                        except:
-                            continue
-            else:
+        while not self.pause:
+            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+                self.pause = True
                 break
+            else:
+                self.Virus_Scan = 1
+                #print('[INFO] Real-time Protect Process Refresh')
+                for p in psutil.process_iter():
+                    try:
+                        file = str(p.exe())
+                        if '' == file or 'C:\Windows' in file or 'AppData' in file or 'C:\Program' in file or 'MemCompression' in file or 'Registry' in file:
+                            QApplication.processEvents()
+                            pass
+                        else:
+                            if self.pyas_scan_start(file,rfp):
+                                QApplication.processEvents()
+                                try:
+                                    if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
+                                        print('[INFO] Malware blocking success: '+str(p.name()))
+                                        self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
+                                    else:
+                                        print('[INFO] Malware blocking failed: '+str(p.name()))
+                                        self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
+                                    #try:
+                                        #observer = Observer()
+                                        #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
+                                        #observer.start()
+                                    #except Exception as e:
+                                        #pass
+                                    os.remove(str(p.exe()))
+                                except Exception as e:
+                                    pyas_bug_log(e)
+                                    pass
+                    except:
+                        continue
 
 ##################################### 系統設置 #####################################
 

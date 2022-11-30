@@ -1163,50 +1163,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         except:
             pass
 
-    def pyas_scan_path_en(self,path,rfp,rfn,fts):
-        try:
-            for fd in os.listdir(path):
-                try:
-                    fullpath = os.path.join(path,fd)
-                    if 'C:/Users' in fullpath or 'C:/Program' in fullpath:
-                        if os.path.isdir(fullpath):
-                            QApplication.processEvents()
-                            self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
-                        else:
-                            if self.Virus_Scan == 0:
-                                self.ui.Virus_Scan_Break_Button.hide()
-                                break
-                            else:
-                                try:
-                                    self.ui.Virus_Scan_text.setText("正在掃描: "+fullpath)
-                                    QApplication.processEvents()
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
-                                    sflist = ['.exe','.dll','.msi','.doc','.docx','.xls','.vbs','.js','.cmd','.bat','.com','.reg','.scr']
-                                    if sfd in sflist:
-                                        if self.pyas_scan_start(fullpath,rfp):
-                                            self.pyas_scan_write_en(fullpath)
-                                        else:
-                                            sflistf = ['.exe','.dll']
-                                            if self.show_virus_scan_progress_bar != 0 and sfd in sflistf:
-                                                pe = PE(fullpath)
-                                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                                    for function in entry.imports:
-                                                        QApplication.processEvents()
-                                                        if fts != True:
-                                                            if str(function.name.decode('utf-8')) in rfn:
-                                                                fts = True
-                                                if fts:
-                                                    self.pyas_scan_write_en(fullpath)
-                                                    fts = False
-                                except:
-                                    pass
-                except:
-                    continue
-        except Exception as e:
-            pyas_bug_log(e)
-            pass
-
 ##################################### 檔案掃描 #####################################
     
     def File_Scan(self):
@@ -1235,7 +1191,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         QApplication.processEvents()
                         rfp = fp.read()
                     fp.close()
-                    if self.show_virus_scan_progress_bar != 0 and os.path.isfile(filepath) == True:
+                    if self.show_virus_scan_progress_bar != 0:
                         with open('Library/PYAE/Function/Viruslist.func','r') as fn:
                             QApplication.processEvents()
                             rfn = fn.read()
@@ -1260,9 +1216,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 fts = False
                                 print('[SCAN] Malware has been detected')
                                 self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
-                        except Exception as e:
-                            pyas_bug_log(e)
-                            self.ui.Virus_Scan_text.setText(self.text_Translate("✖掃描失敗。"))
+                        except:
+                            pass
                 self.pyas_scan_answer_en()
             except Exception as e:
                 pyas_bug_log(e)
@@ -1272,6 +1227,60 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ##################################### 路徑掃描 #####################################
     
+    def pyas_scan_path_en(self,path,rfp,rfn,fts):
+        try:
+            for fd in os.listdir(path):
+                try:
+                    fullpath = os.path.join(path,fd)
+                    if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
+                        pass
+                    else:
+                        if os.path.isdir(fullpath):
+                            QApplication.processEvents()
+                            self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
+                        else:
+                            if self.Virus_Scan == 0:
+                                self.ui.Virus_Scan_Break_Button.hide()
+                                break
+                            else:
+                                try:
+                                    self.ui.Virus_Scan_text.setText("正在掃描: "+fullpath)
+                                    QApplication.processEvents()
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    if 'C:/Program' in fullpath:
+                                        sflist = ['.exe','.dll','.com','.cmd','.bat']
+                                    else:
+                                        sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
+                                                  '.vbs','.js','.jar','.py','.cpp','.htm','.html',
+                                                  '.doc','.docx','.ppt','.pptx','.xls','.xlm','.pdf',
+                                                  '.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
+                                                  '.zip','.7z','.rar','.gz','.tar','.wim','.iso',
+                                                  '.inf','.ini','.tmp','.temp','.log','.scr']
+                                    if sfd in sflist:
+                                        if self.pyas_scan_start(fullpath,rfp):
+                                            self.pyas_scan_write_en(fullpath)
+                                        else:
+                                            sflistf = ['.exe','.dll']
+                                            if self.show_virus_scan_progress_bar != 0 and sfd in sflistf:
+                                                pe = PE(fullpath)
+                                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                                    for function in entry.imports:
+                                                        QApplication.processEvents()
+                                                        if fts != True:
+                                                            if str(function.name.decode('utf-8')) in rfn:
+                                                                fts = True
+                                                if fts:
+                                                    self.pyas_scan_write_en(fullpath)
+                                                    fts = False
+                                except:
+                                    pass
+                except:
+                    continue
+        except Exception as e:
+            pyas_bug_log(e)
+            pass
+
     def Path_Scan(self):
         print('[SCAN] Start Scan Action (Path Scan)')
         self.ui.Virus_Scan_choose_widget.hide()
@@ -1304,10 +1313,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         QApplication.processEvents()
                         rfp = fp.read()
                     fp.close()
-                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                        QApplication.processEvents()
-                        rfn = fn.read()
-                    fn.close()
+                    if self.show_virus_scan_progress_bar != 0:
+                        with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                            QApplication.processEvents()
+                            rfn = fn.read()
+                        fn.close()
                 except Exception as e:
                     pyas_bug_log(e)
                 self.pyas_scan_path_en(file,rfp,rfn,False)
@@ -1383,43 +1393,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         try:
             for fd in os.listdir(path):
                 try:
-                    fullpath = str(os.path.join(path,fd))
-                    if self.show_virus_scan_progress_bar == 0:
-                        sflist = ['.exe','.dll','.msi','.doc','.docx','.cmd','.bat','.com']
-                        if 'C:/Users' in fullpath:
-                            if os.path.isdir(fullpath):
-                                QApplication.processEvents()
-                                self.pyas_scan_disk_en(fullpath,rfp)
-                            else:
-                                if self.Virus_Scan == 0:
-                                    self.ui.Virus_Scan_Break_Button.hide()
-                                    break
-                                else:
-                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                    QApplication.processEvents()
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
-                                    if sfd in sflist:
-                                        if self.pyas_scan_start(fullpath,rfp):
-                                            self.pyas_scan_write_en(fullpath)
+                    if self.Virus_Scan == 0:
+                        self.ui.Virus_Scan_Break_Button.hide()
+                        break
                     else:
-                        sflist = ['.exe','.dll','.msi','.doc','.docx','.xls','.vbs','.js','.cmd','.bat','.com','.reg','.scr']
-                        if 'C:/Users' in fullpath or 'C:/Program' in fullpath:
+                        fullpath = str(os.path.join(path,fd))
+                        if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
+                            pass
+                        else:
                             if os.path.isdir(fullpath):
-                                QApplication.processEvents()
                                 self.pyas_scan_disk_en(fullpath,rfp)
                             else:
-                                if self.Virus_Scan == 0:
-                                    self.ui.Virus_Scan_Break_Button.hide()
-                                    break
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.show_virus_scan_progress_bar == 0:
+                                    if 'C:/Program' in fullpath:
+                                        sflist = ['.exe','.dll']
+                                    else:
+                                        sflist = ['.exe','.dll','.com','.cmd','.bat']
                                 else:
-                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                    QApplication.processEvents()
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
-                                    if sfd in sflist:
-                                        if self.pyas_scan_start(fullpath,rfp):
-                                            self.pyas_scan_write_en(fullpath)
+                                    sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
+                                              '.vbs','.js','.jar','.py','.cpp','.htm','.html',
+                                              '.doc','.docx','.ppt','.pptx','.xls','.xlm','.pdf',
+                                              '.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
+                                              '.zip','.7z','.rar','.gz','.tar','.wim','.iso',
+                                              '.inf','.ini','.tmp','.temp','.log','.scr']
+                                root, extension = os.path.splitext(fd)
+                                sfd = str(extension).lower()
+                                if sfd in sflist:
+                                    if self.pyas_scan_start(fullpath,rfp):
+                                        self.pyas_scan_write_en(fullpath)
                 except:
                     continue
         except:

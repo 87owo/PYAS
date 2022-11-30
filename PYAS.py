@@ -1196,6 +1196,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             QApplication.processEvents()
                             rfn = fn.read()
                         fn.close()
+                    else:
+                        rfn = ''
                 except Exception as e:
                     pyas_bug_log(e)
                 if self.pyas_scan_start(file,rfp):
@@ -1244,7 +1246,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 break
                             else:
                                 try:
-                                    self.ui.Virus_Scan_text.setText("正在掃描: "+fullpath)
                                     QApplication.processEvents()
                                     root, extension = os.path.splitext(fd)
                                     sfd = str(extension).lower()
@@ -1258,6 +1259,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                                   '.zip','.7z','.rar','.gz','.tar','.wim','.iso',
                                                   '.inf','.ini','.tmp','.temp','.log','.scr']
                                     if sfd in sflist:
+                                        self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
+                                        QApplication.processEvents()
                                         if self.pyas_scan_start(fullpath,rfp):
                                             self.pyas_scan_write_en(fullpath)
                                         else:
@@ -1318,6 +1321,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             QApplication.processEvents()
                             rfn = fn.read()
                         fn.close()
+                    else:
+                        rfn = ''
                 except Exception as e:
                     pyas_bug_log(e)
                 self.pyas_scan_path_en(file,rfp,rfn,False)
@@ -1404,11 +1409,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             if os.path.isdir(fullpath):
                                 self.pyas_scan_disk_en(fullpath,rfp)
                             else:
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                                 QApplication.processEvents()
                                 if self.show_virus_scan_progress_bar == 0:
                                     if 'C:/Program' in fullpath:
-                                        sflist = ['.exe','.dll']
+                                        sflist = ['.exe']
                                     else:
                                         sflist = ['.exe','.dll','.com','.cmd','.bat']
                                 else:
@@ -1421,6 +1425,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 root, extension = os.path.splitext(fd)
                                 sfd = str(extension).lower()
                                 if sfd in sflist:
+                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                    QApplication.processEvents()
                                     if self.pyas_scan_start(fullpath,rfp):
                                         self.pyas_scan_write_en(fullpath)
                 except:

@@ -11,6 +11,9 @@ https://github.com/87owo/PYAS
 https://virusshare.com/hashes , 
 https://github.com/87owo/ViruslistMD5/releases
 
+## MIT License
+https://github.com/87owo/PYAS/blob/main/LICENSE.md
+
 ## Support System
 Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 

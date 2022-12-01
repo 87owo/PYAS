@@ -1413,10 +1413,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
                                     pass
                                 else:
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
                                     if 'C:/Program' in fullpath:
-                                        sflist = ['.exe','.dll']
+                                        if 'Windows' in fullpath or 'Microsoft' in fullpath:
+                                            pass
+                                        else:
+                                            sflist = ['.exe','.dll']
                                     else:
                                         sflist = ['.exe','.dll','.com','.cmd','.bat','.vbs','.js','.scr']
                                         #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
@@ -1425,9 +1426,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                                   #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
                                                   #'.zip','.7z','.rar','.gz','.tar','.wim','.iso',
                                                   #'.inf','.ini','.tmp','.temp','.log','.scr']
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
                                     if self.pyas_sign_start(fullpath) and sfd in sflist:
-                                        root, extension = os.path.splitext(fd)
-                                        sfd = str(extension).lower()
                                         if self.pyas_scan_start(fullpath,rfp):
                                             self.pyas_scan_write_en(fullpath)
                             else:

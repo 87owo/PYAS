@@ -2365,7 +2365,7 @@ QPushButton:hover
         <x>95</x>
         <y>280</y>
         <width>481</width>
-        <height>41</height>
+        <height>31</height>
        </rect>
       </property>
       <property name="font">

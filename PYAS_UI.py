@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\Windows\Documents\Project\Python\PYDT開發團隊\PYAS防毒軟體\PYAS_程式碼\MainUI.ui'
+# Form implementation generated from reading ui file 'C:\Users\Windows\Documents\Project\Python\PYDT開發團隊\PYAS防毒軟體\PYAS_程式碼\PYAS_UI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -1190,7 +1190,7 @@ class Ui_MainWindow(object):
         self.State_output.setTextInteractionFlags(QtCore.Qt.TextSelectableByKeyboard|QtCore.Qt.TextSelectableByMouse)
         self.State_output.setObjectName("State_output")
         self.State_log = QtWidgets.QLabel(self.State_widget)
-        self.State_log.setGeometry(QtCore.QRect(95, 280, 481, 41))
+        self.State_log.setGeometry(QtCore.QRect(95, 280, 481, 31))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)

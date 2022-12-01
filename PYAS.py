@@ -1410,7 +1410,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                             QApplication.processEvents()
                             if self.show_virus_scan_progress_bar == 0:
-                                if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
+                                if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'AppData' in fullpath:
                                     pass
                                 else:
                                     if 'C:/Program' in fullpath:
@@ -1905,6 +1905,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     fullpath = os.path.join(path,fd)
                     if 'C:/Windows' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                         pass
+                    elif 'C:/Program' in fullpath:
+                        if 'Windows' in fullpath or 'Microsoft' in fullpath:
+                            pass
+
                     else:
                         if os.path.isdir(fullpath):
                             self.findfile_zh(fullpath,ffile,start)

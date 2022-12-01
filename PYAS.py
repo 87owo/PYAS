@@ -25,7 +25,7 @@ try:
     import time
     start_m = time.time()
     import os, sys, psutil, subprocess, cryptocode, threading, configparser, datetime
-    from pefile import PE
+    from pefile import PE, DIRECTORY_ENTRY
     from hashlib import md5, sha1, sha256
     from PYAS_English import english_list
     from PyQt5.QtWidgets import *
@@ -1111,6 +1111,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         except:
             return False
         
+    def pyas_sign_start(self,file):
+        try:
+            pe = PE(file,fast_load=True)
+            if pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0:
+                pe.close()
+                #print('UNsign: '+file)
+                return True
+            else:
+                pe.close()
+                #print('sign: '+file)
+                return False
+        except:
+            #print('ERsign: '+file)
+            return True
+        
     #定義紀錄掃描
     def pyas_scan_write_en(self,file):
         try:
@@ -1200,14 +1215,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         rfn = ''
                 except Exception as e:
                     pyas_bug_log(e)
-                if self.pyas_scan_start(file,rfp):
-                    self.pyas_scan_write_en(file)
-                    self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
+                if self.show_virus_scan_progress_bar == 0:
+                    if self.pyas_sign_start(file):
+                        if self.pyas_scan_start(file,rfp):
+                            self.pyas_scan_write_en(file)
+                            self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                 else:
-                    if self.show_virus_scan_progress_bar != 0:
-                        fts = False
-                        try:
-                            pe = PE(file)
+                    fts = False
+                    try:
+                        if self.pyas_sign_start(file):
                             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                 for function in entry.imports:
                                     if fts != True:
@@ -1218,8 +1234,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 fts = False
                                 print('[SCAN] Malware has been detected')
                                 self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
-                        except:
-                            pass
+                    except:
+                        pass
                 self.pyas_scan_answer_en()
             except Exception as e:
                 pyas_bug_log(e)
@@ -1233,51 +1249,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         try:
             for fd in os.listdir(path):
                 try:
-                    fullpath = os.path.join(path,fd)
-                    if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
-                        pass
+                    if self.Virus_Scan == 0:
+                        self.ui.Virus_Scan_Break_Button.hide()
+                        break
                     else:
+                        fullpath = os.path.join(path,fd)
                         if os.path.isdir(fullpath):
-                            QApplication.processEvents()
                             self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
                         else:
-                            if self.Virus_Scan == 0:
-                                self.ui.Virus_Scan_Break_Button.hide()
-                                break
-                            else:
-                                try:
-                                    QApplication.processEvents()
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
-                                    if 'C:/Program' in fullpath:
-                                        sflist = ['.exe','.dll','.com','.cmd','.bat']
-                                    else:
-                                        sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
-                                                  '.vbs','.js','.jar','.py','.cpp','.htm','.html',
-                                                  '.doc','.docx','.ppt','.pptx','.xls','.xlm','.pdf',
-                                                  '.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
-                                                  '.zip','.7z','.rar','.gz','.tar','.wim','.iso',
-                                                  '.inf','.ini','.tmp','.temp','.log','.scr']
-                                    if sfd in sflist:
-                                        self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
-                                        QApplication.processEvents()
+                            try:
+                                self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
+                                QApplication.processEvents()
+                                if self.show_virus_scan_progress_bar == 0:
+                                    if self.pyas_sign_start(fullpath):
                                         if self.pyas_scan_start(fullpath,rfp):
                                             self.pyas_scan_write_en(fullpath)
-                                        else:
-                                            sflistf = ['.exe','.dll']
-                                            if self.show_virus_scan_progress_bar != 0 and sfd in sflistf:
-                                                pe = PE(fullpath)
-                                                for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                                                    for function in entry.imports:
-                                                        QApplication.processEvents()
-                                                        if fts != True:
-                                                            if str(function.name.decode('utf-8')) in rfn:
-                                                                fts = True
-                                                if fts:
-                                                    self.pyas_scan_write_en(fullpath)
-                                                    fts = False
-                                except:
-                                    pass
+                                else:
+                                    if self.pyas_scan_start(fullpath,rfp):
+                                        self.pyas_scan_write_en(fullpath)
+                                    else:
+                                        pe = PE(fullpath,fast_load=True)
+                                        for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                                            for function in entry.imports:
+                                                    if fts != True:
+                                                        if str(function.name.decode('utf-8')) in rfn:
+                                                            fts = True
+                                        if fts:
+                                            self.pyas_scan_write_en(fullpath)
+                                            fts = False
+                            except:
+                                pass
                 except:
                     continue
         except Exception as e:
@@ -1403,32 +1404,37 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         break
                     else:
                         fullpath = str(os.path.join(path,fd))
-                        if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
-                            pass
+                        if os.path.isdir(fullpath):
+                            self.pyas_scan_disk_en(fullpath,rfp)
                         else:
-                            if os.path.isdir(fullpath):
-                                self.pyas_scan_disk_en(fullpath,rfp)
-                            else:
-                                QApplication.processEvents()
-                                if self.show_virus_scan_progress_bar == 0:
-                                    if 'C:/Program' in fullpath:
-                                        sflist = ['.exe']
-                                    else:
-                                        sflist = ['.exe','.dll','.com','.cmd','.bat']
+                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                            QApplication.processEvents()
+                            if self.show_virus_scan_progress_bar == 0:
+                                if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath:
+                                    pass
                                 else:
-                                    sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
-                                              '.vbs','.js','.jar','.py','.cpp','.htm','.html',
-                                              '.doc','.docx','.ppt','.pptx','.xls','.xlm','.pdf',
-                                              '.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
-                                              '.zip','.7z','.rar','.gz','.tar','.wim','.iso',
-                                              '.inf','.ini','.tmp','.temp','.log','.scr']
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    if 'C:/Program' in fullpath:
+                                        sflist = ['.exe','.dll']
+                                    else:
+                                        sflist = ['.exe','.dll','.com','.cmd','.bat','.vbs','.js','.scr']
+                                        #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
+                                                  #'.vbs','.js','.jar','.py','.cpp','.htm','.html',
+                                                  #'.doc','.docx','.ppt','.pptx','.xls','.xlm','.pdf',
+                                                  #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
+                                                  #'.zip','.7z','.rar','.gz','.tar','.wim','.iso',
+                                                  #'.inf','.ini','.tmp','.temp','.log','.scr']
+                                    if self.pyas_sign_start(fullpath) and sfd in sflist:
+                                        root, extension = os.path.splitext(fd)
+                                        sfd = str(extension).lower()
+                                        if self.pyas_scan_start(fullpath,rfp):
+                                            self.pyas_scan_write_en(fullpath)
+                            else:
                                 root, extension = os.path.splitext(fd)
                                 sfd = str(extension).lower()
-                                if sfd in sflist:
-                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                    QApplication.processEvents()
-                                    if self.pyas_scan_start(fullpath,rfp):
-                                        self.pyas_scan_write_en(fullpath)
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
                 except:
                     continue
         except:
@@ -1789,7 +1795,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if button == self.ui.Analyze_EXE_Funtion_Button:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件函數"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
-                pe = PE(file)
+                pe = PE(file,fast_load=True)
                 self.ui.Analyze_EXE_Output.setText("")
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for function in entry.imports:
@@ -1819,7 +1825,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         else:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件位元"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
-                pe = PE(file)
+                pe = PE(file,fast_load=True)
                 self.ui.Analyze_EXE_Output.setText("")
                 for section in pe.sections:
                     try:
@@ -2074,13 +2080,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         except Exception as e:
             pyas_bug_log(e)
             pass
-        try:
-            print('[INFO] Reading Viruslist Database')
-            with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                rfp = fp.read()
-            fp.close()
-        except Exception as e:
-            pyas_bug_log(e)
+        #try:
+            #print('[INFO] Reading Viruslist Database')
+            #with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                #rfp = fp.read()
+            #fp.close()
+        #except Exception as e:
+            #pyas_bug_log(e)
         self.Virus_Scan = 1
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
@@ -2113,10 +2119,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     try:
                         file = str(p.exe())
                         if '' == file or 'C:\Windows' in file or 'AppData' in file or 'C:\Program' in file or 'MemCompression' in file or 'Registry' in file:
+                            time.sleep(0.0001)
                             QApplication.processEvents()
                             pass
                         else:
-                            if self.pyas_scan_start(file,rfp):
+                            if self.pyas_sign_start(file) and 'PYAS.exe' not in file:
                                 QApplication.processEvents()
                                 try:
                                     if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
@@ -2131,7 +2138,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                         #observer.start()
                                     #except Exception as e:
                                         #pass
-                                    os.remove(str(p.exe()))
+                                    #os.remove(str(p.exe()))
                                 except Exception as e:
                                     pyas_bug_log(e)
                                     pass

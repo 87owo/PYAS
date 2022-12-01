@@ -1268,7 +1268,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                     if self.pyas_scan_start(fullpath,rfp):
                                         self.pyas_scan_write_en(fullpath)
                                     else:
-                                        pe = PE(fullpath,fast_load=True)
+                                        pe = PE(fullpath)
                                         for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                             for function in entry.imports:
                                                     if fts != True:
@@ -1795,7 +1795,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if button == self.ui.Analyze_EXE_Funtion_Button:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件函數"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
-                pe = PE(file,fast_load=True)
+                pe = PE(file)
                 self.ui.Analyze_EXE_Output.setText("")
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for function in entry.imports:

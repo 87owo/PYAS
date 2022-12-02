@@ -1064,7 +1064,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def Virus_Solve(self):
         try:
             for line in self.Virus_List:
-                if 'C:/Windows' in str(line):
+                if 'C:/Windows' in str(line) or 'Dev-Cpp' in str(line) or 'Opengl' in str(line):
                     pass
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate('正在刪除: ')+str(line))
@@ -1410,7 +1410,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                             QApplication.processEvents()
                             if self.show_virus_scan_progress_bar == 0:
-                                if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'AppData' in fullpath:
+                                if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'AppData' in fullpath or 'C:/ProgramData' in fullpath:
                                     pass
                                 else:
                                     if 'C:/Program' in fullpath:

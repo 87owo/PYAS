@@ -22,7 +22,7 @@ class Ui_MainWindow(object):
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.TabFocus)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Library/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("Library/PYAS/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setIconSize(QtCore.QSize(24, 24))
         MainWindow.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)

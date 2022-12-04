@@ -24,7 +24,7 @@ def pyas_bug_log(e):
 try:
     import time
     start_m = time.time()
-    import os, sys, psutil, subprocess, cryptocode, threading, configparser, datetime
+    import os, sys, psutil, subprocess, threading, configparser, datetime
     from pefile import PE, DIRECTORY_ENTRY
     from hashlib import md5, sha1, sha256
     from PYAS_English import english_list
@@ -39,38 +39,20 @@ except Exception as e:
     pyas_bug_log(e)
 print('[LOAD] Mods: '+str(time.time()-start_m)+' sec')
 
-###################################### 密鑰認證 #####################################
+##################################### 移除暫存檔 ####################################
 
-def pyas_key():
-    start = time.time()
+def pyasb_remove():
     try:
-        try:
-            with open('PYAS.exe',"rb") as f:
-                bytes = f.read()
-                readable_hash = str(md5(bytes).hexdigest())
-            f.close()
-        except:
-            with open('PYAS.py',"rb") as f:
-                bytes = f.read()
-                readable_hash = str(md5(bytes).hexdigest())
-            f.close()
-        try:
-            ft = open('Library/PYAS/Setup/PYAS.key','r')
-            fe = ft.read()
-            ft.close()
-            if fe == readable_hash:
-                print('[LOAD] Key: '+str(time.time()-start)+' sec')
-                return True
-            else:
-                print('[LOAD] Key: '+str(time.time()-start)+' sec')
-                return False
-        except:
-            pass
-    except Exception as e:
-        pyas_bug_log(e)
-        print('[LOAD] Key: '+str(time.time()-start)+' sec')
-        return False
+        os.remove('Library/PYAS/Temp/PYASB.log')
+    except:
+        pass
 
+def pyasp_remove():
+    try:
+        os.remove('Library/PYAS/Temp/PYASP.tmp')
+    except:
+        pass
+    
 ##################################### 資料庫檢查 ####################################
 
 def pyas_library():
@@ -89,20 +71,6 @@ def pyas_library():
             os.makedirs('Library/PYAE/Hashes')
     except Exception as e:
         pyas_bug_log(e)
-        pass
-
-##################################### 移除暫存檔 ####################################
-
-def pyasb_remove():
-    try:
-        os.remove('Library/PYAS/Temp/PYASB.log')
-    except:
-        pass
-
-def pyasp_remove():
-    try:
-        os.remove('Library/PYAS/Temp/PYASP.tmp')
-    except:
         pass
 
 ##################################### 更新資料庫 ####################################
@@ -149,6 +117,41 @@ def pyas_vl_update():
     except Exception as e:
         pyas_bug_log(e)
         sys.exit()
+
+###################################### 密鑰認證 #####################################
+
+def pyas_key():
+    start = time.time()
+    try:
+        if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
+            try:
+                with open('PYAS.exe',"rb") as f:
+                    bytes = f.read()
+                    readable_hash = str(md5(bytes).hexdigest())
+                f.close()
+            except:
+                with open('PYAS.py',"rb") as f:
+                    bytes = f.read()
+                    readable_hash = str(md5(bytes).hexdigest())
+                f.close()
+            try:
+                ft = open('Library/PYAS/Setup/PYAS.key','r')
+                fe = ft.read()
+                ft.close()
+                if fe == readable_hash:
+                    print('[LOAD] Key: '+str(time.time()-start)+' sec')
+                    return True
+                else:
+                    print('[LOAD] Key: '+str(time.time()-start)+' sec')
+                    return False
+            except:
+                pass
+        else:
+            return False
+    except Exception as e:
+        pyas_bug_log(e)
+        print('[LOAD] Key: '+str(time.time()-start)+' sec')
+        return False
 
 ###################################### 主要程式 #####################################
 
@@ -402,11 +405,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
-            try:
-                ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
-                fe = ft.read()
-                ft.close()
-            except:
+            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
         else:
@@ -545,11 +544,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
-            try:
-                ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
-                fe = ft.read()
-                ft.close()
-            except:
+            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
         else:
@@ -688,11 +683,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
-            try:
-                ft = open('Library/PYAS/Temp/PYASP.tmp','r',encoding='utf-8')
-                fe = ft.read()
-                ft.close()
-            except:
+            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
         else:
@@ -1202,13 +1193,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 QApplication.processEvents()
                 try:
                     print('[INFO] Reading Viruslist Database')
-                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:                        
-                        QApplication.processEvents()
+                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                     fp.close()
                     if self.show_virus_scan_progress_bar != 0:
                         with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                            QApplication.processEvents()
                             rfn = fn.read()
                         fn.close()
                     else:
@@ -1224,11 +1213,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     fts = False
                     try:
                         if self.pyas_sign_start(file):
+                            pe = PE(file)
                             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                 for function in entry.imports:
                                     if fts != True:
                                         if str(function.name.decode('utf-8')) in rfn:
                                             fts = True
+                            pe.close()
                             if fts:
                                 self.pyas_scan_write_en(file)
                                 fts = False
@@ -1274,6 +1265,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                                     if fts != True:
                                                         if str(function.name.decode('utf-8')) in rfn:
                                                             fts = True
+                                        pe.close()
                                         if fts:
                                             self.pyas_scan_write_en(fullpath)
                                             fts = False
@@ -1314,12 +1306,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 try:
                     print('[INFO] Reading Viruslist Database')
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        QApplication.processEvents()
                         rfp = fp.read()
                     fp.close()
                     if self.show_virus_scan_progress_bar != 0:
                         with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                            QApplication.processEvents()
                             rfn = fn.read()
                         fn.close()
                     else:
@@ -1359,7 +1349,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             try:
                 print('[INFO] Reading Viruslist Database')
                 with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
-                    QApplication.processEvents()
                     rfp = self.fp.read()
                 self.fp.close()
             except Exception as e:
@@ -1675,6 +1664,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      
     def Customize_CMD_Command(self):
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
+        #try: #Not Cplt
+            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional':
+                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition)')
+                #return
+            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business':
+                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition)')
+                #return
+            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional_ltsc':
+                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition LTSC)')
+                #return
+            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business_ltsc':
+                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition LTSC)')
+                #return
+        #except:
+            #pass
         if CMD_Command == "":
             return
         if CMD_Command.lower() == "never gonna give you up" or CMD_Command.lower() == "rickroll" or CMD_Command.lower() == "rick roll":
@@ -1685,21 +1689,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         or CMD_Command == "PYAS" or CMD_Command == "pyas":
             self.ui.Customize_CMD_Command_output.setText(english_list["PYAS"])#about pyas
             return
-        try: #Not Cplt
-            if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional':
-                self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition)')
-                return
-            if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business':
-                self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition)')
-                return
-            if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional_ltsc':
-                self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition LTSC)')
-                return
-            if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business_ltsc':
-                self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition LTSC)')
-                return
-        except:
-            pass
         try:
             if CMD_Command.split()[0].lower() == "/add" or CMD_Command.split()[0].lower() == "/a":
                 self.ui.Customize_CMD_Command_output.setText("Tips: Custom rules need to wait for the rule conditions to be met before proceeding to the next step.")
@@ -1739,6 +1728,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         value = CMD_Command.split()[3]
                         while 1:
                             QApplication.processEvents()
+                            time.sleep(0.0001)
                             for p in psutil.process_iter():
                                 if str(value) == str(p.name()):
                                     return
@@ -1750,7 +1740,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             try:
                 si = subprocess.STARTUPINFO()
                 si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                p = subprocess.Popen(CMD_Command,stdin=subprocess.PIPE,stdout=subprocess.PIPE,)#encoding='utf-8')
+                p = subprocess.Popen(CMD_Command,stdin=subprocess.PIPE,stdout=subprocess.PIPE)
                 out = p.stdout.read()
                 try:
                     self.ui.Customize_CMD_Command_output.setText(str(out.decode('utf-8')))
@@ -1903,12 +1893,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 try:
                     QApplication.processEvents()
                     fullpath = os.path.join(path,fd)
-                    if 'C:/Windows' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
+                    if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'C:/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                         pass
                     elif 'C:/Program' in fullpath:
                         if 'Windows' in fullpath or 'Microsoft' in fullpath:
                             pass
-
                     else:
                         if os.path.isdir(fullpath):
                             self.findfile_zh(fullpath,ffile,start)
@@ -1971,9 +1960,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.decrypt_zh(input_text,password)
 
     def encrypt_zh(self,e,e2):
+        import cryptocode
         self.ui.Encryption_Text_output.setText(str(cryptocode.encrypt(e,e2)))
 
     def decrypt_zh(self,e,e2):
+        import cryptocode
         self.ui.Encryption_Text_output.setText(str(cryptocode.decrypt(e,e2)))
 
     def Change_Users_Password(self):
@@ -2119,17 +2110,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 break
             else:
                 self.Virus_Scan = 1
-                #print('[INFO] Real-time Protect Process Refresh')
                 for p in psutil.process_iter():
                     try:
+                        time.sleep(0.0001)
+                        QApplication.processEvents()
                         file = str(p.exe())
-                        if '' == file or 'C:\Windows' in file or 'AppData' in file or 'C:\Program' in file or 'MemCompression' in file or 'Registry' in file:
-                            time.sleep(0.0001)
-                            QApplication.processEvents()
+                        if '' == file or 'C:\Windows' in file or 'C:\Program' in file or 'AppData' in file or 'MemCompression' in file or 'Registry' in file:
                             pass
                         else:
                             if self.pyas_sign_start(file) and 'PYAS.exe' not in file:
-                                QApplication.processEvents()
                                 try:
                                     if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
                                         print('[INFO] Malware blocking success: '+str(p.name()))
@@ -2393,11 +2382,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 if __name__ == '__main__':
     try:
+        pyas_library()
         pyasb_remove()
         pyasp_remove()
-        pyas_library()
-        pyas_version = "2.4.9"
-        pyae_version = "2.2.0"
+        pyas_version = "2.5.0"
+        pyae_version = "2.2.1"
         threading.Thread(target = pyas_vl_update).start()
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放

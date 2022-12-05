@@ -5,7 +5,7 @@
 # PYAS Web: https://pyantivirus.wixsite.com/pyas
 #
 # PYAS is managed by PYDT (Python Development Team)
-# Copyright© 2022 87owo (PYAS Security)
+# Copyright© 2020-2022 87owo (PYAS Security)
 ####################################################################################
 #
 ###################################### 錯誤日誌 #####################################
@@ -329,7 +329,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
 
 ###################################### 許可條款 #####################################
     
-        self.ui.License_terms.setText('''Copyright (C) 2022 87owo (PYAS Security)
+        self.ui.License_terms.setText('''Copyright (C) 2020-2022 87owo (PYAS Security)
 =====================================================
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
@@ -349,7 +349,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.effect_shadow3.setBlurRadius(7)
         self.effect_shadow3.setColor(QtCore.Qt.gray) 
         self.ui.Window_widget.setGraphicsEffect(self.effect_shadow3)
-
 
         self.ui.Virus_Scan_choose_widget.hide()#hide()函數的用意是隱藏物件
         self.ui.Virus_Scan_widget.hide()
@@ -493,7 +492,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" 87owo (PYAS Security)"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" 87owo (PYAS Security)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -585,7 +584,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "系统进程管理"))
         self.ui.Repair_System_Permission_Button.setText(_translate("MainWindow", "修复系统权限"))
         self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "修复系统档案"))
-        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "清理系统档案"))
+        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "清理系统垃圾"))
         self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "启动安全模式"))
         self.ui.Disable_Safe_Mode_Button.setText(_translate("MainWindow", "关闭安全模式"))
         self.ui.System_Info_Button.setText(_translate("MainWindow", "系统版本资讯"))
@@ -632,7 +631,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" 87owo (PYAS Security)"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" 87owo (PYAS Security)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -724,7 +723,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "系統進程管理"))
         self.ui.Repair_System_Permission_Button.setText(_translate("MainWindow", "修復系統權限"))
         self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "修復系統檔案"))
-        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "清理系統檔案"))
+        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "清理系統垃圾"))
         self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "啟動安全模式"))
         self.ui.Disable_Safe_Mode_Button.setText(_translate("MainWindow", "關閉安全模式"))
         self.ui.System_Info_Button.setText(_translate("MainWindow", "系統版本資訊"))
@@ -771,7 +770,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         cy = datetime.datetime.now().strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© "+str(cy)+" 87owo (PYAS Security)"))
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" 87owo (PYAS Security)"))
         try:
             vl = open('Library/PYAE/Hashes/Viruslist.num','r').read()
             if int(vl)-1 < 0:
@@ -831,6 +830,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             text = text.replace("軟體","软件")
             text = text.replace("惡意","恶意")
             text = text.replace("設定","设置")
+            text = text.replace("密鑰","密钥")
             text = text.replace("關於","关于")
             text = text.replace("當前","当前")
             text = text.replace("確定","确定")
@@ -2059,11 +2059,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.pause = True
         else:
             try:
-                self.ui.State_output.clear()
-                self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
-                self.pause = False
-                QApplication.processEvents()
-                threading.Thread(target = self.pyas_protect_init_zh).start()
+                if pyas_key():
+                    self.ui.State_output.clear()
+                    self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
+                    self.pause = False
+                    QApplication.processEvents()
+                    threading.Thread(target = self.pyas_protect_init_zh).start()
+                else:
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('安全密鑰錯誤'),QMessageBox.Ok)
             except Exception as e:
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
@@ -2401,4 +2404,4 @@ if __name__ == '__main__':
         pyas_bug_log(e)
 
 ####################################################################################
-#Copyright© 2022 87owo (PYAS Security)
+#Copyright© 2020-2022 87owo (PYAS Security)

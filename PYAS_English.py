@@ -6,6 +6,8 @@ english_list = {
 "已关闭":"Off",
 "正在刪除: ":"Deleting: ",
 "正在删除":"Deleting: ",
+"安全密鑰錯誤":"Security Key Error",
+"安全密钥错误":"Security Key Error",
 "存取被拒":"Access denied",
 " > [提示] 尚未啟用實時防護":" > [Tips] Real-time Protect is not enabled",
 " > [提示] 尚未启用实时防护":" > [Tips] Real-time Protect is not enabled",

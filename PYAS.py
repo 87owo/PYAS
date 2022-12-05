@@ -1055,7 +1055,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def Virus_Solve(self):
         try:
             for line in self.Virus_List:
-                if 'C:/Windows' in str(line) or 'Dev-Cpp' in str(line) or 'Opengl' in str(line):
+                if 'C:/Windows' in str(line):
                     pass
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate('正在刪除: ')+str(line))
@@ -1353,32 +1353,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 self.fp.close()
             except Exception as e:
                 pyas_bug_log(e)
-            self.pyas_scan_disk_en('A:/',rfp)
-            self.pyas_scan_disk_en('B:/',rfp)
-            self.pyas_scan_disk_en('C:/',rfp)
-            self.pyas_scan_disk_en('D:/',rfp)
-            self.pyas_scan_disk_en('E:/',rfp)
-            self.pyas_scan_disk_en('F:/',rfp)
-            self.pyas_scan_disk_en('G:/',rfp)
-            self.pyas_scan_disk_en('H:/',rfp)
-            self.pyas_scan_disk_en('I:/',rfp)
-            self.pyas_scan_disk_en('J:/',rfp)
-            self.pyas_scan_disk_en('K:/',rfp)
-            self.pyas_scan_disk_en('L:/',rfp)
-            self.pyas_scan_disk_en('M:/',rfp)
-            self.pyas_scan_disk_en('N:/',rfp)
-            self.pyas_scan_disk_en('O:/',rfp)
-            self.pyas_scan_disk_en('P:/',rfp)
-            self.pyas_scan_disk_en('Q:/',rfp)
-            self.pyas_scan_disk_en('R:/',rfp)
-            self.pyas_scan_disk_en('S:/',rfp)
-            self.pyas_scan_disk_en('T:/',rfp)
-            self.pyas_scan_disk_en('U:/',rfp)
-            self.pyas_scan_disk_en('V:/',rfp)
-            self.pyas_scan_disk_en('W:/',rfp)
-            self.pyas_scan_disk_en('X:/',rfp)
-            self.pyas_scan_disk_en('Y:/',rfp)
-            self.pyas_scan_disk_en('Z:/',rfp)
+            for d in range(26):
+                self.pyas_scan_disk_en(str(chr(65+d))+':/',rfp)
             self.pyas_scan_answer_en()
         except Exception as e:
             pyas_bug_log(e)
@@ -1392,39 +1368,62 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ui.Virus_Scan_Break_Button.hide()
                         break
                     else:
-                        fullpath = str(os.path.join(path,fd))
-                        if os.path.isdir(fullpath):
-                            self.pyas_scan_disk_en(fullpath,rfp)
+                        if 'C:/Windows' in path or 'C:/$Recycle.Bin' in path or 'C:/ProgramData' in path or 'Opengl' in fd:
+                            pass
                         else:
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            QApplication.processEvents()
-                            if self.show_virus_scan_progress_bar == 0:
-                                if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'AppData' in fullpath or 'C:/ProgramData' in fullpath:
-                                    pass
-                                else:
-                                    if 'C:/Program' in fullpath:
-                                        if 'Windows' in fullpath or 'Microsoft' in fullpath:
+                            fullpath = str(os.path.join(path,fd))
+                            if os.path.isdir(fullpath):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                self.pyas_scan_disk_en(fullpath,rfp)
+                            else:
+                                if self.show_virus_scan_progress_bar == 0:
+                                    if 'C:/Program' in path:
+                                        if 'Windows' in path or 'Microsoft' in path or 'Dev-Cpp' in path:
                                             pass
                                         else:
                                             sflist = ['.exe','.dll']
+                                    elif 'C:/Users' in path:
+                                        if 'Default' in path or 'AppData' in path:
+                                            pass
+                                        #elif 'Desktop' in path:
+                                            #sflist = ['.exe','.dll','.lnk']
+                                        #elif 'Pictures' in path:
+                                            #sflist = ['.ico','.jpg','.jpeg','.png','.gif','.bmp']
+                                        #elif 'Videos' in path:
+                                            #sflist = ['.mp4','.wmv','.swf','.mkv','.avi','.webp']
+                                        #elif 'Music' in path:
+                                            #sflist = ['.mp2','.mp3','.wma','.aac','.cda','.midi']
+                                        #elif 'Documents' in path:
+                                            #sflist = ['.zip','.7z','.gz','.rar','.tar','.doc','.pdf',
+                                                      #'.ppt','.pptx','.xls','.xlsx','.xlm','.docx']
+                                        #elif 'Downloads' in path:
+                                            #sflist = ['.exe','.dll','.com','.vbs','.js','.scr','.msi','.zip','.7z','.rar']
+                                        else:
+                                            sflist = ['.exe','.dll','.com','.vbs','.js','.msi']
                                     else:
                                         sflist = ['.exe','.dll','.com','.cmd','.bat','.vbs','.js','.scr']
-                                        #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg',
-                                                  #'.vbs','.js','.jar','.py','.cpp','.htm','.html',
-                                                  #'.doc','.docx','.ppt','.pptx','.xls','.xlm','.pdf',
-                                                  #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4',
-                                                  #'.zip','.7z','.rar','.gz','.tar','.wim','.iso',
-                                                  #'.inf','.ini','.tmp','.temp','.log','.scr']
+                                        #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg','.sys', #系統檔
+                                                    #'.vbs','.js','.json','.jar','.py','.cpp','.htm','.html', #程式檔
+                                                    #'.doc','.docx','.ppt','.pptx','.xls','.xlsx','.xlm','.pdf', #文件檔
+                                                    #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4','.wmv', #影音檔
+                                                    #'.zip','.7z','.bz','.bz2','.cab','.r00','.gz','.rar','.tar', #壓縮檔
+                                                    #'.wim','.img','.bin','.iso','.vmdk','.vhdx','.udf','.dvd', #映像檔
+                                                    #'.inf','.ini','.tmp','.temp','.log','.scr','.rtf','.lnk'] #其他檔
                                     root, extension = os.path.splitext(fd)
                                     sfd = str(extension).lower()
                                     if self.pyas_sign_start(fullpath) and sfd in sflist:
+                                        self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                        QApplication.processEvents()
                                         if self.pyas_scan_start(fullpath,rfp):
                                             self.pyas_scan_write_en(fullpath)
-                            else:
-                                root, extension = os.path.splitext(fd)
-                                sfd = str(extension).lower()
-                                if self.pyas_scan_start(fullpath,rfp):
-                                    self.pyas_scan_write_en(fullpath)
+                                else:
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                    QApplication.processEvents()
+                                    if self.pyas_scan_start(fullpath,rfp):
+                                        self.pyas_scan_write_en(fullpath)
                 except:
                     continue
         except:
@@ -1837,32 +1836,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def find_files_info_zh(self,ffile):
         try:
             start = time.time()
-            self.findfile_zh('A:/',ffile,start)
-            self.findfile_zh('B:/',ffile,start)
-            self.findfile_zh('C:/',ffile,start)
-            self.findfile_zh('D:/',ffile,start)
-            self.findfile_zh('E:/',ffile,start)
-            self.findfile_zh('F:/',ffile,start)
-            self.findfile_zh('G:/',ffile,start)
-            self.findfile_zh('H:/',ffile,start)
-            self.findfile_zh('I:/',ffile,start)
-            self.findfile_zh('J:/',ffile,start)
-            self.findfile_zh('K:/',ffile,start)
-            self.findfile_zh('L:/',ffile,start)
-            self.findfile_zh('M:/',ffile,start)
-            self.findfile_zh('N:/',ffile,start)
-            self.findfile_zh('O:/',ffile,start)
-            self.findfile_zh('P:/',ffile,start)
-            self.findfile_zh('Q:/',ffile,start)
-            self.findfile_zh('R:/',ffile,start)
-            self.findfile_zh('S:/',ffile,start)
-            self.findfile_zh('T:/',ffile,start)
-            self.findfile_zh('U:/',ffile,start)
-            self.findfile_zh('V:/',ffile,start)
-            self.findfile_zh('W:/',ffile,start)
-            self.findfile_zh('X:/',ffile,start)
-            self.findfile_zh('Y:/',ffile,start)
-            self.findfile_zh('Z:/',ffile,start)
+            for d in range(26):
+                self.findfile_zh(str(chr(65+d))+':/',ffile,start)
             end = time.time()
             if os.path.isfile('Library/PYAS/Temp/PYASF.tmp'):
                 try:

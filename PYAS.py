@@ -1244,7 +1244,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ui.Virus_Scan_Break_Button.hide()
                         break
                     else:
-                        fullpath = os.path.join(path,fd)
+                        fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                         if os.path.isdir(fullpath):
                             self.pyas_scan_path_en(fullpath,rfp,rfn,fts)
                         else:
@@ -1371,7 +1371,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         if 'C:/Windows' in path or 'C:/$Recycle.Bin' in path or 'C:/ProgramData' in path or 'Opengl' in fd:
                             pass
                         else:
-                            fullpath = str(os.path.join(path,fd))
+                            fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                             if os.path.isdir(fullpath):
                                 self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                                 QApplication.processEvents()
@@ -1399,10 +1399,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                                       #'.ppt','.pptx','.xls','.xlsx','.xlm','.docx']
                                         #elif 'Downloads' in path:
                                             #sflist = ['.exe','.dll','.com','.vbs','.js','.scr','.msi','.zip','.7z','.rar']
+                                        elif '.vscode' in path:
+                                            sflist = ['.exe','.dll']
                                         else:
-                                            sflist = ['.exe','.dll','.com','.vbs','.js','.msi']
+                                            sflist = ['.exe','.dll','.com','.vbs','.msi','.htm','.html']
                                     else:
-                                        sflist = ['.exe','.dll','.com','.cmd','.bat','.vbs','.js','.scr']
+                                        sflist = ['.exe','.dll','.com','.cmd','.bat','.vbs','.scr']
                                         #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg','.sys', #系統檔
                                                     #'.vbs','.js','.json','.jar','.py','.cpp','.htm','.html', #程式檔
                                                     #'.doc','.docx','.ppt','.pptx','.xls','.xlsx','.xlm','.pdf', #文件檔
@@ -1867,7 +1869,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             for fd in os.listdir(path):
                 try:
                     QApplication.processEvents()
-                    fullpath = os.path.join(path,fd)
+                    fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                     if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'C:/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                         pass
                     elif 'C:/Program' in fullpath:

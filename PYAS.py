@@ -1203,6 +1203,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     else:
                         rfn = ''
                 except Exception as e:
+                    rfp = ''
+                    rfn = ''
                     pyas_bug_log(e)
                 if self.show_virus_scan_progress_bar == 0:
                     if self.pyas_sign_start(file):
@@ -1315,6 +1317,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     else:
                         rfn = ''
                 except Exception as e:
+                    rfp = ''
+                    rfn = ''
                     pyas_bug_log(e)
                 self.pyas_scan_path_en(file,rfp,rfn,False)
                 self.pyas_scan_answer_en()
@@ -1352,6 +1356,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     rfp = self.fp.read()
                 self.fp.close()
             except Exception as e:
+                rfp = ''
                 pyas_bug_log(e)
             for d in range(26):
                 self.pyas_scan_disk_en(str(chr(65+d))+':/',rfp)
@@ -1368,50 +1373,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ui.Virus_Scan_Break_Button.hide()
                         break
                     else:
-                        if 'C:/Windows' in path or 'C:/$Recycle.Bin' in path or 'C:/ProgramData' in path or 'Opengl' in fd:
-                            pass
-                        else:
-                            fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                            if os.path.isdir(fullpath):
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                self.pyas_scan_disk_en(fullpath,rfp)
+                        if self.show_virus_scan_progress_bar == 0:
+                            if 'C:/Windows' in path or 'C:/$Recycle.Bin' in path or 'C:/ProgramData' in path or 'Opengl' in fd:
+                                continue
                             else:
-                                if self.show_virus_scan_progress_bar == 0:
-                                    if 'C:/Program' in path:
-                                        if 'Windows' in path or 'Microsoft' in path or 'Dev-Cpp' in path:
-                                            pass
-                                        else:
-                                            sflist = ['.exe','.dll']
-                                    elif 'C:/Users' in path:
-                                        if 'Default' in path or 'AppData' in path:
-                                            pass
-                                        #elif 'Desktop' in path:
-                                            #sflist = ['.exe','.dll','.lnk']
-                                        #elif 'Pictures' in path:
-                                            #sflist = ['.ico','.jpg','.jpeg','.png','.gif','.bmp']
-                                        #elif 'Videos' in path:
-                                            #sflist = ['.mp4','.wmv','.swf','.mkv','.avi','.webp']
-                                        #elif 'Music' in path:
-                                            #sflist = ['.mp2','.mp3','.wma','.aac','.cda','.midi']
-                                        #elif 'Documents' in path:
-                                            #sflist = ['.zip','.7z','.gz','.rar','.tar','.doc','.pdf',
-                                                      #'.ppt','.pptx','.xls','.xlsx','.xlm','.docx']
-                                        #elif 'Downloads' in path:
-                                            #sflist = ['.exe','.dll','.com','.vbs','.js','.scr','.msi','.zip','.7z','.rar']
-                                        elif '.vscode' in path:
-                                            sflist = ['.exe','.dll']
-                                        else:
-                                            sflist = ['.exe','.dll','.com','.vbs','.msi','.htm','.html']
+                                if 'C:/Program' in path:
+                                    if 'Windows' in path or 'Microsoft' in path or 'Dev-Cpp' in path:
+                                        continue
                                     else:
-                                        sflist = ['.exe','.dll','.com','.cmd','.bat','.vbs','.scr']
-                                        #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg','.sys', #系統檔
-                                                    #'.vbs','.js','.json','.jar','.py','.cpp','.htm','.html', #程式檔
-                                                    #'.doc','.docx','.ppt','.pptx','.xls','.xlsx','.xlm','.pdf', #文件檔
-                                                    #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4','.wmv', #影音檔
-                                                    #'.zip','.7z','.bz','.bz2','.cab','.r00','.gz','.rar','.tar', #壓縮檔
-                                                    #'.wim','.img','.bin','.iso','.vmdk','.vhdx','.udf','.dvd', #映像檔
-                                                    #'.inf','.ini','.tmp','.temp','.log','.scr','.rtf','.lnk'] #其他檔
+                                        sflist = ['.exe','.dll']
+                                elif 'C:/Users' in path:
+                                    if 'Default' in path or 'AppData' in path or '.vscode' in path:
+                                        continue
+                                    elif 'Desktop' in path:
+                                        sflist = ['.exe','.dll','.com','.bat','.lnk']
+                                    elif 'Documents' in path:
+                                        sflist = ['.exe','.dll','.com','.doc','.docx','.pdf','.xls','.xlsx','.xlm']
+                                    elif 'Downloads' in path:
+                                        sflist = ['.exe','.dll','.com','.vbs','.js','.scr','.msi','.zip','.7z','.rar']
+                                    #elif 'Pictures' in path:
+                                        #sflist = ['.ico','.jpg','.jpeg','.png','.gif','.bmp']
+                                    #elif 'Videos' in path:
+                                        #sflist = ['.mp4','.wmv','.swf','.mkv','.avi','.webp']
+                                    #elif 'Music' in path:
+                                        #sflist = ['.mp2','.mp3','.wma','.aac','.cda','.midi']
+                                    else:
+                                        sflist = ['.exe','.dll','.com','.vbs','.scr','.htm','.html']
+                                elif 'C:/' in path:
+                                    sflist = ['.exe','.dll','.com','.bat','.vbs','.cpl','.scr','.htm','.html']
+                                else:
+                                    sflist = ['.exe','.dll','.com','.vbs','.scr']
+                                    #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg','.sys', #系統檔
+                                                #'.vbs','.js','.json','.jar','.py','.cpp','.htm','.html', #程式檔
+                                                #'.doc','.docx','.ppt','.pptx','.xls','.xlsx','.xlm','.pdf', #文件檔
+                                                #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4','.wmv', #影音檔
+                                                #'.zip','.7z','.bz','.bz2','.cab','.r00','.gz','.rar','.tar', #壓縮檔
+                                                #'.wim','.img','.bin','.iso','.vmdk','.vhdx','.udf','.dvd', #映像檔
+                                                #'.inf','.ini','.tmp','.temp','.log','.scr','.rtf','.lnk'] #其他檔
+                                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                                if os.path.isdir(fullpath):
+                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                    QApplication.processEvents()
+                                    self.pyas_scan_disk_en(fullpath,rfp)
+                                else:
                                     root, extension = os.path.splitext(fd)
                                     sfd = str(extension).lower()
                                     if self.pyas_sign_start(fullpath) and sfd in sflist:
@@ -1419,13 +1423,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                         QApplication.processEvents()
                                         if self.pyas_scan_start(fullpath,rfp):
                                             self.pyas_scan_write_en(fullpath)
-                                else:
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
-                                    self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                    QApplication.processEvents()
-                                    if self.pyas_scan_start(fullpath,rfp):
-                                        self.pyas_scan_write_en(fullpath)
+                        else:
+                            fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                            if os.path.isdir(fullpath):
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                self.pyas_scan_disk_en(fullpath,rfp)
+                            else:
+                                root, extension = os.path.splitext(fd)
+                                sfd = str(extension).lower()
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                if self.pyas_scan_start(fullpath,rfp):
+                                    self.pyas_scan_write_en(fullpath)
                 except:
                     continue
         except:

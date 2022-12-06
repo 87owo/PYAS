@@ -1378,19 +1378,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 continue
                             else:
                                 if 'C:/Program' in path:
-                                    if 'Windows' in path or 'Microsoft' in path or 'Dev-Cpp' in path:
+                                    if 'Windows' in path or 'Microsoft' in path or 'Common Files' in path or 'Dev-Cpp' in path:
                                         continue
                                     else:
                                         sflist = ['.exe','.dll']
                                 elif 'C:/Users' in path:
-                                    if 'Default' in path or 'AppData' in path or '.vscode' in path:
+                                    if 'Default' in path or 'AppData' in path:
                                         continue
-                                    elif 'Desktop' in path:
-                                        sflist = ['.exe','.dll','.com','.bat','.lnk']
-                                    elif 'Documents' in path:
-                                        sflist = ['.exe','.dll','.com','.doc','.docx','.pdf','.xls','.xlsx','.xlm']
-                                    elif 'Downloads' in path:
-                                        sflist = ['.exe','.dll','.com','.vbs','.js','.scr','.msi','.zip','.7z','.rar']
+                                    elif '.vscode' in path:
+                                        sflist = ['.exe','.dll']
+                                    #elif 'Desktop' in path or 'Documents' in path or 'Downloads' in path:
+                                        #sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.reg'
+                                                  #'.doc','.docx','.pdf','.xls','.xlsx','.xlm',
+                                                  #'.js','.msi','.htm','.html']
                                     #elif 'Pictures' in path:
                                         #sflist = ['.ico','.jpg','.jpeg','.png','.gif','.bmp']
                                     #elif 'Videos' in path:
@@ -1398,11 +1398,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                     #elif 'Music' in path:
                                         #sflist = ['.mp2','.mp3','.wma','.aac','.cda','.midi']
                                     else:
-                                        sflist = ['.exe','.dll','.com','.vbs','.scr','.htm','.html']
+                                        sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl',
+                                                  '.htm','.html','.doc','.docx','.pdf','.xls','.xlsx','.xlm']
                                 elif 'C:/' in path:
-                                    sflist = ['.exe','.dll','.com','.bat','.vbs','.cpl','.scr','.htm','.html']
+                                    sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl','.htm','.html']
                                 else:
-                                    sflist = ['.exe','.dll','.com','.vbs','.scr']
+                                    sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl']
                                     #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg','.sys', #系統檔
                                                 #'.vbs','.js','.json','.jar','.py','.cpp','.htm','.html', #程式檔
                                                 #'.doc','.docx','.ppt','.pptx','.xls','.xlsx','.xlm','.pdf', #文件檔

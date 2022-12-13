@@ -2110,7 +2110,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         if '' == file or 'C:\Windows' in file or 'C:\Program' in file or 'AppData' in file or 'MemCompression' in file or 'Registry' in file:
                             pass
                         else:
-                            if self.pyas_sign_start(file) and 'PYAS.exe' not in file:
+                            if self.pyas_sign_start(file) and 'PYAS' not in file:
                                 try:
                                     if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
                                         print('[INFO] Malware blocking success: '+str(p.name()))

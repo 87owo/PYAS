@@ -84,6 +84,8 @@ english_list = {
 "启用该选项可以提高扫描灵敏度，但这也可能会造成误杀。":"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",
 '{} > [實時防護] 成功攔截了一個惡意軟體:':'{} > [Real-Time Protect] Malware blocking success:',
 '{} > [實時防護] 惡意軟體攔截失敗:':'{} > [Real-Time Protect] Malware blocking failed:',
+'{} > [實時防護] 正在檢測檔案安全性:':'{} > [Real-time Protect] Checking file security:',
+'{} > [實時防護] 未檢測到可疑檔案:':'{} > [Real-time Protect] No suspicious files detected:',
 '修復系統權限':"Repair System Permissions",
 '啟用該選項可以實時監控系統的檔案讀寫變更行為。':"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",
 'PYAS':"""PYAS Python Antivirus Software Security

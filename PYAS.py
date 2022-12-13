@@ -26,6 +26,7 @@ try:
     start_m = time.time()
     import os, sys, psutil, subprocess, threading, configparser, datetime
     from pefile import PE, DIRECTORY_ENTRY
+    from win10toast import ToastNotifier
     from hashlib import md5, sha1, sha256
     from PYAS_English import english_list
     from PyQt5.QtWidgets import *
@@ -2114,16 +2115,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                     if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
                                         print('[INFO] Malware blocking success: '+str(p.name()))
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
+                                        toaster = ToastNotifier()
+                                        toaster.show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=10)
                                     else:
                                         print('[INFO] Malware blocking failed: '+str(p.name()))
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
+                                        toaster = ToastNotifier()
+                                        toaster.show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=10)
+                                    #os.remove(str(p.exe()))
                                     #try:
                                         #observer = Observer()
                                         #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
                                         #observer.start()
                                     #except Exception as e:
                                         #pass
-                                    #os.remove(str(p.exe()))
                                 except Exception as e:
                                     pyas_bug_log(e)
                                     pass

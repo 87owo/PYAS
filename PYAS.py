@@ -403,7 +403,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (2nd Anniversary)"))
             now_time = datetime.datetime.now()
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
@@ -542,7 +542,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (2周年)"))
             now_time = datetime.datetime.now()
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
@@ -681,7 +681,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (2周年)"))
             now_time = datetime.datetime.now()
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
@@ -1768,11 +1768,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def Customize_REG_Command(self):
         import win32api,win32con
         continue_v = True
-        Value_name = self.ui.Value_Name_input.text()
-        Value_Path = self.ui.Value_Path_input.text()
-        Value_Data = self.ui.Value_Data_input.text()
-        Value_Type = self.ui.Value_Type_input.text()
-        Value_HEKY = self.ui.Value_HEKY_input.text()
+        Value_name = str(self.ui.Value_Name_input.text())
+        Value_Path = str(self.ui.Value_Path_input.text())
+        Value_Data = str(self.ui.Value_Data_input.text())
+        Value_Type = str(self.ui.Value_Type_input.text())
+        Value_HEKY = str(self.ui.Value_HEKY_input.text())
         if Value_HEKY == "HKEY_CLASSES_ROOT":
             Value_HEKY = win32con.HKEY_LOCAL_MACHINE
         elif Value_HEKY == "HKEY_CURRENT_USER":
@@ -1790,7 +1790,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要新增值或是修改值嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 try:
                     key = win32api.RegOpenKey(Value_HEKY,Value_Path,0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValueEx(key, Value_name,0,Value_Type,Value_Data)
+                    win32api.RegSetValueEx(key, Value_name,0,win32con.REG_SZ,Value_Data)
+                    win32api.RegCloseKey(key)
                     QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("成功的創建或修改註冊表值"),QMessageBox.Ok)
                 except Exception as e:
                     QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)

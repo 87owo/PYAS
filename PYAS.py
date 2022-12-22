@@ -403,7 +403,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (2nd Anniversary)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
@@ -542,7 +542,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (2周年)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
@@ -681,7 +681,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
-            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (2周年)"))
+            self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
@@ -1056,7 +1056,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def Virus_Solve(self):
         try:
             for line in self.Virus_List:
-                if 'C:/Windows' in str(line):
+                if ':/Windows' in str(line):
                     pass
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate('正在刪除: ')+str(line))
@@ -1162,6 +1162,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             ft.close()
         except:
             pass
+
+    def pyas_del_virus_temp(self):
         try:
             os.remove('Library/PYAS/Temp/PYASV.tmp')
         except:
@@ -1171,6 +1173,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     
     def File_Scan(self):
         print('[SCAN] Start Scan Action (File Scan)')
+        self.pyas_del_virus_temp()
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
@@ -1180,42 +1183,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("病毒掃描"),"C:/",'')
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
-        except:
-            pass
-        if file != "":
-            try:
+            if file != "":
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.Virus_Scan = 1
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                try:
-                    print('[INFO] Reading Viruslist Database')#讀取
-                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        rfp = fp.read()
-                    fp.close()
-                    if self.show_virus_scan_progress_bar != 0:
-                        with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                            rfn = fn.read()
-                        fn.close()
-                    else:
-                        rfn = ''
-                except Exception as e:
-                    rfp = ''
+                print('[INFO] Reading Viruslist Database')#讀取
+                with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                    rfp = fp.read()
+                fp.close()
+                if self.show_virus_scan_progress_bar != 0:
+                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                        rfn = fn.read()
+                    fn.close()
+                else:
                     rfn = ''
-                    pyas_bug_log(e)
                 if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
                     if self.pyas_sign_start(file):#簽名檢查
                         if self.pyas_scan_start(file,rfp):#MD5較驗
                             self.pyas_scan_write_en(file)#寫入發現病毒
                             self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                 else:
-                    fts = False
                     try:
                         if self.pyas_scan_start(file,rfp):#MD5較驗
                             self.pyas_scan_write_en(file)#寫入發現病毒
                             self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                         else:#未發現病毒
+                            fts = False
                             pe = PE(file)
                             for entry in pe.DIRECTORY_ENTRY_IMPORT:#函數檢測
                                 for function in entry.imports:
@@ -1231,14 +1225,55 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     except:
                         pass
                 self.pyas_scan_answer_en()
-            except Exception as e:
-                pyas_bug_log(e)
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
-        else:
-            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+            else:
+                self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+        except Exception as e:
+            pyas_bug_log(e)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
 ##################################### 路徑掃描 #####################################
     
+    def Path_Scan(self):
+        print('[SCAN] Start Scan Action (Path Scan)')
+        self.pyas_del_virus_temp()
+        self.ui.Virus_Scan_choose_widget.hide()
+        self.ui.Virus_Scan_Solve_Button.hide()
+        self.ui.Virus_Scan_ProgressBar.hide()
+        self.ini_config = configparser.RawConfigParser()
+        try:
+            self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
+        except Exception as e:
+            pyas_bug_log(e)
+        self.Virus_List = []
+        self.Virus_List_output=QStringListModel()
+        self.Virus_List_output.setStringList(self.Virus_List)
+        self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
+        file = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/")
+        try:
+            if file != "":
+                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
+                self.Virus_Scan = 1
+                self.ui.Virus_Scan_choose_Button.hide()
+                self.ui.Virus_Scan_Break_Button.show()
+                QApplication.processEvents()
+                print('[INFO] Reading Viruslist Database')#讀取
+                with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                    rfp = fp.read()
+                fp.close()
+                if self.show_virus_scan_progress_bar != 0:
+                    with open('Library/PYAE/Function/Viruslist.func','r') as fn:
+                        rfn = fn.read()
+                    fn.close()
+                else:
+                    rfn = ''
+                self.pyas_scan_path_en(file,rfp,rfn,False)
+                self.pyas_scan_answer_en()
+            else:
+                self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+        except Exception as e:
+            pyas_bug_log(e)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
+
     def pyas_scan_path_en(self,path,rfp,rfn,fts):
         try:
             for fd in os.listdir(path):#遍歷檔案
@@ -1265,9 +1300,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                         pe = PE(fullpath)#函數檢測
                                         for entry in pe.DIRECTORY_ENTRY_IMPORT:
                                             for function in entry.imports:
-                                                    if fts != True:
-                                                        if str(function.name.decode('utf-8')) in rfn:
-                                                            fts = True
+                                                if fts != True:
+                                                    if str(function.name.decode('utf-8')) in rfn:
+                                                        fts = True
                                         pe.close()
                                         if fts:
                                             self.pyas_scan_write_en(fullpath)#寫入發現病毒
@@ -1276,63 +1311,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                 pass
                 except:
                     continue
-        except Exception as e:
-            pyas_bug_log(e)
-            pass
-
-    def Path_Scan(self):
-        print('[SCAN] Start Scan Action (Path Scan)')
-        self.ui.Virus_Scan_choose_widget.hide()
-        self.ui.Virus_Scan_Solve_Button.hide()
-        self.ui.Virus_Scan_ProgressBar.hide()
-        self.ini_config = configparser.RawConfigParser()
-        try:
-            self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
-        except Exception as e:
-            pyas_bug_log(e)
-        self.Virus_List = []
-        self.Virus_List_output=QStringListModel()
-        self.Virus_List_output.setStringList(self.Virus_List)
-        self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        file = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/") 
-        try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
         except:
             pass
-        if file != "":
-            try:
-                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
-                self.Virus_Scan = 1
-                self.ui.Virus_Scan_choose_Button.hide()
-                self.ui.Virus_Scan_Break_Button.show()
-                QApplication.processEvents()
-                try:
-                    print('[INFO] Reading Viruslist Database')#讀取
-                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        rfp = fp.read()
-                    fp.close()
-                    if self.show_virus_scan_progress_bar != 0:
-                        with open('Library/PYAE/Function/Viruslist.func','r') as fn:
-                            rfn = fn.read()
-                        fn.close()
-                    else:
-                        rfn = ''
-                except Exception as e:
-                    rfp = ''
-                    rfn = ''
-                    pyas_bug_log(e)
-                self.pyas_scan_path_en(file,rfp,rfn,False)
-                self.pyas_scan_answer_en()
-            except Exception as e:
-                pyas_bug_log(e)
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
-        else:
-            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
 
 ##################################### 全盤掃描 #####################################
     
     def pyas_scan_disk_init_en(self):
         print('[SCAN] Start Scan Action (Disk Scan)')
+        self.pyas_del_virus_temp()
         self.Virus_Scan = 1
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
@@ -1345,20 +1331,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         self.scaning = self.text_Translate("正在掃描: ")
         try:
-            os.remove('Library/PYAS/Temp/PYASV.tmp')
-        except:
-            pass
-        try:
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            try:
-                print('[INFO] Reading Viruslist Database')
-                with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
-                    rfp = self.fp.read()
-                self.fp.close()
-            except Exception as e:
-                rfp = ''
-                pyas_bug_log(e)
+            print('[INFO] Reading Viruslist Database')
+            with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
+                rfp = self.fp.read()
+            self.fp.close()
             for d in range(26):
                 self.pyas_scan_disk_en(str(chr(65+d))+':/',rfp)
             self.pyas_scan_answer_en()
@@ -1375,48 +1353,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         break
                     else:
                         if self.show_virus_scan_progress_bar == 0:
-                            if ':/Windows' in path or ':/$Recycle.Bin' in path or ':/ProgramData' in path:#路徑過濾
+                            fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                            if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath:#路徑過濾
                                 continue
+                            elif ':/Program' in fullpath or ':/Users/Default' in fullpath:
+                                sflist = ['.exe','.dll']
                             else:
-                                if ':/Program' in path:#路徑掃描檔案類型
-                                    sflist = ['.exe','.dll']
-                                elif ':/Users' in path:#路徑掃描檔案類型
-                                    if 'Default' in path or 'AppData' in path:#路徑掃描檔案類型
-                                        sflist = ['.exe','.dll']
-                                    else:#路徑掃描檔案類型
-                                        sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl',
-                                                  '.htm','.html','.doc','.docx','.pdf','.xls','.xlsx','.xlm']
-                                else:#路徑掃描檔案類型
-                                    sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl']
-                                    #sflist = ['.exe','.dll','.com','.cmd','.bat','.msi','.reg','.sys', #系統檔
-                                                #'.vbs','.js','.json','.jar','.py','.cpp','.htm','.html', #程式檔
-                                                #'.doc','.docx','.ppt','.pptx','.xls','.xlsx','.xlm','.pdf', #文件檔
-                                                #'.ico','.jpg','.png','.wav','.ogg','.mp3','.mp4','.wmv', #影音檔
-                                                #'.zip','.7z','.bz','.bz2','.cab','.r00','.gz','.rar','.tar', #壓縮檔
-                                                #'.wim','.img','.bin','.iso','.vmdk','.vhdx','.udf','.dvd', #映像檔
-                                                #'.inf','.ini','.tmp','.temp','.log','.scr','.rtf','.lnk'] #其他檔
-                                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                                if os.path.isdir(fullpath):#資料夾 深入遍歷
+                                sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl','.htm','.html']
+                            if os.path.isdir(fullpath):#資料夾 深入遍歷
+                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                QApplication.processEvents()
+                                self.pyas_scan_disk_en(fullpath,rfp)
+                            else:#檔案
+                                root, extension = os.path.splitext(fd)
+                                sfd = str(extension).lower()
+                                if self.pyas_sign_start(fullpath) and sfd in sflist:#簽名檢查+副檔名過濾檢測
                                     self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                                     QApplication.processEvents()
-                                    self.pyas_scan_disk_en(fullpath,rfp)
-                                else:#檔案s
-                                    root, extension = os.path.splitext(fd)
-                                    sfd = str(extension).lower()
-                                    if self.pyas_sign_start(fullpath) and sfd in sflist:#簽名檢查+副檔名過濾檢測
-                                        self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                        QApplication.processEvents()
-                                        if self.pyas_scan_start(fullpath,rfp):#MD5較驗
-                                            self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                    if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                                        self.pyas_scan_write_en(fullpath)#寫入發現病毒
                         else:
                             fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                             if os.path.isdir(fullpath):#資料夾 深入遍歷
                                 self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                                 QApplication.processEvents()
                                 self.pyas_scan_disk_en(fullpath,rfp)
-                            else:
+                            else:#檔案
                                 root, extension = os.path.splitext(fd)
-                                sfd = str(extension).lower()
                                 self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                                 QApplication.processEvents()
                                 if self.pyas_scan_start(fullpath,rfp):#簽名檢查(所有檔案類型都掃)
@@ -1769,11 +1732,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         else:
             QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate('錯誤: ')+self.text_Translate("您輸入了錯誤的HEKY"),QMessageBox.Ok)
             continue_v = False
+        if Value_Type == "REG_BINARY":
+            Value_Type = win32con.REG_BINARY
+        elif Value_Type == "REG_DWORD":
+            Value_Type = win32con.REG_DWORD
+        elif Value_Type == "REG_DWORD_LITTLE_ENDIAN":
+            Value_Type = win32con.REG_DWORD_LITTLE_ENDIAN
+        elif Value_Type == "REG_DWORD_BIG_ENDIAN":
+            Value_Type = win32con.REG_DWORD_BIG_ENDIAN
+        elif Value_Type == "REG_EXPAND_SZ":
+            Value_Type = win32con.REG_EXPAND_SZ
+        elif Value_Type == "REG_LINK":
+            Value_Type = win32con.REG_LINK
+        elif Value_Type == "REG_MULTI_SZ":
+            Value_Type = win32con.REG_MULTI_SZ
+        elif Value_Type == "REG_NONE":
+            Value_Type = win32con.REG_NONE
+        elif Value_Type == "REG_QWORD":
+            Value_Type = win32con.REG_QWORD
+        elif Value_Type == "REG_QWORD_LITTLE_ENDIAN":
+            Value_Type = win32con.REG_QWORD_LITTLE_ENDIAN
+        elif Value_Type == "REG_SZ":
+            Value_Type = win32con.REG_SZ
+        else:
+            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate('錯誤: ')+self.text_Translate("您輸入了錯誤的TYPE"),QMessageBox.Ok)
+            continue_v = False
         if continue_v:
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要新增值或是修改值嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 try:
                     key = win32api.RegOpenKey(Value_HEKY,Value_Path,0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValueEx(key, Value_name,0,win32con.REG_SZ,Value_Data)
+                    win32api.RegSetValueEx(key, Value_name,0,Value_Type,Value_Data)
                     win32api.RegCloseKey(key)
                     QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("成功的創建或修改註冊表值"),QMessageBox.Ok)
                 except Exception as e:
@@ -1791,6 +1779,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             self.ui.Analyze_EXE_Output.append(str(function.name.decode('utf-8')))
                         except:
                             self.ui.Analyze_EXE_Output.append(str(function.name))
+                pe.close()
                 self.Change_Tools(self.ui.Analyze_EXE_widget)
                 QApplication.processEvents()
             else:
@@ -1820,6 +1809,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         self.ui.Analyze_EXE_Output.append(str(section.Name.decode('utf-8')) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
                     except:
                         self.ui.Analyze_EXE_Output.append(str(section.Name) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
+                pe.close()
                 self.Change_Tools(self.ui.Analyze_EXE_widget)
                 QApplication.processEvents()
 
@@ -1866,11 +1856,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 try:
                     QApplication.processEvents()
                     fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                    if 'C:/Windows' in fullpath or 'C:/$Recycle.Bin' in fullpath or 'C:/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
+                    if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or ':/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                         pass
-                    elif 'C:/Program' in fullpath:
-                        if 'Windows' in fullpath or 'Microsoft' in fullpath:
-                            pass
                     else:
                         if os.path.isdir(fullpath):
                             self.findfile_zh(fullpath,ffile,start)
@@ -2365,7 +2352,7 @@ if __name__ == '__main__':
         pyas_library()
         pyasb_remove()
         pyasp_remove()
-        pyas_version = "2.5.0"
+        pyas_version = "2.5.1"
         pyae_version = "2.2.1"
         threading.Thread(target = pyas_vl_update).start()
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放

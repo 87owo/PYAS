@@ -267,9 +267,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         self.Process_Timer.timeout.connect(self.Process_list)
         self.pause = False
         self.ini_config = configparser.RawConfigParser()
-        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-            self.ui.State_output.clear()
-            threading.Thread(target = self.pyas_protect_init_zh).start()
         try:
             self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
         except:
@@ -411,6 +408,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
+            else:
+                self.ui.State_output.clear()
+                print('[INFO] Start Action (Real-time Protect)')
+                self.Virus_Scan = 1
+                if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
+                    self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
+                    self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
+                    self.ui.Protection_switch_Button.setStyleSheet("""
+                    QPushButton{
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;}
+                    QPushButton:hover{
+                        background-color:rgba(20,200,20,120);}""")
+                else:
+                    self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
+                    self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
+                    self.ui.Protection_switch_Button.setStyleSheet("""
+                    QPushButton{
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;}
+                    QPushButton:hover{
+                        background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (Security Key Error)"))
             now_time = datetime.datetime.now()
@@ -550,6 +571,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
+            else:
+                self.ui.State_output.clear()
+                print('[INFO] Start Action (Real-time Protect)')
+                self.Virus_Scan = 1
+                if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
+                    self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
+                    self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
+                    self.ui.Protection_switch_Button.setStyleSheet("""
+                    QPushButton{
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;}
+                    QPushButton:hover{
+                        background-color:rgba(20,200,20,120);}""")
+                else:
+                    self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
+                    self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
+                    self.ui.Protection_switch_Button.setStyleSheet("""
+                    QPushButton{
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;}
+                    QPushButton:hover{
+                        background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密钥错误)"))
             now_time = datetime.datetime.now()
@@ -689,6 +734,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
+            else:
+                self.ui.State_output.clear()
+                print('[INFO] Start Action (Real-time Protect)')
+                self.Virus_Scan = 1
+                if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
+                    self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
+                    self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
+                    self.ui.Protection_switch_Button.setStyleSheet("""
+                    QPushButton{
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;}
+                    QPushButton:hover{
+                        background-color:rgba(20,200,20,120);}""")
+                else:
+                    self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
+                    self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
+                    self.ui.Protection_switch_Button.setStyleSheet("""
+                    QPushButton{
+                        border:none;
+                        background-color:rgba(20,200,20,100);
+                        border-radius: 15px;}
+                    QPushButton:hover{
+                        background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
@@ -2023,6 +2092,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         else:
             try:
                 if pyas_key():
+                    pyasp_remove()
                     self.ui.State_output.clear()
                     self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
                     self.pause = False
@@ -2035,20 +2105,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     def pyas_protect_init_zh(self):
         print('[INFO] Start Action (Real-time Protect)')
-        try:
-            ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
-            ft.write('')
-            ft.close()
-        except Exception as e:
-            pyas_bug_log(e)
-            pass
-        #try:
-            #print('[INFO] Reading Viruslist Database')
-            #with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                #rfp = fp.read()
-            #fp.close()
-        #except Exception as e:
-            #pyas_bug_log(e)
         self.Virus_Scan = 1
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
@@ -2070,6 +2126,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 border-radius: 15px;}
             QPushButton:hover{
                 background-color:rgba(20,200,20,120);}""")
+        #try:
+            #print('[INFO] Reading Viruslist Database')
+            #with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                #rfp = fp.read()
+            #fp.close()
+        #except Exception as e:
+            #pyas_bug_log(e)
+        try:
+            ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
+            ft.write('')
+            ft.close()
+        except Exception as e:
+            pyas_bug_log(e)
+            pass
         while not self.pause:
             if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.pause = True

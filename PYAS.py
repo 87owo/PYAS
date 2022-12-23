@@ -267,6 +267,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         self.Process_Timer.timeout.connect(self.Process_list)
         self.pause = False
         self.ini_config = configparser.RawConfigParser()
+        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            self.ui.State_output.clear()
+            threading.Thread(target = self.pyas_protect_init_zh).start()
         try:
             self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
         except:
@@ -2351,7 +2354,6 @@ if __name__ == '__main__':
     try:
         pyas_library()
         pyasb_remove()
-        pyasp_remove()
         pyas_version = "2.5.1"
         pyae_version = "2.2.1"
         threading.Thread(target = pyas_vl_update).start()

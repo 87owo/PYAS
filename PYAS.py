@@ -34,8 +34,6 @@ try:
     from PyQt5.QtCore import *
     from PyQt5 import QtWidgets, QtGui, QtCore
     from PYAS_UI import Ui_MainWindow
-    #from watchdog.events import FileSystemEventHandler #Beta Not Cplt
-    #from watchdog.observers import Observer
 except Exception as e:
     pyas_bug_log(e)
 print('[LOAD] Mods: '+str(time.time()-start_m)+' sec')
@@ -306,24 +304,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                     self.show_virus_scan_progress_bar = 1
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
+                    QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,200,20,120);}""")
                 else:
                     self.show_virus_scan_progress_bar = 1
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
+                    QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             else:
                 self.show_virus_scan_progress_bar = 0
+            try:
+                if protect_autorun:
+                    threading.Thread(target = self.pyas_protect_init_zh).start()
+            except:
+                pass
         except Exception as e:
             pyas_bug_log(e)
             self.show_virus_scan_progress_bar = 0
@@ -405,33 +400,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
-            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            if not protect_autorun:
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
             else:
                 self.ui.State_output.clear()
                 print('[INFO] Start Action (Real-time Protect)')
-                self.Virus_Scan = 1
-                if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
-                    self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
-                    self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
-                    self.ui.Protection_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
-                else:
-                    self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
-                    self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
-                    self.ui.Protection_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (Security Key Error)"))
             now_time = datetime.datetime.now()
@@ -510,7 +484,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
         self.ui.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Testers_title.setText(_translate("MainWindow", "Data Make:"))
+        self.ui.Testers_title.setText(_translate("MainWindow", "Testers:"))
         self.ui.Testers_Name.setText(_translate("MainWindow", "yang5487"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "Website:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas?lang=en\"><span style= \" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
@@ -568,33 +542,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
-            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            if not protect_autorun:
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
             else:
                 self.ui.State_output.clear()
                 print('[INFO] Start Action (Real-time Protect)')
-                self.Virus_Scan = 1
-                if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
-                    self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
-                    self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
-                    self.ui.Protection_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
-                else:
-                    self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
-                    self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
-                    self.ui.Protection_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密钥错误)"))
             now_time = datetime.datetime.now()
@@ -673,7 +626,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
         self.ui.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Testers_title.setText(_translate("MainWindow", "数据整理:"))
+        self.ui.Testers_title.setText(_translate("MainWindow", "测试人员:"))
         self.ui.Testers_Name.setText(_translate("MainWindow", "yang5487"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方网站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
@@ -731,33 +684,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             now_time = datetime.datetime.now()
-            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            if not protect_autorun:
                 self.ui.State_output.clear()
                 self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
             else:
                 self.ui.State_output.clear()
                 print('[INFO] Start Action (Real-time Protect)')
-                self.Virus_Scan = 1
-                if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
-                    self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
-                    self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
-                    self.ui.Protection_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
-                else:
-                    self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
-                    self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
-                    self.ui.Protection_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密鑰錯誤)"))
             now_time = datetime.datetime.now()
@@ -836,7 +768,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129"))
         self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
         self.ui.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Testers_title.setText(_translate("MainWindow", "數據整理:"))
+        self.ui.Testers_title.setText(_translate("MainWindow", "測試人員:"))
         self.ui.Testers_Name.setText(_translate("MainWindow", "yang5487"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
@@ -950,7 +882,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     
     def Change_animation_3(self,widget,time):
         #這裡是設定透明度
-        if self.Virus_Scan != 1:
+        if 1:#self.Virus_Scan != 1:
             self.opacity = QtWidgets.QGraphicsOpacityEffect()
             self.opacity.setOpacity(0)
             widget.setGraphicsEffect(self.opacity)
@@ -996,7 +928,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if self.ui.State_widget.isHidden():#isHidden()函數用意是偵測物件是否在隱藏狀態
 
             self.Change_animation_2(25,41)
-            self.Change_animation_3(self.ui.State_widget,1)
+            self.Change_animation_3(self.ui.State_widget,0.5)
             self.Change_animation(self.ui.State_widget)
 
             self.ui.State_widget.show()#show()函數用意是讓隱藏函數顯示出來
@@ -1022,7 +954,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if self.ui.Virus_Scan_widget.isHidden():
 
             self.Change_animation_2(25,164)
-            self.Change_animation_3(self.ui.Virus_Scan_widget,1)
+            self.Change_animation_3(self.ui.Virus_Scan_widget,0.5)
             self.Change_animation(self.ui.Virus_Scan_widget)
 
             self.ui.State_widget.hide()
@@ -1048,7 +980,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if self.ui.Tools_widget.isHidden():
 
             self.Change_animation_2(25,287)
-            self.Change_animation_3(self.ui.Tools_widget,1)
+            self.Change_animation_3(self.ui.Tools_widget,0.5)
             self.Change_animation(self.ui.Tools_widget)
 
             self.ui.State_widget.hide()
@@ -1074,7 +1006,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if self.ui.Protection_widget.isHidden():
 
             self.Change_animation_2(25,410)
-            self.Change_animation_3(self.ui.Protection_widget,1)
+            self.Change_animation_3(self.ui.Protection_widget,0.5)
             self.Change_animation(self.ui.Protection_widget)
 
             self.ui.State_widget.hide()
@@ -1108,7 +1040,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.Process_Timer.start(200)
         elif widget == self.ui.System_Info_widget:
             self.System_Info_update()
-        self.Change_animation_3(widget,1)
+        self.Change_animation_3(widget,0.5)
         self.Change_animation(widget)
         widget.show()
 
@@ -1116,7 +1048,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         widget.hide()
         if widget == self.ui.Process_widget:
             self.Process_Timer.stop()
-        self.Change_animation_3(self.ui.Tools_widget,1)
+        self.Change_animation_3(self.ui.Tools_widget,0.5)
         self.Change_animation(self.ui.Tools_widget)
         self.ui.Tools_widget.show()
 
@@ -2061,12 +1993,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             pyasp_remove()
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{
-                border:none;
-                background-color:rgba(20,20,20,30);
-                border-radius: 15px;}
-            QPushButton:hover{
-                background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.Virus_Scan = 0
             self.ui.State_output.clear()
             now_time = datetime.datetime.now()
@@ -2077,12 +2005,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             pyasp_remove()
             self.ui.Protection_switch_Button.setText(self.text_Translate("已关闭"))
             self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{
-                border:none;
-                background-color:rgba(20,20,20,30);
-                border-radius: 15px;}
-            QPushButton:hover{
-                background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.Virus_Scan = 0
             self.ui.State_output.clear()
             now_time = datetime.datetime.now()
@@ -2110,22 +2034,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{
-                border:none;
-                background-color:rgba(20,200,20,100);
-                border-radius: 15px;}
-            QPushButton:hover{
-                background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("启用该选项可以实时监控进程中的恶意软件并清除。"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已开启"))
             self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{
-                border:none;
-                background-color:rgba(20,200,20,100);
-                border-radius: 15px;}
-            QPushButton:hover{
-                background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         #try:
             #print('[INFO] Reading Viruslist Database')
             #with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
@@ -2148,7 +2064,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 self.Virus_Scan = 1
                 for p in psutil.process_iter():
                     try:
-                        time.sleep(0.0001)
+                        time.sleep(0.00001)
                         QApplication.processEvents()
                         file = str(p.exe())
                         if '' == file or 'C:\Windows' in file or 'C:\Program' in file or 'AppData' in file or 'MemCompression' in file or 'Registry' in file:
@@ -2166,13 +2082,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
                                         toaster = ToastNotifier()
                                         toaster.show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
-                                    #os.remove(str(p.exe()))
-                                    #try:
-                                        #observer = Observer()
-                                        #observer.schedule(MainWindow_Controller(), os.path.dirname(p.exe()), False)
-                                        #observer.start()
-                                    #except Exception as e:
-                                        #pass
                                 except Exception as e:
                                     pyas_bug_log(e)
                                     pass
@@ -2223,12 +2132,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         pyas_bug_log(e)
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
+                    QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,200,20,120);}""")
                     self.show_virus_scan_progress_bar = 1
                 elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已关闭"):
                     self.ini_config.set("Setting", "high_sensitivity", 1)
@@ -2238,12 +2143,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         pyas_bug_log(e)
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,200,20,100);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,200,20,120);}""")
+                    QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,200,20,120);}""")
                     self.show_virus_scan_progress_bar = 1
                 elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已开启"):
                     self.ini_config.set("Setting", "high_sensitivity", 0)
@@ -2253,12 +2154,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         pyas_bug_log(e)
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已关闭"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,20,20,30);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,20,20,50);}""")
+                    QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,20,20,50);}""")
                     self.show_virus_scan_progress_bar = 0
                 elif self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text() == self.text_Translate("已開啟"):
                     self.ini_config.set("Setting", "high_sensitivity", 0)
@@ -2268,12 +2165,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         pyas_bug_log(e)
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,20,20,30);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,20,20,50);}""")
+                    QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,20,20,50);}""")
                     self.show_virus_scan_progress_bar = 0
                 else:
                     self.ini_config.set("Setting", "high_sensitivity", 0)
@@ -2283,12 +2176,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         pyas_bug_log(e)
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
                     self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                    QPushButton{
-                        border:none;
-                        background-color:rgba(20,20,20,30);
-                        border-radius: 15px;}
-                    QPushButton:hover{
-                        background-color:rgba(20,20,20,50);}""")
+                    QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+                    QPushButton:hover{background-color:rgba(20,20,20,50);}""")
                     self.show_virus_scan_progress_bar = 0
             except Exception as e:
                 pyas_bug_log(e)
@@ -2422,10 +2311,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 if __name__ == '__main__':
     try:
+        pyas_version = "2.5.2"
+        pyae_version = "2.2.1"
+        protect_autorun = False
         pyas_library()
         pyasb_remove()
-        pyas_version = "2.5.1"
-        pyae_version = "2.2.1"
+        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp') and pyas_key():
+            pyasp_remove()
+            protect_autorun = True
         threading.Thread(target = pyas_vl_update).start()
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放

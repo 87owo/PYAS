@@ -5,9 +5,24 @@
 # PYAS Web: https://pyantivirus.wixsite.com/pyas
 #
 # PYAS is managed by PYDT (Python Development Team)
-# Copyright© 2020-2022 87owo (PYAS Security)
+# Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 #
+##################################### 載入必要模組 ###################################
+
+import time
+start_m = time.time()
+import os, sys, psutil, subprocess, threading, configparser
+from pefile import PE, DIRECTORY_ENTRY
+from win10toast import ToastNotifier
+from hashlib import md5, sha1, sha256
+from PYAS_English import english_list
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5 import QtWidgets, QtGui, QtCore
+from PYAS_UI import Ui_MainWindow
+
 ###################################### 錯誤日誌 #####################################
 
 def pyas_bug_log(e):
@@ -18,25 +33,6 @@ def pyas_bug_log(e):
         ft.close()
     except:
         pass
-
-##################################### 載入必要模組 ###################################
-
-try:
-    import time
-    start_m = time.time()
-    import os, sys, psutil, subprocess, threading, configparser, datetime
-    from pefile import PE, DIRECTORY_ENTRY
-    from win10toast import ToastNotifier
-    from hashlib import md5, sha1, sha256
-    from PYAS_English import english_list
-    from PyQt5.QtWidgets import *
-    from PyQt5.QtGui import *
-    from PyQt5.QtCore import *
-    from PyQt5 import QtWidgets, QtGui, QtCore
-    from PYAS_UI import Ui_MainWindow
-except Exception as e:
-    pyas_bug_log(e)
-print('[LOAD] Mods: '+str(time.time()-start_m)+' sec')
 
 ##################################### 移除暫存檔 ####################################
 
@@ -60,8 +56,6 @@ def pyas_library():
             os.makedirs('Library/PYAS/Temp')
         if not os.path.isdir('Library/PYAS/Setup'):
             os.makedirs('Library/PYAS/Setup')
-        if not os.path.isdir('Library/PYAS/Audio'):
-            os.makedirs('Library/PYAS/Audio')
         if not os.path.isdir('Library/PYAS/Icon'):
             os.makedirs('Library/PYAS/Icon')
         if not os.path.isdir('Library/PYAE/Function'):
@@ -81,7 +75,6 @@ def pyas_vl_update():
         v = 0
     try:
         import requests as req
-        start = time.time()
         for i in range(int(v),10000):
             try:
                 x = 5 - len(str(i))
@@ -120,7 +113,6 @@ def pyas_vl_update():
 ###################################### 密鑰認證 #####################################
 
 def pyas_key():
-    start = time.time()
     try:
         if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
             try:
@@ -138,10 +130,8 @@ def pyas_key():
                 fe = ft.read()
                 ft.close()
                 if fe == readable_hash:
-                    print('[LOAD] Key: '+str(time.time()-start)+' sec')
                     return True
                 else:
-                    print('[LOAD] Key: '+str(time.time()-start)+' sec')
                     return False
             except:
                 pass
@@ -149,14 +139,12 @@ def pyas_key():
             return False
     except Exception as e:
         pyas_bug_log(e)
-        print('[LOAD] Key: '+str(time.time()-start)+' sec')
         return False
 
 ###################################### 主要程式 #####################################
 
 class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
     def __init__(self):
-        start = time.time()
         super(MainWindow_Controller, self).__init__()
         self.ui = Ui_MainWindow() #繼承
         self.ui.pyas_opacity = 100
@@ -165,14 +153,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         #self.setWindowFlags(Qt.WindowStaysOnTopHint|self.windowFlags()) #窗口置頂
         self.ui.setupUi(self)
         self.setup_control()
-        print('[LOAD] GUI: '+str(time.time()-start)+' sec')
         
     def resizeEvent(self, event):
         width, height = event.size().width(), event.size().height()
         print('[INFO] '+str(event.size()))
     
-    def setup_control(self):
-        # TODO
+    def setup_control(self):# TODO
         self.init()#調用本地函數"init"
         self.ui.Close_Button.clicked.connect(self.close)#讓物件名稱"Close_Button"連接到函數"close"
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
@@ -215,10 +201,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         self.ui.Customize_REG_Command_Button.clicked.connect(lambda:self.Change_Tools(self.ui.Customize_REG_Command_widget))
         self.ui.Change_Users_Password_Button.clicked.connect(lambda:self.Change_Tools(self.ui.Change_Users_Password_widget))
         self.ui.Change_Users_Password_Back.clicked.connect(lambda:self.Back_To_More_Tools(self.ui.Change_Users_Password_widget))
-
         self.ui.About_Back.clicked.connect(self.ui.About_widget.hide)
         self.ui.Setting_Back.clicked.connect(self.Setting_Back)
-        
         self.ui.Repair_System_Permission_Button.clicked.connect(self.Repair_System_Permission)
         self.ui.Repair_System_Files_Button.clicked.connect(self.Repair_System_Files)
         self.ui.Clean_System_Files_Button.clicked.connect(self.Clean_System_Files)
@@ -233,7 +217,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         self.ui.Internet_location_Query_Button.clicked.connect(self.Internet_location_Query)
         self.ui.Rework_Network_Configuration_Button.clicked.connect(self.reset_network)
         self.ui.Customize_REG_Command_Run_Button.clicked.connect(self.Customize_REG_Command)
-
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.Process_list_Menu)
         #Protection
@@ -263,18 +246,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         self.Safe = True
         self.Process_Timer=QTimer()
         self.Process_Timer.timeout.connect(self.Process_list)
-        self.pause = False
         self.ini_config = configparser.RawConfigParser()
         try:
             self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
-        except:
-            try:
-                with open(r"Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
-                file.close()
-            except Exception as e:
-                pyas_bug_log(e)
-        try:
             if self.ini_config.get("Setting","language") == "zh_TW":
                 self.language = "zh_TW"
                 self.lang_init_zh_tw()
@@ -287,8 +261,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                 self.language = "english"
                 self.lang_init_en()
                 self.ui.Languahe_English.setChecked(True)
-        except Exception as e:
-            pyas_bug_log(e)
+        except:
             try:
                 with open(r"Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
                     file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
@@ -299,6 +272,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
             self.lang_init_en()
             self.ui.Languahe_English.setChecked(True)
         try:
+            threading.Thread(target = pyas_vl_update).start()
+            if protect_autorun:
+                threading.Thread(target = self.pyas_protect_init_zh).start()
             if self.ini_config.getint("Setting","high_sensitivity") == 1:
                 if self.ini_config.get("Setting","language") == "zh_TW":
                     self.show_virus_scan_progress_bar = 1
@@ -314,27 +290,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                     QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             else:
                 self.show_virus_scan_progress_bar = 0
-            try:
-                if protect_autorun:
-                    threading.Thread(target = self.pyas_protect_init_zh).start()
-            except:
-                pass
-        except Exception as e:
-            pyas_bug_log(e)
+        except:
             self.show_virus_scan_progress_bar = 0
-
-###################################### 許可條款 #####################################
-    
-        self.ui.License_terms.setText('''Copyright (C) 2020-2022 87owo (PYAS Security)
-=====================================================
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
+        self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
         self.effect_shadow = QtWidgets.QGraphicsDropShadowEffect(self)
         self.effect_shadow.setOffset(0,0) # 偏移
-        self.effect_shadow.setBlurRadius(10) # 阴影半径
-        self.effect_shadow.setColor(QtCore.Qt.gray) # 阴影颜色
-        self.ui.widget_2.setGraphicsEffect(self.effect_shadow) # 将设置套用到widget窗口中
+        self.effect_shadow.setBlurRadius(10) # 陰影半徑
+        self.effect_shadow.setColor(QtCore.Qt.gray) # 陰影颜色
+        self.ui.widget_2.setGraphicsEffect(self.effect_shadow)
         self.effect_shadow2 = QtWidgets.QGraphicsDropShadowEffect(self)
         self.effect_shadow2.setOffset(0,0)
         self.effect_shadow2.setBlurRadius(10)
@@ -345,7 +308,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.effect_shadow3.setBlurRadius(7)
         self.effect_shadow3.setColor(QtCore.Qt.gray) 
         self.ui.Window_widget.setGraphicsEffect(self.effect_shadow3)
-
         self.ui.Virus_Scan_choose_widget.hide()#hide()函數的用意是隱藏物件
         self.ui.Virus_Scan_widget.hide()
         self.ui.Tools_widget.hide()
@@ -377,8 +339,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         if self.pyas_scan_start(event.src_path, rfp):
             try:
                 os.remove(str(event.src_path))
-                #self.ui.State_output.clear()
-                #self.ui.State_output.append(self.text_Translate('{} > [行為防護] 成功攔截了惡意檔案創建行為。').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S'))))
             except Exception as e:
                 pyas_bug_log(e)
                 pass
@@ -394,23 +354,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ##################################### 英文初始化 ####################################
     
     def lang_init_en(self):
-        start = time.time()
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
-            now_time = datetime.datetime.now()
             if not protect_autorun:
                 self.ui.State_output.clear()
-                self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
+                self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
             else:
                 self.ui.State_output.clear()
-                print('[INFO] Start Action (Real-time Protect)')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (Security Key Error)"))
-            now_time = datetime.datetime.now()
             self.ui.State_output.clear()
-            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
+            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
         self.ui.State_Button.setText(_translate("MainWindow", "State"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "Scan"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "Tools"))
@@ -488,7 +444,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Testers_Name.setText(_translate("MainWindow", "yang5487"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "Website:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas?lang=en\"><span style= \" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        cy = datetime.datetime.now().strftime('%Y')
+        cy = time.strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" 87owo (PYAS Security)"))
@@ -531,28 +487,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Theme_Red.setText(_translate("MainWindow", "Red"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "Green"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "Blue"))
-        print('[LOAD] Lang: '+str(time.time()-start)+' sec')
 
 ##################################### 簡中初始化 ####################################
     
     def lang_init_zh_cn(self):
-        start = time.time()
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
-            now_time = datetime.datetime.now()
             if not protect_autorun:
                 self.ui.State_output.clear()
-                self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
-            else:
-                self.ui.State_output.clear()
-                print('[INFO] Start Action (Real-time Protect)')
+                self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密钥错误)"))
-            now_time = datetime.datetime.now()
             self.ui.State_output.clear()
-            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
+            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
         self.ui.State_Button.setText(_translate("MainWindow", "状态"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "扫描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -630,7 +579,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Testers_Name.setText(_translate("MainWindow", "yang5487"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方网站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        cy = datetime.datetime.now().strftime('%Y')
+        cy = time.strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" 87owo (PYAS Security)"))
@@ -673,28 +622,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Theme_Red.setText(_translate("MainWindow", "红色主题"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "绿色主题"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "蓝色主题"))
-        print('[LOAD] Lang: '+str(time.time()-start)+' sec')
 
 ##################################### 繁中初始化 ####################################
     
     def lang_init_zh_tw(self):
-        start = time.time()
         _translate = QtCore.QCoreApplication.translate
         if pyas_key():
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
-            now_time = datetime.datetime.now()
             if not protect_autorun:
                 self.ui.State_output.clear()
-                self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
-            else:
-                self.ui.State_output.clear()
-                print('[INFO] Start Action (Real-time Protect)')
+                self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密鑰錯誤)"))
-            now_time = datetime.datetime.now()
             self.ui.State_output.clear()
-            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
+            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
         self.ui.State_Button.setText(_translate("MainWindow", "狀態"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "掃描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -772,7 +714,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Testers_Name.setText(_translate("MainWindow", "yang5487"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        cy = datetime.datetime.now().strftime('%Y')
+        cy = time.strftime('%Y')
         if int(cy) < 2020:
             cy = str('2020')
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-"+str(cy)+" 87owo (PYAS Security)"))
@@ -815,7 +757,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ui.Theme_Red.setText(_translate("MainWindow", "紅色主題"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "綠色主題"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "藍色主題"))
-        print('[LOAD] Lang: '+str(time.time()-start)+' sec')
 
 ##################################### 繁簡中翻譯 ####################################
     
@@ -1092,9 +1033,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 else:
                     all_files.append(os.path.join(path,file))
             return all_files
-        except Exception as e:
-            pyas_bug_log(e)
-            return 0
+        except:
+            return False
 
     def pyas_scan_start(self,file,rfp):#MD5較驗
         try:
@@ -1139,8 +1079,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             ft.close()
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            now_time = datetime.datetime.now()
-            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(" > [病毒掃描] 掃描出") + str(len(self.Virus_List)) + self.text_Translate("個病毒"))
+            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(" > [病毒掃描] 掃描出") + str(len(self.Virus_List)) + self.text_Translate("個病毒"))
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
             self.ui.State_title.setText(self.text_Translate("這部裝置目前不安全"))
             self.ui.Virus_Scan_Solve_Button.show()
@@ -1178,10 +1117,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     def File_Scan(self):
         print('[SCAN] Start Scan Action (File Scan)')
         self.pyas_del_virus_temp()
+        self.Virus_List = []
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
-        self.Virus_List = []
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
@@ -1246,8 +1185,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         self.ini_config = configparser.RawConfigParser()
         try:
             self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
-        except Exception as e:
-            pyas_bug_log(e)
+        except:
+            pass
         self.Virus_List = []
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
@@ -1827,10 +1766,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     def find_files_info_zh(self,ffile):
         try:
-            start = time.time()
             for d in range(26):
                 self.findfile_zh(str(chr(65+d))+':/',ffile,start)
-            end = time.time()
             if os.path.isfile('Library/PYAS/Temp/PYASF.tmp'):
                 try:
                     ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
@@ -1989,37 +1926,30 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ##################################### 實時防護 #####################################
     
     def protect_threading_init_zh(self):
+        pyasp_remove()
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            pyasp_remove()
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.Virus_Scan = 0
             self.ui.State_output.clear()
-            now_time = datetime.datetime.now()
-            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未啟用實時防護'))
+            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未啟用實時防護'))
             QApplication.processEvents()
-            self.pause = True
         elif self.ui.Protection_switch_Button.text() == self.text_Translate("已开启"):
-            pyasp_remove()
             self.ui.Protection_switch_Button.setText(self.text_Translate("已关闭"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.Virus_Scan = 0
             self.ui.State_output.clear()
-            now_time = datetime.datetime.now()
-            self.ui.State_output.append(str(now_time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未启用实时防护'))
+            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未启用实时防护'))
             QApplication.processEvents()
-            self.pause = True
         else:
             try:
                 if pyas_key():
-                    pyasp_remove()
                     self.ui.State_output.clear()
                     self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
-                    self.pause = False
                     QApplication.processEvents()
                     threading.Thread(target = self.pyas_protect_init_zh).start()
                 else:
@@ -2029,6 +1959,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
     def pyas_protect_init_zh(self):
         print('[INFO] Start Action (Real-time Protect)')
+        try:
+            ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
+            ft.write('')
+            ft.close()
+        except:
+            pass
         self.Virus_Scan = 1
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
@@ -2042,51 +1978,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        #try:
-            #print('[INFO] Reading Viruslist Database')
-            #with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                #rfp = fp.read()
-            #fp.close()
-        #except Exception as e:
-            #pyas_bug_log(e)
-        try:
-            ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
-            ft.write('')
-            ft.close()
-        except Exception as e:
-            pyas_bug_log(e)
-            pass
-        while not self.pause:
-            if not os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-                self.pause = True
-                break
-            else:
-                self.Virus_Scan = 1
-                for p in psutil.process_iter():
-                    try:
-                        time.sleep(0.00001)
-                        QApplication.processEvents()
-                        file = str(p.exe())
-                        if '' == file or 'C:\Windows' in file or 'C:\Program' in file or 'AppData' in file or 'MemCompression' in file or 'Registry' in file:
-                            pass
-                        else:
-                            if self.pyas_sign_start(file) and 'PYAS' not in file:
-                                try:
-                                    if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
-                                        print('[INFO] Malware blocking success: '+str(p.name()))
-                                        self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
-                                        toaster = ToastNotifier()
-                                        toaster.show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
-                                    else:
-                                        print('[INFO] Malware blocking failed: '+str(p.name()))
-                                        self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(datetime.datetime.now())+str(p.name()))
-                                        toaster = ToastNotifier()
-                                        toaster.show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(str(datetime.datetime.now().strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
-                                except Exception as e:
-                                    pyas_bug_log(e)
-                                    pass
-                    except:
-                        continue
+        while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            for p in psutil.process_iter():
+                try:
+                    time.sleep(0.0001)
+                    QApplication.processEvents()
+                    file = str(p.exe())
+                    if '' == file or 'C:\Windows' in file or 'C:\Program' in file or 'AppData' in file or 'MemCompression' in file or 'Registry' in file:
+                        pass
+                    else:
+                        if self.pyas_sign_start(file) and 'PYAS' not in file:
+                            try:
+                                if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
+                                    print('[INFO] Malware blocking success: '+str(p.name()))
+                                    self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
+                                    ToastNotifier().show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
+                                else:
+                                    print('[INFO] Malware blocking failed: '+str(p.name()))
+                                    self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+str(p.name()))
+                                    ToastNotifier().show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
+                            except:
+                                pass
+                except:
+                    continue
 
 ##################################### 系統設置 #####################################
 
@@ -2313,24 +2227,23 @@ if __name__ == '__main__':
     try:
         pyas_version = "2.5.2"
         pyae_version = "2.2.1"
+        print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         protect_autorun = False
         pyas_library()
         pyasb_remove()
-        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp') and pyas_key():
+        if pyas_key() and os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
             pyasp_remove()
             protect_autorun = True
-        threading.Thread(target = pyas_vl_update).start()
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
         window = MainWindow_Controller()
         window.setWindowOpacity(1)
         window.show()
-        print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         print('[LOAD] Total: '+str(time.time()-start_m)+' sec')
         sys.exit(app.exec_())
     except Exception as e:
         pyas_bug_log(e)
 
 ####################################################################################
-#Copyright© 2020-2022 87owo (PYAS Security)
+#Copyright© 2020-2023 87owo (PYAS Security)

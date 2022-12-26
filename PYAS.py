@@ -11,7 +11,7 @@
 ##################################### 載入必要模組 ###################################
 
 import time
-start_m = time.time()
+start_m = time.process_time()
 import os, sys, psutil, subprocess, threading, configparser
 from pefile import PE, DIRECTORY_ENTRY
 from win10toast import ToastNotifier
@@ -1088,6 +1088,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
             self.Virus_Scan = 0
             self.Safe = False
             print('[SCAN] Malware has been detected')
+            ToastNotifier().show_toast("PYAS Security",self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List)),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
             return self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List))
         except:
             self.ui.Virus_Scan_Break_Button.hide()
@@ -1095,6 +1096,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
             self.Virus_Scan = 0
             self.Safe = True
             print('[SCAN] No malware currently found')
+            ToastNotifier().show_toast("PYAS Security",self.text_Translate('✔當前未發現惡意軟體。'),icon_path="Library/PYAS/Icon/ICON.ico",duration=5,threaded=True)
             return self.text_Translate('✔當前未發現惡意軟體。')
         
     def pyas_scan_answer_en(self):
@@ -1145,12 +1147,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                     if self.pyas_sign_start(file):#簽名檢查
                         if self.pyas_scan_start(file,rfp):#MD5較驗
                             self.pyas_scan_write_en(file)#寫入發現病毒
-                            self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                 else:
                     try:
                         if self.pyas_scan_start(file,rfp):#MD5較驗
                             self.pyas_scan_write_en(file)#寫入發現病毒
-                            self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                         else:#未發現病毒
                             fts = False
                             pe = PE(file)
@@ -1164,7 +1164,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                                 self.pyas_scan_write_en(file)#寫入發現病毒
                                 fts = False
                                 print('[SCAN] Malware has been detected')
-                                self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體。"))
                     except:
                         pass
                 self.pyas_scan_answer_en()
@@ -2240,7 +2239,7 @@ if __name__ == '__main__':
         window = MainWindow_Controller()
         window.setWindowOpacity(1)
         window.show()
-        print('[LOAD] Total: '+str(time.time()-start_m)+' sec')
+        print('[LOAD] Process Time: '+str(time.process_time()-start_m)+' sec')
         sys.exit(app.exec_())
     except Exception as e:
         pyas_bug_log(e)

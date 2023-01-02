@@ -99,8 +99,7 @@ PYAS Core Developer: 87owo
 PYAS GUI Developer: mtkiao
 PYAS Data Collector: yang5487
 PYAS Testers: 87owo, mtkiao
-Special Thanks: Wix, Avast, Github, Google, Python,
-Microsoft, VirusTotal, VirusShare, LenStevens
+Special Thanks: Wix, VirusShare, Len-Stevens, mtkiao129
 ========================================
 Thanks For Using PYAS Python Antivirus Software
 """}

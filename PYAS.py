@@ -329,27 +329,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
         self.ui.Change_Users_Password_widget.hide()
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
-        
-#################################### 檔案行為防護 ####################################
-    
-    def on_created(self, event): #不穩定(已停用)
-        print("File Create: "+str(event.src_path))
-        with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-            rfp = fp.read()
-        if self.pyas_scan_start(event.src_path, rfp):
-            try:
-                os.remove(str(event.src_path))
-            except Exception as e:
-                pyas_bug_log(e)
-                pass
-        rfp = ""
-        fp.close()
-
-    #def on_deleted(self, event):
-        #print("檔案被刪除: "+str(event.src_path))
-
-    #def on_modified(self, event):
-        #print("檔案被編輯: "+str(event.src_path))
 
 ##################################### 英文初始化 ####################################
     
@@ -1565,29 +1544,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
      
     def Customize_CMD_Command(self):
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
-        #try: #Not Cplt
-            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional':
-                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition)')
-                #return
-            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business':
-                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition)')
-                #return
-            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'professional_ltsc':
-                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Professional Edition LTSC)')
-                #return
-            #if str(cryptocode.decrypt(CMD_Command,pyas_version)) == 'business_ltsc':
-                #self.ui.Window_title.setText("PYAS V"+pyas_version+' (Business Edition LTSC)')
-                #return
-        #except:
-            #pass
         if CMD_Command == "":
             return
-        if CMD_Command.lower() == "never gonna give you up" or CMD_Command.lower() == "rickroll" or CMD_Command.lower() == "rick roll":
-            import webbrowser
-            webbrowser.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ")#rickroll easter egg
-            return
-        if CMD_Command == "python antivirus software" or CMD_Command == "Python Antivirus Software" \
-        or CMD_Command == "PYAS" or CMD_Command == "pyas":
+        if CMD_Command == "PYAS" or CMD_Command == "pyas":
             self.ui.Customize_CMD_Command_output.setText(english_list["PYAS"])#about pyas
             return
         try:
@@ -2224,7 +2183,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
 
 if __name__ == '__main__':
     try:
-        pyas_version = "2.5.2"
+        pyas_version = "2.5.3"
         pyae_version = "2.2.1"
         print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         protect_autorun = False

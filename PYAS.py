@@ -1725,7 +1725,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
     def find_files_info_zh(self,ffile):
         try:
             for d in range(26):
-                self.findfile_zh(str(chr(65+d))+':/',ffile,start)
+                self.findfile_zh(str(chr(65+d))+':/',ffile)
             if os.path.isfile('Library/PYAS/Temp/PYASF.tmp'):
                 try:
                     ft = open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8")
@@ -1748,7 +1748,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
             pyas_bug_log(e)
             pass
 
-    def findfile_zh(self,path,ffile,start):
+    def findfile_zh(self,path,ffile):
         try:
             self.ui.Look_for_File_output.setText(self.text_Translate('正在尋找: ')+str(path))
             for fd in os.listdir(path):
@@ -1759,7 +1759,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                         pass
                     else:
                         if os.path.isdir(fullpath):
-                            self.findfile_zh(fullpath,ffile,start)
+                            self.findfile_zh(fullpath,ffile)
                         else:
                             if ffile in str(fd):
                                 try:

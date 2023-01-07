@@ -1572,26 +1572,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):#,FileSystemEventHandler):
                         except:
                             self.ui.Customize_CMD_Command_output.setText("Error: Add Function database failed")
                         return
-                if CMD_Command.split()[1].lower() == "--rules" or CMD_Command.split()[1].lower() == "-r":
-                    if CMD_Command.split()[2].lower() == "--reg" or CMD_Command.split()[2].lower() == "-r":
-                        value = CMD_Command.split()[3]
-                    if CMD_Command.split()[2].lower() == "--perf" or CMD_Command.split()[2].lower() == "-p":
-                        value = CMD_Command.split()[3]
-                        while 1:
-                            QApplication.processEvents()
-                            x = int(psutil.cpu_percent(interval=0.1))
-                            if x > int(value):
-                                print(str(x))
-                    if CMD_Command.split()[2].lower() == "--file" or CMD_Command.split()[2].lower() == "-f":
-                        value = CMD_Command.split()[3]
-                    if CMD_Command.split()[2].lower() == "--task" or CMD_Command.split()[2].lower() == "-t":
-                        value = CMD_Command.split()[3]
-                        while 1:
-                            QApplication.processEvents()
-                            time.sleep(0.0001)
-                            for p in psutil.process_iter():
-                                if str(value) == str(p.name()):
-                                    return
         except Exception as e:
             pyas_bug_log(e)
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+ '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)

@@ -89,17 +89,4 @@ english_list = {
 '{} > [實時防護] 正在檢測檔案安全性:':'{} > [Real-time Protect] Checking file security:',
 '{} > [實時防護] 未檢測到可疑檔案:':'{} > [Real-time Protect] No suspicious files detected:',
 '修復系統權限':"Repair System Permissions",
-'啟用該選項可以實時監控系統的檔案讀寫變更行為。':"Enable this option can improve scanning sensitivity, but it can also cause manslaughter.",
-'PYAS':"""PYAS Python Antivirus Software Security
-========================================
-PYAS Create Date: 2020/12/17
-Official Github: https://github.com/87owo/PYAS
-Official Website: https://pyantivirus.wixsite.com/pyas
-PYAS Core Developer: 87owo
-PYAS GUI Developer: mtkiao
-PYAS Data Collector: yang5487
-PYAS Testers: 87owo, mtkiao
-Special Thanks: Wix, VirusShare, Len-Stevens, mtkiao129
-========================================
-Thanks For Using PYAS Python Antivirus Software
-"""}
+'啟用該選項可以實時監控系統的檔案讀寫變更行為。':"Enable this option can improve scanning sensitivity, but it can also cause manslaughter."}

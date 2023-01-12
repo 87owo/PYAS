@@ -8,7 +8,7 @@
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 #
-##################################### 載入必要模組 ###################################
+##################################### 載入模組套件 ###################################
 
 import os, sys, time, psutil, subprocess
 from configparser import RawConfigParser
@@ -68,6 +68,14 @@ def pyas_library():
         pyas_bug_log(e)
         pass
 
+#################################### 實時防護檢查 ###################################
+
+def protect_autorun():
+    if pyas_key() and os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+        return True
+    else:
+        return False
+    
 ##################################### 更新資料庫 ####################################
     
 def pyas_vl_update():
@@ -231,7 +239,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_Blue.clicked.connect(self.Change_Theme)
         self.ui.Theme_Red.clicked.connect(self.Change_Theme)
 
-##################################### 視窗初始化 ####################################
+##################################### 語言初始化 ####################################
     
     def init(self):
         self.ui.widget_2.lower()
@@ -329,10 +337,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             if not protect_autorun:
-                self.ui.State_output.clear()
                 self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
-            else:
-                self.ui.State_output.clear()
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (Security Key Error)"))
             self.ui.State_output.clear()
@@ -462,7 +467,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             if not protect_autorun:
-                self.ui.State_output.clear()
                 self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密钥错误)"))
@@ -593,7 +597,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_output.clear()
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
             if not protect_autorun:
-                self.ui.State_output.clear()
                 self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密鑰錯誤)"))
@@ -1684,12 +1687,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     ft = open('Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8")
                                     ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
                                     ft.close()
-                                except Exception as e:
-                                    pyas_bug_log(e)
+                                except:
+                                    pass
                 except:
                     continue
-        except Exception as e:
-            pyas_bug_log(e)
+        except:
+            pass
 
     def Process_list(self):
         try:
@@ -1749,7 +1752,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修改用戶密碼嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
             try:
                 if password == "":
-                    subprocess.call("net user {} {}".format(username,""))
+                    subprocess.call("net user {} {}".format(username,'""'))
                 else:
                     subprocess.call("net user {} {}".format(username,password))
             except Exception as e:
@@ -2056,7 +2059,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setTop(10)
         rect.setWidth(rect.width()-10)
         rect.setHeight(rect.height()-10)
-        pat2.drawRoundedRect(rect, 1, 1)    
+        pat2.drawRoundedRect(rect, 1, 1)
 
 ##################################### 主初始化 #####################################
 
@@ -2066,10 +2069,6 @@ if __name__ == '__main__':
         pyasb_remove()
         pyas_version = "2.5.4"
         pyae_version = "2.2.1"
-        protect_autorun = False
-        if pyas_key() and os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-            pyasp_remove()
-            protect_autorun = True
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)

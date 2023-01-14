@@ -23,4 +23,4 @@ os, sys, time, socket, random, psutil, subprocess, threading, configparser, win1
 ## Special Thanks
 Wix, VirusShare, mtkiao129, LenStevens
 
-Copyright© 2020~2022 PYAS Security By 87owo
+Copyright© 2020~2023 PYAS Security By 87owo

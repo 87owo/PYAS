@@ -1103,9 +1103,9 @@ QPushButton:pressed
      <widget class="QLineEdit" name="Encryption_Text_Password_input">
       <property name="geometry">
        <rect>
-        <x>140</x>
+        <x>150</x>
         <y>400</y>
-        <width>281</width>
+        <width>271</width>
         <height>31</height>
        </rect>
       </property>
@@ -3719,9 +3719,9 @@ QPushButton:hover
       <property name="geometry">
        <rect>
         <x>30</x>
-        <y>300</y>
+        <y>310</y>
         <width>611</width>
-        <height>131</height>
+        <height>121</height>
        </rect>
       </property>
       <property name="styleSheet">

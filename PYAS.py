@@ -1614,6 +1614,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Look_for_File(self):
         try:
             os.remove('Library/PYAS/Temp/PYASF.tmp')
+        except:
+            pass
+        try:
             File_Name = self.ui.Look_for_File_input.text()
             if File_Name != "":
                 self.find_files_info_zh(File_Name)
@@ -1983,8 +1986,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
             event.accept()
             while self.ui.pyas_opacity > 60 and self.m_flag == True:
-                time.sleep(0.01)
-                self.ui.pyas_opacity -= 2
+                time.sleep(0.003)
+                self.ui.pyas_opacity -= 1
                 window.setWindowOpacity(self.ui.pyas_opacity/100)
                 QApplication.processEvents()
         
@@ -2001,8 +2004,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.m_flag=False
         self.setCursor(QCursor(Qt.ArrowCursor))
         while self.ui.pyas_opacity < 100 and self.m_flag == False:
-            time.sleep(0.01)
-            self.ui.pyas_opacity += 2
+            time.sleep(0.003)
+            self.ui.pyas_opacity += 1
             window.setWindowOpacity(self.ui.pyas_opacity/100)
             QApplication.processEvents()
 
@@ -2018,6 +2021,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
+    def closeEvent(self, event):
+        while self.ui.pyas_opacity > 0:
+            time.sleep(0.001)
+            self.ui.pyas_opacity -= 1
+            window.setWindowOpacity(self.ui.pyas_opacity/100)
+            QApplication.processEvents()
+
 ##################################### 主初始化 #####################################
 
 if __name__ == '__main__':
@@ -2025,13 +2035,17 @@ if __name__ == '__main__':
         pyas_library()
         pyasp_remove()
         pyasb_remove()
-        pyas_version = "2.5.5"
+        pyas_version = "2.5.6"
         pyae_version = "2.2.1"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
         window = MainWindow_Controller()
         window.show()
+        for i in range(100):
+            time.sleep(0.001)
+            window.setWindowOpacity(i/100)
+            QApplication.processEvents()
         print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
         print('[LOAD] Process Time: '+str(time.process_time()-start_m)+' sec')
         sys.exit(app.exec_())

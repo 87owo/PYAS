@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'C:\Users\Windows\Documents\Project\Python\PYDT開發團隊\PYAS防毒軟體\PYAS_程式碼\PYAS_UI.ui'
+# Form implementation generated from reading ui file 'C:\Users\Windows\Documents\Project\Python\PYDT開發團隊\PYAS防毒軟體\PYAS_程式碼\Library\PYAS\Qtui\PYAS_UI.ui'
 #
 # Created by: PyQt5 UI code generator 5.15.7
 #
@@ -22,7 +22,7 @@ class Ui_MainWindow(object):
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.TabFocus)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Library/PYAS/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("C:\\Users\\Windows\\Documents\\Project\\Python\\PYDT開發團隊\\PYAS防毒軟體\\PYAS_程式碼\\Library\\PYAS\\Qtui\\Library/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setIconSize(QtCore.QSize(24, 24))
         MainWindow.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
@@ -569,7 +569,7 @@ class Ui_MainWindow(object):
         self.Encryption_Text_output.setFont(font)
         self.Encryption_Text_output.setObjectName("Encryption_Text_output")
         self.Encryption_Text_Password_input = QtWidgets.QLineEdit(self.Encryption_Text_widget)
-        self.Encryption_Text_Password_input.setGeometry(QtCore.QRect(140, 400, 281, 31))
+        self.Encryption_Text_Password_input.setGeometry(QtCore.QRect(150, 400, 271, 31))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -1853,7 +1853,7 @@ class Ui_MainWindow(object):
         self.PYAE_Version.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.PYAE_Version.setObjectName("PYAE_Version")
         self.License_terms = QtWidgets.QTextEdit(self.About_widget)
-        self.License_terms.setGeometry(QtCore.QRect(30, 300, 611, 131))
+        self.License_terms.setGeometry(QtCore.QRect(30, 310, 611, 121))
         self.License_terms.setStyleSheet("")
         self.License_terms.setReadOnly(True)
         self.License_terms.setObjectName("License_terms")

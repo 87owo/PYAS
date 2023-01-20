@@ -10,7 +10,7 @@
 #
 ##################################### 載入模組套件 ###################################
 
-import os, sys, time, psutil, subprocess
+import os, sys, time, json, psutil, subprocess
 from configparser import RawConfigParser
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
@@ -63,58 +63,59 @@ def protect_autorun():
 
 def pyas_library():
     try:
-        if not os.path.isdir('Library/PYAS/Temp'):
-            os.makedirs('Library/PYAS/Temp')
-        if not os.path.isdir('Library/PYAS/Setup'):
-            os.makedirs('Library/PYAS/Setup')
-        if not os.path.isdir('Library/PYAS/Icon'):
-            os.makedirs('Library/PYAS/Icon')
-        if not os.path.isdir('Library/PYAE/Function'):
-            os.makedirs('Library/PYAE/Function')
-        if not os.path.isdir('Library/PYAE/Hashes'):
-            os.makedirs('Library/PYAE/Hashes')
+        checkPath = [
+            'Library/PYAS/Temp',
+            'Library/PYAS/Setup',
+            'Library/PYAS/Icon',
+            'Library/PYAE/Function',
+            'Library/PYAE/Hashes']
+        for i in checkPath:
+            if not os.path.isdir(i):
+                os.makedirs(i)
     except Exception as e:
         pyas_bug_log(e)
 
 ##################################### 更新資料庫 ####################################
     
+# 這些變數命名方式不符合規範，請不要使用簡寫，以免造成混淆
 def pyas_vl_update():
     try:
-        v = open('Library/PYAE/Hashes/Viruslist.num','r').read()
+        v = open('Library/PYAE/Hashes/Viruslist.num', 'r').read()
     except:
         v = 0
     try:
         import requests as req
-        for i in range(int(v),10000):
+        for i in range(int(v), 10000):
             try:
                 x = 5 - len(str(i))
-                y = '0'*x+str(i)
-                file = req.get('https://virusshare.com/hashfiles/VirusShare_'+y+'.md5', allow_redirects=True)
-                open('Library/PYAE/Hashes/'+y+'.md5', 'wb').write(file.content)
-                with open('Library/PYAE/Hashes/'+str(y)+'.md5',"rb") as f:
+                y = '0' * x + str(i)
+                file = req.get(f'https://virusshare.com/hashfiles/VirusShare_{y}.md5', allow_redirects=True)
+                open(f'Library/PYAE/Hashes/{y}.md5', 'wb').write(file.content)
+                with open(f'Library/PYAE/Hashes/{y}.md5',"rb") as f:
                     bytes = f.read()
                     readable_hash = str(md5(bytes).hexdigest())
                 f.close()
+
                 if '449a34c34a7507dffe1d39afad3eeac9' == readable_hash:
-                    v = open('Library/PYAE/Hashes/Viruslist.num','w').write(str(i))
-                    os.remove('Library/PYAE/Hashes/'+str(y)+'.md5')
-                    print('[INFO] Hashes Update Complete (V'+str(i-1)+')')
+                    v = open('Library/PYAE/Hashes/Viruslist.num', 'w').write(str(i))
+                    os.remove(f'Library/PYAE/Hashes/{y}.md5')
+                    print(f'[INFO] Hashes Update Complete (V{i - 1})')
                     break
                 else:
                     try:
-                        with open('Library/PYAE/Hashes/'+str(y)+'.md5','r') as fi:
+                        with open(f'Library/PYAE/Hashes/{y}.md5','r') as fi:
                             rfpl = fi.readlines()
                             with open('Library/PYAE/Hashes/Viruslist.md5','a') as vm:
-                                for j in range(6,len(rfpl)):
+                                for j in range(6, len(rfpl)):
                                     vm.write(str(rfpl[j])[:10]+'\n')
                         vm.close()
                         fi.close()
                     except:
                         pass
                     v = open('Library/PYAE/Hashes/Viruslist.num','w').write(str(i+1))
-                    os.remove('Library/PYAE/Hashes/'+str(y)+'.md5')
+                    os.remove(f'Library/PYAE/Hashes/{y}.md5')
             except:
-                print('[INFO] Hashes Update Fail (V'+str(i-1)+')')
+                print(f'[INFO] Hashes Update Fail (V{i - 1})')
                 break
     except Exception as e:
         pyas_bug_log(e)
@@ -162,9 +163,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         
     def resizeEvent(self, event):
         width, height = event.size().width(), event.size().height()
-        print('[INFO] '+str(event.size()))
+        print(f'[INFO] {event.size()}')
 
-    def setup_control(self):# TODO
+    def writeConfig(self, config):
+        with open('Library/PYAS/Setup/PYAS.json', 'w', encoding='utf-8') as f:
+            f.write(json.dumps(config, indent=4, ensure_ascii=False))
+
+    def setup_control(self):
         self.init()#調用本地函數"init"
         self.ui.Close_Button.clicked.connect(self.close)#讓物件名稱"Close_Button"連接到函數"close"
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
@@ -244,34 +249,33 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Process_quantity = []
         self.Virus_Scan = 0
         self.Safe = True
-        self.Process_Timer=QTimer()
+        self.Process_Timer = QTimer()
         self.Process_Timer.timeout.connect(self.Process_list)
-        self.ini_config = RawConfigParser()
+        if (not os.path.exists('Library/PYAS/Setup/PYAS.json')): 
+            config = {"high_sensitivity":0,"language":"english"}
+            self.writeConfig(config)
+        with open('Library/PYAS/Setup/PYAS.json', 'r', encoding='utf-8') as f:
+            self.pyasConfig = json.load(f)
         try:
-            self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
-            if self.ini_config.get("Setting","language") == "zh_TW":
-                self.language = "zh_TW"
+            if self.pyasConfig['language'] == "zh_TW":
                 self.lang_init_zh_tw()
                 self.ui.Language_Traditional_Chinese.setChecked(True)
-            elif self.ini_config.get("Setting","language") == "zh_CN":
-                self.language = "zh_CN"
+            elif self.pyasConfig['language'] == "zh_CN":
                 self.lang_init_zh_cn()
                 self.ui.Language_Simplified_Chinese.setChecked(True)
             else:
-                self.language = "english"
                 self.lang_init_en()
                 self.ui.Languahe_English.setChecked(True)
         except:
-            with open(r"Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
-            file.close()
-            self.language = "english"
+            config = {"high_sensitivity":0,"language":"english"}
+            self.writeConfig(config)
+            self.pyasConfig['language'] = "english"
             self.lang_init_en()
             self.ui.Languahe_English.setChecked(True)
         try:
             Thread(target = pyas_vl_update).start()
             Thread(target = self.pyas_protect_init_zh).start()
-            if self.ini_config.getint("Setting","high_sensitivity") == 1:
+            if self.pyasConfig['high_sensitivity'] == 1:
                 self.show_virus_scan_progress_bar = 1
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
@@ -708,8 +712,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
 ####################################### 翻譯 #####################################
     
-    def text_Translate(self,text):
-        if self.language == "zh_CN":
+    def text_Translate(self, text):
+        if self.pyasConfig['language'] == "zh_CN":
             text = text.replace("嗎","吗")
             text = text.replace("項","项")
             text = text.replace("護","护")
@@ -733,7 +737,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             text = text.replace("開啟","开启")
             text = text.replace("關閉","关闭")
             return text
-        elif self.language == "english":
+        elif self.pyasConfig['language'] == "english":
             return english_list[text]
         else:
             return text
@@ -805,7 +809,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.opacity.setOpacity(self.opacity.i/100)
             widget.setGraphicsEffect(self.opacity)
             self.opacity.i += 1
-            if self.opacity.i >= 100:
+            if self.opacity.i > 100:
                 self.timer.stop()
                 self.timer.deleteLater()
         self.timer = QTimer()
@@ -1121,11 +1125,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
-        self.ini_config = RawConfigParser()
-        try:
-            self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
-        except:
-            pass
         self.Virus_List = []
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
@@ -1156,7 +1155,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pyas_bug_log(e)
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
-    def pyas_scan_path_en(self,path,rfp,rfn,fts):
+    def pyas_scan_path_en(self, path, rfp, rfn, fts):
         try:
             for fd in os.listdir(path):#遍歷檔案
                 try:
@@ -1807,12 +1806,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pyas_protect_init_zh(self):
         try:
             ft = open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8')
-            ft.write('real-time protect ini file, dont remove it')
+            ft.write('Protect temp file, dont remove it')
             ft.close()
         except:
             pass
         self.Virus_Scan = 1
         print('[INFO] Start Action (Real-time Protect)')
+        if not pyas_key():
+            return
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
@@ -1876,37 +1877,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Show_Virus_Scan_Progress_Bar_switch(self):
         try:
-            self.ini_config = RawConfigParser()
-            self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
             sw_state = self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()
             if sw_state == self.text_Translate("已關閉"):
-                self.ini_config.set("Setting", "high_sensitivity", 1)
-                self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
+                self.pyasConfig['high_sensitivity'] = 1
+                self.writeConfig(self.pyasConfig)
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
                 self.show_virus_scan_progress_bar = 1
             elif sw_state == self.text_Translate("已開啟"):
-                self.ini_config.set("Setting", "high_sensitivity", 0)
-                self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
+                self.pyasConfig['high_sensitivity'] = 0
+                self.writeConfig(self.pyasConfig)
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-                self.show_virus_scan_progress_bar = 0
-            if sw_state == self.text_Translate("已关闭"):
-                self.ini_config.set("Setting", "high_sensitivity", 1)
-                self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已开启"))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-                self.show_virus_scan_progress_bar = 1
-            elif sw_state == self.text_Translate("已开启"):
-                self.ini_config.set("Setting", "high_sensitivity", 0)
-                self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已关闭"))
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,20,20,50);}""")
@@ -1915,9 +1898,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
         except:
             try:
-                with open(r"Library/PYAS/Setup/PYAS.ini",mode="w",encoding="utf-8") as file:
-                    file.write("[Setting]\nhigh_sensitivity = 0\nlanguage = english")
-                file.close()
+                config = {'high_sensitivity': 0,'language': 'english'}
+                self.writeConfig(config)
             except Exception as e:
                 pyas_bug_log(e)
 
@@ -1925,24 +1907,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def Change_language(self):
         try:
-            self.ini_config = RawConfigParser()
-            self.ini_config.read(r"Library/PYAS/Setup/PYAS.ini")
             if self.ui.Language_Traditional_Chinese.isChecked():
                 self.lang_init_zh_tw()
-                self.language = "zh_TW"
-                self.ini_config.set("Setting", "language", "zh_TW") 
+                self.pyasConfig['language'] = "zh_TW"
+                self.writeConfig(self.pyasConfig)
             elif self.ui.Language_Simplified_Chinese.isChecked():
                 self.lang_init_zh_cn()
-                self.language = "zh_CN"
-                self.ini_config.set("Setting", "language", "zh_CN") 
+                self.pyasConfig['language'] = "zh_CN"
+                self.writeConfig(self.pyasConfig)
             else:
                 self.lang_init_en()
-                self.language = "english"
-                self.ini_config.set("Setting", "language", "english") 
-        except:
-            pass
-        try:
-            self.ini_config.write(open(r"Library/PYAS/Setup/PYAS.ini", 'w'))
+                self.pyasConfig['language'] = "english"
+                self.writeConfig(self.pyasConfig)
         except Exception as e:
             pyas_bug_log(e)
 
@@ -2035,7 +2011,7 @@ if __name__ == '__main__':
         pyas_library()
         pyasp_remove()
         pyasb_remove()
-        pyas_version = "2.5.6"
+        pyas_version = "2.5.7"
         pyae_version = "2.2.1"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
@@ -2046,8 +2022,8 @@ if __name__ == '__main__':
             time.sleep(0.001)
             window.setWindowOpacity(i/100)
             QApplication.processEvents()
-        print('[INFO] PYAS V'+pyas_version+' , PYAE V'+pyae_version)
-        print('[LOAD] Process Time: '+str(time.process_time()-start_m)+' sec')
+        print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
+        print(f'[LOAD] Process Time: {time.process_time()-start_m} sec')
         sys.exit(app.exec_())
     except Exception as e:
         pyas_bug_log(e)

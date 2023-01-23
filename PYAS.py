@@ -2018,7 +2018,7 @@ if __name__ == '__main__':
         app = QtWidgets.QApplication(sys.argv)
         window = MainWindow_Controller()
         window.show()
-        for i in range(100):
+        for i in range(101):
             time.sleep(0.001)
             window.setWindowOpacity(i/100)
             QApplication.processEvents()

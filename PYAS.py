@@ -1207,6 +1207,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pyas_scan_disk_init_en(self):
         print('[SCAN] Start Scan Action (Disk Scan)')
         try:
+            self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
             print('[INFO] Reading Viruslist Database')
@@ -1215,7 +1216,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.fp.close()
             self.pyas_del_virus_temp()
             self.Virus_Scan = 1
-            self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.Virus_Scan_ProgressBar.hide()
             self.ui.Virus_Scan_choose_Button.hide()
@@ -1828,7 +1828,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         time.sleep(0.0001)
                         QApplication.processEvents()
                         file = str(p.exe())
-                        if '' == file or 'C:\Windows' in file or 'C:\Program' in file or 'AppData' in file or 'vmmemCmZygote' in file or 'MemCompression' in file or 'Registry' in file:
+                        if '' == file or ':\Windows' in file or ':\Program' in file or 'AppData' in file:
+                            pass
+                        elif 'mem' in file.lower() or 'Registry' in file or 'PYAS' in file:
                             pass
                         else:
                             if self.pyas_sign_start(file):

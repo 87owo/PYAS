@@ -714,6 +714,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             text = text.replace("當","当")
             text = text.replace("確","确")
             text = text.replace("復","复")
+            text = text.replace("掃描","扫描")
             text = text.replace("檔案","文件")
             text = text.replace("錯誤","错误")
             text = text.replace("實時","实时")

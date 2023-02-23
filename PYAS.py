@@ -50,23 +50,12 @@ def pyasp_remove():
             os.remove('Library/PYAS/Temp/PYASP.tmp')
     except:
         pass
-    
-#################################### 實時防護檢查 ###################################
-
-def protect_autorun():
-    if os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-        return True
-    else:
-        return False
 
 ##################################### 資料庫檢查 ####################################
 
 def pyas_library():
     try:
-        checkPath = ['Library/PYAS/Temp',
-                     'Library/PYAS/Setup',
-                     'Library/PYAS/Icon',
-                     'Library/PYAE/Hashes']
+        checkPath = ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']
         for i in checkPath:
             if not os.path.isdir(i):
                 os.makedirs(i)
@@ -319,8 +308,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_output.clear()
         if pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
-            if not protect_autorun:
-                self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Tips] Real-time Protect is not enabled')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (Security Key Error)"))
             self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
@@ -448,8 +435,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_output.clear()
         if pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
-            if not protect_autorun:
-                self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未启用实时防护')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密钥错误)"))
             self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
@@ -577,8 +562,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_output.clear()
         if pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version))
-            if not protect_autorun:
-                self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [提示] 尚未啟用實時防護')
         else:
             self.ui.Window_title.setText(_translate("MainWindow", "PYAS V"+pyas_version+" (安全密鑰錯誤)"))
             self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
@@ -1244,24 +1227,25 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     else:
                         if self.show_virus_scan_progress_bar == 0:
                             fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                            if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath:#路徑過濾
-                                continue
-                            elif ':/Program' in fullpath or ':/Users/Default' in fullpath:
-                                sflist = ['.exe','.dll']
+                            if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or 'AppData' in fullpath:#路徑過濾
+                                pass
                             else:
-                                sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl','.htm','.html']
-                            if os.path.isdir(fullpath):#資料夾 深入遍歷
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                QApplication.processEvents()
-                                self.pyas_scan_disk_en(fullpath,rfp)
-                            else:#檔案
-                                root, extension = os.path.splitext(fd)
-                                sfd = str(extension).lower()
-                                if self.pyas_sign_start(fullpath) and sfd in sflist:#簽名檢查+副檔名過濾檢測
+                                if ':/Program' in fullpath or ':/Users/Default' in fullpath:
+                                    sflist = ['.exe','.dll']
+                                else:
+                                    sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl','.htm','.html']
+                                if os.path.isdir(fullpath):#資料夾 深入遍歷
                                     self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
                                     QApplication.processEvents()
-                                    if self.pyas_scan_start(fullpath,rfp):#MD5較驗
-                                        self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                    self.pyas_scan_disk_en(fullpath,rfp)
+                                else:#檔案
+                                    root, extension = os.path.splitext(fd)
+                                    sfd = str(extension).lower()
+                                    if self.pyas_sign_start(fullpath) and sfd in sflist:#簽名檢查+副檔名過濾檢測
+                                        self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
+                                        QApplication.processEvents()
+                                        if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                                            self.pyas_scan_write_en(fullpath)#寫入發現病毒
                         else:
                             fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                             if os.path.isdir(fullpath):#資料夾 深入遍歷
@@ -2038,8 +2022,8 @@ if __name__ == '__main__':
         pyas_library()
         pyasp_remove()
         pyasb_remove()
-        pyas_version = "2.5.8"
-        pyae_version = "2.2.2"
+        pyas_version = "2.5.9"
+        pyae_version = "2.2.3"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)

@@ -66,62 +66,54 @@ def pyas_library():
 
 def pyas_vl_update():
     try:
-        v = open('Library/PYAE/Hashes/Viruslist.num', 'r').read()
+        with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
+            v = int(f.read())
     except:
         v = 0
-    try:
-        import requests as req
-        for i in range(int(v), 10000):
-            try:
-                x = 5 - len(str(i))
-                y = '0' * x + str(i)
-                file = req.get(f'https://virusshare.com/hashfiles/VirusShare_{y}.md5', allow_redirects=True)
-                readable_hash = str(md5(file.content).hexdigest())
-                if '449a34c34a7507dffe1d39afad3eeac9' == readable_hash:
-                    v = open('Library/PYAE/Hashes/Viruslist.num', 'w').write(str(i))
-                    print(f'[INFO] Hashes Update Complete (V{i - 1})')
-                    break
-                else:
-                    open(f'Library/PYAE/Hashes/{y}.md5', 'wb').write(file.content)
-                    with open(f'Library/PYAE/Hashes/{y}.md5','r') as fi:
-                        rfpl = fi.readlines()
-                        with open('Library/PYAE/Hashes/Viruslist.md5','a') as vm:
-                            for j in range(6, len(rfpl)):
-                                vm.write(str(rfpl[j])[:10]+'\n')
-                    vm.close()
-                    fi.close()
-                    v = open('Library/PYAE/Hashes/Viruslist.num','w').write(str(i+1))
-                    os.remove(f'Library/PYAE/Hashes/{y}.md5')
-            except:
-                print(f'[INFO] Hashes Update Fail (V{i - 1})')
+    for i in range(v, 10000):
+        try:
+            y = f'VirusShare_{i:05}.md5'
+            url = f'https://virusshare.com/hashfiles/{y}'
+            content = requests.get(url, allow_redirects=True).content
+            hash_value = md5(content).hexdigest()
+            if hash_value != '449a34c34a7507dffe1d39afad3eeac9':
+                with open(f'Library/PYAE/Hashes/{y}', 'wb') as f:
+                    f.write(content)
+                with open(f'Library/PYAE/Hashes/{y}', 'r') as f:
+                    lines = f.readlines()[6:]
+                    with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
+                        for line in lines:
+                            vlist.write(line[:10] + '\n')
+                os.remove(f'Library/PYAE/Hashes/{y}')
+                v = i + 1
+            else:
+                v = i
+                print(f'[INFO] Hashes Update Complete (V{v - 1})')
                 break
-    except Exception as e:
-        pyas_bug_log(e)
+            with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
+                f.write(str(v))
+        except:
+            print(f'[INFO] Hashes Update Fail (V{i - 1})')
+            break
 
 ###################################### 密鑰認證 #####################################
 
 def pyas_key():
     try:
         if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
+            with open('Library/PYAS/Setup/PYAS.key', 'r') as f:
+                fe = f.read()
             try:
-                with open('PYAS.exe',"rb") as f:
+                with open('PYAS.exe', 'rb') as f:
                     bytes = f.read()
-                    readable_hash = str(md5(bytes).hexdigest())
                 f.close()
             except:
-                with open('PYAS.py',"rb") as f:
+                with open('PYAS.py', 'rb') as f:
                     bytes = f.read()
-                    readable_hash = str(md5(bytes).hexdigest())
                 f.close()
-            ft = open('Library/PYAS/Setup/PYAS.key','r')
-            fe = ft.read()
-            ft.close()
-            if fe == readable_hash:
+            if fe == str(md5(bytes).hexdigest()):
                 return True
-            else:
-                return False
-        else:
-            return False
+        return False
     except Exception as e:
         pyas_bug_log(e)
         return False
@@ -683,37 +675,20 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_Blue.setText(_translate("MainWindow", "藍色主題"))
 
 ####################################### 翻譯 #####################################
-    
+
     def text_Translate(self, text):
         if self.pyasConfig['language'] == "zh_CN":
-            text = text.replace("嗎","吗")
-            text = text.replace("項","项")
-            text = text.replace("護","护")
-            text = text.replace("攔","拦")
-            text = text.replace("請","请")
-            text = text.replace("後","后")
-            text = text.replace("鑰","钥")
-            text = text.replace("統","统")
-            text = text.replace("當","当")
-            text = text.replace("確","确")
-            text = text.replace("復","复")
-            text = text.replace("掃描","扫描")
-            text = text.replace("檔案","文件")
-            text = text.replace("錯誤","错误")
-            text = text.replace("實時","实时")
-            text = text.replace("發現","发现")
-            text = text.replace("權限","权限")
-            text = text.replace("軟體","软件")
-            text = text.replace("惡意","恶意")
-            text = text.replace("設定","设置")
-            text = text.replace("關於","关于")
-            text = text.replace("開啟","开启")
-            text = text.replace("關閉","关闭")
-            return text
+            translations = {"嗎": "吗","項": "项","護": "护","攔": "拦","請": "请",
+                            "後": "后","鑰": "钥","統": "统","當": "当","確": "确",
+                            "復": "复","掃描": "扫描","檔案": "文件","錯誤": "错误",
+                            "實時": "实时","發現": "发现","權限": "权限","軟體": "软件",
+                            "惡意": "恶意","設定": "设置","關於": "关于","開啟": "开启",
+                            "關閉": "关闭",}
+            for k, v in translations.items():
+                text = text.replace(k, v)
         elif self.pyasConfig['language'] == "english":
             return english_list[text]
-        else:
-            return text
+        return text
 
 ################################### 視窗動畫特效 ####################################
     
@@ -937,46 +912,50 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = False
             self.ui.Virus_Scan_text.setText(self.text_Translate("✖錯誤: 執行失敗。"))
 
-    def list_allfile(self,path,all_files):  
-        try:  
-            if os.path.exists(path):
-                files=os.listdir(path)
-            else:
-                print('[Error] This path is not exist')
-            for file in files:
-                if os.path.isdir(os.path.join(path,file)):
-                    all_files.append(os.path.join(path,file))
-                    self.list_allfile(os.path.join(path,file),all_files)
-                else:
-                    all_files.append(os.path.join(path,file))
-            return all_files
+    def list_allfile(self, path, all_files=[]):
+        if not os.path.exists(path):
+            print('[Error] This path does not exist')
+            return False
+        for file in os.listdir(path):
+            abs_path = os.path.abspath(os.path.join(path, file))
+            if os.path.isfile(abs_path):
+                all_files.append(abs_path)
+            elif os.path.isdir(abs_path):
+                all_files = self.list_allfile(abs_path, all_files)
+        return all_files
+
+    def pyas_scan_start(self, file, rfp):
+        try:
+            with open(file, "rb") as f:
+                file_md5 = str(md5(f.read()).hexdigest())[:10]
+                f.close()
+                return file_md5 in rfp
         except:
             return False
 
-    def pyas_scan_start(self,file,rfp):#MD5較驗
+    def pyas_pe_start(self,file):
         try:
-            with open(file,"rb") as f:
-                if str(md5(f.read()).hexdigest())[:10] in str(rfp):
-                    f.close()
-                    return True#回傳是病毒
-                else:
-                    f.close()
-                    return False#回傳不是病毒
+            pe = PE(file)
+            pe.close()
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:#函數檢測
+                for function in entry.imports:
+                    if '_CorExeMain' in str(function.name):# or 'CreateRemoteThread' in x or 'WriteProcessMemory' in x or 'VirtualAlloc' in x:
+                        return True
+            return False
         except:
-            return False#回傳不是病毒
-
-    def pyas_sign_start(self,file):#簽名檢查
+            return False
+    
+    def pyas_sign_start(self, file):  # 簽名檢查
         try:
-            pe = PE(file,fast_load=True)
+            pe = PE(file, fast_load=True)
+            pe.close()
             if pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0:
-                pe.close()
-                return True#回傳未簽名
+                return True  # 未簽名
             else:
-                pe.close()
-                return False#回傳已簽名
+                return False  # 已簽名
         except:
-            return True#回傳未簽名
-        
+            return True  # 未簽名
+
     #定義紀錄掃描
     def pyas_scan_write_en(self,file):
         try:

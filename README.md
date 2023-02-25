@@ -1,5 +1,5 @@
 # PYAS (Python Antivirus Software)
-PYAS is not only free and open source without ads, A large number of offline databases are also built in, Always protect the privacy and data security of users.
+PYAS is not only free and open source without ads,Also uses multiple intelligent protection engines,Always protect the privacy and data security of users.
 ![PYAS](https://user-images.githubusercontent.com/85057800/202692146-e55848d5-7e24-405d-b33d-f4fa3883fba6.png)
 
 

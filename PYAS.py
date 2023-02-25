@@ -926,11 +926,25 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 all_files = self.list_allfile(abs_path, all_files)
         return all_files
 
+    def api_scan(self, types, file):
+        try:
+            with open(file, "rb") as f:
+                file_md5 = str(md5(f.read()).hexdigest())
+                response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
+                if response.status_code == 200:
+                    if response.text == 'True':
+                        return 1
+                    else:
+                        return 0
+                else:
+                    return -1
+        except:
+            return -1
+
     def pyas_scan_start(self, file, rfp):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())[:10]
-                f.close()
                 return file_md5 in rfp
         except:
             return False
@@ -1035,15 +1049,27 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     rfp = ''
                 if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
                     if self.pyas_sign_start(file):#簽名檢查
+                        if self.api_scan('md5', file) == 1:
+                            self.pyas_scan_write_en(file)#寫入發現病毒
+                        elif self.api_scan('md5', file) == 0:
+                            if self.pyas_pe_start(file):
+                                self.pyas_scan_write_en(file)#寫入發現病毒
+                        else:
+                            if self.pyas_scan_start(file,rfp):#MD5較驗
+                                self.pyas_scan_write_en(file)#寫入發現病毒
+                            elif self.pyas_pe_start(file):
+                                self.pyas_scan_write_en(file)#寫入發現病毒
+                else:
+                    if self.api_scan('md5', file) == 1:
+                        self.pyas_scan_write_en(file)#寫入發現病毒
+                    elif self.api_scan('md5', file) == 0:
+                        if self.pyas_pe_start(file):
+                            self.pyas_scan_write_en(file)#寫入發現病毒
+                    else:
                         if self.pyas_scan_start(file,rfp):#MD5較驗
                             self.pyas_scan_write_en(file)#寫入發現病毒
                         elif self.pyas_pe_start(file):
                             self.pyas_scan_write_en(file)#寫入發現病毒
-                else:
-                    if self.pyas_scan_start(file,rfp):#MD5較驗
-                        self.pyas_scan_write_en(file)#寫入發現病毒
-                    elif self.pyas_pe_start(file):
-                        self.pyas_scan_write_en(file)#寫入發現病毒
                 self.pyas_scan_answer_en()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -1099,16 +1125,27 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
                         QApplication.processEvents()
                         if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                            if self.pyas_sign_start(fullpath):#簽名檢查
+                            if self.api_scan('md5', fullpath) == 1:
+                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                            elif self.api_scan('md5', fullpath) == 0:
+                                if self.pyas_pe_start(fullpath):
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                            else:
                                 if self.pyas_scan_start(fullpath,rfp):#MD5較驗
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
                                 elif self.pyas_pe_start(fullpath):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
                         else:
-                            if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                            if self.api_scan('md5', fullpath) == 1:
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.pyas_pe_start(fullpath):
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                            elif self.api_scan('md5', fullpath) == 0:
+                                if self.pyas_pe_start(fullpath):
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                            else:
+                                if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                elif self.pyas_pe_start(fullpath):
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
             except:
                 continue
 
@@ -1169,8 +1206,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             root, extension = os.path.splitext(fd)
                             if self.pyas_sign_start(fullpath) and str(extension).lower() in sflist:#簽名檢查+副檔名過濾檢測
                                 self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                                if self.api_scan('md5', fullpath) == 1:
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                elif self.api_scan('md5', fullpath) == 0:
+                                    if self.pyas_pe_start(fullpath):
+                                        self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                else:
+                                    if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                                        self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                    elif self.pyas_pe_start(fullpath):
+                                        self.pyas_scan_write_en(fullpath)#寫入發現病毒
                     else:
                         if os.path.isdir(fullpath):#資料夾 深入遍歷
                             self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
@@ -1178,8 +1223,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         else:#檔案
                             root, extension = os.path.splitext(fd)
                             self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            if self.pyas_scan_start(fullpath,rfp):#簽名檢查(所有檔案類型都掃)
-                                self.pyas_scan_write_en(fullpath)
+                            if self.api_scan('md5', fullpath) == 1:
+                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                            elif self.api_scan('md5', fullpath) == 0:
+                                if self.pyas_pe_start(fullpath):
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                            else:
+                                if self.pyas_scan_start(fullpath,rfp):#MD5較驗
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                                elif self.pyas_pe_start(fullpath):
+                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
             except:
                 continue
 

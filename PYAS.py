@@ -84,7 +84,7 @@ def pyas_vl_update():
                     lines = f.readlines()[6:]
                     with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
                         for line in lines:
-                            vlist.write(line[:10] + '\n')
+                            vlist.write(line[:10])
                 os.remove(f'Library/PYAE/Hashes/{y}')
                 v = i + 1
             else:

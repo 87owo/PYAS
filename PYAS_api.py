@@ -3,7 +3,10 @@ import requests
 def scan(types,text):
     response = requests.get("http://27.147.30.238:5001/pyas", params={types: text})
     if response.status_code == 200:
-        return response.text
+        if response.text == "True":
+            return "Virus found"
+        else:
+            return "Virus not found"
     else:
         return response.status_code
 

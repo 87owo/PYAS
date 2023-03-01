@@ -930,7 +930,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
+            response = requests.get("https://api.pyas.cf/pyas", params={types: file_md5})
             if response.status_code == 200:
                 if response.text == 'True':
                     return True

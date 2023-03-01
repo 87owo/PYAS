@@ -933,13 +933,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
             if response.status_code == 200:
                 if response.text == 'True':
-                    return 1
+                    return True
                 else:
-                    return 0
+                    return False
             else:
-                return -1
+                return False
         except:
-            return -1
+            return False
 
     def pyas_scan_start(self, file, rfp):
         try:
@@ -1053,14 +1053,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             self.pyas_scan_write_en(file)#寫入發現病毒
                         elif self.pyas_pe_start(file):
                             self.pyas_scan_write_en(file)#寫入發現病毒
-                        elif self.api_scan('md5', file) == 1:
+                        elif self.api_scan('md5', file):
                             self.pyas_scan_write_en(file)#寫入發現病毒
                 else:
                     if self.pyas_scan_start(file,rfp):#MD5較驗
                         self.pyas_scan_write_en(file)#寫入發現病毒
                     elif self.pyas_pe_start(file):
                         self.pyas_scan_write_en(file)#寫入發現病毒
-                    elif self.api_scan('md5', file) == 1:
+                    elif self.api_scan('md5', file):
                         self.pyas_scan_write_en(file)#寫入發現病毒
                 self.pyas_scan_answer_en()
             else:
@@ -1122,14 +1122,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
                                 elif self.pyas_pe_start(fullpath):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                                elif self.api_scan('md5', fullpath) == 1:
+                                elif self.api_scan('md5', fullpath):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
                         else:
                             if self.pyas_scan_start(fullpath,rfp):#MD5較驗
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
                             elif self.pyas_pe_start(fullpath):
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.api_scan('md5', fullpath) == 1:
+                            elif self.api_scan('md5', fullpath):
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
             except:
                 continue
@@ -1195,7 +1195,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
                                 elif self.pyas_pe_start(fullpath):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                                elif self.api_scan('md5', fullpath) == 1:
+                                elif self.api_scan('md5', fullpath):
                                     self.pyas_scan_write_en(fullpath)#寫入發現病毒
                     else:
                         if os.path.isdir(fullpath):#資料夾 深入遍歷
@@ -1208,7 +1208,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
                             elif self.pyas_pe_start(fullpath):
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.api_scan('md5', fullpath) == 1:
+                            elif self.api_scan('md5', fullpath):
                                 self.pyas_scan_write_en(fullpath)#寫入發現病毒
             except:
                 continue
@@ -1717,6 +1717,34 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             else:
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('安全密鑰錯誤'),QMessageBox.Ok)
 
+    def pyas_protect_repair(self):
+        rp_reg = False
+        try:
+            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+        except:
+            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+            win32api.RegCreateKey(key,'System')
+            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+        try:
+            win32api.RegDeleteValue(key, 'DisableCMD')
+            rp_reg = True
+        except:
+            pass
+        win32api.RegCloseKey(key)
+        try:
+            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+        except:
+            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+            win32api.RegCreateKey(key,'System')
+            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+        try:
+            win32api.RegDeleteValue(key, 'DisableCMD')
+            rp_reg = True
+        except:
+            pass
+        win32api.RegCloseKey(key)
+        return rp_reg
+
     def pyas_protect_init_zh(self):
         try:
             with open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8') as ft:
@@ -1741,7 +1769,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         time.sleep(0.0001)
                         QApplication.processEvents()
                         file = str(p.exe())
-                        if '' == file or ':\Windows' in file or ':\Program' in file or 'AppData' in file:
+                        if '' == file or ':\Windows' in file or ':\Program' in file or 'AppData' in file or ':\XboxGames' in file:
                             pass
                         elif 'mem' in file.lower() or 'Registry' in file or 'PYAS' in file:
                             pass
@@ -1752,32 +1780,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
                                     ToastNotifier().show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
                                 else:
-                                    rp_reg = False
-                                    try:
-                                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                                    except:
-                                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-                                        win32api.RegCreateKey(key,'System')
-                                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                                    try:
-                                        win32api.RegDeleteValue(key, 'DisableCMD')
-                                        rp_reg = True
-                                    except:
-                                        pass
-                                    win32api.RegCloseKey(key)
-                                    try:
-                                        key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                                    except:
-                                        key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-                                        win32api.RegCreateKey(key,'System')
-                                        key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                                    try:
-                                        win32api.RegDeleteValue(key, 'DisableCMD')
-                                        rp_reg = True
-                                    except:
-                                        pass
-                                    win32api.RegCloseKey(key)
-                                    if rp_reg == False:
+                                    if not self.pyas_protect_repair():
                                         print(f'[INFO] Malware blocking failed: {p.name()}')
                                         self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+str(p.name()))
                                         ToastNotifier().show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
@@ -1949,8 +1952,8 @@ if __name__ == '__main__':
         pyas_library()
         pyasp_remove()
         pyasb_remove()
-        pyas_version = "2.5.9"
-        pyae_version = "2.2.3"
+        pyas_version = "2.6.0"
+        pyae_version = "2.2.4"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)

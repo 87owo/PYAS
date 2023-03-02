@@ -62,52 +62,26 @@ def pyas_library():
     except Exception as e:
         pyas_bug_log(e)
 
-##################################### 更新資料庫 ####################################
-
-def pyas_vl_update(self):
-    for i in range(self.ui.vl, 100000):
-        try:
-            y = f'VirusShare_{i:05}.md5'
-            content = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True).content
-            if md5(content).hexdigest() != '449a34c34a7507dffe1d39afad3eeac9':
-                with open(f'Library/PYAE/Hashes/{y}', 'wb') as f:
-                    f.write(content)
-                with open(f'Library/PYAE/Hashes/{y}', 'r') as f:
-                    lines = f.readlines()[6:]
-                    with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
-                        for line in lines:
-                            vlist.write(line[:10]+'\n')
-                os.remove(f'Library/PYAE/Hashes/{y}')
-                self.ui.vl = i + 1
-            else:
-                self.ui.vl = i
-                print(f'[INFO] Hashes Update Complete (V{self.ui.vl - 1})')
-                break
-            with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
-                f.write(str(self.ui.vl))
-        except Exception as e:
-            print(e)
-            print(f'[INFO] Hashes Update Fail (V{i - 1})')
-            break
-
 ###################################### 密鑰認證 #####################################
 
 def pyas_key():
     try:
         with open('PYAS.exe', 'rb') as f:
             file_md5 = str(md5(f.read()).hexdigest())
-        if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
-            with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
-                if file_md5 == str(fc.read()):
-                    return True
-                return False
-        else:
-            response = requests.get("https://api.pyas.cf/key/", params={'key': file_md5})
+        try:
+            response = requests.get("https://api.pyas.cf/key", params={'key': file_md5})
             if response.status_code == 200:
                 if response.text == 'True':
                     with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
                         fc.write(file_md5)
                     return True
+                return False
+        except:
+            if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
+                with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
+                    if file_md5 == str(fc.read()):
+                        print(file_md5)
+                        return True
             return False
     except:
         return False
@@ -130,10 +104,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.setup_control()
         
-    #def resizeEvent(self, event):
-        #width, height = event.size().width(), event.size().height()
-        #print(f'[INFO] {event.size()}')
-
     def writeConfig(self, config):
         with open('Library/PYAS/Setup/PYAS.json', 'w', encoding='utf-8') as f:
             f.write(json.dumps(config, indent=4, ensure_ascii=False))
@@ -241,8 +211,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Languahe_English.setChecked(True)
             self.lang_init_en()
         try:
-            if pyas_key():
-                Thread(target = self.pyas_protect_init_zh).start()
+            Thread(target = self.pyas_protect_init_zh).start()
+            Thread(target = self.pyas_vl_update).start()
             if self.pyasConfig['high_sensitivity'] == 1:
                 self.show_virus_scan_progress_bar = 1
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
@@ -291,19 +261,46 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
 
+##################################### 更新資料庫 ####################################
+
+    def pyas_vl_update(self):
+        for i in range(self.ui.vl, 100000):
+            try:
+                y = f'VirusShare_{i:05}.md5'
+                content = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True).content
+                if md5(content).hexdigest() != '449a34c34a7507dffe1d39afad3eeac9':
+                    with open(f'Library/PYAE/Hashes/{y}', 'wb') as f:
+                        f.write(content)
+                    with open(f'Library/PYAE/Hashes/{y}', 'r') as f:
+                        lines = f.readlines()[6:]
+                        with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
+                            for line in lines:
+                                vlist.write(line[:10]+'\n')
+                    os.remove(f'Library/PYAE/Hashes/{y}')
+                    self.ui.vl = i + 1
+                else:
+                    self.ui.vl = i
+                    print(f'[INFO] Hashes Update Complete (V{self.ui.vl - 1})')
+                    break
+                with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
+                    f.write(str(self.ui.vl))
+            except:
+                print(f'[INFO] Hashes Update Fail (V{i - 1})')
+                break
+
 ##################################### 英文初始化 ####################################
     
     def lang_init_en(self):
         _translate = QtCore.QCoreApplication.translate
-        if pyas_key():
-            self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
-        else:
-            self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)"))
         if self.Safe:
             self.ui.State_title.setText(_translate("MainWindow", "This device has been protected"))
         else:
             self.ui.State_title.setText(_translate("MainWindow", "This device is currently unsafe"))
             self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
+        if pyas_key():
+            self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
+        else:
+            self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)"))
         self.ui.State_Button.setText(_translate("MainWindow", "State"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "Scan"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "Tools"))
@@ -1673,12 +1670,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未啟用實時防護'))
             QApplication.processEvents()
         else:
-            if pyas_key():
-                self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
-                QApplication.processEvents()
-                Thread(target = self.pyas_protect_init_zh).start()
-            else:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('安全密鑰錯誤'),QMessageBox.Ok)
+            self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
+            QApplication.processEvents()
+            Thread(target = self.pyas_protect_init_zh).start()
 
     def pyas_protect_repair(self):
         rp_reg = False

@@ -66,7 +66,7 @@ def pyas_library():
 
 def pyas_key():
     try:
-        with open('PYAS.exe', 'rb') as f:
+        with open(sys.argv[0], 'rb') as f:
             file_md5 = str(md5(f.read()).hexdigest())
         try:
             response = requests.get("https://api.pyas.cf/key", params={'key': file_md5})

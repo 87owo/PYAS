@@ -92,9 +92,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow() #繼承
         try:
             with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
-                self.ui.vl = int(f.read())-1
+                self.ui.vl = int(f.read())
         except:
-            self.ui.vl = -1
+            self.ui.vl = 0
         self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
@@ -265,16 +265,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         for i in range(self.ui.vl, 100000):
             try:
                 y = f'VirusShare_{i:05}.md5'
-                content = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True).content
-                if md5(content).hexdigest() != '449a34c34a7507dffe1d39afad3eeac9':
-                    with open(f'Library/PYAE/Hashes/{y}', 'wb') as f:
-                        f.write(content)
-                    with open(f'Library/PYAE/Hashes/{y}', 'r') as f:
-                        lines = f.readlines()[6:]
-                        with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
-                            for line in lines:
-                                vlist.write(line[:10]+'\n')
-                    os.remove(f'Library/PYAE/Hashes/{y}')
+                print(y)
+                response = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True)
+                if response.status_code == 200:
+                    with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
+                        lists_write = response.content.decode("utf-8").split('\n')[6:-1]
+                        for list_write in lists_write:
+                            vlist.write(str(list_write)[:10]+'\n')
                     self.ui.vl = i + 1
                 else:
                     self.ui.vl = i
@@ -282,8 +279,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     break
                 with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
                     f.write(str(self.ui.vl))
-            except:
-                print(f'[INFO] Hashes Update Fail (V{i - 1})')
+            except Exception as e:
+                print(e)
+                print(f'[INFO] Hashes Update Fail (V{self.ui.vl - 1})')
                 break
 
 ##################################### 英文初始化 ####################################
@@ -372,7 +370,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             cy = str('2020')
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
         try:
-            if self.ui.vl < 0:
+            if self.ui.vl <= 0:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Downloading Library...)"))
             else:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Library Version: "+str(self.ui.vl)+")"))
@@ -492,7 +490,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             cy = str('2020')
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
         try:
-            if self.ui.vl < 0:
+            if self.ui.vl <= 0:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下载数据庫...)"))
             else:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (数据庫版本: "+str(self.ui.vl)+")"))
@@ -611,7 +609,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             cy = str('2020')
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
         try:
-            if self.ui.vl < 0:
+            if self.ui.vl <= 0:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下載資料庫...)"))
             else:
                 self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (資料庫版本: "+str(self.ui.vl)+")"))

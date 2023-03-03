@@ -23,7 +23,6 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PYAS_UI import Ui_MainWindow
-start_m = time.process_time()
 
 ###################################### 錯誤日誌 #####################################
 
@@ -69,7 +68,7 @@ def pyas_key():
         with open(sys.argv[0], 'rb') as f:
             file_md5 = str(md5(f.read()).hexdigest())
         try:
-            response = requests.get("https://api.pyas.cf/key", params={'key': file_md5})
+            response = requests.get("http://27.147.30.238:5001/key", params={'key': file_md5})
             if response.status_code == 200:
                 if response.text == 'True':
                     with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
@@ -80,7 +79,6 @@ def pyas_key():
             if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
                 with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
                     if file_md5 == str(fc.read()):
-                        print(file_md5)
                         return True
             return False
     except:
@@ -892,7 +890,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("https://api.pyas.cf/pyas", params={types: file_md5})
+            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
             if response.status_code == 200:
                 if response.text == 'True':
                     return True
@@ -1900,8 +1898,8 @@ if __name__ == '__main__':
     try:
         pyas_library()
         pyasb_remove()
-        pyas_version = "2.6.0"
-        pyae_version = "2.2.4"
+        pyasp_remove()
+        pyas_version, pyae_version = "2.6.0", "2.2.4"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
@@ -1912,7 +1910,6 @@ if __name__ == '__main__':
             window.setWindowOpacity(i/100)
             QApplication.processEvents()
         print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
-        print(f'[LOAD] Process Time: {time.process_time()-start_m} sec')
         sys.exit(app.exec_())
     except Exception as e:
         pyas_bug_log(e)

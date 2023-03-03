@@ -265,7 +265,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         for i in range(self.ui.vl, 100000):
             try:
                 y = f'VirusShare_{i:05}.md5'
-                print(y)
                 response = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True)
                 if response.status_code == 200:
                     with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:

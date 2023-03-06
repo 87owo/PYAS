@@ -43,6 +43,13 @@ def remove_tmp():
     except:
         pass
 
+def remove_rtp():
+    try:
+        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            os.remove('Library/PYAS/Temp/PYASP.tmp')
+    except:
+        pass
+
 ##################################### 資料庫檢查 ####################################
 
 def pyas_lib():
@@ -86,7 +93,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.vl = int(f.read())
         except:
             self.vl = 0
-        self.running = True
         self.ui = Ui_MainWindow() #繼承
         self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
@@ -1498,7 +1504,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_threading_init(self):
         self.ui.State_output.clear()
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            self.rt_protect = False
+            remove_rtp()
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
@@ -1635,23 +1641,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pyas_protect_init(self):
         try:
             print('[INFO] Start Action (Real-time Protect)')
+            open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8').write('Protect temp file, dont remove it')
             if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
                 self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
                 self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
                 self.ui.Protection_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            self.rt_protect = True
-            while self.rt_protect or self.running:
+            while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 for p in psutil.process_iter():
                     try:
                         time.sleep(0.00001)
                         QApplication.processEvents()
-                        file, name, pid = str(p.exe()), str(p.name()), p.pid
+                        file, name = str(p.exe()), str(p.name())
                         if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                             continue
-                        elif pid != psutil.Process().pid and name == psutil.Process().name() and self.running != True:
-                            self.rt_protect = False
                         elif self.pyas_sign_start(file) or self.api_scan('md5', file):
                             if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
                                 text = self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
@@ -1816,7 +1820,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         pat2.drawRoundedRect(rect, 1, 1)
 
     def closeEvent(self, event):
-        self.running = False
         while self.ui.pyas_opacity > 0:
             time.sleep(0.001)
             self.ui.pyas_opacity -= 1
@@ -1830,6 +1833,7 @@ if __name__ == '__main__':
     try:
         pyas_lib()
         remove_tmp()
+        remove_rtp()
         pyas_version, pyae_version = "2.6.1", "2.2.5"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放

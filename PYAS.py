@@ -1565,10 +1565,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+                self.pyas_protect_repair()
                 for p in psutil.process_iter():
                     try:
                         time.sleep(0.00001)
-                        self.pyas_protect_repair()
                         QApplication.processEvents()
                         file, name = str(p.exe()), str(p.name())
                         if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:

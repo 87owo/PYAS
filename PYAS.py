@@ -36,23 +36,16 @@ def pyas_bug_log(e):
 
 ##################################### 移除暫存檔 ####################################
 
-def pyasb_remove():
+def remove_tmp():
     try:
         if os.path.isfile('Library/PYAS/Temp/PYASB.log'):
             os.remove('Library/PYAS/Temp/PYASB.log')
     except:
         pass
 
-def pyasp_remove():
-    try:
-        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-            os.remove('Library/PYAS/Temp/PYASP.tmp')
-    except:
-        pass
-
 ##################################### 資料庫檢查 ####################################
 
-def pyas_library():
+def pyas_lib():
     try:
         checkPath = ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']
         for i in checkPath:
@@ -74,13 +67,12 @@ def pyas_key():
                     with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
                         fc.write(file_md5)
                     return True
-                return False
         except:
             if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
                 with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
                     if file_md5 == str(fc.read()):
                         return True
-            return False
+        return False
     except:
         return False
 
@@ -89,12 +81,13 @@ def pyas_key():
 class MainWindow_Controller(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow_Controller, self).__init__()
-        self.ui = Ui_MainWindow() #繼承
         try:
             with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
-                self.ui.vl = int(f.read())
+                self.vl = int(f.read())
         except:
-            self.ui.vl = 0
+            self.vl = 0
+        self.running = True
+        self.ui = Ui_MainWindow() #繼承
         self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
@@ -165,7 +158,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_Run_Button.clicked.connect(self.Customize_REG_Command)
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.Process_list_Menu)
-        self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init_zh)#Protection
+        self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init)#Protection
         self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.clicked.connect(self.Show_Virus_Scan_Progress_Bar_switch)#Setting
         self.ui.Language_Traditional_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.Change_language)
@@ -179,7 +172,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def init(self):
         self.Safe = True
-        self.Virus_Scan = 0
+        self.Virus_Scan = False
         self.ui.widget_2.lower()
         self.ui.Navigation_Bar.raise_()
         self.ui.Window_widget.raise_()
@@ -209,8 +202,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Languahe_English.setChecked(True)
             self.lang_init_en()
         try:
-            Thread(target = self.pyas_protect_init_zh).start()
-            Thread(target = self.pyas_vl_update).start()
             if self.pyasConfig['high_sensitivity'] == 1:
                 self.show_virus_scan_progress_bar = 1
                 self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
@@ -258,11 +249,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Change_Users_Password_widget.hide()
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
+        Thread(target = self.pyas_protect_init).start()
+        Thread(target = self.pyas_vl_update).start()
 
 ##################################### 更新資料庫 ####################################
 
     def pyas_vl_update(self):
-        for i in range(self.ui.vl, 100000):
+        for i in range(self.vl, 100000):
             try:
                 y = f'VirusShare_{i:05}.md5'
                 response = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True)
@@ -271,16 +264,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         lists_write = response.content.decode("utf-8").split('\n')[6:-1]
                         for list_write in lists_write:
                             vlist.write(str(list_write)[:10]+'\n')
-                    self.ui.vl = i + 1
+                    self.vl = i + 1
                 else:
-                    self.ui.vl = i
-                    print(f'[INFO] Hashes Update Complete (V{self.ui.vl - 1})')
+                    self.vl = i
+                    print(f'[INFO] Hashes Update Complete (V{self.vl - 1})')
                     break
                 with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
-                    f.write(str(self.ui.vl))
+                    f.write(str(self.vl))
             except Exception as e:
                 print(e)
-                print(f'[INFO] Hashes Update Fail (V{self.ui.vl - 1})')
+                print(f'[INFO] Hashes Update Fail (V{self.vl - 1})')
                 break
 
 ##################################### 英文初始化 ####################################
@@ -291,11 +284,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_title.setText(_translate("MainWindow", "This device has been protected"))
         else:
             self.ui.State_title.setText(_translate("MainWindow", "This device is currently unsafe"))
-            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [Warning] PYAS Security Key Error')
         if pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
         else:
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)"))
+        cy = time.strftime('%Y')
+        if int(cy) < 2020:
+            cy = str('2020')
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
+        if self.vl <= 0:
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Downloading Library...)"))
+        else:
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Library Version: "+str(self.vl-1)+")"))
         self.ui.State_Button.setText(_translate("MainWindow", "State"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "Scan"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "Tools"))
@@ -364,18 +364,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Testers_Name.setText(_translate("MainWindow", "87owo"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "Website:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas?lang=en\"><span style= \" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        cy = time.strftime('%Y')
-        if int(cy) < 2020:
-            cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
-        try:
-            if self.ui.vl <= 0:
-                self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Downloading Library...)"))
-            else:
-                self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Library Version: "+str(self.ui.vl)+")"))
-        except Exception as e:
-            print(e)
-            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Downloading Library...)"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "Back"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "New password:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "Username:"))
@@ -415,7 +403,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
         else:
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密钥错误)"))
-            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密钥错误')
+        cy = time.strftime('%Y')
+        if int(cy) < 2020:
+            cy = str('2020')
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
+        if self.vl <= 0:
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下载数据庫...)"))
+        else:
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (数据庫版本: "+str(self.vl-1)+")"))
         self.ui.State_Button.setText(_translate("MainWindow", "状态"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "扫描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -484,17 +479,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Testers_Name.setText(_translate("MainWindow", "87owo"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方网站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        cy = time.strftime('%Y')
-        if int(cy) < 2020:
-            cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
-        try:
-            if self.ui.vl <= 0:
-                self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下载数据庫...)"))
-            else:
-                self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (数据庫版本: "+str(self.ui.vl)+")"))
-        except:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下载数据庫...)"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密码:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用户名:"))
@@ -534,7 +518,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
         else:
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密鑰錯誤)"))
-            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + ' > [警告] PYAS 安全密鑰錯誤')
+        cy = time.strftime('%Y')
+        if int(cy) < 2020:
+            cy = str('2020')
+        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
+        if self.vl <= 0:
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下載資料庫...)"))
+        else:
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (資料庫版本: "+str(self.vl-1)+")"))
         self.ui.State_Button.setText(_translate("MainWindow", "狀態"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "掃描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -603,17 +594,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Testers_Name.setText(_translate("MainWindow", "87owo"))
         self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
         self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        cy = time.strftime('%Y')
-        if int(cy) < 2020:
-            cy = str('2020')
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{cy} 87owo (PYAS Security)"))
-        try:
-            if self.ui.vl <= 0:
-                self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下載資料庫...)"))
-            else:
-                self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (資料庫版本: "+str(self.ui.vl)+")"))
-        except:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下載資料庫...)"))
         self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密碼:"))
         self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用戶名:"))
@@ -858,7 +838,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 病毒掃描 #####################################
     
     def Virus_Scan_Break(self):
-        self.Virus_Scan = 0
+        self.Virus_Scan = False
 
     def Virus_Solve(self):
         try:
@@ -946,7 +926,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_Solve_Button.show()
             self.ui.Virus_Scan_choose_Button.show()
             self.ui.Virus_Scan_Break_Button.hide()
-            self.Virus_Scan = 0
+            self.Virus_Scan = False
             self.Safe = False
             ToastNotifier().show_toast("PYAS Security",self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List)),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
             self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List)))
@@ -954,7 +934,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             print('[SCAN] No malware currently found')
             self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
-            self.Virus_Scan = 0
+            self.Virus_Scan = False
             self.Safe = True
             ToastNotifier().show_toast("PYAS Security",self.text_Translate('✔當前未發現惡意軟體。'),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
             self.ui.Virus_Scan_text.setText(self.text_Translate('✔當前未發現惡意軟體。'))
@@ -974,7 +954,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if file != "":
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
-                self.Virus_Scan = 1
+                self.Virus_Scan = True
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
                 print('[INFO] Reading Viruslist Database')#讀取
@@ -1019,7 +999,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if file != "":
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
-                self.Virus_Scan = 1
+                self.Virus_Scan = True
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
@@ -1039,7 +1019,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pyas_scan_path_en(self,path,rfp,fts):
         for fd in os.listdir(path):#遍歷檔案
             try:
-                if self.Virus_Scan == 0:
+                if not self.Virus_Scan:
                     self.ui.Virus_Scan_Break_Button.hide()
                     break
                 else:
@@ -1079,7 +1059,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                 rfp = self.fp.read()
             self.fp.close()
-            self.Virus_Scan = 1
+            self.Virus_Scan = True
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.Virus_Scan_ProgressBar.hide()
             self.ui.Virus_Scan_choose_Button.hide()
@@ -1102,7 +1082,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pyas_scan_disk_en(self,path,rfp):
         for fd in os.listdir(path):
             try:
-                if self.Virus_Scan == 0:
+                if not self.Virus_Scan:
                     self.ui.Virus_Scan_Break_Button.hide()
                     break
                 else:
@@ -1156,118 +1136,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Repair_System_Permission(self):
         #QMessageBox跟tkinter.messagebox是差不多的東西 yes的回傳值為16384
         question = QMessageBox.warning(self,self.text_Translate('修復系統權限'),self.text_Translate("您確定要修復系統權限嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384:
-            Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
-            'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun', \
-            'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
-            'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
-            'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
-            'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb']
-            try:
-                try:#開啟註冊表鍵
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'Explorer')#創建鍵
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)#刪除值
-                    except:
-                        pass
-                win32api.RegCloseKey(key)#關閉已打開的鍵
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'Explorer')
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)
-                    except:
-                        pass
-                win32api.RegCloseKey(key)
-                Permission = ['DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper']
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'System')
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)
-                    except:
-                        pass
-                win32api.RegCloseKey(key)
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'System')
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)
-                    except:
-                        pass
-                win32api.RegCloseKey(key)
-                Permission = ['NoComponents', 'NoAddingComponents']
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'ActiveDesktop')
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)
-                    except:
-                        pass
-                win32api.RegCloseKey(key)
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'System')
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                try:
-                    win32api.RegDeleteValue(key, 'DisableCMD')
-                except:
-                    pass
-                win32api.RegCloseKey(key)
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'System')
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-                try:
-                    win32api.RegDeleteValue(key, 'DisableCMD')
-                except:
-                    pass
-                win32api.RegCloseKey(key)
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    try:
-                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
-                    except:
-                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
-                        win32api.RegCreateKey(key,'MMC')
-                        key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
-                try:
-                    win32api.RegDeleteValue(key, 'Restrict_Run')
-                except:
-                    pass
-                win32api.RegCloseKey(key)
-                QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成!"),QMessageBox.Ok,QMessageBox.Ok)
-            except Exception as e:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
+        if question == 16384 and self.pyas_protect_repair():
+            QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成!"),QMessageBox.Ok,QMessageBox.Ok)
+        else:
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
 
     def Repair_System_Files(self):
         try:
@@ -1318,7 +1190,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/",'')
         if file =="":
             pass
-        elif "PYAS" in file:
+        elif file == str(sys.argv[0]):
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('存取被拒'),QMessageBox.Ok)
             pass
         else:
@@ -1355,27 +1227,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     vm.write(str(md5(open(file,'rb').read()).hexdigest())[:10]+'\n')
                                 self.ui.Customize_CMD_Command_output.setText("Successfully added MD5 to the database!")
                         except:
-                            self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
-                        return
-                elif CMD_Command.split()[1].lower() == "--whitelist" or CMD_Command.split()[1].lower() == "-w":
-                    if CMD_Command.split()[2].lower() == "--md5" or CMD_Command.split()[2].lower() == "-m":
-                        try:
-                            value = str(CMD_Command.split()[3])
-                            with open('Library/PYAE/Hashes/Whitelist.md5','a') as vm:
-                                vm.write(str(value)[:10]+'\n')
-                            self.ui.Customize_CMD_Command_output.setText("Successfully added MD5 to the database!")
-                        except:
-                            self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
-                        return
-                    elif CMD_Command.split()[2].lower() == "--file" or CMD_Command.split()[2].lower() == "-f":
-                        try:
-                            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("添加數據庫"),"C:/",'All File *.*')
-                            if file != '':
-                                with open('Library/PYAE/Hashes/Whitelist.md5','a') as vm:
-                                    vm.write(str(md5(open(file,'rb').read()).hexdigest())[:10]+'\n')
-                                self.ui.Customize_CMD_Command_output.setText("Successfully added MD5 to the database!")
-                        except Exception as e:
-                            print(e)
                             self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
                         return
             else:
@@ -1496,10 +1347,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Look_for_File(self):
         try:
-            os.remove('Library/PYAS/Temp/PYASF.tmp')
-        except:
-            pass
-        try:
             File_Name = self.ui.Look_for_File_input.text()
             if File_Name != "":
                 self.find_files_info_zh(File_Name)
@@ -1509,26 +1356,23 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pyas_bug_log(e)
 
     def find_files_info_zh(self,ffile):
+        self.find_files = []
         try:
             for d in range(26):
                 try:
                     self.findfile_zh(str(chr(65+d))+':/',ffile)
                 except:
                     pass
-            if os.path.isfile('Library/PYAS/Temp/PYASF.tmp'):
-                try:
-                    with open('Library/PYAS/Temp/PYASF.tmp','r',encoding="utf-8") as ft:
-                        fe = ft.read()
-                except Exception as e:
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
-                self.ui.Look_for_File_output.setText("")
-                self.ui.Look_for_File_output.append(self.text_Translate('尋找結果:')+'\n'+str(fe))
+            if self.find_files != []:
+                self.ui.Look_for_File_output.setText('')
+                for find_file in self.find_files:
+                    self.ui.Look_for_File_output.append(find_file)
                 QApplication.processEvents()
                 self.Change_Tools(self.ui.Look_for_File_widget)
             else:
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('未找到檔案'),QMessageBox.Ok)
-        except Exception as e:
-            pyas_bug_log(e)
+        except:
+            pass
 
     def findfile_zh(self,path,ffile):
         self.ui.Look_for_File_output.setText(self.text_Translate('正在尋找: ')+str(path))
@@ -1537,15 +1381,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                 if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or ':/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
-                    pass
-                else:
-                    if os.path.isdir(fullpath):
-                        self.findfile_zh(fullpath,ffile)
-                    else:
-                        if ffile in str(fd):
-                            date = time.ctime(os.path.getmtime(fullpath))
-                            with open('Library/PYAS/Temp/PYASF.tmp','a',encoding="utf-8") as ft:
-                                ft.write(str(self.text_Translate('找到檔案:')+str(fullpath)+'\n'+self.text_Translate('創建日期:')+str(date)+'\n'+'\n'))
+                    continue
+                elif os.path.isdir(fullpath):
+                    self.findfile_zh(fullpath,ffile)
+                elif ffile in str(fd):
+                    date = time.ctime(os.path.getmtime(fullpath))
+                    self.find_files.append(str(self.text_Translate('找到檔案: ')+str(fullpath)+'\n'+self.text_Translate('創建日期: ')+str(date)+'\n'))
             except:
                 continue
 
@@ -1654,10 +1495,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
 ##################################### 實時防護 #####################################
     
-    def protect_threading_init_zh(self):
+    def protect_threading_init(self):
         self.ui.State_output.clear()
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            pyasp_remove()
+            self.rt_protect = False
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
@@ -1667,65 +1508,158 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            Thread(target = self.pyas_protect_init_zh).start()
+            Thread(target = self.pyas_protect_init).start()
 
     def pyas_protect_repair(self):
         rp_reg = False
         try:
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+            Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
+            'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun', \
+            'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
+            'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
+            'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
+            'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb']
+            try:#開啟註冊表鍵
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'Explorer')#創建鍵
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+            for i in Permission:
+                try:
+                    win32api.RegDeleteValue(key,i)#刪除值
+                    rp_reg = True
+                except:
+                    pass
+            win32api.RegCloseKey(key)#關閉已打開的鍵
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'Explorer')
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
+            for i in Permission:
+                try:
+                    win32api.RegDeleteValue(key,i)
+                    rp_reg = True
+                except:
+                    pass
+            win32api.RegCloseKey(key)
+            Permission = ['DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper']
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'System')
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+            for i in Permission:
+                try:
+                    win32api.RegDeleteValue(key,i)
+                    rp_reg = True
+                except:
+                    pass
+            win32api.RegCloseKey(key)
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'System')
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
+            for i in Permission:
+                try:
+                    win32api.RegDeleteValue(key,i)
+                    rp_reg = True
+                except:
+                    pass
+            win32api.RegCloseKey(key)
+            Permission = ['NoComponents', 'NoAddingComponents']
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'ActiveDesktop')
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
+            for i in Permission:
+                try:
+                    win32api.RegDeleteValue(key,i)
+                    rp_reg = True
+                except:
+                    pass
+            win32api.RegCloseKey(key)
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'System')
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+            try:
+                win32api.RegDeleteValue(key, 'DisableCMD')
+                rp_reg = True
+            except:
+                pass
+            win32api.RegCloseKey(key)
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+            except:
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'System')
+                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
+            try:
+                win32api.RegDeleteValue(key, 'DisableCMD')
+                rp_reg = True
+            except:
+                pass
+            win32api.RegCloseKey(key)
+            try:
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+            except:
+                try:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                except:
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
+                    win32api.RegCreateKey(key,'MMC')
+                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
+                win32api.RegCreateKey(key,'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
+            try:
+                win32api.RegDeleteValue(key, 'Restrict_Run')
+                rp_reg = True
+            except:
+                pass
+            win32api.RegCloseKey(key)
         except:
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-            win32api.RegCreateKey(key,'System')
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-        try:
-            win32api.RegDeleteValue(key, 'DisableCMD')
-            rp_reg = True
-        except:
-            pass
-        win32api.RegCloseKey(key)
-        try:
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-        except:
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-            win32api.RegCreateKey(key,'System')
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-        try:
-            win32api.RegDeleteValue(key, 'DisableCMD')
-            rp_reg = True
-        except:
-            pass
-        win32api.RegCloseKey(key)
+            rp_reg = False
         return rp_reg
 
-    def pyas_protect_init_zh(self):
+    def pyas_protect_init(self):
         try:
             print('[INFO] Start Action (Real-time Protect)')
-            with open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8') as ft:
-                ft.write('Protect temp file, dont remove it')
             if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
                 self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
                 self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
                 self.ui.Protection_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            self.rt_protect = True
+            while self.rt_protect or self.running:
                 for p in psutil.process_iter():
                     try:
                         time.sleep(0.00001)
                         QApplication.processEvents()
-                        file = str(p.exe())
-                        if '' == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or  'mem' in file.lower() or 'Registry' in file or 'PYAS' in file or 'AppData' in file:
+                        file, name, pid = str(p.exe()), str(p.name()), p.pid
+                        if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                             continue
+                        elif pid != psutil.Process().pid and name == psutil.Process().name() and self.running != True:
+                            self.rt_protect = False
                         elif self.pyas_sign_start(file) or self.api_scan('md5', file):
-                            if subprocess.call('taskkill /f /im "'+str(p.name())+'" /t',shell=True) == 0:
-                                print('[INFO] Malware blocking success: '+str(p.name()))
-                                self.ui.State_output.append(self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()))
-                                ToastNotifier().show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
+                            if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
+                                text = self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
                             else:
                                 if not self.pyas_protect_repair():
-                                    print(f'[INFO] Malware blocking failed: {p.name()}')
-                                    self.ui.State_output.append(self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+str(p.name()))
-                                    ToastNotifier().show_toast("PYAS Security",self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(str(time.strftime('%Y/%m/%d %H:%M:%S')))+str(p.name()),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
+                                    text = self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
+                            self.ui.State_output.append(text)
+                            ToastNotifier().show_toast("PYAS Security",text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
                     except:
                         continue
         except Exception as e:
@@ -1882,6 +1816,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         pat2.drawRoundedRect(rect, 1, 1)
 
     def closeEvent(self, event):
+        self.running = False
         while self.ui.pyas_opacity > 0:
             time.sleep(0.001)
             self.ui.pyas_opacity -= 1
@@ -1893,10 +1828,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     try:
-        pyas_library()
-        pyasb_remove()
-        pyasp_remove()
-        pyas_version, pyae_version = "2.6.0", "2.2.4"
+        pyas_lib()
+        remove_tmp()
+        pyas_version, pyae_version = "2.6.1", "2.2.5"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)

@@ -1517,123 +1517,39 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target = self.pyas_protect_init).start()
 
     def pyas_protect_repair(self):
-        rp_reg = False
+        rp_reg = True
         try:
             Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
-            'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun', \
+            'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
             'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
             'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
             'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
-            'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb']
-            try:#開啟註冊表鍵
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'Explorer')#創建鍵
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-            for i in Permission:
-                try:
-                    win32api.RegDeleteValue(key,i)#刪除值
-                    rp_reg = True
-                except:
-                    pass
+            'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb',\
+            'DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper', 'NoComponents', 'NoAddingComponents', 'Restrict_Run']
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')#創建鍵
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'ActiveDesktop')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS),'MMC')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS),'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+            keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)]
+            for key in keys:
+                for i in Permission:
+                    try:
+                        win32api.RegDeleteValue(key,i)#刪除值
+                    except:
+                        pass
             win32api.RegCloseKey(key)#關閉已打開的鍵
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'Explorer')
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS)
-            for i in Permission:
-                try:
-                    win32api.RegDeleteValue(key,i)
-                    rp_reg = True
-                except:
-                    pass
-            win32api.RegCloseKey(key)
-            Permission = ['DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper']
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'System')
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-            for i in Permission:
-                try:
-                    win32api.RegDeleteValue(key,i)
-                    rp_reg = True
-                except:
-                    pass
-            win32api.RegCloseKey(key)
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'System')
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS)
-            for i in Permission:
-                try:
-                    win32api.RegDeleteValue(key,i)
-                    rp_reg = True
-                except:
-                    pass
-            win32api.RegCloseKey(key)
-            Permission = ['NoComponents', 'NoAddingComponents']
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'ActiveDesktop')
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS)
-            for i in Permission:
-                try:
-                    win32api.RegDeleteValue(key,i)
-                    rp_reg = True
-                except:
-                    pass
-            win32api.RegCloseKey(key)
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'System')
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-            try:
-                win32api.RegDeleteValue(key, 'DisableCMD')
-                rp_reg = True
-            except:
-                pass
-            win32api.RegCloseKey(key)
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-            except:
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'System')
-                key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS)
-            try:
-                win32api.RegDeleteValue(key, 'DisableCMD')
-                rp_reg = True
-            except:
-                pass
-            win32api.RegCloseKey(key)
-            try:
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
-            except:
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
-                except:
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS)
-                    win32api.RegCreateKey(key,'MMC')
-                    key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS)
-                win32api.RegCreateKey(key,'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
-                key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)
-            try:
-                win32api.RegDeleteValue(key, 'Restrict_Run')
-                rp_reg = True
-            except:
-                pass
-            win32api.RegCloseKey(key)
         except:
             rp_reg = False
         return rp_reg
@@ -1652,6 +1568,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for p in psutil.process_iter():
                     try:
                         time.sleep(0.00001)
+                        self.pyas_protect_repair()
                         QApplication.processEvents()
                         file, name = str(p.exe()), str(p.name())
                         if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
@@ -1660,8 +1577,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
                                 text = self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
                             else:
-                                if not self.pyas_protect_repair():
-                                    text = self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
+                                text = self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
                             self.ui.State_output.append(text)
                             ToastNotifier().show_toast("PYAS Security",text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
                     except:

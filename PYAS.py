@@ -61,7 +61,7 @@ def pyas_key():
         with open(sys.argv[0], 'rb') as f:
             file_md5 = str(md5(f.read()).hexdigest())
         try:
-            response = requests.get("http://27.147.30.238:5001/key", params={'key': file_md5})
+            response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5})
             if response.status_code == 200:
                 if response.text == 'True':
                     with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:

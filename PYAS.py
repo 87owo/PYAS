@@ -10,8 +10,8 @@
 #
 ##################################### 載入模組套件 ###################################
 
-import os, sys, time, json, psutil, subprocess, requests
-import win32api, win32con, socket, cryptocode, platform
+import os, sys, time, json, psutil, struct, win32api, win32con
+import requests, socket, platform, cryptocode, subprocess
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_English import english_list
@@ -93,6 +93,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.vl = int(f.read())
         except:
             self.vl = 0
+        with open(r"\\.\PhysicalDrive0", "r+b") as f:
+            self.mbr_value = f.read(512)
         self.ui = Ui_MainWindow() #繼承
         self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
@@ -1142,7 +1144,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Repair_System_Permission(self):
         #QMessageBox跟tkinter.messagebox是差不多的東西 yes的回傳值為16384
         question = QMessageBox.warning(self,self.text_Translate('修復系統權限'),self.text_Translate("您確定要修復系統權限嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384 and self.pyas_protect_repair():
+        if question == 16384 and self.pyas_protect_system_repair():
             QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成!"),QMessageBox.Ok,QMessageBox.Ok)
         else:
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
@@ -1516,7 +1518,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QApplication.processEvents()
             Thread(target = self.pyas_protect_init).start()
 
-    def pyas_protect_repair(self):
+    def protect_system_mbr_repair(self):
+        with open(r"\\.\PhysicalDrive0", "r+b") as f:
+            if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                f.seek(0)
+                f.write(self.mbr_value)
+                return True
+
+    def pyas_protect_system_repair(self):
         rp_reg = True
         try:
             Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
@@ -1565,10 +1574,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-                self.pyas_protect_repair()
+                self.pyas_protect_system_repair()
+                self.protect_system_mbr_repair()
                 for p in psutil.process_iter():
                     try:
-                        time.sleep(0.00001)
+                        time.sleep(0.0001)
                         QApplication.processEvents()
                         file, name = str(p.exe()), str(p.name())
                         if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:

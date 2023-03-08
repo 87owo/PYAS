@@ -165,7 +165,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.Process_list_Menu)
         self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init)#Protection
-        self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.clicked.connect(self.Show_Virus_Scan_Progress_Bar_switch)#Setting
+        self.ui.high_sensitivity_switch_Button.clicked.connect(self.high_sensitivity_switch)#Setting
         self.ui.Language_Traditional_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.Change_language)
         self.ui.Languahe_English.clicked.connect(self.Change_language)
@@ -209,15 +209,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.lang_init_en()
         try:
             if self.pyasConfig['high_sensitivity'] == 1:
-                self.show_virus_scan_progress_bar = 1
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                self.high_sensitivity = 1
+                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             else:
-                self.show_virus_scan_progress_bar = 0
+                self.high_sensitivity = 0
         except:
-            self.show_virus_scan_progress_bar = 0
+            self.high_sensitivity = 0
         self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
         self.effect_shadow = QtWidgets.QGraphicsDropShadowEffect(self)
         self.effect_shadow.setOffset(0,0) # 偏移
@@ -380,9 +380,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Value_Data_title.setText(_translate("MainWindow", "Value Data:"))
         self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "OK"))
         self.ui.Value_HEKY_title.setText(_translate("MainWindow", "Value HEKY:"))
-        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "High Sensitivity Mode"))
-        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "Enable this option can improve scanning sensitivity,\nbut it can also cause manslaughter."))
-        self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate(self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()))
+        self.ui.high_sensitivity_title.setText(_translate("MainWindow", "High Sensitivity Mode"))
+        self.ui.high_sensitivity_illustrate.setText(_translate("MainWindow", "Enable this option can improve scanning sensitivity,\nbut it can also cause manslaughter."))
+        self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
         self.ui.Setting_Back.setText(_translate("MainWindow", "Back"))
         self.ui.Language_title.setText(_translate("MainWindow", "Language"))
         self.ui.Language_illustrate.setText(_translate("MainWindow", "Please select language"))
@@ -495,9 +495,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Value_Data_title.setText(_translate("MainWindow", "值资料:"))
         self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "确定"))
         self.ui.Value_HEKY_title.setText(_translate("MainWindow", "值HEKY:"))
-        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "高灵敏度模式"))
-        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "启用该选项可以提高扫描灵敏度，但这也可能会造成误杀。"))
-        self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate(self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()))
+        self.ui.high_sensitivity_title.setText(_translate("MainWindow", "高灵敏度模式"))
+        self.ui.high_sensitivity_illustrate.setText(_translate("MainWindow", "启用该选项可以提高扫描灵敏度，但这也可能会造成误杀。"))
+        self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
         self.ui.Setting_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Language_title.setText(_translate("MainWindow", "语言"))
         self.ui.Language_illustrate.setText(_translate("MainWindow", "请选择语言"))
@@ -610,9 +610,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Value_Data_title.setText(_translate("MainWindow", "值資料:"))
         self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "確定"))
         self.ui.Value_HEKY_title.setText(_translate("MainWindow", "值HEKY:"))
-        self.ui.Show_Virus_Scan_Progress_Bar_title.setText(_translate("MainWindow", "高靈敏度模式"))
-        self.ui.Show_Virus_Scan_Progress_Bar_illustrate.setText(_translate("MainWindow", "啟用該選項可以提高掃描靈敏度，但這也可能會造成誤殺。"))
-        self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate(self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()))
+        self.ui.high_sensitivity_title.setText(_translate("MainWindow", "高靈敏度模式"))
+        self.ui.high_sensitivity_illustrate.setText(_translate("MainWindow", "啟用該選項可以提高掃描靈敏度，但這也可能會造成誤殺。"))
+        self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
         self.ui.Setting_Back.setText(_translate("MainWindow", "返回"))
         self.ui.Language_title.setText(_translate("MainWindow", "語言"))
         self.ui.Language_illustrate.setText(_translate("MainWindow", "請選擇語言"))
@@ -972,11 +972,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         rfp = fp.read()
                 except:
                     rfp = ''
-                if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                    if self.sign_scan(file):#簽名檢查
-                        if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
-                            self.write_scan(file)#寫入發現病毒
-                else:
+                if self.high_sensitivity == 0 and self.sign_scan(file):
+                    if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                        self.write_scan(file)
+                elif self.high_sensitivity == 1:
                     if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
                         self.write_scan(file)#寫入發現病毒
                 self.answer_scan()
@@ -1036,7 +1035,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_List_output=QStringListModel()
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.scaning = self.text_Translate("正在掃描: ")
             for d in range(26):
                 try:
                     self.traverse_path(str(chr(65+d))+':/',rfp)
@@ -1048,6 +1046,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
     def traverse_path(self,path,rfp):
+        sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
         for fd in os.listdir(path):# 遍歷檔案
             try:
                 if not self.Virus_Scan:
@@ -1057,20 +1056,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                     if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or 'AppData' in fullpath:#路徑過濾
                         continue
-                    else:
-                        sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
-                    if os.path.isdir(fullpath):# 深入遍歷
+                    elif os.path.isdir(fullpath):# 深入遍歷
                         self.traverse_path(fullpath,rfp)
-                    else:# 檔案
+                    else:
                         self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
                         QApplication.processEvents()
-                        if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                            if str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):#簽名檢查
-                                if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
-                                    self.write_scan(fullpath)#寫入發現病毒
-                        else:
+                        if self.high_sensitivity == 0 and str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):
                             if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
-                                self.write_scan(fullpath)#寫入發現病毒
+                                self.write_scan(fullpath)
+                        elif self.high_sensitivity == 1:
+                            if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
+                                self.write_scan(fullpath)
             except:
                 continue
 
@@ -1548,25 +1544,25 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.Change_animation_3(self.ui.Setting_widget,0.5)
                 self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
 
-    def Show_Virus_Scan_Progress_Bar_switch(self):
+    def high_sensitivity_switch(self):
         try:
-            sw_state = self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.text()
+            sw_state = self.ui.high_sensitivity_switch_Button.text()
             if sw_state == self.text_Translate("已關閉"):
                 self.pyasConfig['high_sensitivity'] = 1
                 self.writeConfig(self.pyasConfig)
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-                self.show_virus_scan_progress_bar = 1
+                self.high_sensitivity = 1
             elif sw_state == self.text_Translate("已開啟"):
                 self.pyasConfig['high_sensitivity'] = 0
                 self.writeConfig(self.pyasConfig)
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setText(self.text_Translate("已關閉"))
-                self.ui.Show_Virus_Scan_Progress_Bar_switch_Button.setStyleSheet("""
+                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-                self.show_virus_scan_progress_bar = 0
+                self.high_sensitivity = 0
             else:
                 pass
         except:

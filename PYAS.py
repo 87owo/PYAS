@@ -890,6 +890,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pe.close()
             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 for function in entry.imports:
+                    QApplication.processEvents()
                     if '_CorExeMain' in str(function.name):
                         return True # 有惡意
             return False # 無惡意
@@ -1064,7 +1065,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
                         QApplication.processEvents()
                         if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                            print(str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath))
                             if str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):#簽名檢查
                                 if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
                                     self.write_scan(fullpath)#寫入發現病毒

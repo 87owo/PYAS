@@ -997,7 +997,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         path = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/")
         try:
-            if file != "":
+            if path != "":
                 self.Virus_Scan = True
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.ui.Virus_Scan_choose_Button.hide()
@@ -1064,11 +1064,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
                         QApplication.processEvents()
                         if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                            if str(fd).lower() in sflist and self.sign_scan(fullpath):#簽名檢查
-                                if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                            print(str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath))
+                            if str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):#簽名檢查
+                                if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
                                     self.write_scan(fullpath)#寫入發現病毒
                         else:
-                            if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                            if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
                                 self.write_scan(fullpath)#寫入發現病毒
             except:
                 continue

@@ -1,10 +1,9 @@
 ####################################################################################
 # Coding Python 3.11 UTF-8 [64-bit] (Python IDLE)
 #
-# PYAS Git: https://github.com/87owo/PYAS
 # PYAS Web: https://pyantivirus.wixsite.com/pyas
+# PYAS Git: https://github.com/87owo/PYAS
 #
-# PYAS is managed by PYDT (Python Development Team)
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 #
@@ -24,7 +23,7 @@ from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PYAS_UI import Ui_MainWindow
 
-###################################### 錯誤日誌 #####################################
+##################################### 資料庫管理 ####################################
 
 def pyas_bug_log(e):
     try:
@@ -34,7 +33,14 @@ def pyas_bug_log(e):
     except:
         pass
 
-##################################### 移除暫存檔 ####################################
+def create_lib():
+    try:
+        checkPath = ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']
+        for i in checkPath:
+            if not os.path.isdir(i):
+                os.makedirs(i)
+    except Exception as e:
+        pyas_bug_log(e)
 
 def remove_tmp():
     try:
@@ -49,17 +55,6 @@ def remove_rtp():
             os.remove('Library/PYAS/Temp/PYASP.tmp')
     except:
         pass
-
-##################################### 資料庫檢查 ####################################
-
-def pyas_lib():
-    try:
-        checkPath = ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']
-        for i in checkPath:
-            if not os.path.isdir(i):
-                os.makedirs(i)
-    except Exception as e:
-        pyas_bug_log(e)
 
 ###################################### 密鑰認證 #####################################
 
@@ -93,8 +88,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.vl = int(f.read())
         except:
             self.vl = 0
-        with open(r"\\.\PhysicalDrive0", "r+b") as f:
-            self.mbr_value = f.read(512)
+        try:
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                self.mbr_value = f.read(512)
+        except:
+            self.mbr_value = None
         self.ui = Ui_MainWindow() #繼承
         self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
@@ -118,9 +116,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Virus_Scan_Solve_Button.clicked.connect(self.Virus_Solve)
         self.ui.Virus_Scan_choose_Button.clicked.connect(self.Virus_Scan_Choose_Menu)
         self.ui.Virus_Scan_Break_Button.clicked.connect(self.Virus_Scan_Break)
-        self.ui.File_Scan_Button.clicked.connect(self.File_Scan)#讓物件名稱"File_Scan_Button"連接到本地函數"File_Scan"
-        self.ui.Path_Scan_Button.clicked.connect(self.Path_Scan)
-        self.ui.Disk_Scan_Button.clicked.connect(self.pyas_scan_disk_init_en)
+        self.ui.File_Scan_Button.clicked.connect(self.file_scan)#讓物件名稱"File_Scan_Button"連接到本地函數"File_Scan"
+        self.ui.Path_Scan_Button.clicked.connect(self.path_scan)
+        self.ui.Disk_Scan_Button.clicked.connect(self.disk_scan)
         self.ui.Tools_Button.clicked.connect(self.Change_to_Tools_widget)#More_Tools
         self.ui.System_Tools_Button.clicked.connect(lambda:self.Change_Tools(self.ui.System_Tools_widget))
         self.ui.System_Tools_Back.clicked.connect(lambda:self.Back_To_More_Tools(self.ui.System_Tools_widget))
@@ -157,7 +155,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Disable_Safe_Mode_Button.clicked.connect(self.Disable_Safe_Mode)
         self.ui.Delete_Private_File_Button.clicked.connect(self.Delete_Private_File)
         self.ui.Customize_CMD_Command_Run_Button.clicked.connect(self.Customize_CMD_Command)
-        self.ui.Look_for_File_Run_Button.clicked.connect(self.Look_for_File)
+        self.ui.Look_for_File_Run_Button.clicked.connect(self.find_file_input)
         self.ui.Encryption_Text_Run_Button.clicked.connect(self.Encryption_Text)
         self.ui.Decrypt_Text_Run_Button.clicked.connect(self.Decrypt_Text)
         self.ui.Change_Users_Password_Run_Button.clicked.connect(self.Change_Users_Password)
@@ -279,8 +277,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     break
                 with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
                     f.write(str(self.vl))
-            except Exception as e:
-                print(e)
+            except:
                 print(f'[INFO] Hashes Update Fail (V{self.vl - 1})')
                 break
 
@@ -871,50 +868,47 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = False
             self.ui.Virus_Scan_text.setText(self.text_Translate("✖錯誤: 執行失敗。"))
 
+    def sign_scan(self, file):
+        try:
+            pe = PE(file, fast_load=True)
+            pe.close()
+            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
+        except:
+            return True # 未簽名
+
+    def md5_scan(self, file, rfp):
+        try:
+            with open(file, "rb") as f:
+                file_md5 = str(md5(f.read()).hexdigest())[:10]
+                return file_md5 in rfp # 有惡意
+        except:
+            return False # 無惡意
+
+    def pe_scan(self,file):
+        try:
+            pe = PE(file)
+            pe.close()
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                for function in entry.imports:
+                    if '_CorExeMain' in str(function.name):
+                        return True # 有惡意
+            return False # 無惡意
+        except:
+            return False # 有惡意
+
     def api_scan(self, types, file):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
             response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
             if response.status_code == 200:
-                if response.text == 'True':
-                    return True
-            return False
+                return response.text == 'True'
+            return False # 無惡意
         except:
-            return False
-
-    def pyas_scan_start(self, file, rfp):
-        try:
-            with open(file, "rb") as f:
-                file_md5 = str(md5(f.read()).hexdigest())[:10]
-                return file_md5 in rfp
-        except:
-            return False
-
-    def pyas_pe_start(self,file):
-        try:
-            pe = PE(file)
-            pe.close()
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:#函數檢測
-                for function in entry.imports:
-                    if '_CorExeMain' in str(function.name):
-                        return True
-            return False
-        except:
-            return False
-    
-    def pyas_sign_start(self, file):  # 簽名檢查
-        try:
-            pe = PE(file, fast_load=True)
-            pe.close()
-            if pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0:
-                return True  # 未簽名
-            return False  # 已簽名
-        except:
-            return True  # 未簽名
+            return False # 無惡意
 
     #定義紀錄掃描
-    def pyas_scan_write_en(self,file):
+    def write_scan(self,file):
         try:
             self.Virus_List.append(file)
             self.Virus_List_output.setStringList(self.Virus_List)
@@ -923,7 +917,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pass
 
     #定義讀取紀錄
-    def pyas_scan_answer_en(self):
+    def answer_scan(self):
         if self.Virus_List != []:
             print('[SCAN] Malware has been detected')
             self.Virus_List_output.setStringList(self.Virus_List)
@@ -947,9 +941,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             ToastNotifier().show_toast("PYAS Security",self.text_Translate('✔當前未發現惡意軟體。'),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
             self.ui.Virus_Scan_text.setText(self.text_Translate('✔當前未發現惡意軟體。'))
 
+    def Virus_Scan_Choose_Menu(self):
+        if self.ui.Virus_Scan_choose_widget.isHidden():
+            self.ui.Virus_Scan_choose_widget.show()
+            self.Change_animation_4(self.ui.Virus_Scan_choose_widget,100,0,101)
+        else:
+            self.ui.Virus_Scan_choose_widget.hide()
+
 ##################################### 檔案掃描 #####################################
     
-    def File_Scan(self):
+    def file_scan(self):
         print('[SCAN] Start Scan Action (File Scan)')
         self.Virus_List = []
         self.ui.Virus_Scan_choose_widget.hide()
@@ -961,32 +962,23 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("病毒掃描"),"C:/",'')
         try:
             if file != "":
-                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.Virus_Scan = True
+                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                print('[INFO] Reading Viruslist Database')#讀取
                 try:
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                 except:
                     rfp = ''
                 if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                    if self.pyas_sign_start(file):#簽名檢查
-                        if self.pyas_scan_start(file,rfp):#MD5較驗
-                            self.pyas_scan_write_en(file)#寫入發現病毒
-                        elif self.pyas_pe_start(file):
-                            self.pyas_scan_write_en(file)#寫入發現病毒
-                        elif self.api_scan('md5', file):
-                            self.pyas_scan_write_en(file)#寫入發現病毒
+                    if self.sign_scan(file):#簽名檢查
+                        if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                            self.write_scan(file)#寫入發現病毒
                 else:
-                    if self.pyas_scan_start(file,rfp):#MD5較驗
-                        self.pyas_scan_write_en(file)#寫入發現病毒
-                    elif self.pyas_pe_start(file):
-                        self.pyas_scan_write_en(file)#寫入發現病毒
-                    elif self.api_scan('md5', file):
-                        self.pyas_scan_write_en(file)#寫入發現病毒
-                self.pyas_scan_answer_en()
+                    if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                        self.write_scan(file)#寫入發現病毒
+                self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -994,7 +986,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
 ##################################### 路徑掃描 #####################################
     
-    def Path_Scan(self):
+    def path_scan(self):
         print('[SCAN] Start Scan Action (Path Scan)')
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
@@ -1003,67 +995,34 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        file = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/")
+        path = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/")
         try:
             if file != "":
-                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.Virus_Scan = True
+                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
-                print('[INFO] Reading Viruslist Database')#讀取
                 try:
                     with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
                         rfp = fp.read()
                 except:
                     rfp = ''
-                self.pyas_scan_path_en(file,rfp,False)
-                self.pyas_scan_answer_en()
+                self.traverse_path(path,rfp)
+                self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
-    def pyas_scan_path_en(self,path,rfp,fts):
-        for fd in os.listdir(path):#遍歷檔案
-            try:
-                if not self.Virus_Scan:
-                    self.ui.Virus_Scan_Break_Button.hide()
-                    break
-                else:
-                    fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                    if os.path.isdir(fullpath):#資料夾 深入遍歷
-                        self.pyas_scan_path_en(fullpath,rfp,fts)
-                    else:#檔案
-                        self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
-                        QApplication.processEvents()
-                        if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
-                            if self.pyas_sign_start(fullpath):#簽名檢查
-                                if self.pyas_scan_start(fullpath,rfp):#MD5較驗
-                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                                elif self.pyas_pe_start(fullpath):
-                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                                elif self.api_scan('md5', fullpath):
-                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                        else:
-                            if self.pyas_scan_start(fullpath,rfp):#MD5較驗
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.pyas_pe_start(fullpath):
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.api_scan('md5', fullpath):
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
-            except:
-                continue
-
 ##################################### 全盤掃描 #####################################
     
-    def pyas_scan_disk_init_en(self):
+    def disk_scan(self):
         print('[SCAN] Start Scan Action (Disk Scan)')
         try:
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            print('[INFO] Reading Viruslist Database')
             with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
                 rfp = self.fp.read()
             self.fp.close()
@@ -1079,65 +1038,40 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.scaning = self.text_Translate("正在掃描: ")
             for d in range(26):
                 try:
-                    self.pyas_scan_disk_en(str(chr(65+d))+':/',rfp)
+                    self.traverse_path(str(chr(65+d))+':/',rfp)
                 except:
                     pass
-            self.pyas_scan_answer_en()
+            self.answer_scan()
         except Exception as e:
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+str(e),QMessageBox.Ok)
 
-    def pyas_scan_disk_en(self,path,rfp):
-        for fd in os.listdir(path):
+    def traverse_path(self,path,rfp):
+        for fd in os.listdir(path):# 遍歷檔案
             try:
                 if not self.Virus_Scan:
                     self.ui.Virus_Scan_Break_Button.hide()
                     break
                 else:
                     fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                    QApplication.processEvents()
-                    if self.show_virus_scan_progress_bar == 0:
-                        if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or 'AppData' in fullpath:#路徑過濾
-                            continue
-                        elif ':/Program' in fullpath or ':/Users/Default' in fullpath:
-                            sflist = ['.exe','.dll']
-                        else:
-                            sflist = ['.exe','.dll','.com','.bat','.vbs','.scr','.cpl','.htm','.html']
-                        if os.path.isdir(fullpath):#資料夾 深入遍歷
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            self.pyas_scan_disk_en(fullpath,rfp)
-                        else:#檔案
-                            root, extension = os.path.splitext(fd)
-                            if self.pyas_sign_start(fullpath) and str(extension).lower() in sflist:#簽名檢查+副檔名過濾檢測
-                                self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                                if self.pyas_scan_start(fullpath,rfp):#MD5較驗
-                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                                elif self.pyas_pe_start(fullpath):
-                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                                elif self.api_scan('md5', fullpath):
-                                    self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                    if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or 'AppData' in fullpath:#路徑過濾
+                        continue
                     else:
-                        if os.path.isdir(fullpath):#資料夾 深入遍歷
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            self.pyas_scan_disk_en(fullpath,rfp)
-                        else:#檔案
-                            root, extension = os.path.splitext(fd)
-                            self.ui.Virus_Scan_text.setText(self.scaning+fullpath)
-                            if self.pyas_scan_start(fullpath,rfp):#MD5較驗
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.pyas_pe_start(fullpath):
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
-                            elif self.api_scan('md5', fullpath):
-                                self.pyas_scan_write_en(fullpath)#寫入發現病毒
+                        sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
+                    if os.path.isdir(fullpath):# 深入遍歷
+                        self.traverse_path(fullpath,rfp)
+                    else:# 檔案
+                        self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
+                        QApplication.processEvents()
+                        if self.show_virus_scan_progress_bar == 0:#確認是否高靈敏
+                            if str(fd).lower() in sflist and self.sign_scan(fullpath):#簽名檢查
+                                if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                                    self.write_scan(fullpath)#寫入發現病毒
+                        else:
+                            if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                                self.write_scan(fullpath)#寫入發現病毒
             except:
                 continue
-
-    def Virus_Scan_Choose_Menu(self):
-        if self.ui.Virus_Scan_choose_widget.isHidden():
-            self.ui.Virus_Scan_choose_widget.show()
-            self.Change_animation_4(self.ui.Virus_Scan_choose_widget,100,0,101)
-        else:
-            self.ui.Virus_Scan_choose_widget.hide()
 
 ##################################### 實用工具 #####################################
 
@@ -1153,8 +1087,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                runc = os.system('start sfc /scannow')
-                if runc != 0:
+                if os.system('start sfc /scannow') != 0:
                     QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
         except Exception as e:
             pyas_bug_log(e)
@@ -1163,8 +1096,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate('清理系統檔案'),self.text_Translate("您確定要清理系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                runc = os.system('start cleanmgr')
-                if runc != 0:
+                if os.system('start cleanmgr') != 0:
                     QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("清理失敗"),QMessageBox.Ok)
         except Exception as e:
             pyas_bug_log(e)
@@ -1172,8 +1104,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Enable_Safe_Mode(self):
         question = QMessageBox.warning(self,self.text_Translate('啟用安全模式'),self.text_Translate("您確定啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
         if question == 16384:
-            runc = os.system('bcdedit /set {default} safeboot minimal')
-            if runc == 0:
+            if os.system('bcdedit /set {default} safeboot minimal') == 0:
                 question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
                 if question == 16384:
                     os.system('shutdown -r -t 0')
@@ -1183,8 +1114,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Disable_Safe_Mode(self):
         question = QMessageBox.warning(self,self.text_Translate('禁用安全模式'),self.text_Translate("您確定禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
         if question == 16384:
-            runc = os.system('bcdedit /deletevalue {current} safeboot')
-            if runc == 0:
+            if os.system('bcdedit /deletevalue {current} safeboot') == 0:
                 question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
                 if question == 16384:
                     os.system('shutdown -r -t 0')
@@ -1200,7 +1130,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pass
         elif file == str(sys.argv[0]):
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('存取被拒'),QMessageBox.Ok)
-            pass
         else:
             question = QMessageBox.warning(self,self.text_Translate('刪除檔案'),self.text_Translate("您確定刪除該檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
@@ -1353,48 +1282,42 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.Change_Tools(self.ui.Analyze_EXE_widget)
                 QApplication.processEvents()
 
-    def Look_for_File(self):
+    def find_file_input(self):
         try:
-            File_Name = self.ui.Look_for_File_input.text()
-            if File_Name != "":
-                self.find_files_info_zh(File_Name)
+            file_name = self.ui.Look_for_File_input.text()
+            if file_name != "":
+                self.find_files = []
+                for d in range(26):
+                    try:
+                        self.traverse_find_file(str(chr(65+d))+':/',file_name)
+                    except:
+                        pass
+                if self.find_files != []:
+                    self.ui.Look_for_File_output.setText('')
+                    for find_file in self.find_files:
+                        self.ui.Look_for_File_output.append(find_file)
+                    QApplication.processEvents()
+                    self.Change_Tools(self.ui.Look_for_File_widget)
+                else:
+                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('未找到檔案'),QMessageBox.Ok)
+
             else:
                 QMessageBox.information(self,self.text_Translate("提示"),'['+self.text_Translate("提示")+'] '+self.text_Translate("請輸入需要尋找的檔案"),QMessageBox.Ok)
         except Exception as e:
             pyas_bug_log(e)
 
-    def find_files_info_zh(self,ffile):
-        self.find_files = []
-        try:
-            for d in range(26):
-                try:
-                    self.findfile_zh(str(chr(65+d))+':/',ffile)
-                except:
-                    pass
-            if self.find_files != []:
-                self.ui.Look_for_File_output.setText('')
-                for find_file in self.find_files:
-                    self.ui.Look_for_File_output.append(find_file)
-                QApplication.processEvents()
-                self.Change_Tools(self.ui.Look_for_File_widget)
-            else:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('未找到檔案'),QMessageBox.Ok)
-        except:
-            pass
-
-    def findfile_zh(self,path,ffile):
-        self.ui.Look_for_File_output.setText(self.text_Translate('正在尋找: ')+str(path))
-        QApplication.processEvents()
+    def traverse_find_file(self,path,ffile):
         for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                 if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or ':/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                     continue
                 elif os.path.isdir(fullpath):
-                    self.findfile_zh(fullpath,ffile)
+                    self.ui.Look_for_File_output.setText(self.text_Translate('正在尋找: ')+str(fullpath))
+                    QApplication.processEvents()
+                    self.traverse_find_file(fullpath,ffile)
                 elif ffile in str(fd):
-                    date = time.ctime(os.path.getmtime(fullpath))
-                    self.find_files.append(str(self.text_Translate('找到檔案: ')+str(fullpath)+'\n'+self.text_Translate('創建日期: ')+str(date)+'\n'))
+                    self.find_files.append(str(self.text_Translate('找到檔案: ')+str(fullpath)+'\n'+self.text_Translate('創建日期: ')+str(time.ctime(os.path.getmtime(fullpath)))+'\n'))
             except:
                 continue
 
@@ -1519,11 +1442,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target = self.pyas_protect_init).start()
 
     def protect_system_mbr_repair(self):
-        with open(r"\\.\PhysicalDrive0", "r+b") as f:
-            if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
-                f.seek(0)
-                f.write(self.mbr_value)
-                return True
+        if self.mbr_value != None:
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                    f.seek(0)
+                    f.write(self.mbr_value)
+                    return True
 
     def pyas_protect_system_repair(self):
         rp_reg = True
@@ -1583,7 +1507,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         file, name = str(p.exe()), str(p.name())
                         if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                             continue
-                        elif self.pyas_sign_start(file) or self.api_scan('md5', file):
+                        elif self.sign_scan(file) or self.api_scan('md5', file):
                             if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
                                 text = self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
                             else:
@@ -1757,7 +1681,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
 if __name__ == '__main__':
     try:
-        pyas_lib()
+        create_lib()
         remove_tmp()
         remove_rtp()
         pyas_version, pyae_version = "2.6.1", "2.2.5"

@@ -858,7 +858,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_List = []
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.Virus_Scan_text.setText(self.text_Translate('✔成功: 已執行成功。'))
+            self.ui.Virus_Scan_text.setText(self.text_Translate('成功: 已執行成功。'))
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
             self.ui.State_title.setText(self.text_Translate("這部裝置已受到保護"))
@@ -866,7 +866,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             pyas_bug_log(e)
             self.Safe = False
-            self.ui.Virus_Scan_text.setText(self.text_Translate("✖錯誤: 執行失敗。"))
+            self.ui.Virus_Scan_text.setText(self.text_Translate("錯誤: 執行失敗。"))
 
     def sign_scan(self, file):
         try:
@@ -923,7 +923,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             print('[SCAN] Malware has been detected')
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(" > [病毒掃描] 掃描出") + str(len(self.Virus_List)) + self.text_Translate("個病毒"))
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
             self.ui.State_title.setText(self.text_Translate("這部裝置目前不安全"))
             self.ui.Virus_Scan_Solve_Button.show()
@@ -931,16 +930,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_Break_Button.hide()
             self.Virus_Scan = False
             self.Safe = False
-            ToastNotifier().show_toast("PYAS Security",self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List)),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
-            self.ui.Virus_Scan_text.setText(self.text_Translate("✖當前已發現惡意軟體共{}項。").format(len(self.Virus_List)))
+            text = self.text_Translate("當前已發現惡意軟體共{}項。").format(len(self.Virus_List))
         else:
             print('[SCAN] No malware currently found')
             self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
             self.Virus_Scan = False
             self.Safe = True
-            ToastNotifier().show_toast("PYAS Security",self.text_Translate('✔當前未發現惡意軟體。'),icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
-            self.ui.Virus_Scan_text.setText(self.text_Translate('✔當前未發現惡意軟體。'))
+            text = self.text_Translate('當前未發現惡意軟體。')
+        now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+        self.ui.Virus_Scan_text.setText(text)
+        self.ui.State_output.append(f'[{now_time}] {text}')
+        ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
 
     def Virus_Scan_Choose_Menu(self):
         if self.ui.Virus_Scan_choose_widget.isHidden():
@@ -1075,7 +1076,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Repair_System_Permission(self):
         #QMessageBox跟tkinter.messagebox是差不多的東西 yes的回傳值為16384
         question = QMessageBox.warning(self,self.text_Translate('修復系統權限'),self.text_Translate("您確定要修復系統權限嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384 and self.pyas_protect_system_repair():
+        if question == 16384 and self.protect_system_reg_repair():
             QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成!"),QMessageBox.Ok,QMessageBox.Ok)
         else:
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
@@ -1431,7 +1432,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.ui.State_output.append(str(time.strftime('%Y/%m/%d %H:%M:%S')) + self.text_Translate(' > [提示] 尚未啟用實時防護'))
+            text = self.text_Translate('尚未啟用實時防護')
+            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+            self.ui.State_output.append(f'[{now_time}] {text}')
             QApplication.processEvents()
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
@@ -1445,8 +1448,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     f.seek(0)
                     f.write(self.mbr_value)
                     return True
+        return False
 
-    def pyas_protect_system_repair(self):
+    def protect_system_reg_repair(self):
         rp_reg = True
         try:
             Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
@@ -1495,7 +1499,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-                self.pyas_protect_system_repair()
+                self.protect_system_reg_repair()
                 self.protect_system_mbr_repair()
                 for p in psutil.process_iter():
                     try:
@@ -1506,11 +1510,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             continue
                         elif self.sign_scan(file) or self.api_scan('md5', file):
                             if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
-                                text = self.text_Translate('{} > [實時防護] 成功攔截了一個惡意軟體:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
+                                text = self.text_Translate('成功攔截惡意軟體: ')+name
                             else:
-                                text = self.text_Translate('{} > [實時防護] 惡意軟體攔截失敗:').format(time.strftime('%Y/%m/%d %H:%M:%S'))+name
-                            self.ui.State_output.append(text)
-                            ToastNotifier().show_toast("PYAS Security",text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
+                                text = self.text_Translate('惡意軟體攔截失敗: ')+name
+                            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+                            self.ui.State_output.append(f'[{now_time}] {text}')
+                            ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
                     except:
                         continue
         except Exception as e:
@@ -1681,7 +1686,7 @@ if __name__ == '__main__':
         create_lib()
         remove_tmp()
         remove_rtp()
-        pyas_version, pyae_version = "2.6.1", "2.2.5"
+        pyas_version, pyae_version = "2.6.2", "2.2.5"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)

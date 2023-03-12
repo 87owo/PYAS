@@ -885,22 +885,22 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pe_scan(self,file):
         try:
             for entry in PE(file).DIRECTORY_ENTRY_IMPORT:
-                if '_CorExeMain' in [func.name.decode('utf-8') for func in entry.imports]:
-                    return True
+                for func in entry.imports:
+                    if '_CorExeMain' in func.name.decode('utf-8'):
+                        return True # 有惡意
             return False # 無惡意
         except:
-            return False # 有惡意
+            return False # 無惡意
 
     def api_scan(self, types, file):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
             response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
-            return response.status_code == 200 and response.text == 'True':
+            return response.status_code == 200 and response.text == 'True'
         except:
             return False # 無惡意
 
-    #定義紀錄掃描
     def write_scan(self,file):
         try:
             self.Virus_List.append(file)
@@ -1016,8 +1016,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            with open('Library/PYAE/Hashes/Viruslist.md5','r') as self.fp:
-                rfp = self.fp.read()
+            try:
+                with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
+                    rfp = fp.read()
+            except:
+                rfp = ''
             self.fp.close()
             self.Virus_Scan = True
             self.ui.Virus_Scan_Solve_Button.hide()

@@ -870,9 +870,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def sign_scan(self, file):
         try:
-            pe = PE(file, fast_load=True)
-            pe.close()
-            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
+            return PE(file, fast_load=True).OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
         except:
             return True # 未簽名
 
@@ -886,13 +884,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def pe_scan(self,file):
         try:
-            pe = PE(file)
-            pe.close()
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for function in entry.imports:
-                    QApplication.processEvents()
-                    if '_CorExeMain' in str(function.name):
-                        return True # 有惡意
+            for entry in PE(file).DIRECTORY_ENTRY_IMPORT:
+                if '_CorExeMain' in [func.name.decode('utf-8') for func in entry.imports]:
+                    return True
             return False # 無惡意
         except:
             return False # 有惡意
@@ -902,9 +896,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
             response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
-            if response.status_code == 200:
-                return response.text == 'True'
-            return False # 無惡意
+            return response.status_code == 200 and response.text == 'True':
         except:
             return False # 無惡意
 
@@ -1509,10 +1501,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                             continue
                         elif self.sign_scan(file) or self.api_scan('md5', file):
-                            if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
-                                text = self.text_Translate('成功攔截惡意軟體: ')+name
-                            else:
-                                text = self.text_Translate('惡意軟體攔截失敗: ')+name
+                            p.kill()
+                            text = self.text_Translate('成功攔截惡意軟體: ')+name
                             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
                             self.ui.State_output.append(f'[{now_time}] {text}')
                             ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)

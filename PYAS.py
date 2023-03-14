@@ -9,8 +9,8 @@
 #
 ##################################### 載入模組套件 ###################################
 
-import os, sys, time, json, psutil, win32api, win32con, win32file
-import requests, socket, platform, cryptocode, subprocess, struct
+import os, sys, time, json, psutil, win32api, win32con, struct
+import requests, socket, platform, cryptocode, subprocess
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_English import english_list
@@ -1472,27 +1472,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-    def protect_file_watch_event(self, path):
-        try:
-            sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
-            hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
-            while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-                for action, file_name in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
-                    fullpath = str(path+file_name)
-                    file, ext = os.path.splitext(os.path.basename(fullpath))
-                    if ':/Windows' in fullpath or ':/$RECYCLE.BIN' in fullpath or ':/Program' in fullpath or ':/XboxGames' in fullpath: # 路徑過濾
-                        continue
-                    elif action == 1 and ext in sflist and self.sign_scan(fullpath) and self.api_scan('md5', fullpath):
-                        try:
-                            os.remove(fullpath)
-                            text = self.text_Translate('成功攔截惡意軟體: ')+file+ext
-                            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
-                            self.ui.State_output.append(f'[{now_time}] {text}')
-                        except:
-                            pass
-        except:
-            pass
-
     def protect_system_processes(self):
         for p in psutil.process_iter():
             time.sleep(0.0001)
@@ -1502,8 +1481,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                     continue
                 elif self.sign_scan(file) or self.api_scan('md5', file):
-                    p.kill()
-                    text = self.text_Translate('成功攔截惡意軟體: ')+name
+                    if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
+                        text = self.text_Translate('成功攔截惡意軟體: ')+name
+                    else:
+                        text = self.text_Translate('惡意軟體攔截失敗: ')+name
                     now_time = time.strftime('%Y/%m/%d %H:%M:%S')
                     self.ui.State_output.append(f'[{now_time}] {text}')
                     ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
@@ -1519,8 +1500,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            #for d in range(26):
-                #Thread(target = self.protect_file_watch_event, args=(str(chr(65+d)+':/'),)).start()
             while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.protect_system_reg_repair()
                 self.protect_system_mbr_repair()

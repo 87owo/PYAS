@@ -9,7 +9,7 @@
 #
 ##################################### 載入模組套件 ###################################
 
-import os, sys, time, json, psutil, win32api, win32con, struct
+import os, sys, time, json, psutil, struct, win32api, win32con
 import requests, socket, platform, cryptocode, subprocess
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
@@ -48,13 +48,6 @@ def remove_tmp():
     except:
         pass
 
-def remove_rtp():
-    try:
-        if os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
-            os.remove('Library/PYAS/Temp/PYASP.tmp')
-    except:
-        pass
-
 ###################################### 密鑰認證 #####################################
 
 def pyas_key():
@@ -82,24 +75,18 @@ def pyas_key():
 class MainWindow_Controller(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow_Controller, self).__init__()
-        try:
-            with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
-                self.vl = int(f.read())
-        except:
-            self.vl = 0
-        try:
-            with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(512)
-        except:
-            self.mbr_value = None
         self.ui = Ui_MainWindow() #繼承
         self.ui.pyas_opacity = 100
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
-        #self.setWindowFlags(Qt.WindowStaysOnTopHint|self.windowFlags()) #窗口置頂
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QIcon('Library/PYAS/Icon/ICON.bmp'))
+        self.tray_icon.activated.connect(self.onTrayIconActivated)
+        self.tray_icon.show()
+        self.createContextMenu()
         self.ui.setupUi(self)
         self.setup_control()
-        
+
     def writeConfig(self, config):
         with open('Library/PYAS/Setup/PYAS.json', 'w', encoding='utf-8') as f:
             f.write(json.dumps(config, indent=4, ensure_ascii=False))
@@ -185,6 +172,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Process_quantity = []
         self.Process_Timer = QTimer()
         self.Process_Timer.timeout.connect(self.Process_list)
+        try:
+            with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
+                self.vl = int(f.read())
+        except:
+            self.vl = 0
+        try:
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                self.mbr_value = f.read(512)
+        except:
+            self.mbr_value = None
         if not os.path.exists('Library/PYAS/Setup/PYAS.json'):
             self.writeConfig({"high_sensitivity":0,"language":"english"})
         with open('Library/PYAS/Setup/PYAS.json', 'r', encoding='utf-8') as f:
@@ -254,7 +251,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
         Thread(target=self.pyas_protect_init).start()
-        Thread(target = self.pyas_vl_update).start()
+        Thread(target=self.pyas_vl_update).start()
 
 ##################################### 英文初始化 ####################################
     
@@ -840,7 +837,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def system_notification(self,now_time,text):
         try:
             self.ui.State_output.append(f'[{now_time}] {text}')
-            tray.showMessage(now_time, text, 0)
+            self.tray_icon.showMessage(now_time, text, 0)
         except:
             pass
 
@@ -938,7 +935,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = True
             text = self.text_Translate('當前未發現惡意軟體。')
         self.ui.Virus_Scan_text.setText(text)
-        Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),text,)).start()
+        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),text,)
 
     def Virus_Scan_Choose_Menu(self):
         if self.ui.Virus_Scan_choose_widget.isHidden():
@@ -1411,15 +1408,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for p in psutil.process_iter():
                     if p.pid == self.pid:
                         p.kill()
-        except Exception as e:
-            pyas_bug_log(e)
+        except:
+            pass
 
 ##################################### 實時防護 #####################################
     
     def protect_threading_init(self):
         self.ui.State_output.clear()
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            remove_rtp()
+            self.protect_running = False
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
@@ -1463,7 +1460,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)#刪除值
-                        Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復註冊表: ')+i,)).start()
+                        #self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復註冊表: ')+i)
                     except:
                         pass
                 win32api.RegCloseKey(key)#關閉已打開的鍵
@@ -1476,7 +1473,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if self.mbr_value != None and struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                     f.seek(0)
                     f.write(self.mbr_value)
-                    Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'),)).start()
+                    #self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'))
         except:
             pass
 
@@ -1490,14 +1487,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     continue
                 elif self.sign_scan(file) or self.api_scan('md5', file):
                     if subprocess.call(f'taskkill /f /pid "{p.pid}" /t',shell=True) == 0:
-                        text = self.text_Translate('成功攔截惡意軟體: ')+name
+                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功攔截惡意軟體: ')+name)
                     else:
-                        text = self.text_Translate('惡意軟體攔截失敗: ')+name
-                    Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),text,)).start()
+                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('惡意軟體攔截失敗: ')+name)
             except:
                 continue
 
     def pyas_protect_init(self):
+        self.protect_running = True
         print('[INFO] Start Action (Real-time Process Protect)')
         open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8').write('Protect temp file, dont remove it')
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
@@ -1506,7 +1503,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+            while self.protect_running:
                 self.protect_system_reg_repair()
                 self.protect_system_mbr_repair()
                 self.protect_system_processes()
@@ -1628,7 +1625,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             while self.ui.pyas_opacity > 60 and self.m_flag == True:
                 time.sleep(0.003)
                 self.ui.pyas_opacity -= 1
-                window.setWindowOpacity(self.ui.pyas_opacity/100)
+                self.setWindowOpacity(self.ui.pyas_opacity/100)
                 QApplication.processEvents()
         
     def mouseMoveEvent(self, QMouseEvent):
@@ -1646,7 +1643,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.ui.pyas_opacity < 100 and self.m_flag == False:
             time.sleep(0.003)
             self.ui.pyas_opacity += 1
-            window.setWindowOpacity(self.ui.pyas_opacity/100)
+            self.setWindowOpacity(self.ui.pyas_opacity/100)
             QApplication.processEvents()
 
     def paintEvent(self, event):# 圓角
@@ -1661,13 +1658,29 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
+    def createContextMenu(self):
+        self.menu = QMenu()
+        restoreAction = QAction("Restore", self)
+        restoreAction.triggered.connect(self.showNormal)
+        self.menu.addAction(restoreAction)
+
+    def onTrayIconActivated(self, reason):
+        if reason == QSystemTrayIcon.Trigger or reason == QSystemTrayIcon.DoubleClick:
+            self.showNormal()
+            while self.ui.pyas_opacity < 100:
+                time.sleep(0.001)
+                self.ui.pyas_opacity += 1
+                self.setWindowOpacity(self.ui.pyas_opacity/100)
+                QApplication.processEvents()
+
     def closeEvent(self, event):
+        event.ignore()
         while self.ui.pyas_opacity > 0:
             time.sleep(0.001)
             self.ui.pyas_opacity -= 1
-            window.setWindowOpacity(self.ui.pyas_opacity/100)
+            self.setWindowOpacity(self.ui.pyas_opacity/100)
             QApplication.processEvents()
-        window.hide()
+        self.hide()
 
 ##################################### 主初始化 #####################################
 
@@ -1675,14 +1688,11 @@ if __name__ == '__main__':
     try:
         create_lib()
         remove_tmp()
-        remove_rtp()
         pyas_version, pyae_version = "2.6.2", "2.3.0"
         print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
-        tray = QSystemTrayIcon(QIcon("Library/PYAS/Icon/ICON.ico"), app)
-        tray.setVisible(True)
         window = MainWindow_Controller()
         window.show()
         for i in range(101):

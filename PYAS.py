@@ -14,7 +14,6 @@ import requests, socket, platform, cryptocode, subprocess
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_English import english_list
-from win10toast import ToastNotifier
 from threading import Thread
 from random import randrange
 from PyQt5.QtWidgets import *
@@ -256,29 +255,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Setting_widget.hide()
         Thread(target=self.pyas_protect_init).start()
         Thread(target = self.pyas_vl_update).start()
-
-##################################### 更新資料庫 ####################################
-
-    def pyas_vl_update(self):
-        for i in range(self.vl, 100000):
-            try:
-                y = f'VirusShare_{i:05}.md5'
-                response = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True)
-                if response.status_code == 200:
-                    with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
-                        lists_write = response.content.decode("utf-8").split('\n')[6:-1]
-                        for list_write in lists_write:
-                            vlist.write(str(list_write)[:10]+'\n')
-                    self.vl = i + 1
-                else:
-                    self.vl = i
-                    print(f'[INFO] Hashes Update Complete (V{self.vl - 1})')
-                    break
-                with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
-                    f.write(str(self.vl))
-            except:
-                print(f'[INFO] Hashes Update Fail (V{self.vl - 1})')
-                break
 
 ##################################### 英文初始化 ####################################
     
@@ -836,8 +812,40 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Change_animation(self.ui.Tools_widget)
         self.ui.Tools_widget.show()
 
+##################################### 更新資料庫 ####################################
+
+    def pyas_vl_update(self):
+        for i in range(self.vl, 100000):
+            try:
+                y = f'VirusShare_{i:05}.md5'
+                response = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True)
+                if response.status_code == 200:
+                    with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
+                        lists_write = response.content.decode("utf-8").split('\n')[6:-1]
+                        for list_write in lists_write:
+                            vlist.write(str(list_write)[:10]+'\n')
+                    self.vl = i + 1
+                else:
+                    self.vl = i
+                    print(f'[INFO] Hashes Update Complete (V{self.vl - 1})')
+                    break
+                with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
+                    f.write(str(self.vl))
+            except:
+                print(f'[INFO] Hashes Update Fail (V{self.vl - 1})')
+                break
+
+##################################### 通知顯示 #####################################
+
+    def system_notification(self,now_time,text):
+        try:
+            self.ui.State_output.append(f'[{now_time}] {text}')
+            tray.showMessage(now_time, text, 0)
+        except:
+            pass
+
 ##################################### 病毒掃描 #####################################
-    
+
     def Virus_Scan_Break(self):
         self.Virus_Scan = False
 
@@ -929,10 +937,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_Scan = False
             self.Safe = True
             text = self.text_Translate('當前未發現惡意軟體。')
-        now_time = time.strftime('%Y/%m/%d %H:%M:%S')
         self.ui.Virus_Scan_text.setText(text)
-        self.ui.State_output.append(f'[{now_time}] {text}')
-        ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",threaded=True)
+        Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),text,)).start()
 
     def Virus_Scan_Choose_Menu(self):
         if self.ui.Virus_Scan_choose_widget.isHidden():
@@ -1457,6 +1463,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)#刪除值
+                        Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復註冊表: ')+i,)).start()
                     except:
                         pass
                 win32api.RegCloseKey(key)#關閉已打開的鍵
@@ -1469,6 +1476,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if self.mbr_value != None and struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                     f.seek(0)
                     f.write(self.mbr_value)
+                    Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'),)).start()
         except:
             pass
 
@@ -1481,13 +1489,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                     continue
                 elif self.sign_scan(file) or self.api_scan('md5', file):
-                    if subprocess.call(f'taskkill /f /im "{name}" /t',shell=True) == 0:
+                    if subprocess.call(f'taskkill /f /pid "{p.pid}" /t',shell=True) == 0:
                         text = self.text_Translate('成功攔截惡意軟體: ')+name
                     else:
                         text = self.text_Translate('惡意軟體攔截失敗: ')+name
-                    now_time = time.strftime('%Y/%m/%d %H:%M:%S')
-                    self.ui.State_output.append(f'[{now_time}] {text}')
-                    ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
+                    Thread(target=self.system_notification, args=(time.strftime('%Y/%m/%d %H:%M:%S'),text,)).start()
             except:
                 continue
 
@@ -1675,6 +1681,8 @@ if __name__ == '__main__':
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
+        tray = QSystemTrayIcon(QIcon("Library/PYAS/Icon/ICON.ico"), app)
+        tray.setVisible(True)
         window = MainWindow_Controller()
         window.show()
         for i in range(101):

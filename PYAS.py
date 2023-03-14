@@ -1460,7 +1460,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)#刪除值
-                        #self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復註冊表: ')+i)
                     except:
                         pass
                 win32api.RegCloseKey(key)#關閉已打開的鍵
@@ -1473,7 +1472,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if self.mbr_value != None and struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                     f.seek(0)
                     f.write(self.mbr_value)
-                    #self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'))
         except:
             pass
 
@@ -1494,15 +1492,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 continue
 
     def pyas_protect_init(self):
-        self.protect_running = True
         print('[INFO] Start Action (Real-time Process Protect)')
-        open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8').write('Protect temp file, dont remove it')
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            self.protect_running = True
             while self.protect_running:
                 self.protect_system_reg_repair()
                 self.protect_system_mbr_repair()
@@ -1555,8 +1552,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,20,20,50);}""")
                 self.high_sensitivity = 0
-            else:
-                pass
         except:
             try:
                 config = {'high_sensitivity': 0,'language': 'english'}

@@ -22,7 +22,7 @@ class Ui_MainWindow(object):
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.TabFocus)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("Library/PYAS/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("C:\\Users\\Windows\\Documents\\Project\\Python\\PYDT開發團隊\\PYAS防毒軟體\\PYAS_程式碼\\Library\\PYAS\\Qtui\\Library/Icon/ICON.bmp"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         MainWindow.setWindowIcon(icon)
         MainWindow.setIconSize(QtCore.QSize(24, 24))
         MainWindow.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
@@ -47,12 +47,12 @@ class Ui_MainWindow(object):
         self.Setting_widget.setFont(font)
         self.Setting_widget.setStyleSheet("background-color:rgb(255, 255, 255);")
         self.Setting_widget.setObjectName("Setting_widget")
-        self.high_sensitivity = QtWidgets.QWidget(self.Setting_widget)
-        self.high_sensitivity.setGeometry(QtCore.QRect(20, 50, 791, 101))
-        self.high_sensitivity.setAcceptDrops(False)
-        self.high_sensitivity.setAutoFillBackground(False)
-        self.high_sensitivity.setObjectName("high_sensitivity")
-        self.high_sensitivity_title = QtWidgets.QLabel(self.high_sensitivity)
+        self.Show_high_sensitivity = QtWidgets.QWidget(self.Setting_widget)
+        self.Show_high_sensitivity.setGeometry(QtCore.QRect(20, 50, 791, 101))
+        self.Show_high_sensitivity.setAcceptDrops(False)
+        self.Show_high_sensitivity.setAutoFillBackground(False)
+        self.Show_high_sensitivity.setObjectName("Show_high_sensitivity")
+        self.high_sensitivity_title = QtWidgets.QLabel(self.Show_high_sensitivity)
         self.high_sensitivity_title.setGeometry(QtCore.QRect(20, 10, 411, 41))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
@@ -62,7 +62,7 @@ class Ui_MainWindow(object):
         self.high_sensitivity_title.setStyleSheet("color: rgb(70,70,70);")
         self.high_sensitivity_title.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.high_sensitivity_title.setObjectName("high_sensitivity_title")
-        self.high_sensitivity_illustrate = QtWidgets.QLabel(self.high_sensitivity)
+        self.high_sensitivity_illustrate = QtWidgets.QLabel(self.Show_high_sensitivity)
         self.high_sensitivity_illustrate.setGeometry(QtCore.QRect(20, 50, 521, 51))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
@@ -74,7 +74,7 @@ class Ui_MainWindow(object):
         self.high_sensitivity_illustrate.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.high_sensitivity_illustrate.setWordWrap(True)
         self.high_sensitivity_illustrate.setObjectName("high_sensitivity_illustrate")
-        self.high_sensitivity_switch_Button = QtWidgets.QPushButton(self.high_sensitivity)
+        self.high_sensitivity_switch_Button = QtWidgets.QPushButton(self.Show_high_sensitivity)
         self.high_sensitivity_switch_Button.setGeometry(QtCore.QRect(660, 30, 91, 31))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
@@ -2293,36 +2293,6 @@ class Ui_MainWindow(object):
         self.System_Process_Manage_Button.setCheckable(False)
         self.System_Process_Manage_Button.setObjectName("System_Process_Manage_Button")
         self.System_verticalLayout.addWidget(self.System_Process_Manage_Button)
-        self.Repair_System_Permission_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Repair_System_Permission_Button.sizePolicy().hasHeightForWidth())
-        self.Repair_System_Permission_Button.setSizePolicy(sizePolicy)
-        font = QtGui.QFont()
-        font.setFamily("Microsoft YaHei")
-        font.setPointSize(12)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.Repair_System_Permission_Button.setFont(font)
-        self.Repair_System_Permission_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.Repair_System_Permission_Button.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}\n"
-"QPushButton:pressed\n"
-"{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
-        self.Repair_System_Permission_Button.setIconSize(QtCore.QSize(16, 16))
-        self.Repair_System_Permission_Button.setCheckable(False)
-        self.Repair_System_Permission_Button.setObjectName("Repair_System_Permission_Button")
-        self.System_verticalLayout.addWidget(self.Repair_System_Permission_Button)
         self.Repair_System_Files_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
@@ -2920,7 +2890,6 @@ class Ui_MainWindow(object):
         self.Process_Tools_Back.setText(_translate("MainWindow", "返回"))
         self.Process_Total_title.setText(_translate("MainWindow", "進程總數:"))
         self.System_Process_Manage_Button.setText(_translate("MainWindow", "系統進程管理"))
-        self.Repair_System_Permission_Button.setText(_translate("MainWindow", "修復系統權限"))
         self.Repair_System_Files_Button.setText(_translate("MainWindow", "修復系統檔案"))
         self.Clean_System_Files_Button.setText(_translate("MainWindow", "清理系統檔案"))
         self.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "啟動安全模式"))

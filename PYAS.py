@@ -1428,7 +1428,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target=self.pyas_protect_init).start()
 
     def protect_system_reg_repair(self):
-        rp_reg = True
         try:
             Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
             'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
@@ -1460,10 +1459,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         win32api.RegDeleteValue(key,i)#刪除值
                     except:
                         pass
-            win32api.RegCloseKey(key)#關閉已打開的鍵
+                win32api.RegCloseKey(key)#關閉已打開的鍵
         except:
-            rp_reg = False
-        return rp_reg
+            pass
 
     def protect_system_mbr_repair(self):
         try:
@@ -1471,10 +1469,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if self.mbr_value != None and struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                     f.seek(0)
                     f.write(self.mbr_value)
-                    return True
-            return False
         except:
-            return False
+            pass
 
     def protect_file_watch_event(self, path):
         try:
@@ -1696,6 +1692,7 @@ if __name__ == '__main__':
         remove_tmp()
         remove_rtp()
         pyas_version, pyae_version = "2.6.2", "2.3.0"
+        print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)
@@ -1705,7 +1702,6 @@ if __name__ == '__main__':
             time.sleep(0.001)
             window.setWindowOpacity(i/100)
             QApplication.processEvents()
-        print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         sys.exit(app.exec_())
     except Exception as e:
         pyas_bug_log(e)

@@ -9,8 +9,8 @@
 #
 ##################################### 載入模組套件 ###################################
 
-import os, sys, time, json, psutil, struct, win32api, win32con
-import requests, socket, platform, cryptocode, subprocess
+import os, sys, time, json, psutil, win32api, win32con, win32file
+import requests, socket, platform, cryptocode, subprocess, struct
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_English import english_list
@@ -148,7 +148,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Change_Users_Password_Back.clicked.connect(lambda:self.Back_To_More_Tools(self.ui.Change_Users_Password_widget))
         self.ui.About_Back.clicked.connect(self.ui.About_widget.hide)
         self.ui.Setting_Back.clicked.connect(self.Setting_Back)
-        self.ui.Repair_System_Permission_Button.clicked.connect(self.Repair_System_Permission)
         self.ui.Repair_System_Files_Button.clicked.connect(self.Repair_System_Files)
         self.ui.Clean_System_Files_Button.clicked.connect(self.Clean_System_Files)
         self.ui.Enable_Safe_Mode_Button.clicked.connect(self.Enable_Safe_Mode)
@@ -255,7 +254,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Change_Users_Password_widget.hide()
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
-        Thread(target = self.pyas_protect_init).start()
+        Thread(target=self.pyas_protect_init).start()
         Thread(target = self.pyas_vl_update).start()
 
 ##################################### 更新資料庫 ####################################
@@ -323,7 +322,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.More_Tools_Button.setText(_translate("MainWindow", "More Tools"))
         self.ui.More_Tools_Back_Button.setText(_translate("MainWindow", "Tools>"))
         self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "Process Manager"))
-        self.ui.Repair_System_Permission_Button.setText(_translate("MainWindow", "Repair Permission"))
         self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "Repair System Files"))
         self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "Clean System Files"))
         self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "Enable Safe Mode"))
@@ -438,7 +436,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.More_Tools_Button.setText(_translate("MainWindow", "更多工具"))
         self.ui.More_Tools_Back_Button.setText(_translate("MainWindow", "工具>"))
         self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "系统进程管理"))
-        self.ui.Repair_System_Permission_Button.setText(_translate("MainWindow", "系统权限修复"))
         self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "系统文件修复"))
         self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "系统垃圾清理"))
         self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "启动安全模式"))
@@ -553,7 +550,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.More_Tools_Button.setText(_translate("MainWindow", "更多工具"))
         self.ui.More_Tools_Back_Button.setText(_translate("MainWindow", "工具>"))
         self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "系統進程管理"))
-        self.ui.Repair_System_Permission_Button.setText(_translate("MainWindow", "系統權限修復"))
         self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "系統檔案修復"))
         self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "系統垃圾清理"))
         self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "啟動安全模式"))
@@ -636,9 +632,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             return text
         elif self.pyasConfig['language'] == "zh_CN":
             translations = {"嗎": "吗","項": "项","復": "复","攔": "拦","請": "请","後": "后","鑰": "钥","統": "统",
-                            "當": "当","確定": "确认","掃描": "扫描","檔案": "文件","錯誤": "错误","實時": "实时",
+                            "當": "当","確定": "确认","掃描": "扫描","檔案": "文件","錯誤": "错误","實時": "实时","軟體": "软件",
                             "發現": "发现","權限": "权限","惡意": "恶意","設定": "设置","關於": "关于","防護": "保护",
-                            "已開啟": "已开启","已關閉": "已关闭","On": "已开启","Off": "已关闭","軟體": "软件"}
+                            "已開啟": "已开启","已關閉": "已关闭","On": "已开启","Off": "已关闭","引導扇區":"引导扇区"}
             for k, v in translations.items():
                 text = text.replace(k, v)
             return text
@@ -870,7 +866,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def sign_scan(self, file):
         try:
-            return PE(file, fast_load=True).OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
+            pe = PE(file, fast_load=True)
+            pe.close()
+            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
         except:
             return True # 未簽名
 
@@ -878,13 +876,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())[:10]
-                return file_md5 in rfp # 有惡意
+            return file_md5 in rfp # 有惡意
         except:
             return False # 無惡意
 
     def pe_scan(self,file):
         try:
-            for entry in PE(file).DIRECTORY_ENTRY_IMPORT:
+            pe = PE(file)
+            pe.close()
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 for func in entry.imports:
                     if '_CorExeMain' in func.name.decode('utf-8'):
                         return True # 有惡意
@@ -909,8 +909,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-    #定義讀取紀錄
-    def answer_scan(self):
+    def answer_scan(self): #定義讀取紀錄
         if self.Virus_List != []:
             print('[SCAN] Malware has been detected')
             self.Virus_List_output.setStringList(self.Virus_List)
@@ -1067,14 +1066,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 continue
 
 ##################################### 實用工具 #####################################
-
-    def Repair_System_Permission(self):
-        #QMessageBox跟tkinter.messagebox是差不多的東西 yes的回傳值為16384
-        question = QMessageBox.warning(self,self.text_Translate('修復系統權限'),self.text_Translate("您確定要修復系統權限嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384 and self.protect_system_reg_repair():
-            QMessageBox.information(self,self.text_Translate('完成'),self.text_Translate("修復完成!"),QMessageBox.Ok,QMessageBox.Ok)
-        else:
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
 
     def Repair_System_Files(self):
         try:
@@ -1434,16 +1425,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            Thread(target = self.pyas_protect_init).start()
-
-    def protect_system_mbr_repair(self):
-        if self.mbr_value != None:
-            with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
-                    f.seek(0)
-                    f.write(self.mbr_value)
-                    return True
-        return False
+            Thread(target=self.pyas_protect_init).start()
 
     def protect_system_reg_repair(self):
         rp_reg = True
@@ -1483,36 +1465,70 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             rp_reg = False
         return rp_reg
 
-    def pyas_protect_init(self):
+    def protect_system_mbr_repair(self):
         try:
-            print('[INFO] Start Action (Real-time Protect)')
-            open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8').write('Protect temp file, dont remove it')
-            if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
-                self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
-                self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.Protection_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                if self.mbr_value != None and struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                    f.seek(0)
+                    f.write(self.mbr_value)
+                    return True
+            return False
+        except:
+            return False
+
+    def protect_file_watch_event(self, path):
+        try:
+            sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
+            hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+            while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
+                for action, file_name in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+                    fullpath = str(path+file_name)
+                    file, ext = os.path.splitext(os.path.basename(fullpath))
+                    if ':/Windows' in fullpath or ':/$RECYCLE.BIN' in fullpath or ':/Program' in fullpath or ':/XboxGames' in fullpath: # 路徑過濾
+                        continue
+                    elif action == 1 and ext in sflist and self.sign_scan(fullpath) and self.api_scan('md5', fullpath):
+                        try:
+                            os.remove(fullpath)
+                            text = self.text_Translate('成功攔截惡意軟體: ')+file+ext
+                            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+                            self.ui.State_output.append(f'[{now_time}] {text}')
+                        except:
+                            pass
+        except:
+            pass
+
+    def protect_system_processes(self):
+        for p in psutil.process_iter():
+            time.sleep(0.0001)
+            QApplication.processEvents()
+            try:
+                file, name = str(p.exe()), str(p.name())
+                if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
+                    continue
+                elif self.sign_scan(file) or self.api_scan('md5', file):
+                    p.kill()
+                    text = self.text_Translate('成功攔截惡意軟體: ')+name
+                    now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+                    self.ui.State_output.append(f'[{now_time}] {text}')
+                    ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
+            except:
+                continue
+
+    def pyas_protect_init(self):
+        print('[INFO] Start Action (Real-time Process Protect)')
+        open('Library/PYAS/Temp/PYASP.tmp','w',encoding='utf-8').write('Protect temp file, dont remove it')
+        if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
+            self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
+            self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.Protection_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            #for d in range(26):
+                #Thread(target = self.protect_file_watch_event, args=(str(chr(65+d)+':/'),)).start()
             while os.path.isfile('Library/PYAS/Temp/PYASP.tmp'):
                 self.protect_system_reg_repair()
                 self.protect_system_mbr_repair()
-                for p in psutil.process_iter():
-                    try:
-                        time.sleep(0.0001)
-                        QApplication.processEvents()
-                        file, name = str(p.exe()), str(p.name())
-                        if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
-                            continue
-                        elif self.sign_scan(file) or self.api_scan('md5', file):
-                            p.kill()
-                            text = self.text_Translate('成功攔截惡意軟體: ')+name
-                            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
-                            self.ui.State_output.append(f'[{now_time}] {text}')
-                            ToastNotifier().show_toast(now_time,text,icon_path="Library/PYAS/Icon/ICON.ico",duration=10,threaded=True)
-                    except:
-                        continue
-        except Exception as e:
-            pyas_bug_log(e)
+                self.protect_system_processes()
 
 ##################################### 系統設置 #####################################
 
@@ -1679,7 +1695,7 @@ if __name__ == '__main__':
         create_lib()
         remove_tmp()
         remove_rtp()
-        pyas_version, pyae_version = "2.6.2", "2.2.5"
+        pyas_version, pyae_version = "2.6.2", "2.3.0"
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放
         app = QtWidgets.QApplication(sys.argv)

@@ -30,6 +30,13 @@ def pyas_bug_log(e):
     except:
         pass
 
+def remove_tmp():
+    try:
+        if os.path.isfile('Library/PYAS/Temp/PYASB.log'):
+            os.remove('Library/PYAS/Temp/PYASB.log')
+    except:
+        pass
+
 def create_lib():
     try:
         checkPath = ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']
@@ -39,28 +46,23 @@ def create_lib():
     except Exception as e:
         pyas_bug_log(e)
 
-def remove_tmp():
-    try:
-        if os.path.isfile('Library/PYAS/Temp/PYASB.log'):
-            os.remove('Library/PYAS/Temp/PYASB.log')
-    except:
-        pass
-
 ###################################### 密鑰認證 #####################################
 
 def pyas_key():
     try:
         with open(sys.argv[0], 'rb') as f:
             file_md5 = str(md5(f.read()).hexdigest())
-        response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5})
-        if response.status_code == 200 and response.text == 'True':
-            with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
-                fc.write(file_md5)
-            return True
-        elif os.path.isfile('Library/PYAS/Setup/PYAS.key'):
-            with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
-                if file_md5 == str(fc.read()):
-                    return True
+        try:
+            response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5})
+            if response.status_code == 200 and response.text == 'True':
+                with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
+                    fc.write(file_md5)
+                return True
+        except:
+            if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
+                with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
+                    if file_md5 == str(fc.read()):
+                        return True
         return False
     except:
         return False
@@ -869,31 +871,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = False
             self.ui.Virus_Scan_text.setText(self.text_Translate("錯誤: 執行失敗。"))
 
-    def sign_scan(self, file):
-        try:
-            pe = PE(file, fast_load=True)
-            pe.close()
-            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
-        except:
-            return True # 未簽名
-
     def md5_scan(self, file, rfp):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())[:10]
             return file_md5 in rfp # 有惡意
-        except:
-            return False # 無惡意
-
-    def pe_scan(self,file):
-        try:
-            pe = PE(file)
-            pe.close()
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for func in entry.imports:
-                    if '_CorExeMain' in func.name.decode('utf-8'):
-                        return True # 有惡意
-            return False # 無惡意
         except:
             return False # 無惡意
 
@@ -903,6 +885,39 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 file_md5 = str(md5(f.read()).hexdigest())
             response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
             return response.status_code == 200 and response.text == 'True'
+        except:
+            return False # 無惡意
+
+    def sign_scan(self, file):
+        try:
+            pe = PE(file, fast_load=True)
+            pe.close()
+            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
+        except:
+            return True # 未簽名
+
+    def pe_scan(self,file):
+        try:
+
+            fn = []
+            pe = PE(file)
+            pe.close()
+            for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                for func in entry.imports:
+                    fn.append(str(func.name.decode('utf-8')))
+            if '_CorExeMain' in fn:
+                #print(f'Corexe Detected: {os.path.basename(file)}')
+                return True
+            if self.high_sensitivity == 1:
+                if 'VirtualAlloc' in fn and 'GetProcAddress' in fn and 'LoadLibraryA' in fn:
+                    if 'TlsSetValue' in fn or 'TlsGetValue' in fn or 'TlsAlloc' in fn:
+                        #print(f'Torjan Detected: {os.path.basename(file)}')
+                        return True
+                if 'LockResource' in fn and 'LoadResource' in fn and 'GetProcAddress' in fn:
+                    if 'CryptReleaseContext' in fn or 'MultiByteToWideChar' in fn or 'SizeofResource' in fn:
+                        #print(f'Ransom Detected: {os.path.basename(file)}')
+                        return True
+            return False
         except:
             return False # 無惡意
 
@@ -1484,7 +1499,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file, name = str(p.exe()), str(p.name())
                     if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                         continue
-                    elif self.sign_scan(file) or self.api_scan('md5', file):
+                    elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
                         try:
                             if p.kill() == None:
                                 self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功攔截惡意軟體: ')+name)
@@ -1692,7 +1707,7 @@ if __name__ == '__main__':
     try:
         create_lib()
         remove_tmp()
-        pyas_version, pyae_version = "2.6.3", "2.3.0"
+        pyas_version, pyae_version = "2.6.3", "2.3.1"
         print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放

@@ -12,6 +12,7 @@ import requests, socket, platform, cryptocode, subprocess
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_English import english_list
+from PYAE_Model import function_list
 from threading import Thread
 from random import randrange
 from PyQt5.QtWidgets import *
@@ -39,33 +40,11 @@ def remove_tmp():
 
 def create_lib():
     try:
-        checkPath = ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']
-        for i in checkPath:
+        for i in ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']:
             if not os.path.isdir(i):
                 os.makedirs(i)
-    except Exception as e:
-        pyas_bug_log(e)
-
-###################################### 密鑰認證 #####################################
-
-def pyas_key():
-    try:
-        with open(sys.argv[0], 'rb') as f:
-            file_md5 = str(md5(f.read()).hexdigest())
-        try:
-            response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5})
-            if response.status_code == 200 and response.text == 'True':
-                with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
-                    fc.write(file_md5)
-                return True
-        except:
-            if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
-                with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
-                    if file_md5 == str(fc.read()):
-                        return True
-        return False
     except:
-        return False
+        pass
 
 ###################################### 主要程式 #####################################
 
@@ -77,7 +56,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('Library/PYAS/Icon/ICON.bmp'))
+        self.tray_icon.setIcon(QIcon('Library/PYAS/Icon/ICON.ico'))
         self.tray_icon.activated.connect(self.onTrayIconActivated)
         self.tray_icon.show()
         self.createContextMenu()
@@ -92,9 +71,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             create_lib()
             pyas_bug_log(e)
- 
+
     def setup_control(self):
-        self.init()#調用本地函數"init"
+        self.init_config()#調用本地函數"init_config"
+        self.init_config_ui()#調用本地函數"init_config"
         self.ui.Close_Button.clicked.connect(self.close)#讓物件名稱"Close_Button"連接到函數"close"
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
         self.ui.Menu_Button.clicked.connect(self.ShowMenu)
@@ -163,9 +143,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_Blue.clicked.connect(self.Change_Theme)
         self.ui.Theme_Red.clicked.connect(self.Change_Theme)
 
-    def init(self):
-        self.Safe = True
-        self.Virus_Scan = False
+    def init_config_ui(self):
         self.ui.widget_2.lower()
         self.ui.Navigation_Bar.raise_()
         self.ui.Window_widget.raise_()
@@ -174,47 +152,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Process_quantity = []
         self.Process_Timer = QTimer()
         self.Process_Timer.timeout.connect(self.Process_list)
-        try:
-            with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
-                self.vl = int(f.read())
-        except:
-            self.vl = 0
-        try:
-            with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(512)
-        except:
-            self.mbr_value = None
-        if not os.path.exists('Library/PYAS/Setup/PYAS.json'):
-            self.writeConfig({"high_sensitivity":0,"language":"english"})
-        with open('Library/PYAS/Setup/PYAS.json', 'r', encoding='utf-8') as f:
-            self.pyasConfig = json.load(f)
-        try:
-            self.ui.Theme_White.setChecked(True)
-            if self.pyasConfig['language'] == "zh_TW":
-                self.ui.Language_Traditional_Chinese.setChecked(True)
-                self.lang_init_zh_tw()
-            elif self.pyasConfig['language'] == "zh_CN":
-                self.ui.Language_Simplified_Chinese.setChecked(True)
-                self.lang_init_zh_cn()
-            else:
-                self.ui.Languahe_English.setChecked(True)
-                self.lang_init_en()
-        except:
-            self.writeConfig({"high_sensitivity":0,"language":"english"})
-            self.pyasConfig['language'] = "english"
-            self.ui.Languahe_English.setChecked(True)
-            self.lang_init_en()
-        try:
-            if self.pyasConfig['high_sensitivity'] == 1:
-                self.high_sensitivity = 1
-                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            else:
-                self.high_sensitivity = 0
-        except:
-            self.high_sensitivity = 0
         self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
         self.effect_shadow = QtWidgets.QGraphicsDropShadowEffect(self)
         self.effect_shadow.setOffset(0,0) # 偏移
@@ -252,8 +189,92 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Change_Users_Password_widget.hide()
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
+
+    def init_config(self):
+        self.Safe = True
+        self.Virus_Scan = False
+        try:
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                self.mbr_value = f.read(512)
+        except:
+            self.mbr_value = None
+        try:
+            with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
+                self.vl = int(f.read())
+        except:
+            self.vl = 0
+        if not os.path.exists('Library/PYAS/Setup/PYAS.json'):
+            self.writeConfig({"high_sensitivity":0,"language":"english"})
+        with open('Library/PYAS/Setup/PYAS.json', 'r', encoding='utf-8') as f:
+            self.pyasConfig = json.load(f)
+        try:
+            self.ui.Theme_White.setChecked(True)
+            if self.pyasConfig['language'] == "zh_TW":
+                self.ui.Language_Traditional_Chinese.setChecked(True)
+                self.lang_init_zh_tw()
+            elif self.pyasConfig['language'] == "zh_CN":
+                self.ui.Language_Simplified_Chinese.setChecked(True)
+                self.lang_init_zh_cn()
+            else:
+                self.ui.Languahe_English.setChecked(True)
+                self.lang_init_en()
+        except:
+            self.writeConfig({"high_sensitivity":0,"language":"english"})
+            self.pyasConfig['language'] = "english"
+            self.ui.Languahe_English.setChecked(True)
+            self.lang_init_en()
+        try:
+            if self.pyasConfig['high_sensitivity'] == 1:
+                self.high_sensitivity = 1
+                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            else:
+                self.high_sensitivity = 0
+        except:
+            self.high_sensitivity = 0
         self.pyas_protect_init()
         Thread(target=self.pyas_vl_update).start()
+
+##################################### 更改語言 #####################################
+    
+    def Change_language(self):
+        try:
+            self.ui.State_output.clear()
+            if self.ui.Language_Traditional_Chinese.isChecked():
+                self.pyasConfig['language'] = "zh_TW"
+                self.writeConfig(self.pyasConfig)
+                self.lang_init_zh_tw()
+            elif self.ui.Language_Simplified_Chinese.isChecked():
+                self.pyasConfig['language'] = "zh_CN"
+                self.writeConfig(self.pyasConfig)
+                self.lang_init_zh_cn()
+            else:
+                self.pyasConfig['language'] = "english"
+                self.writeConfig(self.pyasConfig)
+                self.lang_init_en()
+        except Exception as e:
+            pyas_bug_log(e)
+
+####################################### 翻譯 #####################################
+
+    def text_Translate(self, text):
+        if self.pyasConfig['language'] == "zh_TW":
+            translations = {"已开启": "已開啟","已关闭": "已關閉","On": "已開啟","Off": "已關閉"}
+            for k, v in translations.items():
+                text = text.replace(k, v)
+            return text
+        elif self.pyasConfig['language'] == "zh_CN":
+            translations = {"嗎": "吗","項": "项","復": "复","攔": "拦","請": "请","後": "后","鑰": "钥","統": "统",
+                            "當": "当","確定": "确认","掃描": "扫描","檔案": "文件","錯誤": "错误","實時": "实时","軟體": "软件",
+                            "發現": "发现","權限": "权限","惡意": "恶意","設定": "设置","關於": "关于","防護": "保护",
+                            "已開啟": "已开启","已關閉": "已关闭","On": "已开启","Off": "已关闭","引導扇區":"引导扇区"}
+            for k, v in translations.items():
+                text = text.replace(k, v)
+            return text
+        elif self.pyasConfig['language'] == "english":
+            return english_list[text]
 
 ##################################### 英文初始化 ####################################
     
@@ -263,7 +284,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_title.setText(_translate("MainWindow", "This device has been protected"))
         else:
             self.ui.State_title.setText(_translate("MainWindow", "This device is currently unsafe"))
-        if pyas_key():
+        if self.pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
         else:
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)"))
@@ -274,7 +295,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if self.vl <= 0:
             self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Downloading Library...)"))
         else:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Library Version: "+str(self.vl-1)+")"))
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Library Version: {self.vl-1})"))
         self.ui.State_Button.setText(_translate("MainWindow", "State"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "Scan"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "Tools"))
@@ -377,7 +398,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_title.setText(_translate("MainWindow", "这部装置已受到保护"))
         else:
             self.ui.State_title.setText(_translate("MainWindow", "这部装置目前不安全"))
-        if pyas_key():
+        if self.pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
         else:
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密钥错误)"))
@@ -388,7 +409,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if self.vl <= 0:
             self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下载数据庫...)"))
         else:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (数据庫版本: "+str(self.vl-1)+")"))
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (数据庫版本: {self.vl-1})"))
         self.ui.State_Button.setText(_translate("MainWindow", "状态"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "扫描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -491,7 +512,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_title.setText(_translate("MainWindow", "這部裝置已受到保護"))
         else:
             self.ui.State_title.setText(_translate("MainWindow", "這部裝置目前不安全"))
-        if pyas_key():
+        if self.pyas_key():
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
         else:
             self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密鑰錯誤)"))
@@ -502,7 +523,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if self.vl <= 0:
             self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下載資料庫...)"))
         else:
-            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (資料庫版本: "+str(self.vl-1)+")"))
+            self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (資料庫版本: {self.vl-1})"))
         self.ui.State_Button.setText(_translate("MainWindow", "狀態"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "掃描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -596,25 +617,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_Red.setText(_translate("MainWindow", "紅色主題"))
         self.ui.Theme_Green.setText(_translate("MainWindow", "綠色主題"))
         self.ui.Theme_Blue.setText(_translate("MainWindow", "藍色主題"))
-
-####################################### 翻譯 #####################################
-
-    def text_Translate(self, text):
-        if self.pyasConfig['language'] == "zh_TW":
-            translations = {"已开启": "已開啟","已关闭": "已關閉","On": "已開啟","Off": "已關閉"}
-            for k, v in translations.items():
-                text = text.replace(k, v)
-            return text
-        elif self.pyasConfig['language'] == "zh_CN":
-            translations = {"嗎": "吗","項": "项","復": "复","攔": "拦","請": "请","後": "后","鑰": "钥","統": "统",
-                            "當": "当","確定": "确认","掃描": "扫描","檔案": "文件","錯誤": "错误","實時": "实时","軟體": "软件",
-                            "發現": "发现","權限": "权限","惡意": "恶意","設定": "设置","關於": "关于","防護": "保护",
-                            "已開啟": "已开启","已關閉": "已关闭","On": "已开启","Off": "已关闭","引導扇區":"引导扇区"}
-            for k, v in translations.items():
-                text = text.replace(k, v)
-            return text
-        elif self.pyasConfig['language'] == "english":
-            return english_list[text]
 
 ################################### 視窗動畫特效 ####################################
     
@@ -811,6 +813,196 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Change_animation(self.ui.Tools_widget)
         self.ui.Tools_widget.show()
 
+##################################### 系統設置 #####################################
+
+    def ShowMenu(self):
+        self.WindowMenu = QMenu()
+        Main_Settings = QAction(self.text_Translate("設定"),self)
+        Main_About = QAction(self.text_Translate("關於"),self)
+        self.WindowMenu.addAction(Main_Settings)
+        self.WindowMenu.addAction(Main_About)
+        pos = QtCore.QPoint(0, 30)
+        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(pos))
+        if Qusetion == Main_About:
+            if self.ui.About_widget.isHidden():
+                self.ui.About_widget.show()
+                self.ui.About_widget.raise_()
+                self.ui.Navigation_Bar.raise_()
+                self.ui.Window_widget.raise_()
+                self.Change_animation_3(self.ui.About_widget,0.5)
+                self.Change_animation5(self.ui.About_widget,170,50,671,481)
+                self.Setting_Back()
+        if Qusetion == Main_Settings:
+            if self.ui.Setting_widget.isHidden():
+                self.ui.Setting_widget.show()
+                self.ui.About_widget.hide()
+                self.ui.Setting_widget.raise_()
+                self.ui.Window_widget.raise_()
+                self.Change_animation_3(self.ui.Setting_widget,0.5)
+                self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
+
+    def high_sensitivity_switch(self):
+        try:
+            sw_state = self.ui.high_sensitivity_switch_Button.text()
+            if sw_state == self.text_Translate("已關閉"):
+                self.pyasConfig['high_sensitivity'] = 1
+                self.writeConfig(self.pyasConfig)
+                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+                self.high_sensitivity = 1
+            elif sw_state == self.text_Translate("已開啟"):
+                self.pyasConfig['high_sensitivity'] = 0
+                self.writeConfig(self.pyasConfig)
+                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+                QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+                self.high_sensitivity = 0
+        except:
+            try:
+                config = {'high_sensitivity': 0,'language': 'english'}
+                self.writeConfig(config)
+            except Exception as e:
+                pyas_bug_log(e)
+
+##################################### 主題顏色 #####################################
+    
+    def Change_Theme(self):
+        if self.ui.Theme_Red.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,140,140,200);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,130,130,200);}""")
+            return
+        elif self.ui.Theme_White.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
+            return
+        elif self.ui.Theme_Black.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(90,90,90,130);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(80,80,80,150);}""")
+            return
+        elif self.ui.Theme_Green.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(120,240,130,180);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(100,240,110,200);}""")
+            return
+        elif self.ui.Theme_Pink.isChecked():
+            r,g,b = randrange(50, 250),randrange(50, 250),randrange(50, 250)
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);}""")
+            return
+        elif self.ui.Theme_Blue.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,120,240,100);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,120,240,120);}""")
+            return
+        
+##################################### 操作事件 #####################################
+
+    def mousePressEvent(self, event):
+        x = event.x()
+        y = event.y()
+        if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
+            self.m_flag=True
+            self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
+            event.accept()
+            while self.ui.pyas_opacity > 60 and self.m_flag == True:
+                time.sleep(0.003)
+                self.ui.pyas_opacity -= 1
+                self.setWindowOpacity(self.ui.pyas_opacity/100)
+                QApplication.processEvents()
+        
+    def mouseMoveEvent(self, QMouseEvent):
+        try:
+            if Qt.LeftButton and self.m_flag:
+                self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
+                QApplication.processEvents()
+                QMouseEvent.accept()
+        except:
+            pass
+        
+    def mouseReleaseEvent(self, QMouseEvent):
+        self.m_flag=False
+        self.setCursor(QCursor(Qt.ArrowCursor))
+        while self.ui.pyas_opacity < 100 and self.m_flag == False:
+            time.sleep(0.003)
+            self.ui.pyas_opacity += 1
+            self.setWindowOpacity(self.ui.pyas_opacity/100)
+            QApplication.processEvents()
+
+    def paintEvent(self, event):# 圓角
+        pat2 = QPainter(self)
+        pat2.setRenderHint(QPainter.Antialiasing)
+        pat2.setBrush(Qt.white)
+        pat2.setPen(Qt.transparent)
+        rect = self.rect()
+        rect.setLeft(10)
+        rect.setTop(10)
+        rect.setWidth(rect.width()-10)
+        rect.setHeight(rect.height()-10)
+        pat2.drawRoundedRect(rect, 1, 1)
+
+    def createContextMenu(self):
+        self.menu = QMenu()
+        restoreAction = QAction("Restore", self)
+        restoreAction.triggered.connect(self.showNormal)
+        self.menu.addAction(restoreAction)
+
+    def onTrayIconActivated(self, reason):
+        if reason == QSystemTrayIcon.Trigger or reason == QSystemTrayIcon.DoubleClick:
+            self.showNormal()
+            while self.ui.pyas_opacity < 100:
+                time.sleep(0.001)
+                self.ui.pyas_opacity += 1
+                self.setWindowOpacity(self.ui.pyas_opacity/100)
+                QApplication.processEvents()
+
+    def show_pyas_ui(self):
+        self.show()
+        while self.ui.pyas_opacity < 100:
+            time.sleep(0.001)
+            self.ui.pyas_opacity += 1
+            self.setWindowOpacity(self.ui.pyas_opacity/100)
+            QApplication.processEvents()
+
+    def closeEvent(self, event):
+        event.ignore()
+        while self.ui.pyas_opacity > 0:
+            time.sleep(0.001)
+            self.ui.pyas_opacity -= 1
+            self.setWindowOpacity(self.ui.pyas_opacity/100)
+            QApplication.processEvents()
+        self.hide()
+
+##################################### 通知顯示 #####################################
+
+    def system_notification(self,now_time,text):
+        try:
+            self.ui.State_output.append(f'[{now_time}] {text}')
+            self.tray_icon.showMessage(now_time, text, 0)
+        except:
+            pass
+
+###################################### 密鑰認證 #####################################
+
+    def pyas_key(self):
+        try:
+            with open(sys.argv[0], 'rb') as f:
+                file_md5 = str(md5(f.read()).hexdigest())
+            try:
+                response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5})
+                if response.status_code == 200 and response.text == 'True':
+                    with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
+                        fc.write(file_md5)
+                    return True
+            except:
+                if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
+                    with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
+                        if file_md5 == str(fc.read()):
+                            return True
+            return False
+        except:
+            return False
+
 ##################################### 更新資料庫 ####################################
 
     def pyas_vl_update(self):
@@ -833,15 +1025,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             except:
                 print(f'[INFO] Hashes Update Fail (V{self.vl - 1})')
                 break
-
-##################################### 通知顯示 #####################################
-
-    def system_notification(self,now_time,text):
-        try:
-            self.ui.State_output.append(f'[{now_time}] {text}')
-            self.tray_icon.showMessage(now_time, text, 0)
-        except:
-            pass
 
 ##################################### 病毒掃描 #####################################
 
@@ -898,28 +1081,23 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def pe_scan(self,file):
         try:
-
             fn = []
+            isvir = False
             pe = PE(file)
             pe.close()
             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 for func in entry.imports:
                     fn.append(str(func.name.decode('utf-8')))
-            if '_CorExeMain' in fn:
-                #print(f'Corexe Detected: {os.path.basename(file)}')
-                return True
-            if self.high_sensitivity == 1:
-                if 'VirtualAlloc' in fn and 'GetProcAddress' in fn and 'LoadLibraryA' in fn:
-                    if 'TlsSetValue' in fn or 'TlsGetValue' in fn or 'TlsAlloc' in fn:
-                        #print(f'Torjan Detected: {os.path.basename(file)}')
-                        return True
-                if 'LockResource' in fn and 'LoadResource' in fn and 'GetProcAddress' in fn:
-                    if 'CryptReleaseContext' in fn or 'MultiByteToWideChar' in fn or 'SizeofResource' in fn:
-                        #print(f'Ransom Detected: {os.path.basename(file)}')
-                        return True
-            return False
+            if self.high_sensitivity == 0 and fn in function_list:
+                print(fn)
+                isvir = True
+            elif self.high_sensitivity == 1:
+                for vfl in function_list:
+                    if sum(1 for num in fn if num in vfl)/len(fn) >= 0.8:
+                        isvir = True
+            return isvir
         except:
-            return False # 無惡意
+            return False
 
     def write_scan(self,file):
         try:
@@ -950,7 +1128,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = True
             text = self.text_Translate('當前未發現惡意軟體。')
         self.ui.Virus_Scan_text.setText(text)
-        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),text,)
+        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),text)
 
     def Virus_Scan_Choose_Menu(self):
         if self.ui.Virus_Scan_choose_widget.isHidden():
@@ -1241,47 +1419,55 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if button == self.ui.Analyze_EXE_Funtion_Button:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件函數"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
-                pe = PE(file)
-                self.ui.Analyze_EXE_Output.setText("")
-                for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                    for function in entry.imports:
-                        try:
-                            self.ui.Analyze_EXE_Output.append(str(function.name.decode('utf-8')))
-                        except:
-                            self.ui.Analyze_EXE_Output.append(str(function.name))
-                pe.close()
-                self.Change_Tools(self.ui.Analyze_EXE_widget)
-                QApplication.processEvents()
+                try:
+                    pe = PE(file)
+                    pe.close()
+                    self.ui.Analyze_EXE_Output.setText("")
+                    for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                        for function in entry.imports:
+                            try:
+                                self.ui.Analyze_EXE_Output.append(str(function.name.decode('utf-8')))
+                            except:
+                                self.ui.Analyze_EXE_Output.append(str(function.name))
+                    self.Change_Tools(self.ui.Analyze_EXE_widget)
+                    QApplication.processEvents()
+                except:
+                    pass
             else:
                 pass
         elif button == self.ui.Analyze_EXE_hash_Button:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件哈希值"),"C:/",'All File *.*')
             if file != '':
-                self.ui.Analyze_EXE_Output.setText("")
-                with open(file,"rb") as f:
-                    bytes = f.read()
-                    readable_hash = str(md5(bytes).hexdigest())
-                    readable_hash2 = str(sha1(bytes).hexdigest())
-                    readable_hash3 = str(sha256(bytes).hexdigest())
+                try:
+                    with open(file,"rb") as f:
+                        bytes = f.read()
+                        readable_hash = str(md5(bytes).hexdigest())
+                        readable_hash2 = str(sha1(bytes).hexdigest())
+                        readable_hash3 = str(sha256(bytes).hexdigest())
+                    self.ui.Analyze_EXE_Output.setText("")
                     self.ui.Analyze_EXE_Output.append(f'MD5: {readable_hash}\nSHA1: {readable_hash2}\nSHA256: {readable_hash3}')
-                self.Change_Tools(self.ui.Analyze_EXE_widget)
-                QApplication.processEvents()
-                f.close()
+                    self.Change_Tools(self.ui.Analyze_EXE_widget)
+                    QApplication.processEvents()
+                except:
+                    pass
             else:
                 pass
         else:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件位元"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
-                pe = PE(file,fast_load=True)
-                self.ui.Analyze_EXE_Output.setText("")
-                for section in pe.sections:
-                    try:
-                        self.ui.Analyze_EXE_Output.append(str(section.Name.decode('utf-8')) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
-                    except:
-                        self.ui.Analyze_EXE_Output.append(str(section.Name) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
-                pe.close()
-                self.Change_Tools(self.ui.Analyze_EXE_widget)
-                QApplication.processEvents()
+                try:
+                    pe = PE(file,fast_load=True)
+                    pe.close()
+                    self.ui.Analyze_EXE_Output.setText("")
+                    for section in pe.sections:
+                        try:
+                            self.ui.Analyze_EXE_Output.append(str(section.Name.decode('utf-8')) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
+                        except:
+                            self.ui.Analyze_EXE_Output.append(str(section.Name) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
+                    self.Change_Tools(self.ui.Analyze_EXE_widget)
+                    QApplication.processEvents()
+                except:
+                    pass
 
     def find_file_input(self):
         try:
@@ -1436,10 +1622,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('尚未啟用實時防護'))
-            QApplication.processEvents()
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
-            QApplication.processEvents()
             self.pyas_protect_init()
 
     def protect_system_reg_repair(self):
@@ -1473,7 +1657,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     for i in Permission:
                         try:
                             win32api.RegDeleteValue(key,i)#刪除值
-                            #self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復註冊表: ')+i)
                         except:
                             pass
                     win32api.RegCloseKey(key)#關閉已打開的鍵
@@ -1481,10 +1664,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
     def protect_system_mbr_repair(self):
-        while self.protect_running:
+        while self.protect_running and self.mbr_value != None:
             try:
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if self.mbr_value != None and struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                    if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                         f.seek(0)
                         f.write(self.mbr_value)
                         self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'))
@@ -1494,212 +1677,35 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_processes(self):
         while self.protect_running:
             for p in psutil.process_iter():
-                time.sleep(0.0001)
                 try:
+                    time.sleep(0.0001)
                     file, name = str(p.exe()), str(p.name())
                     if '' == file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                         continue
                     elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
                         try:
                             if p.kill() == None:
-                                self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功攔截惡意軟體: ')+name)
+                                ntext = self.text_Translate('成功攔截惡意軟體: ')+name
+                            else:
+                                ntext = self.text_Translate('惡意軟體攔截失敗: ')+name
                         except:
-                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('惡意軟體攔截失敗: ')+name)
+                            ntext = self.text_Translate('惡意軟體攔截失敗: ')+name
+                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),ntext)
                 except:
                     continue
 
     def pyas_protect_init(self):
         print('[INFO] Start Action (Real-time Process Protect)')
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
+            self.protect_running = True
+            Thread(target=self.protect_system_mbr_repair).start()
+            Thread(target=self.protect_system_reg_repair).start()
+            Thread(target=self.protect_system_processes).start()
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用該選項可以實時監控進程中的惡意軟體並清除。"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            self.protect_running = True
-            Thread(target=self.protect_system_mbr_repair).start()
-            Thread(target=self.protect_system_reg_repair).start()
-            Thread(target=self.protect_system_processes).start()
-
-##################################### 系統設置 #####################################
-
-    def ShowMenu(self):
-        self.WindowMenu = QMenu()
-        Main_Settings = QAction(self.text_Translate("設定"),self)
-        Main_About = QAction(self.text_Translate("關於"),self)
-        self.WindowMenu.addAction(Main_Settings)
-        self.WindowMenu.addAction(Main_About)
-        pos = QtCore.QPoint(0, 30)
-        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(pos))
-        if Qusetion == Main_About:
-            if self.ui.About_widget.isHidden():
-                self.ui.About_widget.show()
-                self.ui.About_widget.raise_()
-                self.ui.Navigation_Bar.raise_()
-                self.ui.Window_widget.raise_()
-                self.Change_animation_3(self.ui.About_widget,0.5)
-                self.Change_animation5(self.ui.About_widget,170,50,671,481)
-                self.Setting_Back()
-        if Qusetion == Main_Settings:
-            if self.ui.Setting_widget.isHidden():
-                self.ui.Setting_widget.show()
-                self.ui.About_widget.hide()
-                self.ui.Setting_widget.raise_()
-                self.ui.Window_widget.raise_()
-                self.Change_animation_3(self.ui.Setting_widget,0.5)
-                self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
-
-    def high_sensitivity_switch(self):
-        try:
-            sw_state = self.ui.high_sensitivity_switch_Button.text()
-            if sw_state == self.text_Translate("已關閉"):
-                self.pyasConfig['high_sensitivity'] = 1
-                self.writeConfig(self.pyasConfig)
-                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-                self.high_sensitivity = 1
-            elif sw_state == self.text_Translate("已開啟"):
-                self.pyasConfig['high_sensitivity'] = 0
-                self.writeConfig(self.pyasConfig)
-                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
-                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-                self.high_sensitivity = 0
-        except:
-            try:
-                config = {'high_sensitivity': 0,'language': 'english'}
-                self.writeConfig(config)
-            except Exception as e:
-                pyas_bug_log(e)
-
-##################################### 更改語言 #####################################
-    
-    def Change_language(self):
-        try:
-            self.ui.State_output.clear()
-            if self.ui.Language_Traditional_Chinese.isChecked():
-                self.pyasConfig['language'] = "zh_TW"
-                self.writeConfig(self.pyasConfig)
-                self.lang_init_zh_tw()
-            elif self.ui.Language_Simplified_Chinese.isChecked():
-                self.pyasConfig['language'] = "zh_CN"
-                self.writeConfig(self.pyasConfig)
-                self.lang_init_zh_cn()
-            else:
-                self.pyasConfig['language'] = "english"
-                self.writeConfig(self.pyasConfig)
-                self.lang_init_en()
-        except Exception as e:
-            pyas_bug_log(e)
-
-##################################### 主題顏色 #####################################
-    
-    def Change_Theme(self):
-        if self.ui.Theme_Red.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,140,140,200);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,130,130,200);}""")
-            return
-        elif self.ui.Theme_White.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
-            return
-        elif self.ui.Theme_Black.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(90,90,90,130);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(80,80,80,150);}""")
-            return
-        elif self.ui.Theme_Green.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(120,240,130,180);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(100,240,110,200);}""")
-            return
-        elif self.ui.Theme_Pink.isChecked():
-            r,g,b = randrange(50, 250),randrange(50, 250),randrange(50, 250)
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);}""")
-            return
-        elif self.ui.Theme_Blue.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,120,240,100);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,120,240,120);}""")
-            return
-        
-##################################### 操作事件 #####################################
-
-    def mousePressEvent(self, event):
-        x = event.x()
-        y = event.y()
-        if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
-            self.m_flag=True
-            self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
-            event.accept()
-            while self.ui.pyas_opacity > 60 and self.m_flag == True:
-                time.sleep(0.003)
-                self.ui.pyas_opacity -= 1
-                self.setWindowOpacity(self.ui.pyas_opacity/100)
-                QApplication.processEvents()
-        
-    def mouseMoveEvent(self, QMouseEvent):
-        try:
-            if Qt.LeftButton and self.m_flag:
-                self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
-                QApplication.processEvents()
-                QMouseEvent.accept()
-        except:
-            pass
-        
-    def mouseReleaseEvent(self, QMouseEvent):
-        self.m_flag=False
-        self.setCursor(QCursor(Qt.ArrowCursor))
-        while self.ui.pyas_opacity < 100 and self.m_flag == False:
-            time.sleep(0.003)
-            self.ui.pyas_opacity += 1
-            self.setWindowOpacity(self.ui.pyas_opacity/100)
-            QApplication.processEvents()
-
-    def paintEvent(self, event):# 圓角
-        pat2 = QPainter(self)
-        pat2.setRenderHint(QPainter.Antialiasing)
-        pat2.setBrush(Qt.white)
-        pat2.setPen(Qt.transparent)
-        rect = self.rect()
-        rect.setLeft(10)
-        rect.setTop(10)
-        rect.setWidth(rect.width()-10)
-        rect.setHeight(rect.height()-10)
-        pat2.drawRoundedRect(rect, 1, 1)
-
-    def createContextMenu(self):
-        self.menu = QMenu()
-        restoreAction = QAction("Restore", self)
-        restoreAction.triggered.connect(self.showNormal)
-        self.menu.addAction(restoreAction)
-
-    def onTrayIconActivated(self, reason):
-        if reason == QSystemTrayIcon.Trigger or reason == QSystemTrayIcon.DoubleClick:
-            self.showNormal()
-            while self.ui.pyas_opacity < 100:
-                time.sleep(0.001)
-                self.ui.pyas_opacity += 1
-                self.setWindowOpacity(self.ui.pyas_opacity/100)
-                QApplication.processEvents()
-
-    def show_pyas_ui(self):
-        self.show()
-        while self.ui.pyas_opacity < 100:
-            time.sleep(0.001)
-            self.ui.pyas_opacity += 1
-            self.setWindowOpacity(self.ui.pyas_opacity/100)
-            QApplication.processEvents()
-
-    def closeEvent(self, event):
-        event.ignore()
-        while self.ui.pyas_opacity > 0:
-            time.sleep(0.001)
-            self.ui.pyas_opacity -= 1
-            self.setWindowOpacity(self.ui.pyas_opacity/100)
-            QApplication.processEvents()
-        self.hide()
 
 ##################################### 主初始化 #####################################
 
@@ -1707,7 +1713,7 @@ if __name__ == '__main__':
     try:
         create_lib()
         remove_tmp()
-        pyas_version, pyae_version = "2.6.3", "2.3.1"
+        pyas_version, pyae_version = "2.6.4", "2.3.2"
         print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)# 自適應窗口縮放

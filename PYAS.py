@@ -191,18 +191,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Setting_widget.hide()
 
     def init_config(self):
-        self.vl = 0
         self.Safe = True
         self.Virus_Scan = False
         self.mbr_value = None
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
                 self.mbr_value = f.read(512)
-        except:
-            pass
-        try:
-            with open('Library/PYAE/Hashes/Viruslist.num', 'r') as f:
-                self.vl = int(f.read())
         except:
             pass
         if not os.path.exists('Library/PYAS/Setup/PYAS.json'):
@@ -228,7 +222,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         self.pyas_protect_init()
-        Thread(target=self.pyas_vl_update).start()
 
 ##################################### 更改語言 #####################################
     
@@ -264,7 +257,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_title.setText(_translate("MainWindow", "This device has been protected" if self.Safe else "This device is currently unsafe"))
         self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (Downloading Library...)" if self.vl <= 0 else f"PYAE V{pyae_version} (Library Version: {self.vl-1})"))
+        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
         self.ui.State_Button.setText(_translate("MainWindow", "State"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "Scan"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "Tools"))
@@ -366,7 +359,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_title.setText(_translate("MainWindow", "这部装置已受到保护" if self.Safe else "这部装置目前不安全"))
         self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密钥错误)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下载数据庫...)" if self.vl <= 0 else f"PYAE V{pyae_version} (数据庫版本: {self.vl-1})"))
+        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
         self.ui.State_Button.setText(_translate("MainWindow", "状态"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "扫描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -468,7 +461,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_title.setText(_translate("MainWindow", "這部裝置已受到保護" if self.Safe else "這部裝置目前不安全"))
         self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密鑰錯誤)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version} (正在下載資料庫...)" if self.vl <= 0 else f"PYAE V{pyae_version} (資料庫版本: {self.vl-1})"))
+        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
         self.ui.State_Button.setText(_translate("MainWindow", "狀態"))
         self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "掃描"))
         self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
@@ -948,29 +941,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             return False
 
-##################################### 更新資料庫 ####################################
-
-    def pyas_vl_update(self):
-        for i in range(self.vl, 100000):
-            try:
-                y = f'VirusShare_{i:05}.md5'
-                response = requests.get(f'https://virusshare.com/hashfiles/{y}', allow_redirects=True)
-                if response.status_code == 200:
-                    with open('Library/PYAE/Hashes/Viruslist.md5', 'a') as vlist:
-                        lists_write = response.content.decode("utf-8").split('\n')[6:-1]
-                        for list_write in lists_write:
-                            vlist.write(str(list_write)[:10]+'\n')
-                    self.vl = i + 1
-                else:
-                    self.vl = i
-                    print(f'[INFO] Hashes Update Complete (V{self.vl - 1})')
-                    break
-                with open('Library/PYAE/Hashes/Viruslist.num', 'w') as f:
-                    f.write(str(self.vl))
-            except:
-                print(f'[INFO] Hashes Update Fail (V{self.vl - 1})')
-                break
-
 ##################################### 病毒掃描 #####################################
 
     def Virus_Scan_Break(self):
@@ -999,19 +969,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = False
             self.ui.Virus_Scan_text.setText(self.text_Translate("錯誤: 執行失敗。"))
 
-    def md5_scan(self, file, rfp):
-        try:
-            with open(file, "rb") as f:
-                file_md5 = str(md5(f.read()).hexdigest())[:10]
-            return file_md5 in rfp # 有惡意
-        except:
-            return False # 無惡意
-
     def api_scan(self, types, file):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5})
+            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=1)
             return response.status_code == 200 and response.text == 'True'
         except:
             return False # 無惡意
@@ -1099,16 +1061,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                try:
-                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        rfp = fp.read()
-                except:
-                    rfp = ''
-                if self.high_sensitivity == 0 and self.sign_scan(file):
-                    if self.md5_scan(file,rfp) or self.pe_scan(file):
+                if self.high_sensitivity == 0 and self.sign_scan(file) and str(os.path.splitext(fd)[1]).lower() in sflist:
+                    if self.pe_scan(file) or self.api_scan('md5', file):
                         self.write_scan(file)
                 elif self.high_sensitivity == 1:
-                    if self.md5_scan(file,rfp) or self.pe_scan(file) or self.api_scan('md5', file):
+                    if self.pe_scan(file) or self.api_scan('md5', file):
                         self.write_scan(file)#寫入發現病毒
                 self.answer_scan()
             else:
@@ -1135,12 +1092,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
-                try:
-                    with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                        rfp = fp.read()
-                except:
-                    rfp = ''
-                self.traverse_path(path,rfp)
+                self.traverse_path(path,'')
                 self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -1155,11 +1107,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
             QApplication.processEvents()
-            try:
-                with open('Library/PYAE/Hashes/Viruslist.md5','r') as fp:
-                    rfp = fp.read()
-            except:
-                rfp = ''
             self.Virus_Scan = True
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.Virus_Scan_ProgressBar.hide()
@@ -1171,7 +1118,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             for d in range(26):
                 try:
-                    self.traverse_path(str(chr(65+d))+':/',rfp)
+                    self.traverse_path(str(chr(65+d))+':/','')
                 except:
                     pass
             self.answer_scan()
@@ -1195,12 +1142,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     else:
                         self.ui.Virus_Scan_text.setText(self.text_Translate("正在掃描: ")+fullpath)
                         QApplication.processEvents()
-                        if self.high_sensitivity == 0 and str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):
-                            if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath):
+                        if self.high_sensitivity == 0 and self.sign_scan(fullpath) and str(os.path.splitext(fd)[1]).lower() in sflist:
+                            if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
                                 self.write_scan(fullpath)
                         elif self.high_sensitivity == 1:
-                            if self.md5_scan(fullpath,rfp) or self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
-                                self.write_scan(fullpath)
+                            if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
+                                self.write_scan(fullpath)#寫入發現病毒
             except:
                 continue
 
@@ -1210,50 +1157,50 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                if os.system('start sfc /scannow') != 0:
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
+                subprocess.run('sfc /scannow', check=True)
         except Exception as e:
             pyas_bug_log(e)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("修復失敗"),QMessageBox.Ok)
 
     def Clean_System_Files(self):
         try:
             question = QMessageBox.warning(self,self.text_Translate('清理系統檔案'),self.text_Translate("您確定要清理系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                if os.system('start cleanmgr') != 0:
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("清理失敗"),QMessageBox.Ok)
+                subprocess.run('start cleanmgr', check=True)
         except Exception as e:
             pyas_bug_log(e)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("清理失敗"),QMessageBox.Ok)
 
     def Enable_Safe_Mode(self):
-        question = QMessageBox.warning(self,self.text_Translate('啟用安全模式'),self.text_Translate("您確定啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384:
-            if os.system('bcdedit /set {default} safeboot minimal') == 0:
-                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-                if question == 16384:
-                    os.system('shutdown -r -t 0')
-            else:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("啟用失敗"),QMessageBox.Ok)  
+        try:
+            question = QMessageBox.warning(self,self.text_Translate('啟用安全模式'),self.text_Translate("您確定啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+            if question == 16384:
+                subprocess.run('bcdedit /set {default} safeboot minimal', check=True)
+            question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+            if question == 16384:
+                subprocess.run('shutdown -r -t 0', check=True)
+        except Exception as e:
+            pyas_bug_log(e)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("啟用失敗"),QMessageBox.Ok)  
 
     def Disable_Safe_Mode(self):
-        question = QMessageBox.warning(self,self.text_Translate('禁用安全模式'),self.text_Translate("您確定禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384:
-            if os.system('bcdedit /deletevalue {current} safeboot') == 0:
-                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-                if question == 16384:
-                    os.system('shutdown -r -t 0')
-            else:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("禁用失敗"),QMessageBox.Ok)  
+        try:
+            question = QMessageBox.warning(self,self.text_Translate('禁用安全模式'),self.text_Translate("您確定禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+            if question == 16384:
+                subprocess.run('bcdedit /deletevalue {current} safeboot', check=True)
+            question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+            if question == 16384:
+                subprocess.run('shutdown -r -t 0', check=True)
+        except Exception as e:
+            pyas_bug_log(e)
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("禁用失敗"),QMessageBox.Ok)  
 
     def System_Info_update(self):
         self.ui.System_Info_View.setText(f'System information:\nCore version: {platform.platform()}\nMachine type: {platform.machine()}\nSystem Info: {platform.architecture()}\nComputer Name: {platform.node()}\nProcessor Name: {platform.processor()}')
 
     def Delete_Private_File(self):
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/",'')
-        if file =="":
-            pass
-        elif file == str(sys.argv[0]):
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate('存取被拒'),QMessageBox.Ok)
-        else:
+        if file != "" and file != str(sys.argv[0]):
             question = QMessageBox.warning(self,self.text_Translate('刪除檔案'),self.text_Translate("您確定刪除該檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 try:
@@ -1265,45 +1212,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
      
     def Customize_CMD_Command(self):
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
-        if CMD_Command == '':
-            return
-        else:
-            if CMD_Command.split()[0].lower() == "/add" or CMD_Command.split()[0].lower() == "/a":
-                if CMD_Command.split()[1].lower() == "--virus" or CMD_Command.split()[1].lower() == "-v":
-                    if CMD_Command.split()[2].lower() == "--md5" or CMD_Command.split()[2].lower() == "-m":
-                        try:
-                            value = str(CMD_Command.split()[3])
-                            with open('Library/PYAE/Hashes/Viruslist.md5','a') as vm:
-                                vm.write(str(value)[:10]+'\n')
-                            self.ui.Customize_CMD_Command_output.setText("Successfully added MD5 to the database!")
-                        except:
-                            self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
-                        return
-                    elif CMD_Command.split()[2].lower() == "--file" or CMD_Command.split()[2].lower() == "-f":
-                        try:
-                            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("添加數據庫"),"C:/",'All File *.*')
-                            if file != '':
-                                with open('Library/PYAE/Hashes/Viruslist.md5','a') as vm:
-                                    vm.write(str(md5(open(file,'rb').read()).hexdigest())[:10]+'\n')
-                                self.ui.Customize_CMD_Command_output.setText("Successfully added MD5 to the database!")
-                        except:
-                            self.ui.Customize_CMD_Command_output.setText("Error: Add MD5 database failed")
-                        return
-            else:
-                try:
-                    si = subprocess.STARTUPINFO()
-                    si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                    p = subprocess.Popen(CMD_Command,stdin=subprocess.PIPE,stdout=subprocess.PIPE)
-                    out = p.stdout.read()
-                    try:
-                        self.ui.Customize_CMD_Command_output.setText(str(out.decode('utf-8')))
-                    except:
-                        self.ui.Customize_CMD_Command_output.setText(str(out))
-                    QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("運行成功"),QMessageBox.Ok,QMessageBox.Ok)
-                except Exception as e:
-                    pyas_bug_log(e)
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+ '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
-        
+        if CMD_Command != '':
+            try:
+                self.ui.Customize_CMD_Command_output.setText(str(subprocess.run(CMD_Command, capture_output=True, text=True).stdout))
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("運行成功"),QMessageBox.Ok,QMessageBox.Ok)
+            except Exception as e:
+                pyas_bug_log(e)
+                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+ '\"' + CMD_Command + '\"' + self.text_Translate("不是有效命令"),QMessageBox.Ok,QMessageBox.Ok)
+
     def Customize_REG_Command(self):
         continue_v = True
         Value_name = str(self.ui.Value_Name_input.text())
@@ -1311,43 +1227,31 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         Value_Data = str(self.ui.Value_Data_input.text())
         Value_Type = str(self.ui.Value_Type_input.text())
         Value_HEKY = str(self.ui.Value_HEKY_input.text())
-        if Value_HEKY == "HKEY_CLASSES_ROOT":
-            Value_HEKY = win32con.HKEY_LOCAL_MACHINE
-        elif Value_HEKY == "HKEY_CURRENT_USER":
-            Value_HEKY = win32con.HKEY_CURRENT_USER
-        elif Value_HEKY == "HKEY_LOCAL_MACHINE":
-            Value_HEKY = win32con.HKEY_LOCAL_MACHINE
-        elif Value_HEKY == "HKEY_USERS":
-            Value_HEKY = win32con.HKEY_USERS
-        elif Value_HEKY == "HKEY_CURRENT_CONFIG":
-            Value_HEKY = win32con.HKEY_CURRENT_CONFIG
+        heky_dict = {"HKEY_CLASSES_ROOT": win32con.HKEY_CLASSES_ROOT,
+                     "HKEY_CURRENT_USER": win32con.HKEY_CURRENT_USER,
+                     "HKEY_LOCAL_MACHINE": win32con.HKEY_LOCAL_MACHINE,
+                     "HKEY_USERS": win32con.HKEY_USERS,
+                     "HKEY_CURRENT_CONFIG": win32con.HKEY_CURRENT_CONFIG}
+        if Value_HEKY in heky_dict:
+            Value_HEKY = heky_dict[Value_HEKY]
         else:
-            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate('錯誤: ')+self.text_Translate("您輸入了錯誤的HEKY"),QMessageBox.Ok)
+            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate('錯誤: ') + self.text_Translate("您輸入了錯誤的HEKY"), QMessageBox.Ok)
             continue_v = False
-        if Value_Type == "REG_BINARY":
-            Value_Type = win32con.REG_BINARY
-        elif Value_Type == "REG_DWORD":
-            Value_Type = win32con.REG_DWORD
-        elif Value_Type == "REG_DWORD_LITTLE_ENDIAN":
-            Value_Type = win32con.REG_DWORD_LITTLE_ENDIAN
-        elif Value_Type == "REG_DWORD_BIG_ENDIAN":
-            Value_Type = win32con.REG_DWORD_BIG_ENDIAN
-        elif Value_Type == "REG_EXPAND_SZ":
-            Value_Type = win32con.REG_EXPAND_SZ
-        elif Value_Type == "REG_LINK":
-            Value_Type = win32con.REG_LINK
-        elif Value_Type == "REG_MULTI_SZ":
-            Value_Type = win32con.REG_MULTI_SZ
-        elif Value_Type == "REG_NONE":
-            Value_Type = win32con.REG_NONE
-        elif Value_Type == "REG_QWORD":
-            Value_Type = win32con.REG_QWORD
-        elif Value_Type == "REG_QWORD_LITTLE_ENDIAN":
-            Value_Type = win32con.REG_QWORD_LITTLE_ENDIAN
-        elif Value_Type == "REG_SZ":
-            Value_Type = win32con.REG_SZ
+        value_types_dict = {"REG_BINARY": win32con.REG_BINARY,
+                            "REG_DWORD": win32con.REG_DWORD,
+                            "REG_DWORD_LITTLE_ENDIAN": win32con.REG_DWORD_LITTLE_ENDIAN,
+                            "REG_DWORD_BIG_ENDIAN": win32con.REG_DWORD_BIG_ENDIAN,
+                            "REG_EXPAND_SZ": win32con.REG_EXPAND_SZ,
+                            "REG_LINK": win32con.REG_LINK,
+                            "REG_MULTI_SZ": win32con.REG_MULTI_SZ,
+                            "REG_NONE": win32con.REG_NONE,
+                            "REG_QWORD": win32con.REG_QWORD,
+                            "REG_QWORD_LITTLE_ENDIAN": win32con.REG_QWORD_LITTLE_ENDIAN,
+                            "REG_SZ": win32con.REG_SZ}  
+        if Value_Type in value_types_dict:
+            Value_Type = value_types_dict[Value_Type]
         else:
-            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate('錯誤: ')+self.text_Translate("您輸入了錯誤的TYPE"),QMessageBox.Ok)
+            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate('錯誤: ') + self.text_Translate("您輸入了錯誤的TYPE"), QMessageBox.Ok)
             continue_v = False
         if continue_v:
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要新增值或是修改值嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -1368,17 +1272,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pe.close()
                     self.ui.Analyze_EXE_Output.setText("")
                     for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                        for function in entry.imports:
-                            try:
-                                self.ui.Analyze_EXE_Output.append(str(function.name.decode('utf-8')))
-                            except:
-                                self.ui.Analyze_EXE_Output.append(str(function.name))
+                        for func in entry.imports:
+                            self.ui.Analyze_EXE_Output.append(str(func.name, 'utf-8'))
                     self.Change_Tools(self.ui.Analyze_EXE_widget)
                     QApplication.processEvents()
                 except:
                     pass
-            else:
-                pass
         elif button == self.ui.Analyze_EXE_hash_Button:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件哈希值"),"C:/",'All File *.*')
             if file != '':
@@ -1394,8 +1293,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     QApplication.processEvents()
                 except:
                     pass
-            else:
-                pass
         else:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件位元"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
@@ -1404,10 +1301,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pe.close()
                     self.ui.Analyze_EXE_Output.setText("")
                     for section in pe.sections:
-                        try:
-                            self.ui.Analyze_EXE_Output.append(str(section.Name.decode('utf-8')) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
-                        except:
-                            self.ui.Analyze_EXE_Output.append(str(section.Name) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
+                        self.ui.Analyze_EXE_Output.append(str(section.Name.decode('utf-8')) + str(hex(section.VirtualAddress)) + str(hex(section.Misc_VirtualSize)) + str(section.SizeOfRawData))
                     self.Change_Tools(self.ui.Analyze_EXE_widget)
                     QApplication.processEvents()
                 except:
@@ -1484,14 +1378,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pyas_bug_log(e)
 
     def Encryption_Text(self):
-        input_text = self.ui.Encryption_Text_input.toPlainText()
-        password = self.ui.Encryption_Text_Password_input.text()
-        self.encrypt_zh(input_text,password)
+        self.encrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
     
     def Decrypt_Text(self):
-        input_text = self.ui.Encryption_Text_input.toPlainText()
-        password = self.ui.Encryption_Text_Password_input.text()
-        self.decrypt_zh(input_text,password)
+        self.decrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
 
     def encrypt_zh(self,e,e2):
         self.ui.Encryption_Text_output.setText(str(cryptocode.encrypt(e,e2)))
@@ -1618,7 +1508,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.protect_running:
             for p in psutil.process_iter():
                 try:
-                    time.sleep(0.0001)
+                    time.sleep(0.001)
                     file, name = p.exe(), p.name()
                     if not file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
                         continue

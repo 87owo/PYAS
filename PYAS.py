@@ -973,7 +973,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(file, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=1)
+            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=2)
             return response.status_code == 200 and response.text == 'True'
         except:
             return False # 無惡意
@@ -1370,8 +1370,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         self.Process_list_app_exe.append('None')
                         self.Process_list_app_name.append(p.name())
                         self.Process_list_app_user.append(p.username())
-            self.Process_sim.setStringList(self.Process_list_app)
-            self.ui.Process_Total_View.setText(str(len(self.Process_list_app_name)))
+            if len(self.Process_list_app_name) != self.Process_quantity:
+                self.Process_quantity = len(self.Process_list_app_name)
+                self.ui.Process_Total_View.setText(str(self.Process_quantity))
+                self.Process_sim.setStringList(self.Process_list_app)
+                self.ui.Process_list.setModel(self.Process_sim)
         except psutil.AccessDenied as e:
             print('[Error] Psutil Permission Denied')
         except Exception as e:

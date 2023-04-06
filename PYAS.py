@@ -40,7 +40,7 @@ def remove_tmp():
 
 def create_lib():
     try:
-        for i in ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon','Library/PYAE/Hashes']:
+        for i in ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon']:
             if not os.path.isdir(i):
                 os.makedirs(i)
     except:
@@ -59,7 +59,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.tray_icon.setIcon(QIcon('Library/PYAS/Icon/ICON.ico'))
         self.tray_icon.activated.connect(self.onTrayIconActivated)
         self.tray_icon.show()
-        self.createContextMenu()
         self.ui.setupUi(self)
         self.setup_control()
         self.show_pyas_ui()
@@ -879,12 +878,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
-    def createContextMenu(self):
-        self.menu = QMenu()
-        restoreAction = QAction("Restore", self)
-        restoreAction.triggered.connect(self.showNormal)
-        self.menu.addAction(restoreAction)
-
     def onTrayIconActivated(self, reason):
         if reason == QSystemTrayIcon.Trigger or reason == QSystemTrayIcon.DoubleClick:
             self.showNormal()
@@ -1061,7 +1054,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中，請稍後..."))
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                if self.high_sensitivity == 0 and self.sign_scan(file) and str(os.path.splitext(fd)[1]).lower() in sflist:
+                if self.high_sensitivity == 0 and self.sign_scan(file):
                     if self.pe_scan(file) or self.api_scan('md5', file):
                         self.write_scan(file)
                 elif self.high_sensitivity == 1:
@@ -1166,7 +1159,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate('清理系統檔案'),self.text_Translate("您確定要清理系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                subprocess.run('start cleanmgr', check=True)
+                subprocess.run('cleanmgr', check=True)
         except Exception as e:
             pyas_bug_log(e)
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("清理失敗"),QMessageBox.Ok)

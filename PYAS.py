@@ -1448,7 +1448,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('尚未啟用實時防護'))
         else:
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
-            self.pyas_protect_init()
+            Thread(target=self.pyas_protect_init).start()
 
     def pyas_protect_init(self):
         print('[INFO] Start Action (Real-time Process Protect)')

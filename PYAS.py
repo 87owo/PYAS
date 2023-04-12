@@ -9,9 +9,9 @@
 
 import os, sys, time, json, psutil, struct, win32api, win32con
 import requests, socket, platform, cryptocode, subprocess
+from PYAS_Language import translations
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
-from PYAS_English import english_list
 from PYAE_Model import function_list
 from threading import Thread
 from random import randrange
@@ -199,11 +199,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
         if not os.path.exists('Library/PYAS/Setup/PYAS.json'):
-            self.writeConfig({"high_sensitivity":0,"language":"english"})
+            self.writeConfig({"high_sensitivity":0,"language":"en_US"})
         with open('Library/PYAS/Setup/PYAS.json', 'r', encoding='utf-8') as f:
             self.pyasConfig = json.load(f)
         self.ui.Theme_White.setChecked(True)
-        language = self.pyasConfig.get('language', 'english')
+        language = self.pyasConfig.get('language', 'en_US')
         if language == "zh_TW":
             self.ui.Language_Traditional_Chinese.setChecked(True)
             self.lang_init_zh_tw()
@@ -235,7 +235,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.writeConfig(self.pyasConfig)
                 self.lang_init_zh_cn()
             else:
-                self.pyasConfig['language'] = "english"
+                self.pyasConfig['language'] = "en_US"
                 self.writeConfig(self.pyasConfig)
                 self.lang_init_en()
         except Exception as e:
@@ -244,9 +244,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ####################################### 翻譯 #####################################
 
     def text_Translate(self, text):
-        translations = {"zh_TW": {"已开启": "已開啟","已关闭": "已關閉","On": "已開啟","Off": "已關閉"},
-                        "zh_CN": {"嗎": "吗","項": "项","復": "复","攔": "拦","請": "请","後": "后","鑰": "钥","統": "统","當": "当","確定": "确认","掃描": "扫描","檔案": "文件","錯誤": "错误","實時": "实时","軟體": "软件","發現": "发现","權限": "权限","惡意": "恶意","設定": "设置","關於": "关于","防護": "保护","已開啟": "已开启","已關閉": "已关闭","On": "已开启","Off": "已关闭","引導扇區":"引导扇区"},}
-        return translations.get(self.pyasConfig['language'], english_list).get(text, text)
+        for k, v in translations.get(self.pyasConfig['language'], translations).items():
+            text = text.replace(k, v)
+        return text
 
 ##################################### 英文初始化 ####################################
 
@@ -798,7 +798,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.high_sensitivity = 0
         except:
             try:
-                config = {'high_sensitivity': 0,'language': 'english'}
+                config = {'high_sensitivity': 0,'language': 'en_US'}
                 self.writeConfig(config)
             except Exception as e:
                 pyas_bug_log(e)
@@ -919,7 +919,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             with open(sys.argv[0], 'rb') as f:
                 file_md5 = str(md5(f.read()).hexdigest())
             try:
-                response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5})
+                response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5}, timeout=2)
                 if response.status_code == 200 and response.text == 'True':
                     with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
                         fc.write(file_md5)
@@ -1167,9 +1167,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             question = QMessageBox.warning(self,self.text_Translate('啟用安全模式'),self.text_Translate("您確定啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 subprocess.run('bcdedit /set {default} safeboot minimal', check=True)
-            question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
-                subprocess.run('shutdown -r -t 0', check=True)
+                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+                if question == 16384:
+                    subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:
             pyas_bug_log(e)
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("啟用失敗"),QMessageBox.Ok)  
@@ -1179,9 +1179,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             question = QMessageBox.warning(self,self.text_Translate('禁用安全模式'),self.text_Translate("您確定禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 subprocess.run('bcdedit /deletevalue {current} safeboot', check=True)
-            question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
-                subprocess.run('shutdown -r -t 0', check=True)
+                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用該選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+                if question == 16384:
+                    subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:
             pyas_bug_log(e)
             QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: ')+self.text_Translate("禁用失敗"),QMessageBox.Ok)  
@@ -1450,6 +1450,69 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中，請稍後..."))
             Thread(target=self.pyas_protect_init).start()
 
+    def protect_system_processes(self):
+        for p in psutil.process_iter():
+            try:
+                time.sleep(0.0001)
+                file, name = str(p.exe()), str(p.name())
+                if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
+                    continue
+                elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
+                    if p.kill() == None:
+                        ntext = self.text_Translate('成功攔截惡意軟體: ')
+                    else:
+                        ntext = self.text_Translate('惡意軟體攔截失敗: ')
+                    self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), ntext+name)
+            except:
+                continue
+
+    def protect_system_mbr_repair(self):
+        if self.mbr_value != None:
+            try:
+                with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                    if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                        f.seek(0)
+                        f.write(self.mbr_value)
+                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'))
+            except:
+                pass
+
+    def protect_system_reg_repair(self):
+        try:
+            Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
+            'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
+            'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
+            'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
+            'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
+            'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb',\
+            'DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper', 'NoComponents', 'NoAddingComponents', 'Restrict_Run']
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')#創建鍵
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'ActiveDesktop')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS),'MMC')
+            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS),'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+            keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
+            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)]
+            for key in keys:
+                for i in Permission:
+                    try:
+                        win32api.RegDeleteValue(key,i)#刪除值
+                    except:
+                        pass
+                win32api.RegCloseKey(key)#關閉已打開的鍵
+        except:
+            pass
+
     def pyas_protect_init(self):
         print('[INFO] Start Action (Real-time Process Protect)')
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
@@ -1458,65 +1521,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('實時防護已開啟'))
             self.protect_running = True
             while self.protect_running:
-                if self.mbr_value != None:
-                    try:
-                        with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                            if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
-                                f.seek(0)
-                                f.write(self.mbr_value)
-                                self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'))
-                    except:
-                        pass
-                try:
-                    Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
-                    'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
-                    'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
-                    'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
-                    'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
-                    'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb',\
-                    'DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper', 'NoComponents', 'NoAddingComponents', 'Restrict_Run']
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')#創建鍵
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'ActiveDesktop')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS),'MMC')
-                    win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS),'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
-                    keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
-                    win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)]
-                    for key in keys:
-                        for i in Permission:
-                            try:
-                                win32api.RegDeleteValue(key,i)#刪除值
-                            except:
-                                pass
-                        win32api.RegCloseKey(key)#關閉已打開的鍵
-                except:
-                    pass
-                for p in psutil.process_iter():
-                    try:
-                        time.sleep(0.0001)
-                        file, name = p.exe(), p.name()
-                        if not file or str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'mem' in file.lower() or 'Registry' in file or 'AppData' in file:
-                            continue
-                        elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
-                            if p.kill() == None:
-                                ntext = self.text_Translate('成功攔截惡意軟體: ') + name
-                            else:
-                                ntext = self.text_Translate('惡意軟體攔截失敗: ') + name
-                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), ntext)
-                    except:
-                        continue
+                self.protect_system_processes()
+                self.protect_system_mbr_repair()
+                self.protect_system_reg_repair()
 
 ##################################### 主初始化 #####################################
 
@@ -1524,7 +1534,7 @@ if __name__ == '__main__':
     try:
         create_lib()
         remove_tmp()
-        pyas_version, pyae_version = "2.6.4", "2.3.2"
+        pyas_version, pyae_version = "2.6.5", "2.3.2"
         print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)

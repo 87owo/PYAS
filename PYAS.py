@@ -221,7 +221,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         Thread(target=self.pyas_protect_init).start()
 
-##################################### 更改語言 #####################################
+################################### 翻譯及更改語言 ###################################
     
     def Change_language(self):
         try:
@@ -240,8 +240,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.lang_init_en()
         except Exception as e:
             pyas_bug_log(e)
-
-####################################### 翻譯 #####################################
 
     def text_Translate(self, text):
         for k, v in translations.get(self.pyasConfig['language'], translations).items():
@@ -1529,7 +1527,7 @@ if __name__ == '__main__':
     try:
         create_lib()
         remove_tmp()
-        pyas_version, pyae_version = "2.6.5", "2.3.2"
+        pyas_version, pyae_version = "2.6.5", "2.3.3"
         print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
         QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
         QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)

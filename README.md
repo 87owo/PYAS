@@ -6,9 +6,6 @@
 https://pyantivirus.wixsite.com/pyas , 
 https://github.com/87owo/PYAS
 
-## Hashes Library
-https://virusshare.com/hashes
-
 ## MIT License
 https://github.com/87owo/PYAS/blob/main/LICENSE.md
 

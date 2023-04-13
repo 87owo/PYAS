@@ -245,7 +245,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def text_Translate(self, text):
         for k, v in translations.get(self.pyasConfig['language'], translations).items():
-            text = text.replace(k, v)
+            text = text.replace(str(k), str(v))
         return text
 
 ##################################### 英文初始化 ####################################
@@ -809,29 +809,24 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if self.ui.Theme_Red.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,140,140,200);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,130,130,200);}""")
-            return
         elif self.ui.Theme_White.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
-            return
         elif self.ui.Theme_Black.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(90,90,90,130);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(80,80,80,150);}""")
-            return
         elif self.ui.Theme_Green.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(120,240,130,180);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(100,240,110,200);}""")
-            return
         elif self.ui.Theme_Pink.isChecked():
             r,g,b = randrange(50, 250),randrange(50, 250),randrange(50, 250)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);}""")
-            return
         elif self.ui.Theme_Blue.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,120,240,100);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,120,240,120);}""")
-            return
-        
+        return
+
 ##################################### 操作事件 #####################################
 
     def mousePressEvent(self, event):

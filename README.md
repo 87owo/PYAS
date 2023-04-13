@@ -1,5 +1,4 @@
 # PYAS (Python Antivirus Software)
-PYAS is not only free and open source without ads,Also uses multiple intelligent protection engines,Always protect the privacy and data security of users.
 ![PYAS](https://user-images.githubusercontent.com/85057800/202692146-e55848d5-7e24-405d-b33d-f4fa3883fba6.png)
 
 
@@ -17,7 +16,7 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 
 ## Import Module
-os, sys, time, json, psutil, struct, win32api, win32con, requests, socket, platform, cryptocode, subprocess, pefile, hashlib, PYAS_English, win10toast, threading, random, PyQt5, PYAS_UI
+os, sys, time, json, psutil, struct, win32api, win32con, requests, socket, platform, cryptocode, subprocess, pefile, hashlib, PYAS_Language, threading, random, PyQt5, PYAS_UI
 
 ## Special Thanks
 Wix, VirusShare, mtkiao129, LenStevens

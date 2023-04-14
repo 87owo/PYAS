@@ -1172,12 +1172,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             question = QMessageBox.warning(self,self.text_Translate('停用安全模式'),self.text_Translate("您確定要停用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 subprocess.run('bcdedit /deletevalue {current} safeboot', check=True)
-                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用此選項後需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
                 if question == 16384:
                     subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:
             pyas_bug_log(e)
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 禁用失敗'),QMessageBox.Ok)  
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 停用失敗'),QMessageBox.Ok)  
 
     def System_Info_update(self):
         self.ui.System_Info_View.setText(f'System information:\nCore version: {platform.platform()}\nMachine type: {platform.machine()}\nSystem Info: {platform.architecture()}\nComputer Name: {platform.node()}\nProcessor Name: {platform.processor()}')

@@ -17,4 +17,4 @@ translations = {"zh_TW": {"已开启": "已開啟","已关闭": "已關閉","On"
                           "命令":"Command","不是有效":"Is Not A Valid ","修改":"Modify ","用戶密碼":"User Password ",
                           "重置":"Reset ","網路":"Network ","配置":"Config ","是":"Is ","選項":"Options ","監控":"Monitor ",
                           "進程":"Process ","可以":"Can ","中":"","清除":"Delete ","並":"And ","密鑰":"Key ","攔截":"Block ",
-                          "創建":"Create ","日期":"Date ","引導扇區":"Boot Sector ","掃描":"Scan ",}}
+                          "創建":"Create ","日期":"Date ","引導扇區":"Boot Sector ","掃描":"Scan ","設定":"Setting","關於":"About",}}

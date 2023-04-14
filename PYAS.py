@@ -250,7 +250,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def lang_init_en(self):
         _translate = QtCore.QCoreApplication.translate
-        self.ui.State_title.setText(_translate("MainWindow", "This device has been protected" if self.Safe else "This device is currently unsafe"))
+        self.ui.State_title.setText(_translate("MainWindow", "This device has been protect" if self.Safe else "This device is currently unsafe"))
         self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
         self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
@@ -266,8 +266,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Disk_Scan_Button.setText(_translate("MainWindow", "Full Scan"))
         self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "Delete Now"))
         self.ui.Virus_Scan_Break_Button.setText(_translate("MainWindow", "Stop Scan"))
-        self.ui.Protection_title.setText(_translate("MainWindow", "Real-time protection"))
-        self.ui.Protection_illustrate.setText(_translate("MainWindow", "Enable this option to monitor and remove malware in the system in real time."))
+        self.ui.Protection_title.setText(_translate("MainWindow", "Real-time protect"))
+        self.ui.Protection_illustrate.setText(_translate("MainWindow", "Enable this option can monitor process virus and delete"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.State_log.setText(_translate("MainWindow", "Log:"))
         self.ui.System_Tools_Button.setText(_translate("MainWindow", "System Tools"))
@@ -352,7 +352,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def lang_init_zh_cn(self):
         _translate = QtCore.QCoreApplication.translate
-        self.ui.State_title.setText(_translate("MainWindow", "这部装置已受到保护" if self.Safe else "这部装置目前不安全"))
+        self.ui.State_title.setText(_translate("MainWindow", "这部装置已受到防护" if self.Safe else "这部装置当前不安全"))
         self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密钥错误)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
         self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
@@ -366,10 +366,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.File_Scan_Button.setText(_translate("MainWindow", "文件扫描"))
         self.ui.Path_Scan_Button.setText(_translate("MainWindow", "路径扫描"))
         self.ui.Disk_Scan_Button.setText(_translate("MainWindow", "全盘扫描"))
-        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "立即解决"))
+        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "立即删除"))
         self.ui.Virus_Scan_Break_Button.setText(_translate("MainWindow", "停止扫描"))
         self.ui.Protection_title.setText(_translate("MainWindow", "实时防护"))
-        self.ui.Protection_illustrate.setText(_translate("MainWindow", "启用该选项可以实时监控进程中的恶意软体并清除"))
+        self.ui.Protection_illustrate.setText(_translate("MainWindow", "启用此选项可以实时监控进程中的恶意软体并删除"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.State_log.setText(_translate("MainWindow", "日志:"))
         self.ui.System_Tools_Button.setText(_translate("MainWindow", "系统工具"))
@@ -454,7 +454,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def lang_init_zh_tw(self):
         _translate = QtCore.QCoreApplication.translate
-        self.ui.State_title.setText(_translate("MainWindow", "這部裝置已受到保護" if self.Safe else "這部裝置目前不安全"))
+        self.ui.State_title.setText(_translate("MainWindow", "這部裝置已受到防護" if self.Safe else "這部裝置當前不安全"))
         self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密鑰錯誤)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
         self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
@@ -468,10 +468,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.File_Scan_Button.setText(_translate("MainWindow", "檔案掃描"))
         self.ui.Path_Scan_Button.setText(_translate("MainWindow", "路徑掃描"))
         self.ui.Disk_Scan_Button.setText(_translate("MainWindow", "全盤掃描"))
-        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "立即解決"))
+        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "立即刪除"))
         self.ui.Virus_Scan_Break_Button.setText(_translate("MainWindow", "停止掃描"))
         self.ui.Protection_title.setText(_translate("MainWindow", "實時防護"))
-        self.ui.Protection_illustrate.setText(_translate("MainWindow", "啟用此選項可以實時監控進程中的病毒並清除"))
+        self.ui.Protection_illustrate.setText(_translate("MainWindow", "啟用此選項可以實時監控進程中的病毒並刪除"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.State_log.setText(_translate("MainWindow", "日誌:"))
         self.ui.System_Tools_Button.setText(_translate("MainWindow", "系統工具"))
@@ -947,7 +947,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_text.setText(self.text_Translate('成功: 已執行成功'))
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
-            self.ui.State_title.setText(self.text_Translate("這部裝置已受到保護"))
+            self.ui.State_title.setText(self.text_Translate("這部裝置已受到防護"))
             self.Safe = True
         except Exception as e:
             pyas_bug_log(e)
@@ -1003,13 +1003,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
-            self.ui.State_title.setText(self.text_Translate("這部裝置目前不安全"))
+            self.ui.State_title.setText(self.text_Translate("這部裝置當前不安全"))
             self.ui.Virus_Scan_Solve_Button.show()
             self.ui.Virus_Scan_choose_Button.show()
             self.ui.Virus_Scan_Break_Button.hide()
             self.Virus_Scan = False
             self.Safe = False
-            text = self.text_Translate(f"當前發現{len(self.Virus_List)} 個病毒")
+            text = self.text_Translate(f"當前發現 {len(self.Virus_List)} 個病毒")
         else:
             print('[SCAN] No malware currently found')
             self.ui.Virus_Scan_Break_Button.hide()
@@ -1160,7 +1160,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             question = QMessageBox.warning(self,self.text_Translate('啟用安全模式'),self.text_Translate("您確定要啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 subprocess.run('bcdedit /set {default} safeboot minimal', check=True)
-                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用此選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
                 if question == 16384:
                     subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:
@@ -1375,16 +1375,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
-            QMessageBox.information(self,self.text_Translate("IP查詢"),self.text_Translate(f"您的ip 配置是:{s.getsockname()[0]}"),QMessageBox.Ok)
+            QMessageBox.information(self,self.text_Translate("IP查詢"),self.text_Translate(f"您的IP 配置是:{s.getsockname()[0]}"),QMessageBox.Ok)
             s.close()
         except Exception as e:
             pyas_bug_log(e)
 
     def reset_network(self):
-        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要重置網路配置嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要重置配置嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
             try:
                 subprocess.call("netsh winsock reset", shell=True)
-                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("重置網路配置成功"),QMessageBox.Ok)
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("網路配置重置成功"),QMessageBox.Ok)
             except Exception as e:
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
 
@@ -1492,7 +1492,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def pyas_protect_init(self):
         print('[INFO] Start Action (Real-time Process Protect)')
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
-            self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以實時監控進程中的病毒並清除"))
+            self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程中的病毒並刪除"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}

@@ -1211,27 +1211,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         Value_Data = str(self.ui.Value_Data_input.text())
         Value_Type = str(self.ui.Value_Type_input.text())
         Value_HEKY = str(self.ui.Value_HEKY_input.text())
-        heky_dict = {"HKEY_CLASSES_ROOT": win32con.HKEY_CLASSES_ROOT,
-                     "HKEY_CURRENT_USER": win32con.HKEY_CURRENT_USER,
-                     "HKEY_LOCAL_MACHINE": win32con.HKEY_LOCAL_MACHINE,
-                     "HKEY_USERS": win32con.HKEY_USERS,
-                     "HKEY_CURRENT_CONFIG": win32con.HKEY_CURRENT_CONFIG}
+        heky_dict = {"HKEY_CLASSES_ROOT": win32con.HKEY_CLASSES_ROOT,"HKEY_CURRENT_USER": win32con.HKEY_CURRENT_USER,"HKEY_LOCAL_MACHINE": win32con.HKEY_LOCAL_MACHINE,"HKEY_USERS": win32con.HKEY_USERS,"HKEY_CURRENT_CONFIG": win32con.HKEY_CURRENT_CONFIG}
         if Value_HEKY in heky_dict:
             Value_HEKY = heky_dict[Value_HEKY]
         else:
             QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate('錯誤: 您輸入了錯誤的HEKY'), QMessageBox.Ok)
             continue_v = False
-        value_types_dict = {"REG_BINARY": win32con.REG_BINARY,
-                            "REG_DWORD": win32con.REG_DWORD,
-                            "REG_DWORD_LITTLE_ENDIAN": win32con.REG_DWORD_LITTLE_ENDIAN,
-                            "REG_DWORD_BIG_ENDIAN": win32con.REG_DWORD_BIG_ENDIAN,
-                            "REG_EXPAND_SZ": win32con.REG_EXPAND_SZ,
-                            "REG_LINK": win32con.REG_LINK,
-                            "REG_MULTI_SZ": win32con.REG_MULTI_SZ,
-                            "REG_NONE": win32con.REG_NONE,
-                            "REG_QWORD": win32con.REG_QWORD,
-                            "REG_QWORD_LITTLE_ENDIAN": win32con.REG_QWORD_LITTLE_ENDIAN,
-                            "REG_SZ": win32con.REG_SZ}  
+        value_types_dict = {"REG_BINARY": win32con.REG_BINARY,"REG_DWORD": win32con.REG_DWORD,"REG_DWORD_LITTLE_ENDIAN": win32con.REG_DWORD_LITTLE_ENDIAN,"REG_DWORD_BIG_ENDIAN": win32con.REG_DWORD_BIG_ENDIAN,"REG_EXPAND_SZ": win32con.REG_EXPAND_SZ,"REG_LINK": win32con.REG_LINK,"REG_MULTI_SZ": win32con.REG_MULTI_SZ,"REG_NONE": win32con.REG_NONE,"REG_QWORD": win32con.REG_QWORD,"REG_QWORD_LITTLE_ENDIAN": win32con.REG_QWORD_LITTLE_ENDIAN,"REG_SZ": win32con.REG_SZ}  
         if Value_Type in value_types_dict:
             Value_Type = value_types_dict[Value_Type]
         else:

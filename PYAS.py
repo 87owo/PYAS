@@ -1172,7 +1172,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             question = QMessageBox.warning(self,self.text_Translate('停用安全模式'),self.text_Translate("您確定要停用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
                 subprocess.run('bcdedit /deletevalue {current} safeboot', check=True)
-                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用此選項後需要重啟，現在要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+                question = QMessageBox.warning(self,'reboot',self.text_Translate("使用此選項後需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
                 if question == 16384:
                     subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:

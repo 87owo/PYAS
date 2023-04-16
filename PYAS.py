@@ -12,7 +12,7 @@ import requests, socket, platform, cryptocode, subprocess
 from PYAS_Language import translations
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
-from PYAE_Model import function_list
+from PYAS_Model import function_list
 from threading import Thread
 from random import randrange
 from PyQt5.QtWidgets import *

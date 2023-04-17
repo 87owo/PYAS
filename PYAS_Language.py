@@ -29,4 +29,4 @@ translations = {"zh_TW": {"已开启": "已開啟","已关闭": "已關閉","On"
                           "版本資訊":"Information","私密":"Private ","粉碎":"Shredding","自訂":"Customize ","分析":"Analyze ","新":"New ",
                           "變更":"Change ","位置查詢":"Location Query","總數":"Total","位元":"Bits","函數":"Func","本機":"Computer ",
                           "加密":"Encrypt ","解密":"Decrypt ","前":"Before","後":"After","文字":"Text","值":"Value ","密碼":"Password ",
-                          "名":"Name","稱":"","類型":"Type","資料":"Data","日誌":"Log","返回":"Back","停止":"Stop ","  ":" "}}
+                          "名":"Name","稱":"","類型":"Type","資料":"Data","日誌":"Log","返回":"Back","停止":"Stop ","立即":"","  ":" "}}

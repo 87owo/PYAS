@@ -235,7 +235,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def lang_init_refresh(self):
         self.ui.State_title.setText(self.text_Translate("這部裝置已受到防護" if self.Safe else "這部裝置當前不安全"))
-        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} 安全密鑰錯誤" if not self.pyas_key() else f"PYAS V{pyas_version}"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} (安全密鑰錯誤)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
         self.ui.PYAE_Version.setText(self.text_Translate(f"PYAE V{pyae_version}"))
         self.ui.State_Button.setText(self.text_Translate("狀態"))

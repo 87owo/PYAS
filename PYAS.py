@@ -700,7 +700,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for line in self.Virus_List:
                 try:
                     if ':/Windows' not in str(line):
-                        self.ui.Virus_Scan_text.setText(self.text_Translate('正在刪除: {line}'))
+                        self.ui.Virus_Scan_text.setText(self.text_Translate('正在刪除: ')+line)
                         QApplication.processEvents()
                         os.remove(str(line))
                 except:
@@ -708,7 +708,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_List = []
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.Virus_Scan_text.setText(self.text_Translate('成功: 已執行成功'))
+            self.ui.Virus_Scan_text.setText(self.text_Translate('成功: 刪除成功'))
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
             self.ui.State_title.setText(self.text_Translate("這部裝置已受到防護"))
@@ -881,7 +881,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     elif os.path.isdir(fullpath):# 深入遍歷
                         self.traverse_path(fullpath,rfp)
                     else:
-                        self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: {fullpath}"))
+                        self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
                         QApplication.processEvents()
                         if self.high_sensitivity == 0 and self.sign_scan(fullpath) and str(os.path.splitext(fd)[1]).lower() in sflist:
                             if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
@@ -1060,11 +1060,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if ':/Windows' in fullpath or ':/$Recycle.Bin' in fullpath or ':/ProgramData' in fullpath or 'AppData' in fullpath or 'PerfLogs' in fullpath:
                     continue
                 elif os.path.isdir(fullpath):
-                    self.ui.Look_for_File_output.setText(self.text_Translate(f'正在尋找: {fullpath}'))
+                    self.ui.Look_for_File_output.setText(self.text_Translate('正在尋找: ')+fullpath)
                     QApplication.processEvents()
                     self.traverse_find_file(fullpath,ffile)
                 elif ffile in str(fd):
-                    self.find_files.append(str(self.text_Translate(f'找到檔案: {fullpath}\n創建日期: {time.ctime(os.path.getmtime(fullpath))}\n')))
+                    self.find_files.append(str(self.text_Translate('找到檔案: ')+f'{fullpath}\n'+self.text_Translate('創建日期: ')+f'{time.ctime(os.path.getmtime(fullpath))}\n'))
             except:
                 continue
 

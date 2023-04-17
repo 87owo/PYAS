@@ -7,14 +7,13 @@
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 
-import os, sys, time, json, psutil, struct, win32api, win32con
-import requests, socket, platform, cryptocode, subprocess
-from PYAS_Language import translations
+import requests, socket, cryptocode, win32api, win32con
+import os, sys, time, json, psutil, struct, subprocess
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
+from PYAS_Language import translations
 from PYAS_Model import function_list
 from threading import Thread
-from random import randrange
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -23,26 +22,10 @@ from PYAS_UI import Ui_MainWindow
 
 ##################################### 資料庫管理 ####################################
 
-def pyas_bug_log(e):
-    try:
-        print(f'[Error] {e}')
-        with open('Library/PYAS/Temp/PYASB.log','a',encoding='utf-8') as ft:
-            ft.write(f'{e}\n')
-    except:
-        pass
-
-def remove_tmp():
-    try:
-        if os.path.isfile('Library/PYAS/Temp/PYASB.log'):
-            os.remove('Library/PYAS/Temp/PYASB.log')
-    except:
-        pass
-
 def create_lib():
     try:
-        for i in ['Library/PYAS/Temp','Library/PYAS/Setup','Library/PYAS/Icon']:
-            if not os.path.isdir(i):
-                os.makedirs(i)
+        if not os.path.isdir('Library'):
+            os.makedirs('Library')
     except:
         pass
 
@@ -56,7 +39,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
         self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon('Library/PYAS/Icon/ICON.ico'))
+        self.tray_icon.setIcon(QIcon('Library/ICON.ico'))
         self.tray_icon.activated.connect(self.onTrayIconActivated)
         self.tray_icon.show()
         self.ui.setupUi(self)
@@ -65,11 +48,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def writeConfig(self, config):
         try:
-            with open('Library/PYAS/Setup/PYAS.json', 'w', encoding='utf-8') as f:
+            with open('Library/PYAS.json', 'w', encoding='utf-8') as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
         except Exception as e:
-            create_lib()
-            pyas_bug_log(e)
+            self.pyas_bug_log(e)
 
     def setup_control(self):
         self.init_config()#調用本地函數"init_config"
@@ -196,23 +178,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
                 self.mbr_value = f.read(512)
-        except:
-            pass
-        if not os.path.exists('Library/PYAS/Setup/PYAS.json'):
+        except Exception as e:
+            self.pyas_bug_log(e)
+        if not os.path.exists('Library/PYAS.json'):
             self.writeConfig({"high_sensitivity":0,"language":"en_US"})
-        with open('Library/PYAS/Setup/PYAS.json', 'r', encoding='utf-8') as f:
+        with open('Library/PYAS.json', 'r', encoding='utf-8') as f:
             self.pyasConfig = json.load(f)
         self.ui.Theme_White.setChecked(True)
         language = self.pyasConfig.get('language', 'en_US')
         if language == "zh_TW":
             self.ui.Language_Traditional_Chinese.setChecked(True)
-            self.lang_init_zh_tw()
         elif language == "zh_CN":
             self.ui.Language_Simplified_Chinese.setChecked(True)
-            self.lang_init_zh_cn()
         else:
             self.ui.Languahe_English.setChecked(True)
-            self.lang_init_en()
+        self.lang_init_refresh()
         self.high_sensitivity = self.pyasConfig.get('high_sensitivity', 0)
         if self.high_sensitivity == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
@@ -220,6 +200,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         Thread(target=self.pyas_protect_init).start()
+
+    def pyas_bug_log(self, e):
+        try:
+            print(f'[Error] {e}')
+            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
+        except:
+            pass
 
 ################################### 翻譯及更改語言 ###################################
     
@@ -229,328 +216,121 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if self.ui.Language_Traditional_Chinese.isChecked():
                 self.pyasConfig['language'] = "zh_TW"
                 self.writeConfig(self.pyasConfig)
-                self.lang_init_zh_tw()
             elif self.ui.Language_Simplified_Chinese.isChecked():
                 self.pyasConfig['language'] = "zh_CN"
                 self.writeConfig(self.pyasConfig)
-                self.lang_init_zh_cn()
             else:
                 self.pyasConfig['language'] = "en_US"
                 self.writeConfig(self.pyasConfig)
-                self.lang_init_en()
+            self.lang_init_refresh()
         except Exception as e:
-            pyas_bug_log(e)
+            self.pyas_bug_log(e)
 
     def text_Translate(self, text):
         for k, v in translations.get(self.pyasConfig['language'], translations).items():
             text = text.replace(str(k), str(v))
         return text
 
-##################################### 英文初始化 ####################################
-
-    def lang_init_en(self):
-        _translate = QtCore.QCoreApplication.translate
-        self.ui.State_title.setText(_translate("MainWindow", "This device has been protect" if self.Safe else "This device is currently unsafe"))
-        self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (Security Key Error)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
-        self.ui.State_Button.setText(_translate("MainWindow", "State"))
-        self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "Scan"))
-        self.ui.Tools_Button.setText(_translate("MainWindow", "Tools"))
-        self.ui.Protection_Button.setText(_translate("MainWindow", "Protect"))
-        self.ui.Virus_Scan_title.setText(_translate("MainWindow", "Virus Scan"))
-        self.ui.Virus_Scan_text.setText(_translate("MainWindow", "Please select a scan method"))
-        self.ui.Virus_Scan_choose_Button.setText(_translate("MainWindow", "Virus Scan"))
-        self.ui.File_Scan_Button.setText(_translate("MainWindow", "File Scan"))
-        self.ui.Path_Scan_Button.setText(_translate("MainWindow", "Path Scan"))
-        self.ui.Disk_Scan_Button.setText(_translate("MainWindow", "Full Scan"))
-        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "Delete Now"))
-        self.ui.Virus_Scan_Break_Button.setText(_translate("MainWindow", "Stop Scan"))
-        self.ui.Protection_title.setText(_translate("MainWindow", "Real-time protect"))
-        self.ui.Protection_illustrate.setText(_translate("MainWindow", "Enable options can monitor process virus and delete"))
-        self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
-        self.ui.State_log.setText(_translate("MainWindow", "Log:"))
-        self.ui.System_Tools_Button.setText(_translate("MainWindow", "System Tools"))
-        self.ui.Privacy_Tools_Button.setText(_translate("MainWindow", "Privacy Tools"))
-        self.ui.Develop_Tools_Button.setText(_translate("MainWindow", "Devs Tools"))
-        self.ui.More_Tools_Button.setText(_translate("MainWindow", "More Tools"))
-        self.ui.More_Tools_Back_Button.setText(_translate("MainWindow", "Tools>"))
-        self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "Process Manager"))
-        self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "Repair System Files"))
-        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "Clean System Files"))
-        self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "Enable Safe Mode"))
-        self.ui.Disable_Safe_Mode_Button.setText(_translate("MainWindow", "Disable Safe Mode"))
-        self.ui.System_Info_Button.setText(_translate("MainWindow", "System Information"))
-        self.ui.System_Tools_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Privacy_Tools_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Delete_Private_File_Button.setText(_translate("MainWindow", "Private File Shred"))
-        self.ui.Develop_Tools_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Customize_REG_Command_Button.setText(_translate("MainWindow", "Customize REG"))
-        self.ui.Customize_CMD_Command_Button.setText(_translate("MainWindow", "Customize CMD"))
-        self.ui.Analyze_EXE_hash_Button.setText(_translate("MainWindow", "Analyze File Hash"))
-        self.ui.Analyze_EXE_Bit_Button.setText(_translate("MainWindow", "Analyze File Bits"))
-        self.ui.Analyze_EXE_Funtion_Button.setText(_translate("MainWindow", "Analyze File Func"))
-        self.ui.More_Tools_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Look_for_File_Button.setText(_translate("MainWindow", "Looking For Profiles"))
-        self.ui.Encryption_Text_Button.setText(_translate("MainWindow", "Encrypt Decrypt Text"))
-        self.ui.Change_Users_Password_Button.setText(_translate("MainWindow", "Change User Password"))
-        self.ui.Internet_location_Query_Button.setText(_translate("MainWindow", "Internet Location Query"))
-        self.ui.Rework_Network_Configuration_Button.setText(_translate("MainWindow", "Rework Network Config"))
-        self.ui.Process_Tools_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Process_Total_title.setText(_translate("MainWindow", "Total process:"))
-        self.ui.System_Info_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Customize_CMD_Command_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Customize_CMD_Command_Run_Button.setText(_translate("MainWindow", "Run"))
-        self.ui.Customize_CMD_Command_output_title.setText(_translate("MainWindow", "Output:"))
-        self.ui.Analyze_EXE_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Look_for_File_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Look_for_File_Run_Button.setText(_translate("MainWindow", "Search"))
-        self.ui.Encryption_Text_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Encryption_Text_Run_Button.setText(_translate("MainWindow", "Encrypt"))
-        self.ui.Encryption_Text_title2.setText(_translate("MainWindow", "After Encrypt & Decrypt"))
-        self.ui.Encryption_Text_Password_title.setText(_translate("MainWindow", "Password:"))
-        self.ui.Encryption_Text_title.setText(_translate("MainWindow", "Before Encrypt & Decrypt"))
-        self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "Decrypt"))
-        self.ui.About_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
-        self.ui.GUI_Made_title.setText(_translate("MainWindow", "GUI Make:"))
-        self.ui.GUI_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Core_Made_title.setText(_translate("MainWindow", "Core Make:"))
-        self.ui.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Testers_title.setText(_translate("MainWindow", "Testers:"))
-        self.ui.Testers_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.PYAS_URL_title.setText(_translate("MainWindow", "Website:"))
-        self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas?lang=en\"><span style= \" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "New password:"))
-        self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "Username:"))
-        self.ui.Change_Users_Password_Run_Button.setText(_translate("MainWindow", "Modify"))
-        self.ui.Customize_REG_Command_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Value_Path_title.setText(_translate("MainWindow", "Value Path:"))
-        self.ui.Value_Name_title.setText(_translate("MainWindow", "Value Name:"))
-        self.ui.Value_Type_title.setText(_translate("MainWindow", "Value Type:"))
-        self.ui.Value_Data_title.setText(_translate("MainWindow", "Value Data:"))
-        self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "OK"))
-        self.ui.Value_HEKY_title.setText(_translate("MainWindow", "Value HEKY:"))
-        self.ui.high_sensitivity_title.setText(_translate("MainWindow", "High Sensitivity Mode"))
-        self.ui.high_sensitivity_illustrate.setText(_translate("MainWindow", "Enable this option can improve scanning sensitivity,\nbut it can also cause manslaughter."))
-        self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.Setting_Back.setText(_translate("MainWindow", "Back"))
-        self.ui.Language_title.setText(_translate("MainWindow", "Language"))
-        self.ui.Language_illustrate.setText(_translate("MainWindow", "Please select language"))
-        self.ui.License_terms_title.setText(_translate("MainWindow", "License Terms:"))
-        self.ui.Theme_title.setText(_translate("MainWindow", "Color Rendering Theme"))
-        self.ui.Theme_illustrate.setText(_translate("MainWindow", "Please select a theme"))
-        self.ui.Theme_White.setText(_translate("MainWindow", "White"))
-        self.ui.Theme_Black.setText(_translate("MainWindow", "Black"))
-        self.ui.Theme_Pink.setText(_translate("MainWindow", "Random"))
-        self.ui.Theme_Red.setText(_translate("MainWindow", "Red"))
-        self.ui.Theme_Green.setText(_translate("MainWindow", "Green"))
-        self.ui.Theme_Blue.setText(_translate("MainWindow", "Blue"))
-
-##################################### 簡中初始化 ####################################
-    
-    def lang_init_zh_cn(self):
-        _translate = QtCore.QCoreApplication.translate
-        self.ui.State_title.setText(_translate("MainWindow", "这部装置已受到防护" if self.Safe else "这部装置当前不安全"))
-        self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密钥错误)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
-        self.ui.State_Button.setText(_translate("MainWindow", "状态"))
-        self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "扫描"))
-        self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
-        self.ui.Protection_Button.setText(_translate("MainWindow", "防护"))
-        self.ui.Virus_Scan_title.setText(_translate("MainWindow", "病毒扫描"))
-        self.ui.Virus_Scan_text.setText(_translate("MainWindow", "请选择扫描方式"))
-        self.ui.Virus_Scan_choose_Button.setText(_translate("MainWindow", "病毒扫描"))
-        self.ui.File_Scan_Button.setText(_translate("MainWindow", "文件扫描"))
-        self.ui.Path_Scan_Button.setText(_translate("MainWindow", "路径扫描"))
-        self.ui.Disk_Scan_Button.setText(_translate("MainWindow", "全盘扫描"))
-        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "立即删除"))
-        self.ui.Virus_Scan_Break_Button.setText(_translate("MainWindow", "停止扫描"))
-        self.ui.Protection_title.setText(_translate("MainWindow", "实时防护"))
-        self.ui.Protection_illustrate.setText(_translate("MainWindow", "启用此选项可以监控进程中的病毒并删除"))
-        self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
-        self.ui.State_log.setText(_translate("MainWindow", "日志:"))
-        self.ui.System_Tools_Button.setText(_translate("MainWindow", "系统工具"))
-        self.ui.Privacy_Tools_Button.setText(_translate("MainWindow", "隐私工具"))
-        self.ui.Develop_Tools_Button.setText(_translate("MainWindow", "开发工具"))
-        self.ui.More_Tools_Button.setText(_translate("MainWindow", "更多工具"))
-        self.ui.More_Tools_Back_Button.setText(_translate("MainWindow", "工具>"))
-        self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "系统进程管理"))
-        self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "系统文件修复"))
-        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "系统垃圾清理"))
-        self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "启动安全模式"))
-        self.ui.Disable_Safe_Mode_Button.setText(_translate("MainWindow", "关闭安全模式"))
-        self.ui.System_Info_Button.setText(_translate("MainWindow", "系统版本资讯"))
-        self.ui.System_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Privacy_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Delete_Private_File_Button.setText(_translate("MainWindow", "私密文件粉碎"))
-        self.ui.Develop_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Customize_REG_Command_Button.setText(_translate("MainWindow", "自订REG指令"))
-        self.ui.Customize_CMD_Command_Button.setText(_translate("MainWindow", "自订CMD指令"))
-        self.ui.Analyze_EXE_hash_Button.setText(_translate("MainWindow", "分析文件哈希"))
-        self.ui.Analyze_EXE_Bit_Button.setText(_translate("MainWindow", "分析文件位元"))
-        self.ui.Analyze_EXE_Funtion_Button.setText(_translate("MainWindow", "分析文件函数"))
-        self.ui.More_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Look_for_File_Button.setText(_translate("MainWindow", "寻找本机文件"))
-        self.ui.Encryption_Text_Button.setText(_translate("MainWindow", "加密解密文字"))
-        self.ui.Change_Users_Password_Button.setText(_translate("MainWindow", "变更用户密码"))
-        self.ui.Internet_location_Query_Button.setText(_translate("MainWindow", "网路位置查询"))
-        self.ui.Rework_Network_Configuration_Button.setText(_translate("MainWindow", "重置网路配置"))
-        self.ui.Process_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Process_Total_title.setText(_translate("MainWindow", "进程总数:"))
-        self.ui.System_Info_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Customize_CMD_Command_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Customize_CMD_Command_Run_Button.setText(_translate("MainWindow", "运行"))
-        self.ui.Customize_CMD_Command_output_title.setText(_translate("MainWindow", "输出:"))
-        self.ui.Analyze_EXE_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Look_for_File_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Look_for_File_Run_Button.setText(_translate("MainWindow", "寻找文件"))
-        self.ui.Encryption_Text_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Encryption_Text_Run_Button.setText(_translate("MainWindow", "加密"))
-        self.ui.Encryption_Text_title2.setText(_translate("MainWindow", "加密&解密后"))
-        self.ui.Encryption_Text_Password_title.setText(_translate("MainWindow", "密码:"))
-        self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
-        self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
-        self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
-        self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面制作:"))
-        self.ui.GUI_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Core_Made_title.setText(_translate("MainWindow", "核心制作:"))
-        self.ui.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Testers_title.setText(_translate("MainWindow", "测试人员:"))
-        self.ui.Testers_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方网站:"))
-        self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密码:"))
-        self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用户名:"))
-        self.ui.Change_Users_Password_Run_Button.setText(_translate("MainWindow", "修改"))
-        self.ui.Customize_REG_Command_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Value_Path_title.setText(_translate("MainWindow", "值路径:"))
-        self.ui.Value_Name_title.setText(_translate("MainWindow", "值名称:"))
-        self.ui.Value_Type_title.setText(_translate("MainWindow", "值类型:"))
-        self.ui.Value_Data_title.setText(_translate("MainWindow", "值资料:"))
-        self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "确定"))
-        self.ui.Value_HEKY_title.setText(_translate("MainWindow", "值HEKY:"))
-        self.ui.high_sensitivity_title.setText(_translate("MainWindow", "高灵敏度模式"))
-        self.ui.high_sensitivity_illustrate.setText(_translate("MainWindow", "启用该选项可以提高扫描灵敏度，但这也可能会造成误杀"))
-        self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.Setting_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Language_title.setText(_translate("MainWindow", "语言"))
-        self.ui.Language_illustrate.setText(_translate("MainWindow", "请选择语言"))
-        self.ui.License_terms_title.setText(_translate("MainWindow", "许可条款:"))
-        self.ui.Theme_title.setText(_translate("MainWindow", "显色主题"))
-        self.ui.Theme_illustrate.setText(_translate("MainWindow", "请选择主题"))
-        self.ui.Theme_White.setText(_translate("MainWindow", "白色主题"))
-        self.ui.Theme_Black.setText(_translate("MainWindow", "黑色主题"))
-        self.ui.Theme_Pink.setText(_translate("MainWindow", "随机主题"))
-        self.ui.Theme_Red.setText(_translate("MainWindow", "红色主题"))
-        self.ui.Theme_Green.setText(_translate("MainWindow", "绿色主题"))
-        self.ui.Theme_Blue.setText(_translate("MainWindow", "蓝色主题"))
-
 ##################################### 繁中初始化 ####################################
     
-    def lang_init_zh_tw(self):
-        _translate = QtCore.QCoreApplication.translate
-        self.ui.State_title.setText(_translate("MainWindow", "這部裝置已受到防護" if self.Safe else "這部裝置當前不安全"))
-        self.ui.Window_title.setText(_translate("MainWindow", f"PYAS V{pyas_version} (安全密鑰錯誤)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
-        self.ui.PYAS_CopyRight.setText(_translate("MainWindow", f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
-        self.ui.PYAE_Version.setText(_translate("MainWindow", f"PYAE V{pyae_version}"))
-        self.ui.State_Button.setText(_translate("MainWindow", "狀態"))
-        self.ui.Virus_Scan_Button.setText(_translate("MainWindow", "掃描"))
-        self.ui.Tools_Button.setText(_translate("MainWindow", "工具"))
-        self.ui.Protection_Button.setText(_translate("MainWindow", "防護"))
-        self.ui.Virus_Scan_title.setText(_translate("MainWindow", "病毒掃描"))
-        self.ui.Virus_Scan_text.setText(_translate("MainWindow", "請選擇掃描方式"))
-        self.ui.Virus_Scan_choose_Button.setText(_translate("MainWindow", "病毒掃描"))
-        self.ui.File_Scan_Button.setText(_translate("MainWindow", "檔案掃描"))
-        self.ui.Path_Scan_Button.setText(_translate("MainWindow", "路徑掃描"))
-        self.ui.Disk_Scan_Button.setText(_translate("MainWindow", "全盤掃描"))
-        self.ui.Virus_Scan_Solve_Button.setText(_translate("MainWindow", "立即刪除"))
-        self.ui.Virus_Scan_Break_Button.setText(_translate("MainWindow", "停止掃描"))
-        self.ui.Protection_title.setText(_translate("MainWindow", "實時防護"))
-        self.ui.Protection_illustrate.setText(_translate("MainWindow", "啟用此選項可以監控進程中的病毒並刪除"))
+    def lang_init_refresh(self):
+        self.ui.State_title.setText(self.text_Translate("這部裝置已受到防護" if self.Safe else "這部裝置當前不安全"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} 安全密鑰錯誤" if not self.pyas_key() else f"PYAS V{pyas_version}"))
+        self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
+        self.ui.PYAE_Version.setText(self.text_Translate(f"PYAE V{pyae_version}"))
+        self.ui.State_Button.setText(self.text_Translate("狀態"))
+        self.ui.Virus_Scan_Button.setText(self.text_Translate("掃描"))
+        self.ui.Tools_Button.setText(self.text_Translate("工具"))
+        self.ui.Protection_Button.setText(self.text_Translate("防護"))
+        self.ui.Virus_Scan_title.setText(self.text_Translate("病毒掃描"))
+        self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+        self.ui.Virus_Scan_choose_Button.setText(self.text_Translate("病毒掃描"))
+        self.ui.File_Scan_Button.setText(self.text_Translate("檔案掃描"))
+        self.ui.Path_Scan_Button.setText(self.text_Translate("路徑掃描"))
+        self.ui.Disk_Scan_Button.setText(self.text_Translate("全盤掃描"))
+        self.ui.Virus_Scan_Solve_Button.setText(self.text_Translate("立即刪除"))
+        self.ui.Virus_Scan_Break_Button.setText(self.text_Translate("停止掃描"))
+        self.ui.Protection_title.setText(self.text_Translate("實時防護"))
+        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程中的病毒並刪除"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
-        self.ui.State_log.setText(_translate("MainWindow", "日誌:"))
-        self.ui.System_Tools_Button.setText(_translate("MainWindow", "系統工具"))
-        self.ui.Privacy_Tools_Button.setText(_translate("MainWindow", "隱私工具"))
-        self.ui.Develop_Tools_Button.setText(_translate("MainWindow", "開發工具"))
-        self.ui.More_Tools_Button.setText(_translate("MainWindow", "更多工具"))
-        self.ui.More_Tools_Back_Button.setText(_translate("MainWindow", "工具>"))
-        self.ui.System_Process_Manage_Button.setText(_translate("MainWindow", "系統進程管理"))
-        self.ui.Repair_System_Files_Button.setText(_translate("MainWindow", "系統檔案修復"))
-        self.ui.Clean_System_Files_Button.setText(_translate("MainWindow", "系統垃圾清理"))
-        self.ui.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "啟動安全模式"))
-        self.ui.Disable_Safe_Mode_Button.setText(_translate("MainWindow", "關閉安全模式"))
-        self.ui.System_Info_Button.setText(_translate("MainWindow", "系統版本資訊"))
-        self.ui.System_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Privacy_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Delete_Private_File_Button.setText(_translate("MainWindow", "私密檔案粉碎"))
-        self.ui.Develop_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Customize_REG_Command_Button.setText(_translate("MainWindow", "自訂REG指令"))
-        self.ui.Customize_CMD_Command_Button.setText(_translate("MainWindow", "自訂CMD指令"))
-        self.ui.Analyze_EXE_hash_Button.setText(_translate("MainWindow", "分析文件哈希"))
-        self.ui.Analyze_EXE_Bit_Button.setText(_translate("MainWindow", "分析文件位元"))
-        self.ui.Analyze_EXE_Funtion_Button.setText(_translate("MainWindow", "分析文件函數"))
-        self.ui.More_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Look_for_File_Button.setText(_translate("MainWindow", "尋找本機檔案"))
-        self.ui.Encryption_Text_Button.setText(_translate("MainWindow", "加密解密文字"))
-        self.ui.Change_Users_Password_Button.setText(_translate("MainWindow", "變更用戶密碼"))
-        self.ui.Internet_location_Query_Button.setText(_translate("MainWindow", "網路位置查詢"))
-        self.ui.Rework_Network_Configuration_Button.setText(_translate("MainWindow", "重置網路配置"))
-        self.ui.Process_Tools_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Process_Total_title.setText(_translate("MainWindow", "進程總數:"))
-        self.ui.System_Info_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Customize_CMD_Command_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Customize_CMD_Command_Run_Button.setText(_translate("MainWindow", "運行"))
-        self.ui.Customize_CMD_Command_output_title.setText(_translate("MainWindow", "輸出:"))
-        self.ui.Analyze_EXE_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Look_for_File_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Look_for_File_Run_Button.setText(_translate("MainWindow", "尋找檔案"))
-        self.ui.Encryption_Text_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Encryption_Text_Run_Button.setText(_translate("MainWindow", "加密"))
-        self.ui.Encryption_Text_title2.setText(_translate("MainWindow", "加密&解密後"))
-        self.ui.Encryption_Text_Password_title.setText(_translate("MainWindow", "密碼:"))
-        self.ui.Encryption_Text_title.setText(_translate("MainWindow", "加密&解密前"))
-        self.ui.Decrypt_Text_Run_Button.setText(_translate("MainWindow", "解密"))
-        self.ui.About_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.PYAS_Version.setText(_translate("MainWindow", f"PYAS V{pyas_version}"))
-        self.ui.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
-        self.ui.GUI_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
-        self.ui.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.Testers_title.setText(_translate("MainWindow", "測試人員:"))
-        self.ui.Testers_Name.setText(_translate("MainWindow", "87owo"))
-        self.ui.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
-        self.ui.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
-        self.ui.Change_Users_Password_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Change_Users_Password_New_Password_title.setText(_translate("MainWindow", "新密碼:"))
-        self.ui.Change_Users_Password_User_Name_title.setText(_translate("MainWindow", "用戶名:"))
-        self.ui.Change_Users_Password_Run_Button.setText(_translate("MainWindow", "修改"))
-        self.ui.Customize_REG_Command_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Value_Path_title.setText(_translate("MainWindow", "值路徑:"))
-        self.ui.Value_Name_title.setText(_translate("MainWindow", "值名稱:"))
-        self.ui.Value_Type_title.setText(_translate("MainWindow", "值類型:"))
-        self.ui.Value_Data_title.setText(_translate("MainWindow", "值資料:"))
-        self.ui.Customize_REG_Command_Run_Button.setText(_translate("MainWindow", "確定"))
-        self.ui.Value_HEKY_title.setText(_translate("MainWindow", "值HEKY:"))
-        self.ui.high_sensitivity_title.setText(_translate("MainWindow", "高靈敏度模式"))
-        self.ui.high_sensitivity_illustrate.setText(_translate("MainWindow", "啟用此選項可以提高掃描靈敏度，但這也可能會造成誤殺"))
+        self.ui.State_log.setText(self.text_Translate("日誌:"))
+        self.ui.System_Tools_Button.setText(self.text_Translate("系統工具"))
+        self.ui.Privacy_Tools_Button.setText(self.text_Translate("隱私工具"))
+        self.ui.Develop_Tools_Button.setText(self.text_Translate("開發工具"))
+        self.ui.More_Tools_Button.setText(self.text_Translate("更多工具"))
+        self.ui.More_Tools_Back_Button.setText(self.text_Translate("工具>"))
+        self.ui.System_Process_Manage_Button.setText(self.text_Translate("系統進程管理"))
+        self.ui.Repair_System_Files_Button.setText(self.text_Translate("系統檔案修復"))
+        self.ui.Clean_System_Files_Button.setText(self.text_Translate("系統垃圾清理"))
+        self.ui.Enable_Safe_Mode_Button.setText(self.text_Translate("啟動安全模式"))
+        self.ui.Disable_Safe_Mode_Button.setText(self.text_Translate("關閉安全模式"))
+        self.ui.System_Info_Button.setText(self.text_Translate("系統版本資訊"))
+        self.ui.System_Tools_Back.setText(self.text_Translate("返回"))
+        self.ui.Privacy_Tools_Back.setText(self.text_Translate("返回"))
+        self.ui.Delete_Private_File_Button.setText(self.text_Translate("私密檔案粉碎"))
+        self.ui.Develop_Tools_Back.setText(self.text_Translate("返回"))
+        self.ui.Customize_REG_Command_Button.setText(self.text_Translate("自訂REG指令"))
+        self.ui.Customize_CMD_Command_Button.setText(self.text_Translate("自訂CMD指令"))
+        self.ui.Analyze_EXE_hash_Button.setText(self.text_Translate("分析檔案哈希"))
+        self.ui.Analyze_EXE_Bit_Button.setText(self.text_Translate("分析檔案位元"))
+        self.ui.Analyze_EXE_Funtion_Button.setText(self.text_Translate("分析檔案函數"))
+        self.ui.More_Tools_Back.setText(self.text_Translate("返回"))
+        self.ui.Look_for_File_Button.setText(self.text_Translate("搜尋本機檔案"))
+        self.ui.Encryption_Text_Button.setText(self.text_Translate("加密解密文字"))
+        self.ui.Change_Users_Password_Button.setText(self.text_Translate("變更用戶密碼"))
+        self.ui.Internet_location_Query_Button.setText(self.text_Translate("網路位置查詢"))
+        self.ui.Rework_Network_Configuration_Button.setText(self.text_Translate("重置網路配置"))
+        self.ui.Process_Tools_Back.setText(self.text_Translate("返回"))
+        self.ui.Process_Total_title.setText(self.text_Translate("進程總數:"))
+        self.ui.System_Info_Back.setText(self.text_Translate("返回"))
+        self.ui.Customize_CMD_Command_Back.setText(self.text_Translate("返回"))
+        self.ui.Customize_CMD_Command_Run_Button.setText(self.text_Translate("執行"))
+        self.ui.Customize_CMD_Command_output_title.setText(self.text_Translate("輸出:"))
+        self.ui.Analyze_EXE_Back.setText(self.text_Translate("返回"))
+        self.ui.Look_for_File_Back.setText(self.text_Translate("返回"))
+        self.ui.Look_for_File_Run_Button.setText(self.text_Translate("搜尋"))
+        self.ui.Encryption_Text_Back.setText(self.text_Translate("返回"))
+        self.ui.Encryption_Text_Run_Button.setText(self.text_Translate("加密"))
+        self.ui.Encryption_Text_title2.setText(self.text_Translate("加密 & 解密後"))
+        self.ui.Encryption_Text_Password_title.setText(self.text_Translate("密碼:"))
+        self.ui.Encryption_Text_title.setText(self.text_Translate("加密 & 解密前"))
+        self.ui.Decrypt_Text_Run_Button.setText(self.text_Translate("解密"))
+        self.ui.About_Back.setText(self.text_Translate("返回"))
+        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version}"))
+        self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
+        self.ui.GUI_Made_Name.setText(self.text_Translate("87owo"))
+        self.ui.Core_Made_title.setText(self.text_Translate("核心製作:"))
+        self.ui.Core_Made_Name.setText(self.text_Translate("87owo"))
+        self.ui.Testers_title.setText(self.text_Translate("測試人員:"))
+        self.ui.Testers_Name.setText(self.text_Translate("87owo"))
+        self.ui.PYAS_URL_title.setText(self.text_Translate("官方網站:"))
+        self.ui.PYAS_URL.setText(self.text_Translate("<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
+        self.ui.Change_Users_Password_Back.setText(self.text_Translate("返回"))
+        self.ui.Change_Users_Password_New_Password_title.setText(self.text_Translate("新密碼:"))
+        self.ui.Change_Users_Password_User_Name_title.setText(self.text_Translate("用戶名:"))
+        self.ui.Change_Users_Password_Run_Button.setText(self.text_Translate("修改"))
+        self.ui.Customize_REG_Command_Back.setText(self.text_Translate("返回"))
+        self.ui.Value_Path_title.setText(self.text_Translate("值路徑:"))
+        self.ui.Value_Name_title.setText(self.text_Translate("值名稱:"))
+        self.ui.Value_Type_title.setText(self.text_Translate("值類型:"))
+        self.ui.Value_Data_title.setText(self.text_Translate("值資料:"))
+        self.ui.Customize_REG_Command_Run_Button.setText(self.text_Translate("確定"))
+        self.ui.Value_HEKY_title.setText(self.text_Translate("值HEKY:"))
+        self.ui.high_sensitivity_title.setText(self.text_Translate("高靈敏度模式"))
+        self.ui.high_sensitivity_illustrate.setText(self.text_Translate("啟用此選項可以提高掃描靈敏度，但這也可能會造成誤殺檔案"))
         self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.Setting_Back.setText(_translate("MainWindow", "返回"))
-        self.ui.Language_title.setText(_translate("MainWindow", "語言"))
-        self.ui.Language_illustrate.setText(_translate("MainWindow", "請選擇語言"))
-        self.ui.License_terms_title.setText(_translate("MainWindow", "許可條款:"))
-        self.ui.Theme_title.setText(_translate("MainWindow", "顯色主題"))
-        self.ui.Theme_illustrate.setText(_translate("MainWindow", "請選擇主題"))
-        self.ui.Theme_White.setText(_translate("MainWindow", "白色主題"))
-        self.ui.Theme_Black.setText(_translate("MainWindow", "黑色主題"))
-        self.ui.Theme_Pink.setText(_translate("MainWindow", "隨機主題"))
-        self.ui.Theme_Red.setText(_translate("MainWindow", "紅色主題"))
-        self.ui.Theme_Green.setText(_translate("MainWindow", "綠色主題"))
-        self.ui.Theme_Blue.setText(_translate("MainWindow", "藍色主題"))
+        self.ui.Setting_Back.setText(self.text_Translate("返回"))
+        self.ui.Language_title.setText(self.text_Translate("語言"))
+        self.ui.Language_illustrate.setText(self.text_Translate("請選擇語言"))
+        self.ui.License_terms_title.setText(self.text_Translate("許可條款:"))
+        self.ui.Theme_title.setText(self.text_Translate("顯色主題"))
+        self.ui.Theme_illustrate.setText(self.text_Translate("請選擇主題"))
+        self.ui.Theme_White.setText(self.text_Translate("白色主題"))
+        self.ui.Theme_Black.setText(self.text_Translate("黑色主題"))
+        self.ui.Theme_Pink.setText(self.text_Translate("黃色主題"))
+        self.ui.Theme_Red.setText(self.text_Translate("紅色主題"))
+        self.ui.Theme_Green.setText(self.text_Translate("綠色主題"))
+        self.ui.Theme_Blue.setText(self.text_Translate("藍色主題"))
 
 ################################### 視窗動畫特效 ####################################
     
@@ -795,35 +575,29 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QPushButton:hover{background-color:rgba(20,20,20,50);}""")
                 self.high_sensitivity = 0
         except:
-            try:
-                config = {'high_sensitivity': 0,'language': 'en_US'}
-                self.writeConfig(config)
-            except Exception as e:
-                pyas_bug_log(e)
+            self.writeConfig({'high_sensitivity': 0,'language': 'en_US'})
 
 ##################################### 主題顏色 #####################################
     
     def Change_Theme(self):
         if self.ui.Theme_Red.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,140,140,200);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,130,130,200);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,150,150,255);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,140,140,255);}""")
         elif self.ui.Theme_White.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,255,240);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,240,255);}""")
         elif self.ui.Theme_Black.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(90,90,90,130);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(80,80,80,150);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,150,150,255);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(140,140,140,255);}""")
         elif self.ui.Theme_Green.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(120,240,130,180);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(100,240,110,200);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,255,150,255);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(130,255,130,255);}""")
         elif self.ui.Theme_Pink.isChecked():
-            r,g,b = randrange(50, 250),randrange(50, 250),randrange(50, 250)
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba("""+str(r)+""","""+str(g)+""","""+str(b)+""",240);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba("""+str(r-20)+""","""+str(g-20)+""","""+str(b-20)+""",240);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,150,255);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,140,255);}""")
         elif self.ui.Theme_Blue.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,120,240,100);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,120,240,120);}""")
-        return
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,200,255,255);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,190,255,255);}""")
 
 ##################################### 操作事件 #####################################
 
@@ -902,8 +676,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             self.ui.State_output.append(f'[{now_time}] {text}')
             self.tray_icon.showMessage(now_time, text, 5)
-        except:
-            pass
+        except Exception as e:
+            self.pyas_bug_log(e)
 
 ###################################### 密鑰認證 #####################################
 
@@ -911,18 +685,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(sys.argv[0], 'rb') as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            try:
-                response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5}, timeout=2)
-                if response.status_code == 200 and response.text == 'True':
-                    with open('Library/PYAS/Setup/PYAS.key', 'w') as fc:
-                        fc.write(file_md5)
-                    return True
-            except:
-                if os.path.isfile('Library/PYAS/Setup/PYAS.key'):
-                    with open('Library/PYAS/Setup/PYAS.key', 'r') as fc:
-                        if file_md5 == str(fc.read()):
-                            return True
-            return False
+            response = requests.get("http://27.147.30.238:5001/pyas", params={'key': file_md5}, timeout=2)
+            return response.status_code == 200 and response.text == 'True'
         except:
             return False
 
@@ -950,9 +714,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.State_title.setText(self.text_Translate("這部裝置已受到防護"))
             self.Safe = True
         except Exception as e:
-            pyas_bug_log(e)
-            self.Safe = False
-            self.ui.Virus_Scan_text.setText(self.text_Translate("錯誤: 執行失敗"))
+            self.pyas_bug_log(e)
 
     def api_scan(self, types, file):
         try:
@@ -999,7 +761,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def answer_scan(self): #定義讀取紀錄
         if self.Virus_List != []:
-            print('[SCAN] Malware has been detected')
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
@@ -1011,7 +772,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Safe = False
             text = self.text_Translate(f"當前發現 {len(self.Virus_List)} 個病毒")
         else:
-            print('[SCAN] No malware currently found')
             self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
             self.Virus_Scan = False
@@ -1030,7 +790,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 檔案掃描 #####################################
     
     def file_scan(self):
-        print('[SCAN] Start Scan Action (File Scan)')
         self.Virus_List = []
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
@@ -1055,12 +814,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
+            self.pyas_bug_log(e)
 
 ##################################### 路徑掃描 #####################################
     
     def path_scan(self):
-        print('[SCAN] Start Scan Action (Path Scan)')
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_ProgressBar.hide()
@@ -1081,12 +839,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
+            self.pyas_bug_log(e)
 
 ##################################### 全盤掃描 #####################################
     
     def disk_scan(self):
-        print('[SCAN] Start Scan Action (Disk Scan)')
         try:
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
@@ -1107,8 +864,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pass
             self.answer_scan()
         except Exception as e:
+            self.pyas_bug_log(e)
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
 
     def traverse_path(self,path,rfp):
         sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
@@ -1143,8 +900,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if question == 16384:
                 subprocess.run('sfc /scannow', check=True)
         except Exception as e:
-            pyas_bug_log(e)
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 修復失敗'),QMessageBox.Ok)
+            self.pyas_bug_log(e)
 
     def Clean_System_Files(self):
         try:
@@ -1152,8 +908,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if question == 16384:
                 subprocess.run('cleanmgr', check=True)
         except Exception as e:
-            pyas_bug_log(e)
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 清理失敗'),QMessageBox.Ok)
+            self.pyas_bug_log(e)
 
     def Enable_Safe_Mode(self):
         try:
@@ -1164,8 +919,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if question == 16384:
                     subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:
-            pyas_bug_log(e)
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 啟用失敗'),QMessageBox.Ok)  
+            self.pyas_bug_log(e) 
 
     def Disable_Safe_Mode(self):
         try:
@@ -1176,14 +930,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if question == 16384:
                     subprocess.run('shutdown -r -t 0', check=True)
         except Exception as e:
-            pyas_bug_log(e)
-            QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 停用失敗'),QMessageBox.Ok)  
+            self.pyas_bug_log(e)
 
     def System_Info_update(self):
-        self.ui.System_Info_View.setText(f'System information:\nCore version: {platform.platform()}\nMachine type: {platform.machine()}\nSystem Info: {platform.architecture()}\nComputer Name: {platform.node()}\nProcessor Name: {platform.processor()}')
+        try:
+            version = sys.getwindowsversion()
+            self.ui.System_Info_View.setText(f'CPU Core: {os.cpu_count()}\nSYS Info: {sys.platform}\nSYS Vers: {version.major}.{version.minor} build {version.build}\nSYS Name: {socket.gethostname()}')
+        except Exception as e:
+            self.pyas_bug_log(e)
 
     def Delete_Private_File(self):
-        file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/",'')
+        file, filetype = QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/",'')
         if file != "" and file != str(sys.argv[0]):
             question = QMessageBox.warning(self,self.text_Translate('刪除檔案'),self.text_Translate("您確定要刪除此檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
@@ -1191,17 +948,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     os.remove(file)
                     QMessageBox.information(self,self.text_Translate("刪除成功"),self.text_Translate("成功: 刪除成功"),QMessageBox.Ok)
                 except Exception as e:
-                    pyas_bug_log(e)
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 刪除失敗'),QMessageBox.Ok)
+                    self.pyas_bug_log(e)
      
     def Customize_CMD_Command(self):
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
         if CMD_Command != '':
             try:
                 self.ui.Customize_CMD_Command_output.setText(str(subprocess.run(CMD_Command, capture_output=True, text=True).stdout))
-                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("成功: 運行成功"),QMessageBox.Ok,QMessageBox.Ok)
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("成功: 執行成功"),QMessageBox.Ok,QMessageBox.Ok)
             except Exception as e:
-                pyas_bug_log(e)
                 QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: "{CMD_Command}" 不是有效命令'),QMessageBox.Ok,QMessageBox.Ok)
 
     def Customize_REG_Command(self):
@@ -1231,11 +986,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     win32api.RegCloseKey(key)
                     QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate("成功: 成功的創建或修改註冊表值"),QMessageBox.Ok)
                 except Exception as e:
-                    QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
+                    self.pyas_bug_log(e)
 
     def Analyze_EXE(self,button):
         if button == self.ui.Analyze_EXE_Funtion_Button:
-            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件函數"),"C:/",'EXE OR DLL File *.exe *.dll')
+            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析檔案函數"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
                 try:
                     pe = PE(file)
@@ -1249,7 +1004,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 except:
                     pass
         elif button == self.ui.Analyze_EXE_hash_Button:
-            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件哈希值"),"C:/",'All File *.*')
+            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析檔案哈希值"),"C:/",'All File *.*')
             if file != '':
                 try:
                     with open(file,"rb") as f:
@@ -1264,7 +1019,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 except:
                     pass
         else:
-            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析文件位元"),"C:/",'EXE OR DLL File *.exe *.dll')
+            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析檔案位元"),"C:/",'EXE OR DLL File *.exe *.dll')
             if file != '':
                 try:
                     pe = PE(file,fast_load=True)
@@ -1296,8 +1051,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 else:
                     QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate('錯誤: 未找到檔案'),QMessageBox.Ok)
         except Exception as e:
-            pyas_bug_log(e)
-
+            self.pyas_bug_log(e)
 
     def traverse_find_file(self,path,ffile):
         for fd in os.listdir(path):
@@ -1314,6 +1068,63 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             except:
                 continue
 
+    def Encryption_Text(self):
+        try:
+            self.encrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
+        except Exception as e:
+            self.pyas_bug_log(e)
+    
+    def Decrypt_Text(self):
+        try:
+            self.decrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def encrypt_zh(self,e,e2):
+        try:
+            self.ui.Encryption_Text_output.setText(str(cryptocode.encrypt(e,e2)))
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def decrypt_zh(self,e,e2):
+        try:
+            self.ui.Encryption_Text_output.setText(str(cryptocode.decrypt(e,e2)))
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def Change_Users_Password(self):
+        try:
+            username = self.ui.Change_Users_Password_User_Name_input.text()
+            password = self.ui.Change_Users_Password_New_Password_input.text()
+            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修改用戶密碼嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                if password == "":
+                    subprocess.run("net user {} {}".format(username,'""'))
+                else:
+                    subprocess.run("net user {} {}".format(username,password))
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def Internet_location_Query(self):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            QMessageBox.information(self,self.text_Translate("位置查詢"),self.text_Translate(f"您的IP 配置是:{s.getsockname()[0]}"),QMessageBox.Ok)
+            s.close()
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def reset_network(self):
+        try:
+            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要重置配置嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                subprocess.run("netsh winsock reset", shell=True)
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("網路配置重置成功"),QMessageBox.Ok)
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def Setting_Back(self):
+        self.ui.Navigation_Bar.show()
+        self.ui.Setting_widget.hide()
+
     def Process_list(self):
         try:
             self.Process_list_app = []
@@ -1322,75 +1133,24 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Process_list_app_name = []
             self.Process_list_app_user = []
             for p in psutil.process_iter():
-                if p.name() == '' or p.name() == 'System' or p.name() == 'System Idle Process' or p.name() == 'Registry':
-                    pass
-                else:
-                    try:
+                try:
+                    if p.name() == '' or p.name() == 'System' or p.name() == 'System Idle Process' or p.name() == 'Registry':
+                        pass
+                    else:
                         self.Process_list_app.append(f"{p.name()} ({p.pid}) > {p.exe()}")
                         self.Process_list_app_pid.append(p.pid)
                         self.Process_list_app_exe.append(p.exe())
                         self.Process_list_app_name.append(p.name())
                         self.Process_list_app_user.append(p.username())
-                    except:
-                        self.Process_list_app.append(f"{p.name()} ({p.pid})")
-                        self.Process_list_app_pid.append(p.pid)
-                        self.Process_list_app_exe.append('None')
-                        self.Process_list_app_name.append(p.name())
-                        self.Process_list_app_user.append(p.username())
+                except:
+                    pass
             if len(self.Process_list_app_name) != self.Process_quantity:
                 self.Process_quantity = len(self.Process_list_app_name)
                 self.ui.Process_Total_View.setText(str(self.Process_quantity))
                 self.Process_sim.setStringList(self.Process_list_app)
                 self.ui.Process_list.setModel(self.Process_sim)
-        except psutil.AccessDenied as e:
-            print('[Error] Psutil Permission Denied')
         except Exception as e:
-            pyas_bug_log(e)
-
-    def Encryption_Text(self):
-        self.encrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
-    
-    def Decrypt_Text(self):
-        self.decrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
-
-    def encrypt_zh(self,e,e2):
-        self.ui.Encryption_Text_output.setText(str(cryptocode.encrypt(e,e2)))
-
-    def decrypt_zh(self,e,e2):
-        self.ui.Encryption_Text_output.setText(str(cryptocode.decrypt(e,e2)))
-
-    def Change_Users_Password(self):
-        username = self.ui.Change_Users_Password_User_Name_input.text()
-        password = self.ui.Change_Users_Password_New_Password_input.text()
-        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修改用戶密碼嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            try:
-                if password == "":
-                    subprocess.call("net user {} {}".format(username,'""'))
-                else:
-                    subprocess.call("net user {} {}".format(username,password))
-            except Exception as e:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
-
-    def Internet_location_Query(self):
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            QMessageBox.information(self,self.text_Translate("IP查詢"),self.text_Translate(f"您的IP 配置是:{s.getsockname()[0]}"),QMessageBox.Ok)
-            s.close()
-        except Exception as e:
-            pyas_bug_log(e)
-
-    def reset_network(self):
-        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要重置配置嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            try:
-                subprocess.call("netsh winsock reset", shell=True)
-                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("網路配置重置成功"),QMessageBox.Ok)
-            except Exception as e:
-                QMessageBox.critical(self,self.text_Translate('錯誤'),self.text_Translate(f'錯誤: {e}'),QMessageBox.Ok)
-
-    def Setting_Back(self):
-        self.ui.Navigation_Bar.show()
-        self.ui.Setting_widget.hide()
+            self.pyas_bug_log(e)
 
     def Process_list_Menu(self,pos):
         try:
@@ -1490,7 +1250,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pass
 
     def pyas_protect_init(self):
-        print('[INFO] Start Action (Real-time Process Protect)')
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
             self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程中的病毒並刪除"))
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
@@ -1507,18 +1266,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 主初始化 #####################################
 
 if __name__ == '__main__':
-    try:
-        create_lib()
-        remove_tmp()
-        pyas_version, pyae_version = "2.6.5", "2.3.3"
-        print(f'[INFO] PYAS V{pyas_version} , PYAE V{pyae_version}')
-        QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
-        QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-        app = QtWidgets.QApplication(sys.argv)
-        MainWindow_Controller()
-        sys.exit(app.exec_())
-    except Exception as e:
-        pyas_bug_log(e)
+    create_lib()
+    pyas_version, pyae_version = "2.6.6", "2.3.4"
+    QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
+    QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow_Controller()
+    sys.exit(app.exec_())
 
 ####################################################################################
 #Copyright© 2020-2023 87owo (PYAS Security)

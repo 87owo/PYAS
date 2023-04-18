@@ -19,7 +19,7 @@ translations = {"zh_TW": {"已开启": "已開啟","已关闭": "已關閉","On"
                           "搜尋":"Search ","此":"This ","要":"Want To ","安全模式":"Safe Mode","您":"You ","不安全":"Unsafe","已":"Has ",
                           "命令":"Command","不是有效":"Is Not A Valid ","修改":"Modify ","用戶":"User ","使用":"Use ","哈希":"Hash",
                           "重置":"Reset ","網路":"Network ","配置":"Config ","是":"Is ","選項":"Options ","監控":"Monitor ","確定":"OK",
-                          "進程":"Process ","可以":"To ","中":"","並":"And ","攔截":"Block ","引導":"Boot ","分區":"Partition ",
+                          "進程":"Process ","可以":"To ","中":"","並":"And ","攔截":"Block ","引導":"Boot ","分區":"Partition ","刪除":"Delete ",
                           "掃描":"Scan ","設定":"Setting","關於":"About","靈敏度":"Sensitivity ","提高":"Improve ","高":"High ","返回":"Back",
                           "模式":"Mode ","但":"But ","這也可能會造成誤殺":"It Can Also Cause Manslaughter ","安全":"Security ","指令":"",
                           "白色主題":"White","黑色主題":"Black","黃色主題":"Yellow","藍色主題":"Blue","紅色主題":"Red","綠色主題":"Green",

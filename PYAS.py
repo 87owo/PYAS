@@ -7,8 +7,8 @@
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 
-import requests, socket, cryptocode, win32api, win32con
-import os, sys, time, json, psutil, struct, subprocess
+import time, requests, socket, win32file, win32api, win32con
+import os, sys, json, psutil, struct, subprocess, cryptocode
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_Language import translations
@@ -45,6 +45,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.setup_control()
         self.show_pyas_ui()
+        self.protect_threading_init()
+        self.protect_threading_init_2()
+        self.protect_threading_init_3()
+        self.protect_threading_init_4()
 
     def writeConfig(self, config):
         try:
@@ -113,6 +117,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.Process_list_Menu)
         self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init)#Protection
+        self.ui.Protection_switch_Button_2.clicked.connect(self.protect_threading_init_2)#Protection
+        self.ui.Protection_switch_Button_3.clicked.connect(self.protect_threading_init_3)#Protection
+        self.ui.Protection_switch_Button_4.clicked.connect(self.protect_threading_init_4)#Protection
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.high_sensitivity_switch)#Setting
         self.ui.Language_Traditional_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.Change_language)
@@ -120,7 +127,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_White.clicked.connect(self.Change_Theme)
         self.ui.Theme_Black.clicked.connect(self.Change_Theme)
         self.ui.Theme_Green.clicked.connect(self.Change_Theme)
-        self.ui.Theme_Pink.clicked.connect(self.Change_Theme)
+        self.ui.Theme_Yellow.clicked.connect(self.Change_Theme)
         self.ui.Theme_Blue.clicked.connect(self.Change_Theme)
         self.ui.Theme_Red.clicked.connect(self.Change_Theme)
 
@@ -173,8 +180,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def init_config(self):
         self.Safe = True
-        self.Virus_Scan = False
         self.mbr_value = None
+        self.Virus_Scan = False
+        self.move_windows = False
+        self.mbr_protect_running = True
+        self.reg_protect_running = True
+        self.file_protect_running = True
+        self.process_protect_running = True
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
                 self.mbr_value = f.read(512)
@@ -199,7 +211,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        Thread(target=self.pyas_protect_init).start()
 
     def pyas_bug_log(self, e):
         try:
@@ -250,9 +261,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Disk_Scan_Button.setText(self.text_Translate("全盤掃描"))
         self.ui.Virus_Scan_Solve_Button.setText(self.text_Translate("立即刪除"))
         self.ui.Virus_Scan_Break_Button.setText(self.text_Translate("停止掃描"))
-        self.ui.Protection_title.setText(self.text_Translate("實時防護"))
-        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程中的病毒並刪除"))
+        self.ui.Protection_title.setText(self.text_Translate("進程防護"))
+        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控系統進程並攔截病毒"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
+        self.ui.Protection_title_2.setText(self.text_Translate("檔案防護"))
+        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以監控全盤檔案變更並攔截"))
+        self.ui.Protection_switch_Button_2.setText(self.text_Translate(self.ui.Protection_switch_Button_2.text()))
+        self.ui.Protection_title_3.setText(self.text_Translate("引導防護"))
+        self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以監控系統引導分區並修復"))
+        self.ui.Protection_switch_Button_3.setText(self.text_Translate(self.ui.Protection_switch_Button_3.text()))
+        self.ui.Protection_title_4.setText(self.text_Translate("註冊表防護"))
+        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以監控系統註冊表並修復"))
+        self.ui.Protection_switch_Button_4.setText(self.text_Translate(self.ui.Protection_switch_Button_4.text()))
         self.ui.State_log.setText(self.text_Translate("日誌:"))
         self.ui.System_Tools_Button.setText(self.text_Translate("系統工具"))
         self.ui.Privacy_Tools_Button.setText(self.text_Translate("隱私工具"))
@@ -327,7 +347,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_illustrate.setText(self.text_Translate("請選擇主題"))
         self.ui.Theme_White.setText(self.text_Translate("白色主題"))
         self.ui.Theme_Black.setText(self.text_Translate("黑色主題"))
-        self.ui.Theme_Pink.setText(self.text_Translate("黃色主題"))
+        self.ui.Theme_Yellow.setText(self.text_Translate("黃色主題"))
         self.ui.Theme_Red.setText(self.text_Translate("紅色主題"))
         self.ui.Theme_Green.setText(self.text_Translate("綠色主題"))
         self.ui.Theme_Blue.setText(self.text_Translate("藍色主題"))
@@ -592,7 +612,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         elif self.ui.Theme_Green.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,255,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(130,255,130,255);}""")
-        elif self.ui.Theme_Pink.isChecked():
+        elif self.ui.Theme_Yellow.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,140,255);}""")
         elif self.ui.Theme_Blue.isChecked():
@@ -741,8 +761,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 for func in entry.imports:
                     fn.append(str(func.name, 'utf-8'))
-            if self.high_sensitivity == 0 and fn in function_list:
-                return True
+            if self.high_sensitivity == 0:
+                for vfl in function_list:
+                    if sum(1 for num in fn if num in vfl)/len(fn) >= 1.0:
+                        return True
             elif self.high_sensitivity == 1:
                 for vfl in function_list:
                     if sum(1 for num in fn if num in vfl)/len(fn) >= 0.8:
@@ -1174,94 +1196,152 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 實時防護 #####################################
     
     def protect_threading_init(self):
-        self.ui.State_output.clear()
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            self.protect_running = False
+            self.process_protect_running = False
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('實時防護已關閉'))
+            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('進程防護已關閉'))
         else:
-            self.ui.Protection_illustrate.setText(self.text_Translate("正在初始化中"))
-            Thread(target=self.pyas_protect_init).start()
-
-    def protect_system_processes(self):
-        for p in psutil.process_iter():
-            try:
-                time.sleep(0.0001)
-                file, name = str(p.exe()), str(p.name())
-                if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
-                    continue
-                elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
-                    if p.kill() == None:
-                        ntext = self.text_Translate('成功攔截病毒: ')
-                    else:
-                        ntext = self.text_Translate('病毒攔截失敗: ')
-                    self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), ntext+name)
-            except:
-                continue
-
-    def protect_system_mbr_repair(self):
-        if self.mbr_value != None:
-            try:
-                with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
-                        f.seek(0)
-                        f.write(self.mbr_value)
-                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導扇區: PhysicalDrive0'))
-            except:
-                pass
-
-    def protect_system_reg_repair(self):
-        try:
-            Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
-            'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
-            'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
-            'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
-            'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
-            'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb',\
-            'DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper', 'NoComponents', 'NoAddingComponents', 'Restrict_Run']
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')#創建鍵
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'ActiveDesktop')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS),'MMC')
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS),'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
-            keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
-            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)]
-            for key in keys:
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)#刪除值
-                    except:
-                        pass
-                win32api.RegCloseKey(key)#關閉已打開的鍵
-        except:
-            pass
-
-    def pyas_protect_init(self):
-        if self.ui.Protection_switch_Button.text() == self.text_Translate("已關閉"):
-            self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程中的病毒並刪除"))
+            self.process_protect_running = True
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('實時防護已開啟'))
-            self.protect_running = True
-            while self.protect_running:
-                self.protect_system_processes()
-                self.protect_system_mbr_repair()
-                self.protect_system_reg_repair()
+            Thread(target=self.protect_system_processes).start()
+
+    def protect_threading_init_2(self):
+        if self.ui.Protection_switch_Button_2.text() == self.text_Translate("已開啟"):
+            self.file_protect_running = False
+            self.ui.Protection_switch_Button_2.setText(self.text_Translate("已關閉"))
+            self.ui.Protection_switch_Button_2.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('檔案防護已關閉'))
+        else:
+            self.file_protect_running = True
+            self.ui.Protection_switch_Button_2.setText(self.text_Translate("已開啟"))
+            self.ui.Protection_switch_Button_2.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            for d in range(26):
+                Thread(target=self.protect_system_file, args=(str(chr(65+d)+':\\'),)).start()
+
+    def protect_threading_init_3(self):
+        if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
+            self.mbr_protect_running = False
+            self.ui.Protection_switch_Button_3.setText(self.text_Translate("已關閉"))
+            self.ui.Protection_switch_Button_3.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('引導分區防護已關閉'))
+        else:
+            self.mbr_protect_running = True
+            self.ui.Protection_switch_Button_3.setText(self.text_Translate("已開啟"))
+            self.ui.Protection_switch_Button_3.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            Thread(target=self.protect_system_mbr_repair).start()
+
+    def protect_threading_init_4(self):
+        if self.ui.Protection_switch_Button_4.text() == self.text_Translate("已開啟"):
+            self.reg_protect_running = False
+            self.ui.Protection_switch_Button_4.setText(self.text_Translate("已關閉"))
+            self.ui.Protection_switch_Button_4.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('註冊表防護已關閉'))
+        else:
+            self.reg_protect_running = True
+            self.ui.Protection_switch_Button_4.setText(self.text_Translate("已開啟"))
+            self.ui.Protection_switch_Button_4.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            Thread(target=self.protect_system_reg_repair).start()
+
+    def protect_system_processes(self):
+        while self.process_protect_running:
+            for p in psutil.process_iter():
+                try:
+                    time.sleep(0.001)
+                    file, name = str(p.exe()), str(p.name())
+                    if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
+                        continue
+                    elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
+                        if p.kill() == None:
+                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功攔截病毒: ')+name)
+                except:
+                    continue
+
+    def protect_system_file(self,path):
+        try:
+            hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+            while self.file_protect_running:
+                try:
+                    for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+                        file = str(path+file)
+                        if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
+                            continue
+                        elif action and '.exe' in file and self.sign_scan(file):
+                            if self.pe_scan(file) or self.api_scan('md5', file):
+                                os.remove(file)
+                                self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功刪除病毒: ')+file)
+                except:
+                    continue
+        except:
+            pass
+
+    def protect_system_mbr_repair(self):
+        while self.mbr_protect_running:
+            time.sleep(1)
+            if self.mbr_value != None:
+                try:
+                    with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                        if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                            f.seek(0)
+                            f.write(self.mbr_value)
+                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導分區: PhysicalDrive0'))
+                except:
+                    continue
+
+    def protect_system_reg_repair(self):
+        while self.reg_protect_running:
+            time.sleep(1)
+            try:
+                Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
+                'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
+                'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \
+                'NoStartMenuPinnedList', 'NoActiveDesktop', 'NoSetActiveDesktop', 'NoActiveDesktopChanges', 'NoChangeStartMenu', 'ClearRecentDocsOnExit', \
+                'NoFavoritesMenu', 'NoRecentDocsHistory', 'NoSetTaskbar', 'NoSMHelp', 'NoTrayContextMenu', 'NoViewContextMenu', 'NoWindowsUpdate', \
+                'NoWinKeys', 'StartMenuLogOff', 'NoSimpleNetlDList', 'NoLowDiskSpaceChecks', 'DisableLockWorkstation', 'NoManageMyComputerVerb',\
+                'DisableTaskMgr', 'DisableRegistryTools', 'DisableChangePassword', 'Wallpaper', 'NoComponents', 'NoAddingComponents', 'Restrict_Run']
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')#創建鍵
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'Explorer')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'System')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies',0,win32con.KEY_ALL_ACCESS),'ActiveDesktop')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows',0,win32con.KEY_ALL_ACCESS),'System')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft',0,win32con.KEY_ALL_ACCESS),'MMC')
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC',0,win32con.KEY_ALL_ACCESS),'{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}')
+                keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Policies\Microsoft\Windows\System',0,win32con.KEY_ALL_ACCESS),\
+                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,'Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}',0,win32con.KEY_ALL_ACCESS)]
+                for key in keys:
+                    for i in Permission:
+                        try:
+                            win32api.RegDeleteValue(key,i)#刪除值
+                        except:
+                            pass
+                    win32api.RegCloseKey(key)#關閉已打開的鍵
+            except:
+                pass
 
 ##################################### 主初始化 #####################################
 

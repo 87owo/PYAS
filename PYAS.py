@@ -1233,7 +1233,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_processes, args=([],)).start()
+            Thread(target=self.protect_system_processes).start()
 
     def protect_threading_init_2(self):
         if self.ui.Protection_switch_Button_2.text() == self.text_Translate("已開啟"):
@@ -1285,19 +1285,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             Thread(target=self.protect_system_reg_repair).start()
 
-    def protect_system_processes(self,white_list):
+    def protect_system_processes(self):
         while self.process_protect:
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.001)
                     file, name = str(p.exe()), str(p.name())
-                    if str(sys.argv[0]) == file or file in white_list or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
+                    if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
                         continue
                     elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
                         p.kill()
                         self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功攔截病毒: ')+name)
-                    else:
-                        white_list.append(file)
                 except:
                     pass
 

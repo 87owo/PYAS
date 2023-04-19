@@ -1289,7 +1289,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.process_protect:
             for p in psutil.process_iter():
                 try:
-                    time.sleep(0.001)
+                    time.sleep(0.0001)
                     file, name = str(p.exe()), str(p.name())
                     if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
                         continue

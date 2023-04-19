@@ -24,7 +24,7 @@ from PYAS_UI import Ui_MainWindow
 
 def create_lib():
     try:
-        if not os.path.isdir('Library'):
+        if not os.path.exists('Library'):
             os.makedirs('Library')
     except:
         pass
@@ -64,7 +64,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
         self.ui.Menu_Button.clicked.connect(self.ShowMenu)
         self.ui.State_Button.clicked.connect(self.Change_to_State_widget)
-        self.ui.Protection_Button.clicked.connect(self.Change_to_Rrotection_widget)        
+        self.ui.Protection_Button.clicked.connect(self.Change_to_Protection_widget)        
         self.ui.Virus_Scan_Button.clicked.connect(self.Change_to_Virus_Scan_widget)#Virus_Scan
         self.ui.Virus_Scan_Solve_Button.clicked.connect(self.Virus_Solve)
         self.ui.Virus_Scan_choose_Button.clicked.connect(self.Virus_Scan_Choose_Menu)
@@ -121,6 +121,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Protection_switch_Button_3.clicked.connect(self.protect_threading_init_3)#Protection
         self.ui.Protection_switch_Button_4.clicked.connect(self.protect_threading_init_4)#Protection
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.high_sensitivity_switch)#Setting
+        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_services_switch)#Setting
         self.ui.Language_Traditional_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.Change_language)
         self.ui.Languahe_English.clicked.connect(self.Change_language)
@@ -182,11 +183,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Safe = True
         self.mbr_value = None
         self.Virus_Scan = False
-        self.move_windows = False
-        self.mbr_protect_running = True
-        self.reg_protect_running = True
-        self.file_protect_running = True
-        self.process_protect_running = True
+        self.mbr_protect = True
+        self.reg_protect = True
+        self.file_protect = True
+        self.process_protect = True
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
                 self.mbr_value = f.read(512)
@@ -209,8 +209,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if self.high_sensitivity == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        self.cloud_services = 1
+        self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
+        self.ui.cloud_services_switch_Button.setStyleSheet("""
+        QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+        QPushButton:hover{background-color:rgba(20,200,20,120);}""")
 
     def pyas_bug_log(self, e):
         try:
@@ -262,16 +267,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Virus_Scan_Solve_Button.setText(self.text_Translate("立即刪除"))
         self.ui.Virus_Scan_Break_Button.setText(self.text_Translate("停止掃描"))
         self.ui.Protection_title.setText(self.text_Translate("進程防護"))
-        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控系統進程並攔截病毒"))
+        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程並攔截病毒"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.Protection_title_2.setText(self.text_Translate("檔案防護"))
-        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以監控全盤檔案變更並攔截"))
+        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以刪除病毒檔案變更"))
         self.ui.Protection_switch_Button_2.setText(self.text_Translate(self.ui.Protection_switch_Button_2.text()))
         self.ui.Protection_title_3.setText(self.text_Translate("引導防護"))
-        self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以監控系統引導分區並修復"))
+        self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以修復系統引導分區"))
         self.ui.Protection_switch_Button_3.setText(self.text_Translate(self.ui.Protection_switch_Button_3.text()))
         self.ui.Protection_title_4.setText(self.text_Translate("註冊表防護"))
-        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以監控系統註冊表並修復"))
+        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以修復系統註冊表"))
         self.ui.Protection_switch_Button_4.setText(self.text_Translate(self.ui.Protection_switch_Button_4.text()))
         self.ui.State_log.setText(self.text_Translate("日誌:"))
         self.ui.System_Tools_Button.setText(self.text_Translate("系統工具"))
@@ -337,8 +342,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_Run_Button.setText(self.text_Translate("確定"))
         self.ui.Value_HEKY_title.setText(self.text_Translate("值HEKY:"))
         self.ui.high_sensitivity_title.setText(self.text_Translate("高靈敏度模式"))
-        self.ui.high_sensitivity_illustrate.setText(self.text_Translate("啟用此選項可以提高掃描靈敏度，但這也可能會造成誤殺檔案"))
+        self.ui.high_sensitivity_illustrate.setText(self.text_Translate("啟用此選項可以提高掃描的靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
+        self.ui.cloud_services_title.setText(self.text_Translate("雲端掃描服務"))
+        self.ui.cloud_services_illustrate.setText(self.text_Translate("啟用此選項可以掃描更多檔案類型"))
+        self.ui.cloud_services_switch_Button.setText(self.text_Translate(self.ui.cloud_services_switch_Button.text()))
         self.ui.Setting_Back.setText(self.text_Translate("返回"))
         self.ui.Language_title.setText(self.text_Translate("語言"))
         self.ui.Language_illustrate.setText(self.text_Translate("請選擇語言"))
@@ -429,7 +437,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_State_widget(self):
         if self.ui.State_widget.isHidden():#isHidden()函數用意是偵測物件是否在隱藏狀態
-            self.Change_animation_2(25,41)
+            self.Change_animation_2(25,50)
             self.Change_animation_3(self.ui.State_widget,0.5)
             self.Change_animation(self.ui.State_widget)
             self.ui.State_widget.show()#show()函數用意是讓隱藏函數顯示出來
@@ -453,7 +461,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_Virus_Scan_widget(self):
         if self.ui.Virus_Scan_widget.isHidden():
-            self.Change_animation_2(25,164)
+            self.Change_animation_2(25,168)
             self.Change_animation_3(self.ui.Virus_Scan_widget,0.5)
             self.Change_animation(self.ui.Virus_Scan_widget)
             self.ui.State_widget.hide()
@@ -477,7 +485,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_Tools_widget(self):
         if self.ui.Tools_widget.isHidden():
-            self.Change_animation_2(25,287)
+            self.Change_animation_2(25,285)
             self.Change_animation_3(self.ui.Tools_widget,0.5)
             self.Change_animation(self.ui.Tools_widget)
             self.ui.State_widget.hide()
@@ -499,9 +507,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Customize_REG_Command_widget.hide()
             self.ui.Setting_widget.hide()
 
-    def Change_to_Rrotection_widget(self):
+    def Change_to_Protection_widget(self):
         if self.ui.Protection_widget.isHidden():
-            self.Change_animation_2(25,410)
+            self.Change_animation_2(25,405)
             self.Change_animation_3(self.ui.Protection_widget,0.5)
             self.Change_animation(self.ui.Protection_widget)
             self.ui.State_widget.hide()
@@ -579,23 +587,38 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             sw_state = self.ui.high_sensitivity_switch_Button.text()
             if sw_state == self.text_Translate("已關閉"):
+                self.high_sensitivity = 1
                 self.pyasConfig['high_sensitivity'] = 1
                 self.writeConfig(self.pyasConfig)
                 self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
                 self.ui.high_sensitivity_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-                self.high_sensitivity = 1
             elif sw_state == self.text_Translate("已開啟"):
+                self.high_sensitivity = 0
                 self.pyasConfig['high_sensitivity'] = 0
                 self.writeConfig(self.pyasConfig)
                 self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
                 self.ui.high_sensitivity_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
                 QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-                self.high_sensitivity = 0
         except:
             self.writeConfig({'high_sensitivity': 0,'language': 'en_US'})
+
+    def cloud_services_switch(self):
+        sw_state = self.ui.cloud_services_switch_Button.text()
+        if sw_state == self.text_Translate("已關閉"):
+            self.cloud_services = 1
+            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.cloud_services_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        elif sw_state == self.text_Translate("已開啟"):
+            self.cloud_services = 0
+            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已關閉"))
+            self.ui.cloud_services_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
 
 ##################################### 主題顏色 #####################################
     
@@ -629,7 +652,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
             event.accept()
             while self.ui.pyas_opacity > 60 and self.m_flag == True:
-                time.sleep(0.003)
+                time.sleep(0.002)
                 self.ui.pyas_opacity -= 1
                 self.setWindowOpacity(self.ui.pyas_opacity/100)
                 QApplication.processEvents()
@@ -647,7 +670,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.m_flag=False
         self.setCursor(QCursor(Qt.ArrowCursor))
         while self.ui.pyas_opacity < 100 and self.m_flag == False:
-            time.sleep(0.003)
+            time.sleep(0.002)
             self.ui.pyas_opacity += 1
             self.setWindowOpacity(self.ui.pyas_opacity/100)
             QApplication.processEvents()
@@ -738,10 +761,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def api_scan(self, types, file):
         try:
-            with open(file, "rb") as f:
-                file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=2)
-            return response.status_code == 200 and response.text == 'True'
+            if self.cloud_services == 1:
+                with open(file, "rb") as f:
+                    file_md5 = str(md5(f.read()).hexdigest())
+                response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=2)
+                return response.status_code == 200 and response.text == 'True'
         except:
             return False # 無惡意
 
@@ -1197,47 +1221,48 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def protect_threading_init(self):
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            self.process_protect_running = False
+            self.process_protect = False
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('進程防護已關閉'))
         else:
-            self.process_protect_running = True
+            self.process_protect = True
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_processes).start()
+            Thread(target=self.protect_system_processes, args=([],)).start()
 
     def protect_threading_init_2(self):
         if self.ui.Protection_switch_Button_2.text() == self.text_Translate("已開啟"):
-            self.file_protect_running = False
+            self.file_protect = False
             self.ui.Protection_switch_Button_2.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('檔案防護已關閉'))
         else:
-            self.file_protect_running = True
+            self.file_protect = True
             self.ui.Protection_switch_Button_2.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             for d in range(26):
-                Thread(target=self.protect_system_file, args=(str(chr(65+d)+':\\'),)).start()
+                if os.path.exists(str(chr(65+d)+':\\')):
+                    Thread(target=self.protect_system_file, args=(str(chr(65+d)+':\\'),)).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
-            self.mbr_protect_running = False
+            self.mbr_protect = False
             self.ui.Protection_switch_Button_3.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button_3.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('引導分區防護已關閉'))
         else:
-            self.mbr_protect_running = True
+            self.mbr_protect = True
             self.ui.Protection_switch_Button_3.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button_3.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
@@ -1246,69 +1271,67 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def protect_threading_init_4(self):
         if self.ui.Protection_switch_Button_4.text() == self.text_Translate("已開啟"):
-            self.reg_protect_running = False
+            self.reg_protect = False
             self.ui.Protection_switch_Button_4.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button_4.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('註冊表防護已關閉'))
         else:
-            self.reg_protect_running = True
+            self.reg_protect = True
             self.ui.Protection_switch_Button_4.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button_4.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             Thread(target=self.protect_system_reg_repair).start()
 
-    def protect_system_processes(self):
-        while self.process_protect_running:
+    def protect_system_processes(self,white_list):
+        while self.process_protect:
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.001)
                     file, name = str(p.exe()), str(p.name())
-                    if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
+                    if str(sys.argv[0]) == file or file in white_list or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
                         continue
                     elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
-                        if p.kill() == None:
-                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功攔截病毒: ')+name)
+                        p.kill()
+                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功攔截病毒: ')+name)
+                    else:
+                        white_list.append(file)
                 except:
-                    continue
+                    pass
 
     def protect_system_file(self,path):
-        try:
-            hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
-            while self.file_protect_running:
-                try:
-                    for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
-                        file = str(path+file)
-                        if str(sys.argv[0]) == file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
-                            continue
-                        elif action and '.exe' in file and self.sign_scan(file):
-                            if self.pe_scan(file) or self.api_scan('md5', file):
-                                os.remove(file)
-                                self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功刪除病毒: ')+file)
-                except:
-                    continue
-        except:
-            pass
+        hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        while self.file_protect:
+            try:
+                for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+                    file = str(path+file)
+                    if str(sys.argv[0]) == file or ':\$Recycle.Bin' in file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
+                        continue
+                    elif action and os.path.isfile(file) and self.sign_scan(file):
+                        if self.pe_scan(file) or self.api_scan('md5', file):
+                            os.remove(file)
+                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功刪除病毒: ')+file)
+            except:
+                pass
 
     def protect_system_mbr_repair(self):
-        while self.mbr_protect_running:
-            time.sleep(1)
-            if self.mbr_value != None:
-                try:
-                    with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                        if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
-                            f.seek(0)
-                            f.write(self.mbr_value)
-                            self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導分區: PhysicalDrive0'))
-                except:
-                    continue
+        while self.mbr_protect and self.mbr_value != None:
+            try:
+                time.sleep(0.5)
+                with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                    if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                        f.seek(0)
+                        f.write(self.mbr_value)
+                        self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'),self.text_Translate('成功修復引導分區: PhysicalDrive0'))
+            except:
+                pass
 
     def protect_system_reg_repair(self):
-        while self.reg_protect_running:
-            time.sleep(1)
+        while self.reg_protect:
             try:
+                time.sleep(0.5)
                 Permission = ['NoControlPanel', 'NoDrives', 'NoControlPanel', 'NoFileMenu', 'NoFind', 'NoRealMode', 'NoRecentDocsMenu','NoSetFolders', \
                 'NoSetFolderOptions', 'NoViewOnDrive', 'NoClose', 'NoRun', 'NoDesktop', 'NoLogOff', 'NoFolderOptions', 'RestrictRun','DisableCMD', \
                 'NoViewContexMenu', 'HideClock', 'NoStartMenuMorePrograms', 'NoStartMenuMyGames', 'NoStartMenuMyMusic' 'NoStartMenuNetworkPlaces', \

@@ -795,7 +795,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         return True
             elif self.high_sensitivity == 1:
                 for vfl in function_list:
-                    if sum(1 for num in fn if num in vfl)/len(vfl) - sum(1 for num in fn if num not in vfl)/len(vfl) >= 1.0:
+                    if sum(1 for num in fn if num in vfl)/len(vfl) - sum(1 for num in fn if num not in vfl)/len(vfl) >= 0.8:
                         return True
             return False
         except:

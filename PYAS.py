@@ -930,7 +930,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     else:
                         self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
                         QApplication.processEvents()
-                        if str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):
+                        if self.high_sensitivity == 0 and str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):
+                            if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
+                                self.write_scan(fullpath)
+                        elif self.high_sensitivity == 1 and self.sign_scan(fullpath):
                             if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
                                 self.write_scan(fullpath)
             except:
@@ -1298,6 +1301,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pass
 
     def protect_system_file(self,path):
+        sflist = ['.exe','.com','.dll','.elf','.vbs']
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
@@ -1305,7 +1309,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file = str(path+file)
                     if str(sys.argv[0]) == file or ':\$Recycle.Bin' in file or ':\Windows' in file or ':\Program' in file or ':\XboxGames' in file or 'AppData' in file:
                         continue
-                    elif action and os.path.isfile(file) and self.sign_scan(file):
+                    elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
                         if self.pe_scan(file) or self.api_scan('md5', file):
                             os.remove(file)
                             self.system_notification(time.strftime('%Y/%m/%d %H:%M:%S'), self.text_Translate('成功刪除病毒: ')+file)

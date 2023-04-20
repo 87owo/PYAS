@@ -766,14 +766,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file_md5 = str(md5(f.read()).hexdigest())
                 response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=2)
                 return response.status_code == 200 and response.text == 'True'
+            return False # 無惡意
         except:
             return False # 無惡意
 
     def sign_scan(self, file):
         try:
-            pe = PE(file, fast_load=True)
-            pe.close()
-            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
+            if self.high_sensitivity == 0:
+                pe = PE(file, fast_load=True)
+                pe.close()
+                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']].VirtualAddress == 0
+            return True # 未簽名
         except:
             return True # 未簽名
 
@@ -787,11 +790,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     fn.append(str(func.name, 'utf-8'))
             if self.high_sensitivity == 0:
                 for vfl in function_list:
-                    if sum(1 for num in fn if num in vfl)/len(fn) >= 1.0:
+                    if sum(1 for num in fn if num in vfl)/len(vfl) - sum(1 for num in fn if num not in vfl)/len(vfl) == 1.0:
+                        print(vfl)
                         return True
             elif self.high_sensitivity == 1:
                 for vfl in function_list:
-                    if sum(1 for num in fn if num in vfl)/len(fn) >= 0.8:
+                    if sum(1 for num in fn if num in vfl)/len(vfl) - sum(1 for num in fn if num not in vfl)/len(vfl) >= 1.0:
                         return True
             return False
         except:
@@ -850,12 +854,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中..."))
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                if self.high_sensitivity == 0 and self.sign_scan(file):
+                if self.sign_scan(file):
                     if self.pe_scan(file) or self.api_scan('md5', file):
                         self.write_scan(file)
-                elif self.high_sensitivity == 1:
-                    if self.pe_scan(file) or self.api_scan('md5', file):
-                        self.write_scan(file)#寫入發現病毒
                 self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -914,7 +915,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
 
     def traverse_path(self,path,rfp):
-        sflist = ['.exe','.dll','.com','.bat','.vbs','.htm','.js','.jar','.doc','.xml','.msi','.scr','.cpl']
+        sflist = ['.exe','.com','.xlsx','.dll','.elf','.docx','.xls','.xlsb','.doc','.vbs']
         for fd in os.listdir(path):# 遍歷檔案
             try:
                 if not self.Virus_Scan:
@@ -929,12 +930,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     else:
                         self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
                         QApplication.processEvents()
-                        if self.high_sensitivity == 0 and self.sign_scan(fullpath) and str(os.path.splitext(fd)[1]).lower() in sflist:
+                        if str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):
                             if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
                                 self.write_scan(fullpath)
-                        elif self.high_sensitivity == 1:
-                            if self.pe_scan(fullpath) or self.api_scan('md5', fullpath):
-                                self.write_scan(fullpath)#寫入發現病毒
             except:
                 continue
 

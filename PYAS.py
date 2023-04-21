@@ -717,7 +717,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def system_notification(self,text):
         try:
-            self.ui.State_output.append(f"[{time.strftime('%Y/%m/%d %H:%M:%S')}] {text}")
+            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+            self.ui.State_output.append(f"[{now_time}] {text}")
             self.tray_icon.showMessage(now_time, text, 5)
         except Exception as e:
             self.pyas_bug_log(e)
@@ -790,12 +791,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     fn.append(str(func.name, "utf-8"))
             if self.high_sensitivity == 0:
                 for vfl in function_list:
-                    if sum(1 for num in fn if num in vfl)/len(vfl) - sum(1 for num in fn if num not in vfl)/len(vfl) == 1.0:
-                        print(vfl)
+                    if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) == 1.0:
                         return True
             elif self.high_sensitivity == 1:
                 for vfl in function_list:
-                    if sum(1 for num in fn if num in vfl)/len(vfl) - sum(1 for num in fn if num not in vfl)/len(vfl) >= 0.8:
+                    if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) >= 0.8:
                         return True
             return False
         except:

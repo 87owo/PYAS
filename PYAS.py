@@ -181,19 +181,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def init_config(self):
         self.Safe = True
-        self.mbr_value = None
         self.Virus_Scan = False
-        self.mbr_protect = True
-        self.reg_protect = True
-        self.file_protect = True
-        self.process_protect = True
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
                 self.mbr_value = f.read(512)
-        except Exception as e:
-            self.pyas_bug_log(e)
+        except:
+            self.mbr_value = None
         if not os.path.exists("Library/PYAS.json"):
-            self.writeConfig({"high_sensitivity":0,"language":"en_US"})
+            self.writeConfig({"language":"en_US","high_sensitivity":0,"cloud_services":1})
         with open("Library/PYAS.json", "r", encoding="utf-8") as f:
             self.pyasConfig = json.load(f)
         self.ui.Theme_White.setChecked(True)
@@ -211,11 +206,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        self.cloud_services = 1
-        self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
-        self.ui.cloud_services_switch_Button.setStyleSheet("""
-        QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-        QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        self.cloud_services = self.pyasConfig.get("cloud_services", 1)
+        if self.cloud_services == 1:
+            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.cloud_services_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
 
     def pyas_bug_log(self, e):
         try:
@@ -609,12 +605,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         sw_state = self.ui.cloud_services_switch_Button.text()
         if sw_state == self.text_Translate("已關閉"):
             self.cloud_services = 1
+            self.pyasConfig["cloud_services"] = 1
+            self.writeConfig(self.pyasConfig)
             self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         elif sw_state == self.text_Translate("已開啟"):
             self.cloud_services = 0
+            self.pyasConfig["cloud_services"] = 0
+            self.writeConfig(self.pyasConfig)
             self.ui.cloud_services_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
@@ -624,21 +624,33 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def Change_Theme(self):
         if self.ui.Theme_Red.isChecked():
+            self.pyasConfig["color_theme"] = "red"
+            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,150,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,140,140,255);}""")
         elif self.ui.Theme_White.isChecked():
+            self.pyasConfig["color_theme"] = "white"
+            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,255,240);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,240,255);}""")
         elif self.ui.Theme_Black.isChecked():
+            self.pyasConfig["color_theme"] = "black"
+            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,150,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(140,140,140,255);}""")
         elif self.ui.Theme_Green.isChecked():
+            self.pyasConfig["color_theme"] = "green"
+            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,255,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(130,255,130,255);}""")
         elif self.ui.Theme_Yellow.isChecked():
+            self.pyasConfig["color_theme"] = "yellow"
+            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,140,255);}""")
         elif self.ui.Theme_Blue.isChecked():
+            self.pyasConfig["color_theme"] = "blue"
+            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,200,255,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,190,255,255);}""")
 
@@ -918,22 +930,22 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         sflist = [".exe",".com",".xlsx",".dll",".elf",".docx",".xls",".xlsb",".doc",".vbs"]
         for fd in os.listdir(path):# 遍歷檔案
             try:
-                if not self.Virus_Scan:
+                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                if self.Virus_Scan == False:
                     self.ui.Virus_Scan_Break_Button.hide()
                     break
+                elif ":/Windows" in fullpath or ":/$Recycle.Bin" in fullpath or "AppData" in fullpath:#路徑過濾
+                    continue
+                elif os.path.isdir(fullpath):# 深入遍歷
+                    self.traverse_path(fullpath,rfp)
                 else:
-                    fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                    if ":/Windows" in fullpath or ":/$Recycle.Bin" in fullpath or "AppData" in fullpath:#路徑過濾
-                        continue
-                    elif os.path.isdir(fullpath):# 深入遍歷
-                        self.traverse_path(fullpath,rfp)
-                    else:
-                        self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
-                        QApplication.processEvents()
-                        if self.high_sensitivity == 0 and str(os.path.splitext(fd)[1]).lower() in sflist and self.sign_scan(fullpath):
+                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
+                    QApplication.processEvents()
+                    if self.sign_scan(fullpath):
+                        if self.high_sensitivity == 1:
                             if self.pe_scan(fullpath) or self.api_scan("md5", fullpath):
                                 self.write_scan(fullpath)
-                        elif self.high_sensitivity == 1 and self.sign_scan(fullpath):
+                        elif str(os.path.splitext(fd)[1]).lower() in sflist:
                             if self.pe_scan(fullpath) or self.api_scan("md5", fullpath):
                                 self.write_scan(fullpath)
             except:
@@ -1220,14 +1232,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def protect_threading_init(self):
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
-            self.process_protect = False
+            self.proc_protect = False
             self.ui.Protection_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
             self.system_notification(self.text_Translate("進程防護已關閉"))
         else:
-            self.process_protect = True
+            self.proc_protect = True
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
@@ -1285,7 +1297,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target=self.protect_system_reg_repair).start()
 
     def protect_system_processes(self):
-        while self.process_protect:
+        while self.proc_protect:
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.0001)

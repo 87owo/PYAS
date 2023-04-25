@@ -7,8 +7,11 @@
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 
-import time, requests, socket, win32file, win32api, win32con
-import os, sys, json, psutil, struct, subprocess, cryptocode
+###################################### 加載模組 #####################################
+
+import os, sys, time, json, psutil, struct
+import win32file, win32api, win32con, socket
+import requests, subprocess, cryptocode
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_Language import translations
@@ -20,35 +23,41 @@ from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PYAS_UI import Ui_MainWindow
 
-##################################### 資料庫管理 ####################################
-
-def create_lib():
-    try:
-        if not os.path.exists("Library"):
-            os.makedirs("Library")
-    except:
-        pass
-
 ###################################### 主要程式 #####################################
 
 class MainWindow_Controller(QtWidgets.QMainWindow):
     def __init__(self):
         super(MainWindow_Controller, self).__init__()
-        self.ui = Ui_MainWindow() #繼承
-        self.ui.pyas_opacity = 0
-        self.setAttribute(Qt.WA_TranslucentBackground) #去掉邊框
-        self.setWindowFlags(Qt.FramelessWindowHint) #取消使用Windows預設得窗口模式
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.ui = Ui_MainWindow()
+        self.create_library()
+        self.tray_icon_start()
+        self.ui.setupUi(self)
+        self.init_config()
+        self.init_config_ui()
+        self.setup_control()
+        self.show_pyas_ui()
+        self.protect_start()
+
+    def tray_icon_start(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon("Library/ICON.ico"))
         self.tray_icon.activated.connect(self.onTrayIconActivated)
         self.tray_icon.show()
-        self.ui.setupUi(self)
-        self.setup_control()
-        self.show_pyas_ui()
+
+    def protect_start(self):
         self.protect_threading_init()
         self.protect_threading_init_2()
         self.protect_threading_init_3()
         self.protect_threading_init_4()
+
+    def create_library(self):
+        try:
+            if not os.path.exists("Library"):
+                os.makedirs("Library")
+        except:
+            pass
 
     def writeConfig(self, config):
         try:
@@ -57,22 +66,67 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             self.pyas_bug_log(e)
 
+    def init_config(self):
+        self.Safe = True
+        self.Virus_Scan = False
+        self.pyas_opacity = 0
+        self.ui.Theme_White.setChecked(True)
+        self.mbr_value = self.init_config_mbr()
+        self.pyasConfig = self.init_config_json()
+        self.init_config_lang()
+        self.init_config_sens()
+
+    def init_config_mbr(self):
+        try:
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                return f.read(512)
+        except:
+            return None
+
+    def init_config_json(self):
+        if not os.path.exists("Library/PYAS.json"):
+            self.writeConfig({"language":"en_US","high_sensitivity":0,"cloud_services":1})
+        with open("Library/PYAS.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def init_config_lang(self):
+        self.language = self.pyasConfig.get("language", "en_US")
+        if self.language == "zh_TW":
+            self.ui.Language_Traditional_Chinese.setChecked(True)
+        elif self.language == "zh_CN":
+            self.ui.Language_Simplified_Chinese.setChecked(True)
+        else:
+            self.ui.Languahe_English.setChecked(True)
+        self.lang_init_refresh()
+
+    def init_config_sens(self):
+        self.high_sensitivity = self.pyasConfig.get("high_sensitivity", 0)
+        if self.high_sensitivity == 1:
+            self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        self.cloud_services = self.pyasConfig.get("cloud_services", 1)
+        if self.cloud_services == 1:
+            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.cloud_services_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+
     def setup_control(self):
-        self.init_config()#調用本地函數"init_config"
-        self.init_config_ui()#調用本地函數"init_config"
-        self.ui.Close_Button.clicked.connect(self.close)#讓物件名稱"Close_Button"連接到函數"close"
+        self.ui.Close_Button.clicked.connect(self.close)
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
         self.ui.Menu_Button.clicked.connect(self.ShowMenu)
         self.ui.State_Button.clicked.connect(self.Change_to_State_widget)
         self.ui.Protection_Button.clicked.connect(self.Change_to_Protection_widget)        
-        self.ui.Virus_Scan_Button.clicked.connect(self.Change_to_Virus_Scan_widget)#Virus_Scan
+        self.ui.Virus_Scan_Button.clicked.connect(self.Change_to_Virus_Scan_widget)
         self.ui.Virus_Scan_Solve_Button.clicked.connect(self.Virus_Solve)
         self.ui.Virus_Scan_choose_Button.clicked.connect(self.Virus_Scan_Choose_Menu)
         self.ui.Virus_Scan_Break_Button.clicked.connect(self.Virus_Scan_Break)
-        self.ui.File_Scan_Button.clicked.connect(self.file_scan)#讓物件名稱"File_Scan_Button"連接到本地函數"File_Scan"
+        self.ui.File_Scan_Button.clicked.connect(self.file_scan)
         self.ui.Path_Scan_Button.clicked.connect(self.path_scan)
         self.ui.Disk_Scan_Button.clicked.connect(self.disk_scan)
-        self.ui.Tools_Button.clicked.connect(self.Change_to_Tools_widget)#More_Tools
+        self.ui.Tools_Button.clicked.connect(self.Change_to_Tools_widget)
         self.ui.System_Tools_Button.clicked.connect(lambda:self.Change_Tools(self.ui.System_Tools_widget))
         self.ui.System_Tools_Back.clicked.connect(lambda:self.Back_To_More_Tools(self.ui.System_Tools_widget))
         self.ui.Privacy_Tools_Button.clicked.connect(lambda:self.Change_Tools(self.ui.Privacy_Tools_widget))
@@ -116,12 +170,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_Run_Button.clicked.connect(self.Customize_REG_Command)
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.Process_list_Menu)
-        self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init)#Protection
-        self.ui.Protection_switch_Button_2.clicked.connect(self.protect_threading_init_2)#Protection
-        self.ui.Protection_switch_Button_3.clicked.connect(self.protect_threading_init_3)#Protection
-        self.ui.Protection_switch_Button_4.clicked.connect(self.protect_threading_init_4)#Protection
-        self.ui.high_sensitivity_switch_Button.clicked.connect(self.high_sensitivity_switch)#Setting
-        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_services_switch)#Setting
+        self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init)
+        self.ui.Protection_switch_Button_2.clicked.connect(self.protect_threading_init_2)
+        self.ui.Protection_switch_Button_3.clicked.connect(self.protect_threading_init_3)
+        self.ui.Protection_switch_Button_4.clicked.connect(self.protect_threading_init_4)
+        self.ui.high_sensitivity_switch_Button.clicked.connect(self.high_sensitivity_switch)
+        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_services_switch)
         self.ui.Language_Traditional_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.Change_language)
         self.ui.Languahe_English.clicked.connect(self.Change_language)
@@ -143,9 +197,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Process_Timer.timeout.connect(self.Process_list)
         self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
         self.effect_shadow = QtWidgets.QGraphicsDropShadowEffect(self)
-        self.effect_shadow.setOffset(0,0) # 偏移
-        self.effect_shadow.setBlurRadius(10) # 陰影半徑
-        self.effect_shadow.setColor(QtCore.Qt.gray) # 陰影颜色
+        self.effect_shadow.setOffset(0,0)
+        self.effect_shadow.setBlurRadius(10)
+        self.effect_shadow.setColor(QtCore.Qt.gray)
         self.ui.widget_2.setGraphicsEffect(self.effect_shadow)
         self.effect_shadow2 = QtWidgets.QGraphicsDropShadowEffect(self)
         self.effect_shadow2.setOffset(0,0)
@@ -157,7 +211,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.effect_shadow3.setBlurRadius(7)
         self.effect_shadow3.setColor(QtCore.Qt.gray) 
         self.ui.Window_widget.setGraphicsEffect(self.effect_shadow3)
-        self.ui.Virus_Scan_choose_widget.hide()#hide()函數的用意是隱藏物件
+        self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_widget.hide()
         self.ui.Tools_widget.hide()
         self.ui.Protection_widget.hide()
@@ -179,49 +233,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_widget.hide()
         self.ui.Setting_widget.hide()
 
-    def init_config(self):
-        self.Safe = True
-        self.Virus_Scan = False
-        try:
-            with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(512)
-        except:
-            self.mbr_value = None
-        if not os.path.exists("Library/PYAS.json"):
-            self.writeConfig({"language":"en_US","high_sensitivity":0,"cloud_services":1})
-        with open("Library/PYAS.json", "r", encoding="utf-8") as f:
-            self.pyasConfig = json.load(f)
-        self.ui.Theme_White.setChecked(True)
-        language = self.pyasConfig.get("language", "en_US")
-        if language == "zh_TW":
-            self.ui.Language_Traditional_Chinese.setChecked(True)
-        elif language == "zh_CN":
-            self.ui.Language_Simplified_Chinese.setChecked(True)
-        else:
-            self.ui.Languahe_English.setChecked(True)
-        self.lang_init_refresh()
-        self.high_sensitivity = self.pyasConfig.get("high_sensitivity", 0)
-        if self.high_sensitivity == 1:
-            self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
-            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        self.cloud_services = self.pyasConfig.get("cloud_services", 1)
-        if self.cloud_services == 1:
-            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
-            self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+###################################### 語言翻譯 #####################################
 
-    def pyas_bug_log(self, e):
-        try:
-            print(f"[Error] {e}")
-            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate(f"錯誤: {e}"),QMessageBox.Ok)
-        except:
-            pass
-
-################################### 翻譯及更改語言 ###################################
-    
     def Change_language(self):
         try:
             self.ui.State_output.clear()
@@ -243,8 +256,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             text = text.replace(str(k), str(v))
         return text
 
-##################################### 繁中初始化 ####################################
-    
     def lang_init_refresh(self):
         self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.Safe else "此裝置當前不安全"))
         self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} (安全密鑰錯誤)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
@@ -356,18 +367,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Theme_Green.setText(self.text_Translate("綠色主題"))
         self.ui.Theme_Blue.setText(self.text_Translate("藍色主題"))
 
-################################### 視窗動畫特效 ####################################
-    
+###################################### 視窗動畫 #####################################
+
     def Change_animation(self,widget):
         x = 170
-        y = widget.pos().y()#獲取物件的y軸座標
-        self.anim = QPropertyAnimation(widget, b"geometry")#動畫
-        widget.setGeometry(QtCore.QRect(x - 100,y, 671,481))#設定物件"widget"的座標大小
+        y = widget.pos().y()
+        self.anim = QPropertyAnimation(widget, b"geometry")
+        widget.setGeometry(QtCore.QRect(x - 100,y, 671,481))
         self.anim.setKeyValueAt(0.2, QRect(x - 60,y,671,481))
         self.anim.setKeyValueAt(0.4, QRect(x - 10,y,671,481))
         self.anim.setKeyValueAt(0.7, QRect(x - 3,y,671,481))
         self.anim.setKeyValueAt(1, QRect(x,y,671,481))
-        self.anim.start()#動畫開始
+        self.anim.start()
 
     def Change_animation_2(self,nx,ny):
         x = self.ui.label.pos().x()
@@ -388,9 +399,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.anim2.setKeyValueAt(0.9, QRect(nx,ny - 2, 5, 31))
             self.anim2.setKeyValueAt(1, QRect(nx,ny, 5, 30))
         self.anim2.start()
-    
-    def Change_animation_3(self,widget,time):#這裡是設定透明度
-        self.opacity = QtWidgets.QGraphicsOpacityEffect()#if self.Virus_Scan != 1:
+
+    def Change_animation_3(self,widget,time):
+        self.opacity = QtWidgets.QGraphicsOpacityEffect()
         self.opacity.setOpacity(0)
         widget.setGraphicsEffect(self.opacity)
         widget.setAutoFillBackground(True)
@@ -405,17 +416,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.anim4.setEndValue(QRect(x, y, 141, ny2))
         self.anim4.start()
 
-    def Change_animation5(self,widget,x1,y1,nx,ny):
-        x = x1
-        y = y1
-        self.anim = QPropertyAnimation(widget, b"geometry")#動畫
-        widget.setGeometry(QtCore.QRect(x,y - 45, nx,ny))#設定物件"widget"的座標大小
+    def Change_animation5(self,widget,x,y,nx,ny):
+        self.anim = QPropertyAnimation(widget, b"geometry")
+        widget.setGeometry(QtCore.QRect(x,y - 45, nx,ny))
         self.anim.setKeyValueAt(0.2, QRect(x,y - 30,nx,ny))
         self.anim.setKeyValueAt(0.4, QRect(x,y - 10,nx,ny))
         self.anim.setKeyValueAt(0.7, QRect(x,y - 3,nx,ny))
         self.anim.setKeyValueAt(1, QRect(x,y,nx,ny))
-        self.anim.start()#動畫開始
-
+        self.anim.start()
 
     def draw(self,widget,time):
         self.opacity.i = 1
@@ -431,12 +439,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.timer.timeout.connect(timeout)
         self.timer.start()
 
+###################################### 切換視窗 #####################################
+
     def Change_to_State_widget(self):
-        if self.ui.State_widget.isHidden():#isHidden()函數用意是偵測物件是否在隱藏狀態
+        if self.ui.State_widget.isHidden():
             self.Change_animation_2(25,50)
             self.Change_animation_3(self.ui.State_widget,0.5)
             self.Change_animation(self.ui.State_widget)
-            self.ui.State_widget.show()#show()函數用意是讓隱藏函數顯示出來
+            self.ui.State_widget.show()
             self.ui.Virus_Scan_widget.hide()
             self.ui.Tools_widget.hide()
             self.ui.Protection_widget.hide()
@@ -551,75 +561,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Change_animation(self.ui.Tools_widget)
         self.ui.Tools_widget.show()
 
-##################################### 系統設置 #####################################
-
-    def ShowMenu(self):
-        self.WindowMenu = QMenu()
-        Main_Settings = QAction(self.text_Translate("設定"),self)
-        Main_About = QAction(self.text_Translate("關於"),self)
-        self.WindowMenu.addAction(Main_Settings)
-        self.WindowMenu.addAction(Main_About)
-        pos = QtCore.QPoint(0, 30)
-        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(pos))
-        if Qusetion == Main_About:
-            if self.ui.About_widget.isHidden():
-                self.ui.About_widget.show()
-                self.ui.About_widget.raise_()
-                self.ui.Navigation_Bar.raise_()
-                self.ui.Window_widget.raise_()
-                self.Change_animation_3(self.ui.About_widget,0.5)
-                self.Change_animation5(self.ui.About_widget,170,50,671,481)
-                self.Setting_Back()
-        if Qusetion == Main_Settings:
-            if self.ui.Setting_widget.isHidden():
-                self.ui.Setting_widget.show()
-                self.ui.About_widget.hide()
-                self.ui.Setting_widget.raise_()
-                self.ui.Window_widget.raise_()
-                self.Change_animation_3(self.ui.Setting_widget,0.5)
-                self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
-
-    def high_sensitivity_switch(self):
-        try:
-            sw_state = self.ui.high_sensitivity_switch_Button.text()
-            if sw_state == self.text_Translate("已關閉"):
-                self.high_sensitivity = 1
-                self.pyasConfig["high_sensitivity"] = 1
-                self.writeConfig(self.pyasConfig)
-                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
-                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            elif sw_state == self.text_Translate("已開啟"):
-                self.high_sensitivity = 0
-                self.pyasConfig["high_sensitivity"] = 0
-                self.writeConfig(self.pyasConfig)
-                self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
-                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-                QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-                QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-        except:
-            self.writeConfig({"high_sensitivity": 0,"language": "en_US"})
-
-    def cloud_services_switch(self):
-        sw_state = self.ui.cloud_services_switch_Button.text()
-        if sw_state == self.text_Translate("已關閉"):
-            self.cloud_services = 1
-            self.pyasConfig["cloud_services"] = 1
-            self.writeConfig(self.pyasConfig)
-            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
-            self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        elif sw_state == self.text_Translate("已開啟"):
-            self.cloud_services = 0
-            self.pyasConfig["cloud_services"] = 0
-            self.writeConfig(self.pyasConfig)
-            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已關閉"))
-            self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-
 ##################################### 主題顏色 #####################################
     
     def Change_Theme(self):
@@ -663,10 +604,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.m_flag=True
             self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
             event.accept()
-            while self.ui.pyas_opacity > 60 and self.m_flag == True:
+            while self.pyas_opacity > 60 and self.m_flag == True:
                 time.sleep(0.002)
-                self.ui.pyas_opacity -= 1
-                self.setWindowOpacity(self.ui.pyas_opacity/100)
+                self.pyas_opacity -= 1
+                self.setWindowOpacity(self.pyas_opacity/100)
                 QApplication.processEvents()
         
     def mouseMoveEvent(self, QMouseEvent):
@@ -681,10 +622,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def mouseReleaseEvent(self, QMouseEvent):
         self.m_flag=False
         self.setCursor(QCursor(Qt.ArrowCursor))
-        while self.ui.pyas_opacity < 100 and self.m_flag == False:
+        while self.pyas_opacity < 100 and self.m_flag == False:
             time.sleep(0.002)
-            self.ui.pyas_opacity += 1
-            self.setWindowOpacity(self.ui.pyas_opacity/100)
+            self.pyas_opacity += 1
+            self.setWindowOpacity(self.pyas_opacity/100)
             QApplication.processEvents()
 
     def paintEvent(self, event):# 圓角
@@ -702,28 +643,37 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def onTrayIconActivated(self, reason):
         if reason == QSystemTrayIcon.Trigger or reason == QSystemTrayIcon.DoubleClick:
             self.showNormal()
-            while self.ui.pyas_opacity < 100:
+            while self.pyas_opacity < 100:
                 time.sleep(0.001)
-                self.ui.pyas_opacity += 1
-                self.setWindowOpacity(self.ui.pyas_opacity/100)
+                self.pyas_opacity += 1
+                self.setWindowOpacity(self.pyas_opacity/100)
                 QApplication.processEvents()
 
     def show_pyas_ui(self):
         self.show()
-        while self.ui.pyas_opacity < 100:
+        while self.pyas_opacity < 100:
             time.sleep(0.001)
-            self.ui.pyas_opacity += 1
-            self.setWindowOpacity(self.ui.pyas_opacity/100)
+            self.pyas_opacity += 1
+            self.setWindowOpacity(self.pyas_opacity/100)
             QApplication.processEvents()
 
     def closeEvent(self, event):
         event.ignore()
-        while self.ui.pyas_opacity > 0:
+        while self.pyas_opacity > 0:
             time.sleep(0.001)
-            self.ui.pyas_opacity -= 1
-            self.setWindowOpacity(self.ui.pyas_opacity/100)
+            self.pyas_opacity -= 1
+            self.setWindowOpacity(self.pyas_opacity/100)
             QApplication.processEvents()
         self.hide()
+
+###################################### 錯誤回報 #####################################
+
+    def pyas_bug_log(self, e):
+        try:
+            print(f"[Error] {e}")
+            QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate(f"錯誤: {e}"),QMessageBox.Ok)
+        except:
+            pass
 
 ##################################### 通知顯示 #####################################
 
@@ -745,6 +695,72 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             return response.status_code == 200 and response.text == "True"
         except:
             return False
+
+##################################### 系統設置 #####################################
+
+    def ShowMenu(self):
+        self.WindowMenu = QMenu()
+        Main_Settings = QAction(self.text_Translate("設定"),self)
+        Main_About = QAction(self.text_Translate("關於"),self)
+        self.WindowMenu.addAction(Main_Settings)
+        self.WindowMenu.addAction(Main_About)
+        pos = QtCore.QPoint(0, 30)
+        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(pos))
+        if Qusetion == Main_About:
+            if self.ui.About_widget.isHidden():
+                self.ui.About_widget.show()
+                self.ui.About_widget.raise_()
+                self.ui.Navigation_Bar.raise_()
+                self.ui.Window_widget.raise_()
+                self.Change_animation_3(self.ui.About_widget,0.5)
+                self.Change_animation5(self.ui.About_widget,170,50,671,481)
+                self.Setting_Back()
+        if Qusetion == Main_Settings:
+            if self.ui.Setting_widget.isHidden():
+                self.ui.Setting_widget.show()
+                self.ui.About_widget.hide()
+                self.ui.Setting_widget.raise_()
+                self.ui.Window_widget.raise_()
+                self.Change_animation_3(self.ui.Setting_widget,0.5)
+                self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
+
+    def high_sensitivity_switch(self):
+        sw_state = self.ui.high_sensitivity_switch_Button.text()
+        if sw_state == self.text_Translate("已關閉"):
+            self.high_sensitivity = 1
+            self.pyasConfig["high_sensitivity"] = 1
+            self.writeConfig(self.pyasConfig)
+            self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        elif sw_state == self.text_Translate("已開啟"):
+            self.high_sensitivity = 0
+            self.pyasConfig["high_sensitivity"] = 0
+            self.writeConfig(self.pyasConfig)
+            self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
+            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+
+    def cloud_services_switch(self):
+        sw_state = self.ui.cloud_services_switch_Button.text()
+        if sw_state == self.text_Translate("已關閉"):
+            self.cloud_services = 1
+            self.pyasConfig["cloud_services"] = 1
+            self.writeConfig(self.pyasConfig)
+            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
+            self.ui.cloud_services_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        elif sw_state == self.text_Translate("已開啟"):
+            self.cloud_services = 0
+            self.pyasConfig["cloud_services"] = 0
+            self.writeConfig(self.pyasConfig)
+            self.ui.cloud_services_switch_Button.setText(self.text_Translate("已關閉"))
+            self.ui.cloud_services_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
 
 ##################################### 病毒掃描 #####################################
 
@@ -779,9 +795,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file_md5 = str(md5(f.read()).hexdigest())
                 response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=2)
                 return response.status_code == 200 and response.text == "True"
-            return False # 無惡意
+            return False
         except:
-            return False # 無惡意
+            return False
 
     def sign_scan(self, file):
         try:
@@ -789,9 +805,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pe = PE(file, fast_load=True)
                 pe.close()
                 return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
-            return True # 未簽名
+            return True
         except:
-            return True # 未簽名
+            return True
 
     def pe_scan(self,file):
         try:
@@ -821,7 +837,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-    def answer_scan(self): #定義讀取紀錄
+    def answer_scan(self):
         if self.Virus_List != []:
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
@@ -874,6 +890,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
             self.pyas_bug_log(e)
+            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+            self.ui.Virus_Scan_choose_Button.show()
+            self.ui.Virus_Scan_Break_Button.hide()
 
 ##################################### 路徑掃描 #####################################
     
@@ -899,6 +918,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
             self.pyas_bug_log(e)
+            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+            self.ui.Virus_Scan_choose_Button.show()
+            self.ui.Virus_Scan_Break_Button.hide()
 
 ##################################### 全盤掃描 #####################################
     
@@ -925,10 +947,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             self.pyas_bug_log(e)
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+            self.ui.Virus_Scan_choose_Button.show()
+            self.ui.Virus_Scan_Break_Button.hide()
 
     def traverse_path(self,path,rfp):
         sflist = [".exe",".com",".xlsx",".dll",".elf",".docx",".xls",".xlsb",".doc",".vbs"]
-        for fd in os.listdir(path):# 遍歷檔案
+        for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                 if self.Virus_Scan == False:
@@ -936,7 +960,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     break
                 elif ":/Windows" in fullpath or ":/$Recycle.Bin" in fullpath or "AppData" in fullpath:#路徑過濾
                     continue
-                elif os.path.isdir(fullpath):# 深入遍歷
+                elif os.path.isdir(fullpath):
                     self.traverse_path(fullpath,rfp)
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
@@ -994,7 +1018,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def System_Info_update(self):
         try:
             version = sys.getwindowsversion()
-            self.ui.System_Info_View.setText(f"CPU Core: {os.cpu_count()}\nSYS Info: {sys.platform}\nSYS Vers: {version.major}.{version.minor} build {version.build}\nSYS Name: {socket.gethostname()}")
+            self.ui.System_Info_View.setText(f"CPU Core: {os.cpu_count()}\nSYS Info: {sys.platform}\nSYS Vers: {version.major}.{version.minor} build {version.build}\nSYS Name: {os.getlogin()}")
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1228,8 +1252,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-##################################### 實時防護 #####################################
-    
+##################################### 防護開關 #####################################
+
     def protect_threading_init(self):
         if self.ui.Protection_switch_Button.text() == self.text_Translate("已開啟"):
             self.proc_protect = False
@@ -1295,6 +1319,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             Thread(target=self.protect_system_reg_repair).start()
+
+##################################### 實時防護 #####################################
 
     def protect_system_processes(self):
         while self.proc_protect:
@@ -1369,23 +1395,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for key in keys:
                     for i in Permission:
                         try:
-                            win32api.RegDeleteValue(key,i)#刪除值
+                            win32api.RegDeleteValue(key,i)
                         except:
                             pass
-                    win32api.RegCloseKey(key)#關閉已打開的鍵
+                    win32api.RegCloseKey(key)
             except:
                 pass
 
-##################################### 主初始化 #####################################
+##################################### 初始設定 #####################################
 
 if __name__ == '__main__':
-    create_lib()
-    pyas_version, pyae_version = "2.6.6", "2.3.4"
-    QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)# 自適應窗口縮放
+    pyas_version, pyae_version = "2.6.7", "2.3.4"
+    QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)
     MainWindow_Controller()
     sys.exit(app.exec_())
-
-####################################################################################
-#Copyright© 2020-2023 87owo (PYAS Security)

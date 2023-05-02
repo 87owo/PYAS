@@ -1326,11 +1326,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.proc_protect:
             for p in psutil.process_iter():
                 try:
-                    time.sleep(0.0001)
                     file, name = str(p.exe()), str(p.name())
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan("md5", file):
+                    elif self.sign_scan(file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("成功攔截可疑檔案: ")+name)
+                    elif self.pe_scan(file) or self.api_scan("md5", file):
                         p.kill()
                         self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
                 except:
@@ -1345,7 +1347,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file = str(path+file)
                     if str(sys.argv[0]) == file or ":\$Recycle.Bin" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
+                    elif action and os.path.getsize(file) < 10485760 and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
                         if self.pe_scan(file) or self.api_scan("md5", file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("成功刪除病毒: ")+file)
@@ -1355,11 +1357,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_mbr_repair(self):
         while self.mbr_protect and self.mbr_value != None:
             try:
-                time.sleep(0.5)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                         f.seek(0)
                         f.write(self.mbr_value)
+                        self.system_notification(self.text_Translate("成功修復引導分區: PhysicalDrive0"))
+                    if f.read(512 * 34)[0:8] != b"EFI PART":
+                        f.seek(0)
+                        f.write(b"EFI PART")
                         self.system_notification(self.text_Translate("成功修復引導分區: PhysicalDrive0"))
             except:
                 pass
@@ -1367,7 +1372,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_reg_repair(self):
         while self.reg_protect:
             try:
-                time.sleep(0.5)
                 Permission = ["NoControlPanel", "NoDrives", "NoControlPanel", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders", \
                 "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD", \
                 "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces", \

@@ -677,9 +677,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def pyas_key(self):
         try:
-            with open(sys.argv[0], "rb") as f:
+            with open(str(sys.argv[0]), "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={"key": file_md5}, timeout=2)
+            response = requests.get("http://27.147.30.238:5001/pyas", params={"key": file_md5}, timeout=3)
             return response.status_code == 200 and response.text == "True"
         except:
             return False
@@ -781,7 +781,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if self.cloud_services == 1:
                 with open(file, "rb") as f:
                     file_md5 = str(md5(f.read()).hexdigest())
-                response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=2)
+                response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=3)
                 return response.status_code == 200 and response.text == "True"
             return False
         except:

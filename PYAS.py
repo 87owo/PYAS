@@ -565,33 +565,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     
     def Change_Theme(self):
         if self.ui.Theme_Red.isChecked():
-            self.pyasConfig["color_theme"] = "red"
-            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,150,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(255,140,140,255);}""")
         elif self.ui.Theme_White.isChecked():
-            self.pyasConfig["color_theme"] = "white"
-            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,255,240);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,240,255);}""")
         elif self.ui.Theme_Black.isChecked():
-            self.pyasConfig["color_theme"] = "black"
-            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,150,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(140,140,140,255);}""")
         elif self.ui.Theme_Green.isChecked():
-            self.pyasConfig["color_theme"] = "green"
-            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(150,255,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(130,255,130,255);}""")
         elif self.ui.Theme_Yellow.isChecked():
-            self.pyasConfig["color_theme"] = "yellow"
-            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(255,255,150,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(240,240,140,255);}""")
         elif self.ui.Theme_Blue.isChecked():
-            self.pyasConfig["color_theme"] = "blue"
-            self.writeConfig(self.pyasConfig)
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgba(0,200,255,255);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgba(0,190,255,255);}""")
 
@@ -1326,13 +1314,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.proc_protect:
             for p in psutil.process_iter():
                 try:
+                    time.sleep(0.001)
                     file, name = str(p.exe()), str(p.name())
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif self.sign_scan(file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("成功攔截可疑檔案: ")+name)
-                    elif self.pe_scan(file) or self.api_scan("md5", file):
+                    elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
                         p.kill()
                         self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
                 except:
@@ -1347,7 +1333,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file = str(path+file)
                     if str(sys.argv[0]) == file or ":\$Recycle.Bin" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif action and os.path.getsize(file) < 10485760 and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
+                    elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
                         if self.pe_scan(file) or self.api_scan("md5", file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("成功刪除病毒: ")+file)
@@ -1357,6 +1343,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_mbr_repair(self):
         while self.mbr_protect and self.mbr_value != None:
             try:
+                time.sleep(0.5)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
                         f.seek(0)
@@ -1372,6 +1359,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_reg_repair(self):
         while self.reg_protect:
             try:
+                time.sleep(0.5)
                 Permission = ["NoControlPanel", "NoDrives", "NoControlPanel", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders", \
                 "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD", \
                 "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces", \
@@ -1409,7 +1397,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 初始設定 #####################################
 
 if __name__ == '__main__':
-    pyas_version, pyae_version = "2.6.7", "2.3.4"
+    pyas_version, pyae_version = "2.6.7", "2.3.5"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

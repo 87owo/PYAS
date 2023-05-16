@@ -9,9 +9,9 @@
 
 ###################################### 加載模組 #####################################
 
-import os, sys, time, json, psutil, struct
-import win32file, win32api, win32con, socket
+import os, sys, time, json, socket, psutil
 import requests, subprocess, cryptocode
+import win32file, win32api, win32con
 from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
 from PYAS_Language import translations
@@ -336,7 +336,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Testers_title.setText(self.text_Translate("測試人員:"))
         self.ui.Testers_Name.setText(self.text_Translate("87owo"))
         self.ui.PYAS_URL_title.setText(self.text_Translate("官方網站:"))
-        self.ui.PYAS_URL.setText(self.text_Translate("<html><head/><body><p><a href=\"https://pyantivirus.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#000000;\">https://pyantivirus.wixsite.com/pyas</span></a></p></body></html>"))
+        self.ui.PYAS_URL.setText(self.text_Translate("<html><head/><body><p><a href=\"https://github.com/87owo/PYAS\"><span style=\" text-decoration: underline; color:#000000;\">https://github.com/87owo/PYAS</span></a></p></body></html>"))
         self.ui.Change_Users_Password_Back.setText(self.text_Translate("返回"))
         self.ui.Change_Users_Password_New_Password_title.setText(self.text_Translate("新密碼:"))
         self.ui.Change_Users_Password_User_Name_title.setText(self.text_Translate("用戶名:"))
@@ -1345,13 +1345,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.5)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if struct.unpack("<H", f.read(512)[510:512])[0] != 0xAA55:
+                    if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        self.system_notification(self.text_Translate("成功修復引導分區: PhysicalDrive0"))
-                    if f.read(512 * 34)[0:8] != b"EFI PART":
-                        f.seek(0)
-                        f.write(b"EFI PART")
                         self.system_notification(self.text_Translate("成功修復引導分區: PhysicalDrive0"))
             except:
                 pass

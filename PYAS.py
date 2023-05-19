@@ -808,10 +808,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if self.high_sensitivity == 0:
                 for vfl in function_list:
                     if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) == 1.0:
+                        print(vfl)
                         return True
             elif self.high_sensitivity == 1:
                 for vfl in function_list:
                     if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) >= 0.8:
+                        print(vfl)
                         return True
             return False
         except:
@@ -939,7 +941,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_Break_Button.hide()
 
     def traverse_path(self,path,rfp):
-        sflist = [".exe",".com",".xlsx",".dll",".elf",".docx",".xls",".xlsb",".doc",".vbs"]
+        sflist = [".exe",".dll",".com",".msi",".vbs",".xlsx",".docx",".xls",".xlsb",".doc"]
         for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
@@ -1325,7 +1327,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pass
 
     def protect_system_file(self,path):
-        sflist = [".exe",".com",".dll",".elf",".vbs"]
+        sflist = [".exe",".dll",".com",".msi",".vbs",".xlsx",".docx",".xls",".xlsb",".doc"]
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:

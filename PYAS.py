@@ -941,7 +941,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_Break_Button.hide()
 
     def traverse_path(self,path,rfp):
-        sflist = [".exe",".dll",".com",".msi",".vbs",".xlsx",".docx",".xls",".xlsb",".doc"]
+        sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
         for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
@@ -1327,13 +1327,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pass
 
     def protect_system_file(self,path):
-        sflist = [".exe",".dll",".com",".msi",".vbs",".xlsx",".docx",".xls",".xlsb",".doc"]
+        sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(path+file)
-                    if str(sys.argv[0]) == file or ":\$Recycle.Bin" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
+                    if str(sys.argv[0]) == file or ":\$Recycle" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
                         if self.pe_scan(file) or self.api_scan("md5", file):

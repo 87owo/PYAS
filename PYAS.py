@@ -805,16 +805,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 for func in entry.imports:
                     fn.append(str(func.name, "utf-8"))
-            if self.high_sensitivity == 0:
-                for vfl in function_list:
-                    if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) == 1.0:
-                        print(vfl)
-                        return True
-            elif self.high_sensitivity == 1:
-                for vfl in function_list:
-                    if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) >= 0.8:
-                        print(vfl)
-                        return True
+            for vfl in function_list:
+                if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) == 1.0:
+                    return True
             return False
         except:
             return False
@@ -1146,7 +1139,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.encrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
         except Exception as e:
             self.pyas_bug_log(e)
-    
+
     def Decrypt_Text(self):
         try:
             self.decrypt_zh(self.ui.Encryption_Text_input.toPlainText(),self.ui.Encryption_Text_Password_input.text())
@@ -1320,9 +1313,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file, name = str(p.exe()), str(p.name())
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                    elif self.high_sensitivity == 0:
+                        if self.pe_scan(file) or self.api_scan('md5', file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                    elif self.high_sensitivity == 1:
+                        if self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
                 except:
                     pass
 
@@ -1357,7 +1355,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_reg_repair(self):
         while self.reg_protect:
             try:
-                time.sleep(0.5)
                 Permission = ["NoControlPanel", "NoDrives", "NoControlPanel", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders", \
                 "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD", \
                 "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces", \
@@ -1385,6 +1382,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for key in keys:
                     for i in Permission:
                         try:
+                            time.sleep(0.001)
                             win32api.RegDeleteValue(key,i)
                         except:
                             pass
@@ -1395,7 +1393,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 初始設定 #####################################
 
 if __name__ == '__main__':
-    pyas_version, pyae_version = "2.6.7", "2.3.5"
+    pyas_version, pyae_version = "2.6.8", "2.3.6"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

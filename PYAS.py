@@ -806,6 +806,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for func in entry.imports:
                     fn.append(str(func.name, "utf-8"))
             for vfl in function_list:
+                QApplication.processEvents()
                 if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) == 1.0:
                     return True
             return False

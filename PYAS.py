@@ -1315,13 +1315,22 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
                     elif self.high_sensitivity == 0:
-                        if self.pe_scan(file) or self.api_scan('md5', file):
+                        if self.pe_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                            self.system_notification(self.text_Translate("高風險攔截: ")+name)
+                        elif self.api_scan('md5', file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
                     elif self.high_sensitivity == 1:
-                        if self.sign_scan(file) or self.pe_scan(file) or self.api_scan('md5', file):
+                        if self.sign_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                            self.system_notification(self.text_Translate("無簽名攔截: ")+name)
+                        elif self.pe_scan(file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("高風險攔截: ")+name)
+                        elif self.api_scan('md5', file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
                 except:
                     pass
 
@@ -1363,7 +1372,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoWindowsUpdate", \
                 "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "NoManageMyComputerVerb",\
                 "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents", "Restrict_Run"]
-                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")#創建鍵
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
@@ -1394,7 +1403,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 初始設定 #####################################
 
 if __name__ == '__main__':
-    pyas_version, pyae_version = "2.6.8", "2.3.6"
+    pyas_version, pyae_version = "2.6.9", "2.3.7"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

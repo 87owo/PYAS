@@ -349,10 +349,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Customize_REG_Command_Run_Button.setText(self.text_Translate("確定"))
         self.ui.Value_HEKY_title.setText(self.text_Translate("值HEKY:"))
         self.ui.high_sensitivity_title.setText(self.text_Translate("高靈敏度模式"))
-        self.ui.high_sensitivity_illustrate.setText(self.text_Translate("啟用此選項可以提高掃描的靈敏度"))
+        self.ui.high_sensitivity_illustrate.setText(self.text_Translate("啟用此選項可以提高引擎的靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.text_Translate(self.ui.high_sensitivity_switch_Button.text()))
         self.ui.cloud_services_title.setText(self.text_Translate("雲端掃描服務"))
-        self.ui.cloud_services_illustrate.setText(self.text_Translate("啟用此選項可以掃描更多檔案類型"))
+        self.ui.cloud_services_illustrate.setText(self.text_Translate("啟用此選項可以連接雲端掃描服務"))
         self.ui.cloud_services_switch_Button.setText(self.text_Translate(self.ui.cloud_services_switch_Button.text()))
         self.ui.Setting_Back.setText(self.text_Translate("返回"))
         self.ui.Language_title.setText(self.text_Translate("語言"))
@@ -965,7 +965,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                subprocess.run("sfc /scannow", check=True)
+                subprocess.run("sfc /scannow", shell=True)
         except Exception as e:
             self.pyas_bug_log(e)
 

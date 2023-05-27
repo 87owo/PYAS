@@ -7,21 +7,19 @@
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 
-###################################### 加載模組 #####################################
-
 import os, sys, time, json, socket, psutil
 import requests, subprocess, cryptocode
 import win32file, win32api, win32con
-from pefile import PE, DIRECTORY_ENTRY
 from hashlib import md5, sha1, sha256
+from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Language import translations
 from PYAS_Model import function_list
+from PYAS_UI import Ui_MainWindow
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PYAS_UI import Ui_MainWindow
+from PyQt5 import *
 
 ###################################### 主要程式 #####################################
 
@@ -660,7 +658,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.tray_icon.hide()
             self.hide()
             app.quit()
-        event.ignore()
+        else:
+            event.ignore()
 
 ###################################### 錯誤回報 #####################################
 
@@ -677,9 +676,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
             self.ui.State_output.append(f"[{now_time}] {text}")
-            self.tray_icon.showMessage(now_time, text, 5)
-        except Exception as e:
-            self.pyas_bug_log(e)
+            #self.tray_icon.showMessage(now_time, text, 5)
+        except:
+            pass
 
 ###################################### 密鑰認證 #####################################
 
@@ -1319,26 +1318,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.001)
+                    QApplication.processEvents()
                     file, name = str(p.exe()), str(p.name())
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif self.high_sensitivity == 0:
-                        if self.pe_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("高風險攔截: ")+name)
-                        elif self.api_scan('md5', file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
-                    elif self.high_sensitivity == 1:
-                        if self.sign_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("無簽名攔截: ")+name)
-                        elif self.pe_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("高風險攔截: ")+name)
-                        elif self.api_scan('md5', file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
+                    elif self.high_sensitivity == 1 and self.sign_scan(file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("未簽名攔截: ")+name)
+                    elif self.pe_scan(file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("高風險攔截: ")+name)
+                    elif self.api_scan('md5', file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("病毒攔截: ")+name)
                 except:
                     pass
 
@@ -1352,7 +1344,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if str(sys.argv[0]) == file or ":\$Recycle" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
-                        if self.pe_scan(file) or self.api_scan("md5", file):
+                        if self.pe_scan(file) and self.api_scan("md5", file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("成功刪除病毒: ")+file)
             except:

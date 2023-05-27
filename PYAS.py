@@ -7,19 +7,22 @@
 # Copyright© 2020-2023 87owo (PYAS Security)
 ####################################################################################
 
+###################################### 加載模組 #####################################
+
 import os, sys, time, json, socket, psutil
 import requests, subprocess, cryptocode
 import win32file, win32api, win32con
-from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
+from hashlib import md5, sha1, sha256
 from PYAS_Language import translations
 from PYAS_Model import function_list
-from PYAS_UI import Ui_MainWindow
+import xml.etree.ElementTree as ET
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from PyQt5 import *
+from PyQt5 import QtWidgets, QtGui, QtCore
+from PYAS_UI import Ui_MainWindow
 
 ###################################### 主要程式 #####################################
 
@@ -676,7 +679,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
             self.ui.State_output.append(f"[{now_time}] {text}")
-            #self.tray_icon.showMessage(now_time, text, 5)
+            self.tray_icon.showMessage(now_time, text, 5)
         except:
             pass
 
@@ -787,10 +790,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if self.cloud_services == 1:
                 with open(file, "rb") as f:
-                    file_md5 = str(md5(f.read()).hexdigest())
-                response = requests.get("http://27.147.30.238:5001/pyas", params={types: file_md5}, timeout=3)
-                return response.status_code == 200 and response.text == "True"
-            return False
+                    text = str(md5(f.read()).hexdigest())
+                strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
+                response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
+                return response.status_code == 200 and float(ET.fromstring(response.text).find('.//e_level').text) > 50
         except:
             return False
 
@@ -874,7 +877,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
                 if self.sign_scan(file):
-                    if self.pe_scan(file) or self.api_scan("md5", file):
+                    if self.api_scan("md5", file) or self.pe_scan(file):
                         self.write_scan(file)
                 self.answer_scan()
             else:
@@ -958,10 +961,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     QApplication.processEvents()
                     if self.sign_scan(fullpath):
                         if self.high_sensitivity == 1:
-                            if self.pe_scan(fullpath) or self.api_scan("md5", fullpath):
+                            if self.api_scan("md5", fullpath) or self.pe_scan(fullpath):
                                 self.write_scan(fullpath)
                         elif str(os.path.splitext(fd)[1]).lower() in sflist:
-                            if self.pe_scan(fullpath) or self.api_scan("md5", fullpath):
+                            if self.api_scan("md5", fullpath) or self.pe_scan(fullpath):
                                 self.write_scan(fullpath)
             except:
                 continue
@@ -972,7 +975,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                subprocess.run("sfc /scannow", shell=True)
+                subprocess.run("sfc /scannow", check=True)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1318,19 +1321,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.001)
-                    QApplication.processEvents()
                     file, name = str(p.exe()), str(p.name())
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
-                    elif self.high_sensitivity == 1 and self.sign_scan(file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("未簽名攔截: ")+name)
-                    elif self.pe_scan(file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("高風險攔截: ")+name)
-                    elif self.api_scan('md5', file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("病毒攔截: ")+name)
+                    elif self.high_sensitivity == 0:
+                        if self.api_scan('md5', file) or self.pe_scan(file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                    elif self.high_sensitivity == 1:
+                        if self.sign_scan(file) or self.api_scan('md5', file) or self.pe_scan(file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
                 except:
                     pass
 
@@ -1344,7 +1345,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if str(sys.argv[0]) == file or ":\$Recycle" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
-                        if self.pe_scan(file) and self.api_scan("md5", file):
+                        if self.api_scan("md5", file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("成功刪除病毒: ")+file)
             except:
@@ -1372,7 +1373,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoWindowsUpdate", \
                 "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "NoManageMyComputerVerb",\
                 "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents", "Restrict_Run"]
-                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")#創建鍵
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")

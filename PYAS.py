@@ -646,14 +646,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QApplication.processEvents()
 
     def closeEvent(self, event):
-        question = QMessageBox.warning(self,self.text_Translate("退出PYAS"),self.text_Translate("您確定要退出 PYAS 和相關防護嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
+        question = QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和相關防護嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
         if question == 16384:
+            self.proc_protect = False
+            self.file_protect = False
+            self.mbr_protect = False
+            self.reg_protect = False
             while self.pyas_opacity > 0:
                 time.sleep(0.001)
                 self.pyas_opacity -= 1
                 self.setWindowOpacity(self.pyas_opacity/100)
                 QApplication.processEvents()
             self.tray_icon.hide()
+            self.hide()
             app.quit()
         event.ignore()
 

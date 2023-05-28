@@ -1327,11 +1327,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     elif self.high_sensitivity == 0:
                         if self.api_scan('md5', file) or self.pe_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
                     elif self.high_sensitivity == 1:
-                        if self.sign_scan(file) or self.api_scan('md5', file) or self.pe_scan(file):
+                        if self.sign_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("成功攔截病毒: ")+name)
+                            self.system_notification(self.text_Translate("無簽名攔截: ")+name)
+                        elif self.api_scan('md5', file) or self.pe_scan(file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
                 except:
                     pass
 

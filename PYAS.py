@@ -9,20 +9,20 @@
 
 ###################################### 加載模組 #####################################
 
-import os, sys, time, json, socket, psutil
-import requests, subprocess, cryptocode
+import xml.etree.ElementTree as ET
 import win32file, win32api, win32con
-from pefile import PE, DIRECTORY_ENTRY
+import requests, subprocess, cryptocode
+import os, sys, time, json, socket, psutil
 from hashlib import md5, sha1, sha256
+from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Language import translations
 from PYAS_Model import function_list
-import xml.etree.ElementTree as ET
-from threading import Thread
+from PYAS_UI import Ui_MainWindow
+from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PYAS_UI import Ui_MainWindow
+from threading import Thread
 
 ###################################### 主要程式 #####################################
 
@@ -786,7 +786,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             self.pyas_bug_log(e)
 
-    def api_scan(self, types, file):
+    def api_scan(self, file):
         try:
             if self.cloud_services == 1:
                 with open(file, "rb") as f:
@@ -877,7 +877,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
                 if self.sign_scan(file):
-                    if self.api_scan("md5", file) or self.pe_scan(file):
+                    if self.api_scan(file) or self.pe_scan(file):
                         self.write_scan(file)
                 self.answer_scan()
             else:
@@ -906,7 +906,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
-                self.traverse_path(path,"")
+                sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
+                self.traverse_path(path,sflist)
                 self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -932,9 +933,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_List_output=QStringListModel()
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
+            sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
             for d in range(26):
                 try:
-                    self.traverse_path(str(chr(65+d))+":/","")
+                    self.traverse_path(str(chr(65+d))+":/",sflist)
                 except:
                     pass
             self.answer_scan()
@@ -944,8 +946,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_choose_Button.show()
             self.ui.Virus_Scan_Break_Button.hide()
 
-    def traverse_path(self,path,rfp):
-        sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
+    def traverse_path(self,path,sflist):
         for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
@@ -955,16 +956,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 elif ":/Windows" in fullpath or ":/$Recycle.Bin" in fullpath or "AppData" in fullpath:#路徑過濾
                     continue
                 elif os.path.isdir(fullpath):
-                    self.traverse_path(fullpath,rfp)
+                    self.traverse_path(fullpath,sflist)
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
                     QApplication.processEvents()
                     if self.sign_scan(fullpath):
                         if self.high_sensitivity == 1:
-                            if self.api_scan("md5", fullpath) or self.pe_scan(fullpath):
+                            if self.api_scan(fullpath) or self.pe_scan(fullpath):
                                 self.write_scan(fullpath)
                         elif str(os.path.splitext(fd)[1]).lower() in sflist:
-                            if self.api_scan("md5", fullpath) or self.pe_scan(fullpath):
+                            if self.api_scan(fullpath) or self.pe_scan(fullpath):
                                 self.write_scan(fullpath)
             except:
                 continue
@@ -975,7 +976,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
             if question == 16384:
-                subprocess.run("sfc /scannow", check=True)
+                subprocess.run("sfc /scannow", shell=True)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1325,14 +1326,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
                     elif self.high_sensitivity == 0:
-                        if self.api_scan('md5', file) or self.pe_scan(file):
+                        if self.api_scan(file) or self.pe_scan(file):
                             p.kill()
                             self.system_notification(self.text_Translate("病毒攔截: ")+name)
                     elif self.high_sensitivity == 1:
                         if self.sign_scan(file):
                             p.kill()
                             self.system_notification(self.text_Translate("無簽名攔截: ")+name)
-                        elif self.api_scan('md5', file) or self.pe_scan(file):
+                        elif self.api_scan(file) or self.pe_scan(file):
                             p.kill()
                             self.system_notification(self.text_Translate("病毒攔截: ")+name)
                 except:
@@ -1348,9 +1349,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if str(sys.argv[0]) == file or ":\$Recycle" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
-                        if self.api_scan("md5", file):
+                        if self.api_scan(file):
                             os.remove(file)
-                            self.system_notification(self.text_Translate("成功刪除病毒: ")+file)
+                            self.system_notification(self.text_Translate("病毒刪除: ")+file)
             except:
                 pass
 
@@ -1362,21 +1363,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        self.system_notification(self.text_Translate("成功修復引導分區: PhysicalDrive0"))
+                        self.system_notification(self.text_Translate("引導分區修復: PhysicalDrive0"))
             except:
                 pass
 
     def protect_system_reg_repair(self):
         while self.reg_protect:
             try:
-                Permission = ["NoControlPanel", "NoDrives", "NoControlPanel", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders", \
-                "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD", \
-                "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces", \
-                "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu", "ClearRecentDocsOnExit", \
-                "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoWindowsUpdate", \
-                "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "NoManageMyComputerVerb",\
+                Permission = ["NoControlPanel", "NoDrives", "NoControlPanel", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
+                "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD",
+                "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces",
+                "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu", "ClearRecentDocsOnExit",
+                "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoWindowsUpdate",
+                "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "NoManageMyComputerVerb",
                 "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents", "Restrict_Run"]
-                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")#創建鍵
+                win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
@@ -1385,13 +1386,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Policies\Microsoft\Windows",0,win32con.KEY_ALL_ACCESS),"System")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"Software\Policies\Microsoft",0,win32con.KEY_ALL_ACCESS),"MMC")
                 win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"Software\Policies\Microsoft\MMC",0,win32con.KEY_ALL_ACCESS),"{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}")
-                keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",0,win32con.KEY_ALL_ACCESS),\
-                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",0,win32con.KEY_ALL_ACCESS),\
-                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",0,win32con.KEY_ALL_ACCESS),\
-                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",0,win32con.KEY_ALL_ACCESS),\
-                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop",0,win32con.KEY_ALL_ACCESS),\
-                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Policies\Microsoft\Windows\System",0,win32con.KEY_ALL_ACCESS),\
-                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Policies\Microsoft\Windows\System",0,win32con.KEY_ALL_ACCESS),\
+                keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",0,win32con.KEY_ALL_ACCESS),
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",0,win32con.KEY_ALL_ACCESS),
+                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",0,win32con.KEY_ALL_ACCESS),
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",0,win32con.KEY_ALL_ACCESS),
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop",0,win32con.KEY_ALL_ACCESS),
+                win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"SOFTWARE\Policies\Microsoft\Windows\System",0,win32con.KEY_ALL_ACCESS),
+                win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,"SOFTWARE\Policies\Microsoft\Windows\System",0,win32con.KEY_ALL_ACCESS),
                 win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,"Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}",0,win32con.KEY_ALL_ACCESS)]
                 for key in keys:
                     for i in Permission:

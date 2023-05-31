@@ -44,7 +44,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def tray_icon_start(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon("Library/ICON.ico"))
-        self.tray_icon.activated.connect(self.onTrayIconActivated)
+        self.tray_icon.activated.connect(self.showNormal)
         self.tray_icon.show()
 
     def protect_start(self):
@@ -259,7 +259,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def lang_init_refresh(self):
         self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.Safe else "此裝置當前不安全"))
-        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} (安全密鑰錯誤)" if not self.pyas_key() else f"PYAS V{pyas_version}"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} {self.pyas_key()}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} 87owo (PYAS Security)"))
         self.ui.PYAE_Version.setText(self.text_Translate(f"PYAE V{pyae_version}"))
         self.ui.State_Button.setText(self.text_Translate("狀態"))
@@ -629,10 +629,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
-    def onTrayIconActivated(self, reason):
-        if reason == QSystemTrayIcon.Trigger:
-            self.showNormal()
-
     def showNormal(self):
         self.show()
         while self.pyas_opacity < 100:
@@ -648,7 +644,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.setWindowOpacity(self.pyas_opacity/100)
             QApplication.processEvents()
         self.hide()
-        self.system_notification(self.text_Translate("PYAS 已最小化到托盤圖標"))
+        self.system_notification(self.text_Translate("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和相關防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -692,19 +688,25 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             with open(str(sys.argv[0]), "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
             response = requests.get("http://27.147.30.238:5001/pyas", params={"key": file_md5}, timeout=3)
-            return response.status_code == 200 and response.text == "True"
+            if response.status_code == 200:
+                if response.text == "True":
+                    return ""
+                elif response.text == "Update":
+                    return "(軟體需要更新)"
+                else:
+                    return "(安全密鑰錯誤)"
+            else:
+                return "(網路連接錯誤)"
         except:
-            return False
+            return "(網路連接錯誤)"
 
 ##################################### 系統設置 #####################################
 
     def ShowMenu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.text_Translate("設定"),self)
-        Main_Update = QAction(self.text_Translate("更新"),self)
         Main_About = QAction(self.text_Translate("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
-        self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QtCore.QPoint(0, 30)))
         if Qusetion == Main_About:
@@ -724,8 +726,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Window_widget.raise_()
                 self.Change_animation_3(self.ui.Setting_widget,0.5)
                 self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
-        elif Qusetion == Main_Update:
-            pass
 
     def high_sensitivity_switch(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -804,11 +804,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def sign_scan(self, file):
         try:
-            if self.high_sensitivity == 0:
-                pe = PE(file, fast_load=True)
-                pe.close()
-                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
-            return True
+            pe = PE(file, fast_load=True)
+            pe.close()
+            return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
         except:
             return True
 
@@ -881,7 +879,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中..."))
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
-                if self.sign_scan(file):
+                if self.high_sensitivity == 0 and self.sign_scan(file):
+                    if self.api_scan(file) or self.pe_scan(file):
+                        self.write_scan(file)
+                elif self.high_sensitivity == 1:
                     if self.api_scan(file) or self.pe_scan(file):
                         self.write_scan(file)
                 self.answer_scan()
@@ -956,20 +957,20 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if self.Virus_Scan == False:
                     self.ui.Virus_Scan_Break_Button.hide()
                     break
-                elif ":/Windows" in fullpath or ":/$Recycle.Bin" in fullpath or "/AppData/" in fullpath:#路徑過濾
+                elif ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath:
                     continue
                 elif os.path.isdir(fullpath):
                     self.traverse_path(fullpath,sflist)
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
                     QApplication.processEvents()
-                    if self.sign_scan(fullpath):
-                        if self.high_sensitivity == 1:
+                    if self.high_sensitivity == 0 and self.sign_scan(fullpath):
+                        if str(os.path.splitext(fd)[1]).lower() in sflist:
                             if self.api_scan(fullpath) or self.pe_scan(fullpath):
                                 self.write_scan(fullpath)
-                        elif str(os.path.splitext(fd)[1]).lower() in sflist:
-                            if self.api_scan(fullpath) or self.pe_scan(fullpath):
-                                self.write_scan(fullpath)
+                    elif self.high_sensitivity == 1:
+                        if self.api_scan(fullpath) or self.pe_scan(fullpath):
+                            self.write_scan(fullpath)
             except:
                 continue
 
@@ -1062,7 +1063,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 except Exception as e:
                     self.pyas_bug_log(e)
         else:
-            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate("錯誤: 您輸入了錯誤的值"), QMessageBox.Ok)
+            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate("錯誤: 您輸入的值不正確"), QMessageBox.Ok)
 
     def Analyze_EXE(self,button):
         if button == self.ui.Analyze_EXE_Funtion_Button:
@@ -1133,7 +1134,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
-                if ":/Windows" in fullpath or ":/$Recycle.Bin" in fullpath or ":/ProgramData" in fullpath or "PerfLogs" in fullpath:
+                if ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath:
                     continue
                 elif os.path.isdir(fullpath):
                     self.ui.Look_for_File_output.setText(self.text_Translate("正在尋找: ")+fullpath)
@@ -1316,40 +1317,45 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 實時防護 #####################################
 
     def protect_system_processes(self):
-        pyas = str(sys.argv[0]).replace("\\", "/")
         while self.proc_protect:
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.001)
-                    file, name = str(p.exe()).replace("\\", "/"), str(p.name())
-                    if pyas == file or ":/Windows" in file or ":/Program" in file or ":/XboxGames" in file or "/AppData/" in file:
+                    file, name = str(p.exe()), str(p.name())
+                    if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or "AppData" in file:
                         continue
                     elif self.high_sensitivity == 0:
-                        if self.api_scan(file) or self.pe_scan(file):
+                        if self.api_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
+                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
+                        elif self.pe_scan(file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
                     elif self.high_sensitivity == 1:
                         if self.sign_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("無簽名攔截: ")+name)
-                        elif self.api_scan(file) or self.pe_scan(file):
+                            self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
+                        elif self.api_scan(file):
                             p.kill()
-                            self.system_notification(self.text_Translate("病毒攔截: ")+name)
+                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
+                        elif self.pe_scan(file):
+                            p.kill()
+                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
                 except:
                     pass
 
     def protect_system_file(self,path):
         pyas = str(sys.argv[0]).replace("\\", "/")
         sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
-        hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
-                for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+                for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    if pyas == file or ":/$Recycle" in file or ":/Windows" in file or ":/Program" in file or ":/XboxGames" in file or "/AppData/" in file:
+                    if pyas == file or ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file:
                         continue
-                    elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
-                        if self.api_scan(file):
+                    elif action and str(os.path.splitext(file)[1]).lower() in sflist:
+                        if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("病毒刪除: ")+file)
             except:

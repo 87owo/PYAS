@@ -9,10 +9,10 @@
 
 ###################################### 加載模組 #####################################
 
-import xml.etree.ElementTree as ET
-import win32file, win32api, win32con
-import requests, subprocess, cryptocode
 import os, sys, time, json, socket, psutil
+import requests, subprocess, cryptocode
+import win32file, win32api, win32con
+import xml.etree.ElementTree as ET
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Language import translations
@@ -38,8 +38,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.init_config()
         self.init_config_ui()
         self.setup_control()
-        self.show_pyas_ui()
         self.protect_start()
+        self.showNormal()
 
     def tray_icon_start(self):
         self.tray_icon = QSystemTrayIcon(self)
@@ -302,8 +302,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Privacy_Tools_Back.setText(self.text_Translate("返回"))
         self.ui.Delete_Private_File_Button.setText(self.text_Translate("隱私檔案粉碎"))
         self.ui.Develop_Tools_Back.setText(self.text_Translate("返回"))
-        self.ui.Customize_REG_Command_Button.setText(self.text_Translate("自訂註冊表"))
-        self.ui.Customize_CMD_Command_Button.setText(self.text_Translate("自訂命令"))
+        self.ui.Customize_REG_Command_Button.setText(self.text_Translate("註冊表編輯器"))
+        self.ui.Customize_CMD_Command_Button.setText(self.text_Translate("命令提示字元"))
         self.ui.Analyze_EXE_hash_Button.setText(self.text_Translate("分析檔案哈希"))
         self.ui.Analyze_EXE_Bit_Button.setText(self.text_Translate("分析檔案位元"))
         self.ui.Analyze_EXE_Funtion_Button.setText(self.text_Translate("分析檔案函數"))
@@ -356,7 +356,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.cloud_services_illustrate.setText(self.text_Translate("啟用此選項可以連接雲端掃描服務"))
         self.ui.cloud_services_switch_Button.setText(self.text_Translate(self.ui.cloud_services_switch_Button.text()))
         self.ui.Setting_Back.setText(self.text_Translate("返回"))
-        self.ui.Language_title.setText(self.text_Translate("語言"))
+        self.ui.Language_title.setText(self.text_Translate("顯示語言"))
         self.ui.Language_illustrate.setText(self.text_Translate("請選擇語言"))
         self.ui.License_terms_title.setText(self.text_Translate("許可條款:"))
         self.ui.Theme_title.setText(self.text_Translate("顯色主題"))
@@ -630,15 +630,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         pat2.drawRoundedRect(rect, 1, 1)
 
     def onTrayIconActivated(self, reason):
-        if reason == QSystemTrayIcon.Trigger or reason == QSystemTrayIcon.DoubleClick:
+        if reason == QSystemTrayIcon.Trigger:
             self.showNormal()
-            while self.pyas_opacity < 100:
-                time.sleep(0.001)
-                self.pyas_opacity += 1
-                self.setWindowOpacity(self.pyas_opacity/100)
-                QApplication.processEvents()
 
-    def show_pyas_ui(self):
+    def showNormal(self):
         self.show()
         while self.pyas_opacity < 100:
             time.sleep(0.001)
@@ -646,9 +641,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.setWindowOpacity(self.pyas_opacity/100)
             QApplication.processEvents()
 
+    def showMinimized(self):
+        while self.pyas_opacity > 0:
+            time.sleep(0.001)
+            self.pyas_opacity -= 1
+            self.setWindowOpacity(self.pyas_opacity/100)
+            QApplication.processEvents()
+        self.hide()
+        self.system_notification(self.text_Translate("PYAS 已最小化到托盤圖標"))
+
     def closeEvent(self, event):
-        question = QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和相關防護嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-        if question == 16384:
+        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和相關防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
             self.proc_protect = False
             self.file_protect = False
             self.mbr_protect = False
@@ -661,8 +664,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.tray_icon.hide()
             self.hide()
             app.quit()
-        else:
-            event.ignore()
+        event.ignore()
 
 ###################################### 錯誤回報 #####################################
 
@@ -699,11 +701,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def ShowMenu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.text_Translate("設定"),self)
+        Main_Update = QAction(self.text_Translate("更新"),self)
         Main_About = QAction(self.text_Translate("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
+        self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
-        pos = QtCore.QPoint(0, 30)
-        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(pos))
+        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QtCore.QPoint(0, 30)))
         if Qusetion == Main_About:
             if self.ui.About_widget.isHidden():
                 self.ui.About_widget.show()
@@ -721,6 +724,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Window_widget.raise_()
                 self.Change_animation_3(self.ui.Setting_widget,0.5)
                 self.Change_animation5(self.ui.Setting_widget,10,50,831,481)
+        elif Qusetion == Main_Update:
+            pass
 
     def high_sensitivity_switch(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -906,8 +911,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
-                sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
-                self.traverse_path(path,sflist)
+                self.traverse_path(path,[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
                 self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -933,10 +937,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.Virus_List_output=QStringListModel()
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
             for d in range(26):
                 try:
-                    self.traverse_path(str(chr(65+d))+":/",sflist)
+                    self.traverse_path(str(chr(65+d))+":/",[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
                 except:
                     pass
             self.answer_scan()
@@ -974,38 +977,32 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Repair_System_Files(self):
         try:
-            question = QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
+            if QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 subprocess.run("sfc /scannow", shell=True)
         except Exception as e:
             self.pyas_bug_log(e)
 
     def Clean_System_Files(self):
         try:
-            question = QMessageBox.warning(self,self.text_Translate("清理系統檔案"),self.text_Translate("您確定要清理系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
+            if QMessageBox.warning(self,self.text_Translate("清理系統檔案"),self.text_Translate("您確定要清理系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 subprocess.run("cleanmgr", check=True)
         except Exception as e:
             self.pyas_bug_log(e)
 
     def Enable_Safe_Mode(self):
         try:
-            question = QMessageBox.warning(self,self.text_Translate("啟用安全模式"),self.text_Translate("您確定要啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
+            if QMessageBox.warning(self,self.text_Translate("啟用安全模式"),self.text_Translate("您確定要啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 subprocess.run("bcdedit /set {default} safeboot minimal", check=True)
-                question = QMessageBox.warning(self,"reboot",self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-                if question == 16384:
-                    subprocess.run("shutdown -r -t 0", check=True)
+                if QMessageBox.warning(self,self.text_Translate("重啟"),self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                     subprocess.run("shutdown -r -t 0", check=True)
         except Exception as e:
             self.pyas_bug_log(e) 
 
     def Disable_Safe_Mode(self):
         try:
-            question = QMessageBox.warning(self,self.text_Translate("禁用安全模式"),self.text_Translate("您確定要禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
+            if QMessageBox.warning(self,self.text_Translate("禁用安全模式"),self.text_Translate("您確定要禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 subprocess.run("bcdedit /deletevalue {current} safeboot", check=True)
-                question = QMessageBox.warning(self,"reboot",self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-                if question == 16384:
+                if QMessageBox.warning(self,self.text_Translate("重啟"),self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     subprocess.run("shutdown -r -t 0", check=True)
         except Exception as e:
             self.pyas_bug_log(e)
@@ -1013,15 +1010,20 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def System_Info_update(self):
         try:
             version = sys.getwindowsversion()
-            self.ui.System_Info_View.setText(f"CPU Core: {os.cpu_count()}\nSYS Info: {sys.platform}\nSYS Vers: {version.major}.{version.minor} build {version.build}\nSYS Name: {os.getlogin()}")
+            core = f'{os.cpu_count()}'
+            cpuu = f'{str(psutil.cpu_percent())}%'
+            ramu = f'{str(psutil.virtual_memory().percent)}%'
+            sysp = f'{sys.platform}'
+            sysv = f'{version.major}.{version.minor} build {version.build}'
+            sysn = f'{os.getlogin()}'
+            self.ui.System_Info_View.setText(f"CPU Core: {core}\nCPU Used: {cpuu}\nRAM Used: {ramu}\nSYS Info: {sysp}\nSYS Vers: {sysv}\nSYS Name: {sysn}")
         except Exception as e:
             self.pyas_bug_log(e)
 
     def Delete_Private_File(self):
         file, filetype = QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/","")
         if file != "" and file != str(sys.argv[0]):
-            question = QMessageBox.warning(self,self.text_Translate("刪除檔案"),self.text_Translate("您確定要刪除此檔案嗎?"),QMessageBox.Yes|QMessageBox.No,QMessageBox.Yes)
-            if question == 16384:
+            if QMessageBox.warning(self,self.text_Translate("刪除檔案"),self.text_Translate("您確定要刪除此檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 try:
                     os.remove(file)
                     QMessageBox.information(self,self.text_Translate("刪除成功"),self.text_Translate("成功: 刪除成功"),QMessageBox.Ok)
@@ -1044,19 +1046,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         Value_Data = str(self.ui.Value_Data_input.text())
         Value_Type = str(self.ui.Value_Type_input.text())
         Value_HEKY = str(self.ui.Value_HEKY_input.text())
-        heky_dict = {"HKEY_CLASSES_ROOT": win32con.HKEY_CLASSES_ROOT,"HKEY_CURRENT_USER": win32con.HKEY_CURRENT_USER,"HKEY_LOCAL_MACHINE": win32con.HKEY_LOCAL_MACHINE,"HKEY_USERS": win32con.HKEY_USERS,"HKEY_CURRENT_CONFIG": win32con.HKEY_CURRENT_CONFIG}
-        if Value_HEKY in heky_dict:
-            Value_HEKY = heky_dict[Value_HEKY]
-        else:
-            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate("錯誤: 您輸入了錯誤的HEKY"), QMessageBox.Ok)
-            continue_v = False
-        value_types_dict = {"REG_BINARY": win32con.REG_BINARY,"REG_DWORD": win32con.REG_DWORD,"REG_DWORD_LITTLE_ENDIAN": win32con.REG_DWORD_LITTLE_ENDIAN,"REG_DWORD_BIG_ENDIAN": win32con.REG_DWORD_BIG_ENDIAN,"REG_EXPAND_SZ": win32con.REG_EXPAND_SZ,"REG_LINK": win32con.REG_LINK,"REG_MULTI_SZ": win32con.REG_MULTI_SZ,"REG_NONE": win32con.REG_NONE,"REG_QWORD": win32con.REG_QWORD,"REG_QWORD_LITTLE_ENDIAN": win32con.REG_QWORD_LITTLE_ENDIAN,"REG_SZ": win32con.REG_SZ}  
-        if Value_Type in value_types_dict:
-            Value_Type = value_types_dict[Value_Type]
-        else:
-            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate("錯誤: 您輸入了錯誤的TYPE"), QMessageBox.Ok)
-            continue_v = False
-        if continue_v:
+        hkey_dict = {"HKEY_CLASSES_ROOT": win32con.HKEY_CLASSES_ROOT,"HKEY_CURRENT_USER": win32con.HKEY_CURRENT_USER,"HKEY_LOCAL_MACHINE": win32con.HKEY_LOCAL_MACHINE,"HKEY_USERS": win32con.HKEY_USERS,"HKEY_CURRENT_CONFIG": win32con.HKEY_CURRENT_CONFIG}
+        value_dict = {"REG_BINARY": win32con.REG_BINARY,"REG_DWORD": win32con.REG_DWORD,"REG_DWORD_LITTLE_ENDIAN": win32con.REG_DWORD_LITTLE_ENDIAN,"REG_DWORD_BIG_ENDIAN": win32con.REG_DWORD_BIG_ENDIAN,"REG_EXPAND_SZ": win32con.REG_EXPAND_SZ,"REG_LINK": win32con.REG_LINK,"REG_MULTI_SZ": win32con.REG_MULTI_SZ,"REG_NONE": win32con.REG_NONE,"REG_QWORD": win32con.REG_QWORD,"REG_QWORD_LITTLE_ENDIAN": win32con.REG_QWORD_LITTLE_ENDIAN,"REG_SZ": win32con.REG_SZ}  
+        if Value_HEKY in hkey_dict and Value_Type in value_dict:
+            Value_HEKY = hkey_dict[Value_HEKY]
+            Value_Type = value_dict[Value_Type]
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要新增值或是修改值嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 try:
                     key = win32api.RegOpenKey(Value_HEKY,Value_Path,0,win32con.KEY_ALL_ACCESS)
@@ -1065,6 +1059,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate("成功: 成功的創建或修改註冊表值"),QMessageBox.Ok)
                 except Exception as e:
                     self.pyas_bug_log(e)
+        else:
+            QMessageBox.critical(self, self.text_Translate("錯誤"), self.text_Translate("錯誤: 您輸入了錯誤的值"), QMessageBox.Ok)
 
     def Analyze_EXE(self,button):
         if button == self.ui.Analyze_EXE_Funtion_Button:
@@ -1079,8 +1075,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             self.ui.Analyze_EXE_Output.append(str(func.name, "utf-8"))
                     self.Change_Tools(self.ui.Analyze_EXE_widget)
                     QApplication.processEvents()
-                except:
-                    pass
+                except Exception as e:
+                    self.pyas_bug_log(e)
         elif button == self.ui.Analyze_EXE_hash_Button:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析檔案哈希值"),"C:/","All File *.*")
             if file != "":
@@ -1094,8 +1090,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     self.ui.Analyze_EXE_Output.append(f"MD5: {readable_hash}\nSHA1: {readable_hash2}\nSHA256: {readable_hash3}")
                     self.Change_Tools(self.ui.Analyze_EXE_widget)
                     QApplication.processEvents()
-                except:
-                    pass
+                except Exception as e:
+                    self.pyas_bug_log(e)
         else:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("分析檔案位元"),"C:/","EXE OR DLL File *.exe *.dll")
             if file != "":
@@ -1107,8 +1103,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         self.ui.Analyze_EXE_Output.append(f"{section.Name.decode()} {hex(section.VirtualAddress)} {hex(section.Misc_VirtualSize)} {section.Characteristics}")
                     self.Change_Tools(self.ui.Analyze_EXE_widget)
                     QApplication.processEvents()
-                except:
-                    pass
+                except Exception as e:
+                    self.pyas_bug_log(e)
 
     def find_file_input(self):
         try:
@@ -1127,7 +1123,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     QApplication.processEvents()
                     self.Change_Tools(self.ui.Look_for_File_widget)
                 else:
-                    QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate("錯誤: 未找到檔案"),QMessageBox.Ok)
+                    QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate(f"錯誤: 未找到檔案 {file_name}"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1186,7 +1182,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
-            QMessageBox.information(self,self.text_Translate("位置查詢"),self.text_Translate(f"您的IP 配置是:{s.getsockname()[0]}"),QMessageBox.Ok)
+            QMessageBox.information(self,self.text_Translate("位置查詢"),self.text_Translate(f"您的 IP 配置是:{s.getsockname()[0]}"),QMessageBox.Ok)
             s.close()
         except Exception as e:
             self.pyas_bug_log(e)
@@ -1408,7 +1404,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 初始設定 #####################################
 
 if __name__ == '__main__':
-    pyas_version, pyae_version = "2.6.9", "2.3.7"
+    pyas_version, pyae_version = "2.7.0", "2.3.7"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

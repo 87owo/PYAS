@@ -939,7 +939,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             for d in range(26):
                 try:
-                    self.traverse_path(str(chr(65+d))+":/",[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
+                    self.traverse_path(f"{chr(65+d)}:/",[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
                 except:
                     pass
             self.answer_scan()
@@ -1022,13 +1022,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Delete_Private_File(self):
         file, filetype = QFileDialog.getOpenFileName(self,self.text_Translate("刪除檔案"),"C:/","")
-        if file != "" and file != str(sys.argv[0]):
+        if file != "" and file.replace("\\", "/") != str(sys.argv[0]).replace("\\", "/"):
             if QMessageBox.warning(self,self.text_Translate("刪除檔案"),self.text_Translate("您確定要刪除此檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 try:
                     os.remove(file)
                     QMessageBox.information(self,self.text_Translate("刪除成功"),self.text_Translate("成功: 刪除成功"),QMessageBox.Ok)
                 except Exception as e:
                     self.pyas_bug_log(e)
+        else:
+            self.pyas_bug_log("權限錯誤")
      
     def Customize_CMD_Command(self):
         CMD_Command = self.ui.Customize_CMD_Command_lineEdit.text()
@@ -1113,7 +1115,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.find_files = []
                 for d in range(26):
                     try:
-                        self.traverse_find_file(str(chr(65+d))+":/",file_name)
+                        self.traverse_find_file(f"{chr(65+d)}:/",file_name)
                     except:
                         pass
                 if self.find_files != []:
@@ -1123,7 +1125,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     QApplication.processEvents()
                     self.Change_Tools(self.ui.Look_for_File_widget)
                 else:
-                    QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate(f"錯誤: 未找到檔案 {file_name}"),QMessageBox.Ok)
+                    QMessageBox.critical(self,self.text_Translate("錯誤"),self.text_Translate(f"未找到檔案: {file_name}"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1276,8 +1278,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             for d in range(26):
-                if os.path.exists(str(chr(65+d)+":\\")):
-                    Thread(target=self.protect_system_file, args=(str(chr(65+d)+":\\"),)).start()
+                if os.path.exists(f"{chr(65+d)}:/"):
+                    Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",)).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
@@ -1314,12 +1316,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 ##################################### 實時防護 #####################################
 
     def protect_system_processes(self):
+        pyas = str(sys.argv[0]).replace("\\", "/")
         while self.proc_protect:
             for p in psutil.process_iter():
                 try:
                     time.sleep(0.001)
-                    file, name = str(p.exe()), str(p.name())
-                    if str(sys.argv[0]) == file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
+                    file, name = str(p.exe()).replace("\\", "/"), str(p.name())
+                    if pyas == file or ":/Windows" in file or ":/Program" in file or ":/XboxGames" in file or "/AppData/" in file:
                         continue
                     elif self.high_sensitivity == 0:
                         if self.api_scan(file) or self.pe_scan(file):
@@ -1336,13 +1339,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pass
 
     def protect_system_file(self,path):
+        pyas = str(sys.argv[0]).replace("\\", "/")
         sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ | win32con.FILE_SHARE_WRITE | win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME | win32con.FILE_NOTIFY_CHANGE_DIR_NAME | win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES | win32con.FILE_NOTIFY_CHANGE_SIZE | win32con.FILE_NOTIFY_CHANGE_LAST_WRITE | win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
-                    file = str(path+file)
-                    if str(sys.argv[0]) == file or ":\$Recycle" in file or ":\Windows" in file or ":\Program" in file or ":\XboxGames" in file or "AppData" in file:
+                    file = str(f"{path}{file}").replace("\\", "/")
+                    if pyas == file or ":/$Recycle" in file or ":/Windows" in file or ":/Program" in file or ":/XboxGames" in file or "AppData" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist and self.sign_scan(file):
                         if self.api_scan(file):

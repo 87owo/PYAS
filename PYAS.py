@@ -40,6 +40,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.protect_threading_init_2()
         self.protect_threading_init_3()
         self.protect_threading_init_4()
+        self.protect_threading_init_5()
 
     def create_library(self):
         try:
@@ -66,6 +67,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Safe = True
         self.Virus_Scan = False
         self.pyas_opacity = 0
+        self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.mbr_value = self.init_config_mbr()
         self.pyasConfig = self.init_config_json()
@@ -137,12 +139,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Protection_switch_Button_2.clicked.connect(self.protect_threading_init_2)
         self.ui.Protection_switch_Button_3.clicked.connect(self.protect_threading_init_3)
         self.ui.Protection_switch_Button_4.clicked.connect(self.protect_threading_init_4)
+        self.ui.Protection_switch_Button_5.clicked.connect(self.protect_threading_init_5)
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.high_sensitivity_switch)
         self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_services_switch)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
         self.ui.Language_Traditional_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.Change_language)
         self.ui.Language_English.clicked.connect(self.Change_language)
+        self.ui.Theme_White.clicked.connect(self.Change_Theme)
+        self.ui.Theme_Black.clicked.connect(self.Change_Theme)
+        self.ui.Theme_Green.clicked.connect(self.Change_Theme)
+        self.ui.Theme_Yellow.clicked.connect(self.Change_Theme)
+        self.ui.Theme_Blue.clicked.connect(self.Change_Theme)
+        self.ui.Theme_Red.clicked.connect(self.Change_Theme)
 
     def init_config_ui(self):
         self.ui.widget_2.lower()
@@ -175,7 +184,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Protection_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_Break_Button.hide()
-        self.ui.Virus_Scan_ProgressBar.hide()
         self.ui.Process_widget.hide()
         self.ui.Setting_widget.hide()
         self.ui.About_widget.hide()
@@ -217,10 +225,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Disk_Scan_Button.setText(self.text_Translate("全盤掃描"))
         self.ui.Virus_Scan_Solve_Button.setText(self.text_Translate("立即刪除"))
         self.ui.Virus_Scan_Break_Button.setText(self.text_Translate("停止掃描"))
-        self.ui.Protection_title.setText(self.text_Translate("進程防護"))
-        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程並攔截病毒"))
         self.ui.Process_Tools_Back.setText(self.text_Translate("返回"))
         self.ui.Process_Total_title.setText(self.text_Translate("進程總數:"))
+        self.ui.Protection_title.setText(self.text_Translate("進程防護"))
+        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程並攔截病毒"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.Protection_title_2.setText(self.text_Translate("檔案防護"))
         self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以刪除病毒檔案變更"))
@@ -229,8 +237,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以修復系統引導分區"))
         self.ui.Protection_switch_Button_3.setText(self.text_Translate(self.ui.Protection_switch_Button_3.text()))
         self.ui.Protection_title_4.setText(self.text_Translate("註冊表防護"))
-        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以修復系統註冊表"))
+        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以修復系統註冊表項目"))
         self.ui.Protection_switch_Button_4.setText(self.text_Translate(self.ui.Protection_switch_Button_4.text()))
+        self.ui.Protection_title_5.setText(self.text_Translate("增強防護"))
+        self.ui.Protection_illustrate_5.setText(self.text_Translate("啟用此選項可以增強系統防護項目"))
+        self.ui.Protection_switch_Button_5.setText(self.text_Translate(self.ui.Protection_switch_Button_5.text()))
         self.ui.State_log.setText(self.text_Translate("日誌:"))
         self.ui.More_Tools_Back_Button.setText(self.text_Translate("工具>"))
         self.ui.System_Process_Manage_Button.setText(self.text_Translate("系統進程管理"))
@@ -258,10 +269,38 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Add_White_list_illustrate.setText(self.text_Translate("此選項可以選擇檔案並增加到白名單"))
         self.ui.Add_White_list_Button.setText(self.text_Translate(self.ui.Add_White_list_Button.text()))
         self.ui.Add_White_list_Button.setText(self.text_Translate("選擇"))
+        self.ui.Theme_title.setText(self.text_Translate("顯色主題"))
+        self.ui.Theme_illustrate.setText(self.text_Translate("請選擇主題"))
+        self.ui.Theme_White.setText(self.text_Translate("白色主題"))
+        self.ui.Theme_Black.setText(self.text_Translate("黑色主題"))
+        self.ui.Theme_Yellow.setText(self.text_Translate("黃色主題"))
+        self.ui.Theme_Red.setText(self.text_Translate("紅色主題"))
+        self.ui.Theme_Green.setText(self.text_Translate("綠色主題"))
+        self.ui.Theme_Blue.setText(self.text_Translate("藍色主題"))
         self.ui.Setting_Back.setText(self.text_Translate("返回"))
         self.ui.Language_title.setText(self.text_Translate("顯示語言"))
         self.ui.Language_illustrate.setText(self.text_Translate("請選擇語言"))
         self.ui.License_terms_title.setText(self.text_Translate("許可條款:"))
+    
+    def Change_Theme(self):
+        if self.ui.Theme_White.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
+        elif self.ui.Theme_Red.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(255,150,150);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(255,140,140);}""")
+        elif self.ui.Theme_Black.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(150,150,150);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(140,140,140);}""")
+        elif self.ui.Theme_Green.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(150,255,150);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(130,255,130);}""")
+        elif self.ui.Theme_Yellow.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(255,255,150);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(240,240,140);}""")
+        elif self.ui.Theme_Blue.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(0,200,255);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(0,190,255);}""")
 
     def Change_animation(self,widget):
         x = 170
@@ -482,6 +521,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.file_protect = False
             self.mbr_protect = False
             self.reg_protect = False
+            self.enh_protect = False
             self.tray_icon.hide()
             self.hideWindow()
             app.quit()
@@ -696,7 +736,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Virus_List = []
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
-        self.ui.Virus_Scan_ProgressBar.hide()
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
@@ -726,7 +765,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def path_scan(self):
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_Solve_Button.hide()
-        self.ui.Virus_Scan_ProgressBar.hide()
         self.Virus_List = []
         self.Virus_List_output=QStringListModel()
         self.Virus_List_output.setStringList(self.Virus_List)
@@ -756,7 +794,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QApplication.processEvents()
             self.Virus_Scan = True
             self.ui.Virus_Scan_Solve_Button.hide()
-            self.ui.Virus_Scan_ProgressBar.hide()
             self.ui.Virus_Scan_choose_Button.hide()
             self.ui.Virus_Scan_Break_Button.show()
             self.Virus_List = []
@@ -1077,6 +1114,22 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             Thread(target=self.protect_system_reg_repair).start()
 
+    def protect_threading_init_5(self):
+        if self.ui.Protection_switch_Button_5.text() == self.text_Translate("已開啟"):
+            self.enh_protect = False
+            self.ui.Protection_switch_Button_5.setText(self.text_Translate("已關閉"))
+            self.ui.Protection_switch_Button_5.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            self.system_notification(self.text_Translate("增強防護已關閉"))
+        else:
+            self.enh_protect = True
+            self.ui.Protection_switch_Button_5.setText(self.text_Translate("已開啟"))
+            self.ui.Protection_switch_Button_5.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            Thread(target=self.protect_system_enhanced).start()
+
     def protect_system_processes(self):
         while self.proc_protect:
             for p in psutil.process_iter():
@@ -1138,6 +1191,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.5)
                 self.repair_system_restrictions()
+            except:
+                pass
+
+    def protect_system_enhanced(self):
+        while self.reg_protect:
+            try:
+                time.sleep(0.5)
                 self.repair_system_file_type()
                 self.repair_system_img()
                 self.repair_system_icon()

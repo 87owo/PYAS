@@ -448,7 +448,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         def updateOpacity():
             if self.pyas_opacity > 70 and self.m_flag == True:
                 self.pyas_opacity -= 1
-                self.setWindowOpacity(self.pyas_opacity / 100)
+                self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
         x = event.x()
@@ -474,7 +474,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         def updateOpacity():
             if self.pyas_opacity < 100 and self.m_flag == False:
                 self.pyas_opacity += 1
-                self.setWindowOpacity(self.pyas_opacity / 100)
+                self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
         self.m_flag=False
@@ -843,18 +843,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.repair_system_wallpaper()
+                self.repair_system_explorer()
                 self.repair_system_restrictions()
                 self.repair_system_file_type()
                 self.repair_system_img()
                 self.repair_system_icon()
-                self.repair_system_explorer()
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("修復系統檔案成功"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
 
     def repair_system_icon(self):
         try:
-            file_types = ['exefile', 'comfile', 'txtfile', 'dllfile', 'inifile', 'VBSfile']
-            for file_type in file_types:
+            for file_type in ['exefile', 'comfile', 'txtfile', 'dllfile', 'inifile', 'VBSfile']:
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, file_type, 0, win32con.KEY_ALL_ACCESS)
                     win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')

@@ -822,7 +822,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if self.Virus_Scan == False:
                     self.ui.Virus_Scan_Break_Button.hide()
                     break
-                elif ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath or fullpath in self.whitelist:
+                elif fullpath in self.whitelist or ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath:
                     continue
                 elif os.path.isdir(fullpath):
                     self.traverse_path(fullpath,sflist)
@@ -1139,7 +1139,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 try:
                     time.sleep(0.001)
                     file, name = str(p.exe()).replace("\\", "/"), str(p.name())
-                    if self.pyas == file or ":/Windows" in file or ":/Program" in file or "AppData" in file or file in self.whitelist:
+                    if self.pyas == file or file in self.whitelist or ":/Windows" in file or ":/Program" in file:
                         continue
                     elif self.high_sensitivity == 0:
                         if self.api_scan(file):
@@ -1168,7 +1168,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    if self.pyas == file or ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file or file in self.whitelist:
+                    if self.pyas == file or file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist:
                         if self.sign_scan(file) and self.api_scan(file):

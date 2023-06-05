@@ -1174,8 +1174,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("病毒刪除: ")+file)
-            except Exception as e:
-                print(e)
+            except:
                 pass
 
     def protect_system_mbr_repair(self):

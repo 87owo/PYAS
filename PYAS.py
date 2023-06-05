@@ -1,6 +1,6 @@
 import os, sys, time, json, psutil
-import win32file, win32api, win32con
 import ctypes, requests, subprocess
+import win32file, win32api, win32con
 import xml.etree.ElementTree as ET
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
@@ -627,13 +627,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if file != "":
                 if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                    self.whitelist.append(str(file.replace("\\", "/")))
-                    try:
-                        with open("Library/Whitelist.file", "a+", encoding="utf-8") as f:
-                            f.write(str(file.replace("\\", "/"))+'\n')
-                        QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
-                    except:
-                        self.pyas_bug_log('增加到白名單失敗')
+                    if str(file.replace("\\", "/")) not in self.whitelist:
+                        try:
+                            self.whitelist.append(str(file.replace("\\", "/")))
+                            with open("Library/Whitelist.file", "a+", encoding="utf-8") as f:
+                                f.write(str(file.replace("\\", "/"))+'\n')
+                            QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
+                        except:
+                            self.pyas_bug_log('增加到白名單失敗')
+                    else:
+                        self.pyas_bug_log('檔案已增加到白名單')
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1165,13 +1168,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    if pyas == file or ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file or file in self.whitelist:
+                    if self.pyas == file or ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file or file in self.whitelist:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("病毒刪除: ")+file)
-            except:
+            except Exception as e:
+                print(e)
                 pass
 
     def protect_system_mbr_repair(self):

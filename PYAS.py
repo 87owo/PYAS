@@ -19,28 +19,46 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.ui = Ui_MainWindow()
-        self.create_library()
-        self.tray_icon_start()
         self.ui.setupUi(self)
+        self.create_library()
+        self.init_tray_icon()
         self.init_config()
         self.init_config_ui()
+        self.init_config_mbr()
         self.init_whitelist()
         self.setup_control()
-        self.protect_start()
+        self.init_protect()
         self.showNormal()
 
-    def tray_icon_start(self):
+    def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QIcon("Library/ICON.ico"))
         self.tray_icon.activated.connect(self.showNormal)
         self.tray_icon.show()
 
-    def protect_start(self):
+    def init_protect(self):
         self.protect_threading_init()
         self.protect_threading_init_2()
         self.protect_threading_init_3()
         self.protect_threading_init_4()
         self.protect_threading_init_5()
+
+    def init_config(self):
+        self.Safe = True
+        self.Virus_Scan = False
+        self.pyas_opacity = 0
+        self.ui.Theme_White.setChecked(True)
+        self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.pyasConfig = self.init_config_json()
+        self.init_config_lang()
+        self.init_config_sens()
+
+    def writeConfig(self, config):
+        try:
+            with open("Library/PYAS.json", "w", encoding="utf-8") as f:
+                f.write(json.dumps(config, indent=4, ensure_ascii=False))
+        except Exception as e:
+            self.pyas_bug_log(e)
 
     def create_library(self):
         try:
@@ -53,33 +71,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open("Library/Whitelist.file", "r", encoding="utf-8") as f:
                 self.whitelist = [line.strip() for line in f.readlines()]
-        except Exception as e:
+        except:
             self.whitelist = []
-
-    def writeConfig(self, config):
-        try:
-            with open("Library/PYAS.json", "w", encoding="utf-8") as f:
-                f.write(json.dumps(config, indent=4, ensure_ascii=False))
-        except Exception as e:
-            self.pyas_bug_log(e)
-
-    def init_config(self):
-        self.Safe = True
-        self.Virus_Scan = False
-        self.pyas_opacity = 0
-        self.ui.Theme_White.setChecked(True)
-        self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.mbr_value = self.init_config_mbr()
-        self.pyasConfig = self.init_config_json()
-        self.init_config_lang()
-        self.init_config_sens()
 
     def init_config_mbr(self):
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                return f.read(512)
+                self.mbr_value = f.read(512)
         except:
-            return None
+            self.mbr_value = None
 
     def init_config_json(self):
         if not os.path.exists("Library/PYAS.json"):
@@ -455,7 +455,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         y = event.y()
         if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
             self.m_flag=True
-            self.m_Position=event.globalPos()-self.pos() #獲取鼠標相對窗口的位置
+            self.m_Position=event.globalPos()-self.pos()
             event.accept()
             self.timer = QTimer()
             self.timer.timeout.connect(updateOpacity)
@@ -464,7 +464,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def mouseMoveEvent(self, QMouseEvent):
         try:
             if Qt.LeftButton and self.m_flag:
-                self.move(QMouseEvent.globalPos()-self.m_Position)#更改窗口位置
+                self.move(QMouseEvent.globalPos()-self.m_Position)
                 QApplication.processEvents()
                 QMouseEvent.accept()
         except:
@@ -483,7 +483,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.timer.timeout.connect(updateOpacity)
         self.timer.start(5)
 
-    def paintEvent(self, event):# 圓角
+    def paintEvent(self, event):
         pat2 = QPainter(self)
         pat2.setRenderHint(QPainter.Antialiasing)
         pat2.setBrush(Qt.white)

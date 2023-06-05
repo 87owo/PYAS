@@ -746,7 +746,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if file != "":
                 self.Virus_Scan = True
-                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中..."))
+                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
                 self.ui.Virus_Scan_choose_Button.hide()
                 QApplication.processEvents()
                 if file not in self.whitelist:
@@ -980,10 +980,26 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Clean_System_Files(self):
         try:
-            if QMessageBox.warning(self,self.text_Translate("清理系統檔案"),self.text_Translate("您確定要清理系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                subprocess.run("cleanmgr", check=True)
+            if QMessageBox.warning(self,self.text_Translate("清理系統垃圾"),self.text_Translate("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                self.total_deleted_size = 0
+                self.traverse_temp_files(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
+                self.traverse_temp_files(f"C:/$Recycle.Bin")
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate(f"成功清理了{self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
+
+    def traverse_temp_files(self, path):
+        for fd in os.listdir(path):
+            try:
+                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                QApplication.processEvents()
+                if os.path.isdir(fullpath):
+                    self.traverse_temp_files(fullpath)
+                else:
+                    os.remove(fullpath)
+                    self.total_deleted_size += os.path.getsize(fullpath)
+            except:
+                continue
 
     def Enable_Safe_Mode(self):
         try:
@@ -1168,7 +1184,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    if self.pyas == file or file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file:
+                    if self.pyas == file or file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file:
                         continue
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist:
                         if self.sign_scan(file) and self.api_scan(file):
@@ -1208,7 +1224,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.0"
+    pyas_version = "2.7.1"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

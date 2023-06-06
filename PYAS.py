@@ -984,7 +984,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.total_deleted_size = 0
                 self.traverse_temp_files(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
                 self.traverse_temp_files(f"C:/$Recycle.Bin")
-                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate(f"成功清理了{self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
+                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -996,8 +996,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if os.path.isdir(fullpath):
                     self.traverse_temp_files(fullpath)
                 else:
-                    os.remove(fullpath)
                     self.total_deleted_size += os.path.getsize(fullpath)
+                    os.remove(fullpath)
             except:
                 continue
 

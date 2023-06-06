@@ -362,7 +362,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.opacity.i = 0
         def timeout():
             if self.opacity.i < 100:
-                self.opacity.i += 1
+                self.opacity.i += 2
                 self.opacity.setOpacity(self.opacity.i/100)
                 widget.setGraphicsEffect(self.opacity)
             else:

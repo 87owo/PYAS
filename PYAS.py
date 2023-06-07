@@ -1155,7 +1155,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 try:
                     time.sleep(0.001)
                     file, name = str(p.exe()).replace("\\", "/"), str(p.name())
-                    if self.pyas == file or file in self.whitelist or ":/Windows" in file or ":/Program" in file:
+                    if self.pyas == file or file in self.whitelist or ":/Windows" in file or ":/Program" in file or "AppData" in file:
                         continue
                     elif self.high_sensitivity == 0:
                         if self.api_scan(file):

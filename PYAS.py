@@ -250,7 +250,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Enable_Safe_Mode_Button.setText(self.text_Translate("啟用安全模式"))
         self.ui.Disable_Safe_Mode_Button.setText(self.text_Translate("禁用安全模式"))
         self.ui.About_Back.setText(self.text_Translate("返回"))
-        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} (Enhanced Protect Edition)"))
+        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} {self.pyas_key()}"))
         self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.text_Translate("87owo"))
         self.ui.Core_Made_title.setText(self.text_Translate("核心製作:"))
@@ -1214,7 +1214,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
     def protect_system_enhanced(self):
-        while self.reg_protect:
+        while self.enh_protect:
             try:
                 time.sleep(0.5)
                 self.repair_system_file_type()

@@ -495,22 +495,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
-    def showNormal(self):
-        self.show()
-        while self.pyas_opacity < 100:
-            time.sleep(0.001)
-            self.pyas_opacity += 1
-            self.setWindowOpacity(self.pyas_opacity/100)
-            QApplication.processEvents()
-
-    def hideWindow(self):
-        while self.pyas_opacity > 0:
-            time.sleep(0.001)
-            self.pyas_opacity -= 1
-            self.setWindowOpacity(self.pyas_opacity/100)
-            QApplication.processEvents()
-        self.hide()
-
     def showMinimized(self):
         self.hideWindow()
         self.system_notification(self.text_Translate("PYAS 已最小化到系統托盤圖標"))
@@ -523,7 +507,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.reg_protect = False
             self.enh_protect = False
             self.tray_icon.hide()
-            self.hideWindow()
             app.quit()
         event.ignore()
 
@@ -1224,7 +1207,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.1"
+    pyas_version = "1.00_1 Pro"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

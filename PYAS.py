@@ -1207,7 +1207,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "1.00_1 Pro"
+    pyas_version = "2.7.1"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

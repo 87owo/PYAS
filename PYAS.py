@@ -21,18 +21,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.create_library()
-        self.init_tray_icon()
         self.init_config()
         self.init_config_ui()
         self.init_config_mbr()
         self.init_whitelist()
+        self.init_tray_icon()
         self.setup_control()
         self.init_protect()
         self.showNormal()
 
     def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon("Library/ICON.ico"))
+        self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.activated.connect(self.showNormal)
         self.tray_icon.show()
 

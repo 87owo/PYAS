@@ -855,6 +855,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def repair_system_icon(self):
         try:
             for file_type in ['exefile', 'comfile', 'txtfile', 'dllfile', 'inifile', 'VBSfile']:
+                time.sleep(0.01)
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, file_type, 0, win32con.KEY_ALL_ACCESS)
                     win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
@@ -874,6 +875,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             count = win32api.RegQueryInfoKey(key)[0]
             while count >= 0:
                 try:
+                    time.sleep(0.01)
                     subKeyName = win32api.RegEnumKey(key, count)
                     win32api.RegDeleteKey(key, subKeyName)
                 except:
@@ -891,10 +893,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     ('inifile', 'Configuration Settings'),('.msc', 'MSCfile'),('MSCfile', 'Microsoft Common Console Document')]
             key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_LOCAL_MACHINE
             for ext, value in data:
+                time.sleep(0.01)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
             win32api.RegCloseKey(key)
             key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER
             for ext, value in data:
+                time.sleep(0.01)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 try:
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
@@ -906,10 +910,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts
             extensions = ['.exe', '.zip', '.dll', '.sys', '.bat', '.txt', '.msc']
             for ext in extensions:
+                time.sleep(0.01)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, '')
             win32api.RegCloseKey(key)
             key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, None, 0, win32con.KEY_ALL_ACCESS)# HKEY_CLASSES_ROOT
             for ext, value in data:
+                time.sleep(0.01)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 if ext in ['.cmd', '.vbs']:
                     win32api.RegSetValue(key, ext + 'file', win32con.REG_SZ, 'Windows Command Script')
@@ -952,6 +958,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for key in keys:
                 for i in Permission:
                     try:
+                        time.sleep(0.01)
                         win32api.RegDeleteValue(key,i)
                     except:
                         pass
@@ -1208,7 +1215,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_reg_repair(self):
         while self.reg_protect:
             try:
-                time.sleep(0.5)
                 self.repair_system_restrictions()
             except:
                 pass
@@ -1216,7 +1222,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_enhanced(self):
         while self.enh_protect:
             try:
-                time.sleep(0.5)
                 self.repair_system_file_type()
                 self.repair_system_img()
                 self.repair_system_icon()

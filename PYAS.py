@@ -915,7 +915,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     win32api.RegSetValue(key, ext + 'file', win32con.REG_SZ, 'Windows Command Script')
                 try:
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" %*')
+                    win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" /S')
                     win32api.RegCloseKey(keyopen)
                 except:
                     pass

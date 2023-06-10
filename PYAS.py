@@ -49,6 +49,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.pyas_opacity = 0
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.md5_key = self.pyas_key()
         self.pyasConfig = self.init_config_json()
         self.init_config_lang()
         self.init_config_sens()
@@ -211,7 +212,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def lang_init_refresh(self):
         self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.Safe else "此裝置當前不安全"))
-        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} {self.pyas_key()}"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} {self.md5_key}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
         self.ui.State_Button.setText(self.text_Translate("狀態"))
         self.ui.Virus_Scan_Button.setText(self.text_Translate("掃描"))
@@ -250,7 +251,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Enable_Safe_Mode_Button.setText(self.text_Translate("啟用安全模式"))
         self.ui.Disable_Safe_Mode_Button.setText(self.text_Translate("禁用安全模式"))
         self.ui.About_Back.setText(self.text_Translate("返回"))
-        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} {self.pyas_key()}"))
+        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} {self.md5_key}"))
         self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.text_Translate("87owo"))
         self.ui.Core_Made_title.setText(self.text_Translate("核心製作:"))
@@ -367,10 +368,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 widget.setGraphicsEffect(self.opacity)
             else:
                 self.timer.stop()
-                self.timer.deleteLater()
         self.timer = QTimer()
         self.timer.timeout.connect(timeout)
-        self.timer.start()
+        self.timer.start(5)
 
     def Change_to_State_widget(self):
         if self.ui.State_widget.isHidden():
@@ -522,8 +522,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.mbr_protect = False
             self.reg_protect = False
             self.enh_protect = False
-            self.tray_icon.hide()
             self.hideWindow()
+            self.tray_icon.hide()
             app.quit()
         event.ignore()
 
@@ -855,7 +855,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def repair_system_icon(self):
         try:
             for file_type in ['exefile', 'comfile', 'txtfile', 'dllfile', 'inifile', 'VBSfile']:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, file_type, 0, win32con.KEY_ALL_ACCESS)
                     win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
@@ -875,7 +875,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             count = win32api.RegQueryInfoKey(key)[0]
             while count >= 0:
                 try:
-                    time.sleep(0.01)
+                    time.sleep(0.001)
                     subKeyName = win32api.RegEnumKey(key, count)
                     win32api.RegDeleteKey(key, subKeyName)
                 except:
@@ -893,12 +893,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     ('inifile', 'Configuration Settings'),('.msc', 'MSCfile'),('MSCfile', 'Microsoft Common Console Document')]
             key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_LOCAL_MACHINE
             for ext, value in data:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
             win32api.RegCloseKey(key)
             key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER
             for ext, value in data:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 try:
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
@@ -910,12 +910,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts
             extensions = ['.exe', '.zip', '.dll', '.sys', '.bat', '.txt', '.msc']
             for ext in extensions:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, '')
             win32api.RegCloseKey(key)
             key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, None, 0, win32con.KEY_ALL_ACCESS)# HKEY_CLASSES_ROOT
             for ext, value in data:
-                time.sleep(0.01)
+                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 if ext in ['.cmd', '.vbs']:
                     win32api.RegSetValue(key, ext + 'file', win32con.REG_SZ, 'Windows Command Script')
@@ -931,7 +931,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def repair_system_restrictions(self):
         try:
-            Permission = ["NoControlPanel", "NoDrives", "NoControlPanel", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
+            Permission = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
             "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD",
             "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces",
             "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu", "ClearRecentDocsOnExit",
@@ -958,7 +958,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for key in keys:
                 for i in Permission:
                     try:
-                        time.sleep(0.01)
+                        time.sleep(0.001)
                         win32api.RegDeleteValue(key,i)
                     except:
                         pass

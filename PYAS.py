@@ -161,6 +161,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Virus_Scan_choose_widget.raise_()
         self.Process_sim = QStringListModel()
         self.Process_quantity = []
+        self.Process_list_all_pid = []
         self.Process_Timer = QTimer()
         self.Process_Timer.timeout.connect(self.Process_list)
         self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
@@ -1033,22 +1034,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def Process_list(self):
         try:
             self.Process_list_app = []
-            self.Process_list_app_exe = []
             self.Process_list_app_pid = []
-            self.Process_list_app_name = []
-            self.Process_list_app_user = []
-            for p in psutil.process_iter():
+            self.Process_list_iter = psutil.process_iter()
+            for p in self.Process_list_iter:
                 try:
                     self.Process_list_app.append(f"{p.name()} ({p.pid}) > {p.exe()}")
                     self.Process_list_app_pid.append(p.pid)
-                    self.Process_list_app_exe.append(p.exe())
-                    self.Process_list_app_name.append(p.name())
-                    self.Process_list_app_user.append(p.username())
                     QApplication.processEvents()
                 except:
                     pass
-            if len(self.Process_list_app_name) != self.Process_quantity:
-                self.Process_quantity = len(self.Process_list_app_name)
+            self.Process_list_all_pid = self.Process_list_app_pid
+            if len(self.Process_list_app_pid) != self.Process_quantity:
+                self.Process_quantity = len(self.Process_list_app_pid)
                 self.ui.Process_Total_View.setText(str(self.Process_quantity))
                 self.Process_sim.setStringList(self.Process_list_app)
                 self.ui.Process_list.setModel(self.Process_sim)
@@ -1057,17 +1054,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Process_list_Menu(self,pos):
         try:
-            self.item = self.ui.Process_list.selectedIndexes()
-            for i in self.item:
-                item = i.row()
-                self.pid = self.Process_list_app_pid[item]
-                self.exefile = self.Process_list_app_exe[item]
-                self.exename = self.Process_list_app_name[item]
+            for i in self.ui.Process_list.selectedIndexes():
+                self.pid = self.Process_list_all_pid[i.row()]
             self.Process_popMenu = QMenu()
             self.kill_Process = QAction(self.text_Translate("結束進程"),self)
             self.Process_popMenu.addAction(self.kill_Process)
-            ques = self.Process_popMenu.exec_(self.ui.Process_list.mapToGlobal(pos))
-            if ques == self.kill_Process:
+            if self.Process_popMenu.exec_(self.ui.Process_list.mapToGlobal(pos)) == self.kill_Process:
                 for p in psutil.process_iter():
                     if p.pid == self.pid:
                         p.kill()

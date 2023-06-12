@@ -991,6 +991,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if QMessageBox.warning(self,self.text_Translate("清理系統垃圾"),self.text_Translate("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.total_deleted_size = 0
                 self.traverse_temp_files(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
+                self.traverse_temp_files(f"C:/Windows/Temp")
                 self.traverse_temp_files(f"C:/$Recycle.Bin")
                 QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
         except Exception as e:
@@ -1004,8 +1005,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 if os.path.isdir(fullpath):
                     self.traverse_temp_files(fullpath)
                 else:
-                    self.total_deleted_size += os.path.getsize(fullpath)
+                    file_size = os.path.getsize(fullpath)
                     os.remove(fullpath)
+                    self.total_deleted_size += file_size
             except:
                 continue
 
@@ -1188,7 +1190,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     elif action and str(os.path.splitext(file)[1]).lower() in sflist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
-                            self.system_notification(self.text_Translate("病毒刪除: ")+file)
+                            self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
             except:
                 pass
 
@@ -1221,7 +1223,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.1"
+    pyas_version = "2.7.2"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

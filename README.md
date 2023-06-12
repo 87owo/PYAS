@@ -13,7 +13,7 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 
 ## Import Module
-os, sys, time, json, psutil, struct, win32api, win32con, requests, socket, platform, cryptocode, subprocess, pefile, hashlib, PYAS_Language, threading, random, PyQt5, PYAS_UI
+os, sys, time, json, psutil, ctypes, requests, subprocess, win32file, win32api, win32con, elementpath, hashlib, pefile, threading, PyQt5, PYAS_Language, PYAS_Model, PYAS_UI
 
 ## Special Thanks
 Wix, VirusShare, mtkiao129, LenStevens

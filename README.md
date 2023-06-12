@@ -1,8 +1,7 @@
 # PYAS (Python Antivirus Software)
-![PYAS](https://user-images.githubusercontent.com/85057800/202692146-e55848d5-7e24-405d-b33d-f4fa3883fba6.png)
+![PYAS](https://github.com/87owo/PYAS/assets/85057800/e49a0aef-6ef6-4485-8f93-e7a73f9571ea)
 
-
-## Official Website 
+## Official Website
 https://pyantivirus.wixsite.com/pyas , 
 https://github.com/87owo/PYAS
 

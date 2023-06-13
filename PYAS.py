@@ -888,10 +888,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def repair_system_file_type(self):
         try:
             data = [('jpegfile', 'JPEG Image'),('.exe', 'exefile'),('exefile', 'Application'),('.com', 'comfile'),('comfile', 'MS-DOS Application'),
-                    ('.scr', 'scrfile'),('scrfile', 'Screen saver'),('.zip', 'CompressedFolder'),('.dll', 'dllfile'),('dllfile', 'Application Extension'),
-                    ('.sys', 'sysfile'),('sysfile', 'System file'),('.bat', 'batfile'),('batfile', 'Windows Batch File'),('VBS', 'VB Script Language'),
-                    ('VBSfile', 'VBScript Script File'),('.txt', 'txtfile'),('txtfile', 'Text Document'),('.ini', 'inifile'),
-                    ('inifile', 'Configuration Settings'),('.msc', 'MSCfile'),('MSCfile', 'Microsoft Common Console Document')]
+                    ('.zip', 'CompressedFolder'),('.dll', 'dllfile'),('dllfile', 'Application Extension'),('.sys', 'sysfile'),('sysfile', 'System file'),
+                    ('.bat', 'batfile'),('batfile', 'Windows Batch File'),('VBS', 'VB Script Language'),('VBSfile', 'VBScript Script File'),
+                    ('.txt', 'txtfile'),('txtfile', 'Text Document'),('.ini', 'inifile'),('inifile', 'Configuration Settings')]
             key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_LOCAL_MACHINE
             for ext, value in data:
                 time.sleep(0.001)
@@ -922,7 +921,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     win32api.RegSetValue(key, ext + 'file', win32con.REG_SZ, 'Windows Command Script')
                 try:
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" /S')
+                    win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" %*')
                     win32api.RegCloseKey(keyopen)
                 except:
                     pass

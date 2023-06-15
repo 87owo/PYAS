@@ -517,7 +517,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.system_notification(self.text_Translate("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
-        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和相關防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+        if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
             self.proc_protect = False
             self.file_protect = False
             self.mbr_protect = False
@@ -641,6 +641,22 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             self.pyas_bug_log(e)
 
+    def system_safe(self):
+        try:
+            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
+            self.ui.State_title.setText(self.text_Translate("此裝置已受到防護"))
+            self.Safe = True
+        except:
+            pass
+
+    def system_unsafe(self):
+        try:
+            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
+            self.ui.State_title.setText(self.text_Translate("此裝置當前不安全"))
+            self.Safe = False
+        except:
+            pass
+
     def Virus_Scan_Break(self):
         self.Virus_Scan = False
 
@@ -659,9 +675,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             self.ui.Virus_Scan_text.setText(self.text_Translate("成功: 刪除成功"))
             self.ui.Virus_Scan_Solve_Button.hide()
-            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
-            self.ui.State_title.setText(self.text_Translate("此裝置已受到防護"))
-            self.Safe = True
+            self.system_safe()
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -712,19 +726,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         if self.Virus_List != []:
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
-            self.ui.State_title.setText(self.text_Translate("此裝置當前不安全"))
             self.ui.Virus_Scan_Solve_Button.show()
             self.ui.Virus_Scan_choose_Button.show()
             self.ui.Virus_Scan_Break_Button.hide()
             self.Virus_Scan = False
-            self.Safe = False
+            self.system_unsafe()
             text = self.text_Translate(f"當前發現 {len(self.Virus_List)} 個病毒")
         else:
             self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
             self.Virus_Scan = False
-            self.Safe = True
+            self.system_safe()
             text = self.text_Translate("當前未發現病毒")
         self.ui.Virus_Scan_text.setText(text)
         self.system_notification(text)
@@ -1222,7 +1234,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.2"
+    pyas_version = "2.7.3"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

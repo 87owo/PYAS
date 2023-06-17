@@ -56,21 +56,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def writeConfig(self, config):
         try:
-            with open("Library/PYAS.json", "w", encoding="utf-8") as f:
+            with open("C:/Windows/SysWOW64/Library/PYAS.json", "w", encoding="utf-8") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
         except Exception as e:
             self.pyas_bug_log(e)
 
     def create_library(self):
         try:
-            if not os.path.exists("Library"):
-                os.makedirs("Library")
+            if not os.path.exists("C:/Windows/SysWOW64/Library"):
+                os.makedirs("C:/Windows/SysWOW64/Library")
         except Exception as e:
             self.pyas_bug_log(e)
 
     def init_whitelist(self):
         try:
-            with open("Library/Whitelist.file", "r", encoding="utf-8") as f:
+            with open("C:/Windows/SysWOW64/Library/Whitelist.txt", "r", encoding="utf-8") as f:
                 self.whitelist = [line.strip() for line in f.readlines()]
         except:
             self.whitelist = []
@@ -83,9 +83,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.mbr_value = None
 
     def init_config_json(self):
-        if not os.path.exists("Library/PYAS.json"):
+        if not os.path.exists("C:/Windows/SysWOW64/Library/PYAS.json"):
             self.writeConfig({"language":"en_US","high_sensitivity":0,"cloud_services":1})
-        with open("Library/PYAS.json", "r", encoding="utf-8") as f:
+        with open("C:/Windows/SysWOW64/Library/PYAS.json", "r", encoding="utf-8") as f:
             return json.load(f)
 
     def init_config_lang(self):
@@ -631,7 +631,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if str(file.replace("\\", "/")) not in self.whitelist:
                         try:
                             self.whitelist.append(str(file.replace("\\", "/")))
-                            with open("Library/Whitelist.file", "a+", encoding="utf-8") as f:
+                            with open("C:/Windows/SysWOW64/Library/Whitelist.file", "a+", encoding="utf-8") as f:
                                 f.write(str(file.replace("\\", "/"))+'\n')
                             QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
                         except:
@@ -859,7 +859,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.repair_system_explorer()
                 self.repair_system_restrictions()
                 self.repair_system_file_type()
-                self.repair_system_img()
+                self.repair_system_image()
                 self.repair_system_icon()
                 QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("修復系統檔案成功"),QMessageBox.Ok)
         except Exception as e:
@@ -882,7 +882,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-    def repair_system_img(self):
+    def repair_system_image(self):
         try:
             key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options',0,win32con.KEY_ALL_ACCESS | win32con.WRITE_OWNER)
             count = win32api.RegQueryInfoKey(key)[0]
@@ -1228,7 +1228,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.enh_protect:
             try:
                 self.repair_system_file_type()
-                self.repair_system_img()
+                self.repair_system_image()
                 self.repair_system_icon()
             except:
                 pass

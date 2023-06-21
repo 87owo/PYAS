@@ -12,6 +12,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from threading import Thread
+import PYAS_ResourceMap as map
 
 class MainWindow_Controller(QtWidgets.QMainWindow):
     def __init__(self):
@@ -793,7 +794,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
-                self.traverse_path(path,[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
+                self.traverse_path(path, map.file_types)
                 self.answer_scan()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -818,7 +819,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             for d in range(26):
                 try:
-                    self.traverse_path(f"{chr(65+d)}:/",[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
+                    self.traverse_path(f"{chr(65+d)}:/", map.file_types)
                 except:
                     pass
             self.answer_scan()
@@ -1190,7 +1191,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     pass
 
     def protect_system_file(self,path):
-        sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
+        sflist = map.file_types
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:

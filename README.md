@@ -17,4 +17,4 @@ os, sys, time, json, psutil, ctypes, requests, subprocess, win32file, win32api, 
 ## Special Thanks
 360, Wix, VirusShare, mtkiao129, LenStevens
 
-Copyright© 2020~2023 PYAS Security By 87owo
+Copyright &copy; 2023 PYAS Security, 87owo.

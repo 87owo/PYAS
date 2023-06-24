@@ -1256,36 +1256,6 @@ class Ui_MainWindow(object):
         self.System_Process_Manage_Button.setCheckable(False)
         self.System_Process_Manage_Button.setObjectName("System_Process_Manage_Button")
         self.System_verticalLayout.addWidget(self.System_Process_Manage_Button)
-        self.Repair_System_Files_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Repair_System_Files_Button.sizePolicy().hasHeightForWidth())
-        self.Repair_System_Files_Button.setSizePolicy(sizePolicy)
-        font = QtGui.QFont()
-        font.setFamily("Microsoft YaHei")
-        font.setPointSize(12)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.Repair_System_Files_Button.setFont(font)
-        self.Repair_System_Files_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.Repair_System_Files_Button.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}\n"
-"QPushButton:pressed\n"
-"{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
-        self.Repair_System_Files_Button.setIconSize(QtCore.QSize(16, 16))
-        self.Repair_System_Files_Button.setCheckable(False)
-        self.Repair_System_Files_Button.setObjectName("Repair_System_Files_Button")
-        self.System_verticalLayout.addWidget(self.Repair_System_Files_Button)
         self.Clean_System_Files_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
@@ -1316,19 +1286,19 @@ class Ui_MainWindow(object):
         self.Clean_System_Files_Button.setCheckable(False)
         self.Clean_System_Files_Button.setObjectName("Clean_System_Files_Button")
         self.System_verticalLayout.addWidget(self.Clean_System_Files_Button)
-        self.Enable_Safe_Mode_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
+        self.Repair_System_Files_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Enable_Safe_Mode_Button.sizePolicy().hasHeightForWidth())
-        self.Enable_Safe_Mode_Button.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.Repair_System_Files_Button.sizePolicy().hasHeightForWidth())
+        self.Repair_System_Files_Button.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(12)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.Enable_Safe_Mode_Button.setFont(font)
-        self.Enable_Safe_Mode_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.Enable_Safe_Mode_Button.setStyleSheet("QPushButton\n"
+        self.Repair_System_Files_Button.setFont(font)
+        self.Repair_System_Files_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.Repair_System_Files_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
 "    background-color:rgba(20,20,20,30);\n"
@@ -1342,23 +1312,23 @@ class Ui_MainWindow(object):
 "{\n"
 "    background-color:rgba(20,20,20,70);\n"
 "}")
-        self.Enable_Safe_Mode_Button.setIconSize(QtCore.QSize(16, 16))
-        self.Enable_Safe_Mode_Button.setCheckable(False)
-        self.Enable_Safe_Mode_Button.setObjectName("Enable_Safe_Mode_Button")
-        self.System_verticalLayout.addWidget(self.Enable_Safe_Mode_Button)
-        self.Disable_Safe_Mode_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
+        self.Repair_System_Files_Button.setIconSize(QtCore.QSize(16, 16))
+        self.Repair_System_Files_Button.setCheckable(False)
+        self.Repair_System_Files_Button.setObjectName("Repair_System_Files_Button")
+        self.System_verticalLayout.addWidget(self.Repair_System_Files_Button)
+        self.Repair_System_Network_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Disable_Safe_Mode_Button.sizePolicy().hasHeightForWidth())
-        self.Disable_Safe_Mode_Button.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.Repair_System_Network_Button.sizePolicy().hasHeightForWidth())
+        self.Repair_System_Network_Button.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(12)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.Disable_Safe_Mode_Button.setFont(font)
-        self.Disable_Safe_Mode_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.Disable_Safe_Mode_Button.setStyleSheet("QPushButton\n"
+        self.Repair_System_Network_Button.setFont(font)
+        self.Repair_System_Network_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.Repair_System_Network_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
 "    background-color:rgba(20,20,20,30);\n"
@@ -1372,10 +1342,40 @@ class Ui_MainWindow(object):
 "{\n"
 "    background-color:rgba(20,20,20,70);\n"
 "}")
-        self.Disable_Safe_Mode_Button.setIconSize(QtCore.QSize(16, 16))
-        self.Disable_Safe_Mode_Button.setCheckable(False)
-        self.Disable_Safe_Mode_Button.setObjectName("Disable_Safe_Mode_Button")
-        self.System_verticalLayout.addWidget(self.Disable_Safe_Mode_Button)
+        self.Repair_System_Network_Button.setIconSize(QtCore.QSize(16, 16))
+        self.Repair_System_Network_Button.setCheckable(False)
+        self.Repair_System_Network_Button.setObjectName("Repair_System_Network_Button")
+        self.System_verticalLayout.addWidget(self.Repair_System_Network_Button)
+        self.Window_Block_Button = QtWidgets.QPushButton(self.verticalLayoutWidget_4)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.Window_Block_Button.sizePolicy().hasHeightForWidth())
+        self.Window_Block_Button.setSizePolicy(sizePolicy)
+        font = QtGui.QFont()
+        font.setFamily("Microsoft YaHei")
+        font.setPointSize(12)
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+        self.Window_Block_Button.setFont(font)
+        self.Window_Block_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
+        self.Window_Block_Button.setStyleSheet("QPushButton\n"
+"{\n"
+"    border:none;\n"
+"    background-color:rgba(20,20,20,30);\n"
+"    border-radius: 15px;\n"
+"}\n"
+"QPushButton:hover\n"
+"{\n"
+"    background-color:rgba(20,20,20,50);\n"
+"}\n"
+"QPushButton:pressed\n"
+"{\n"
+"    background-color:rgba(20,20,20,70);\n"
+"}")
+        self.Window_Block_Button.setIconSize(QtCore.QSize(16, 16))
+        self.Window_Block_Button.setCheckable(False)
+        self.Window_Block_Button.setObjectName("Window_Block_Button")
+        self.System_verticalLayout.addWidget(self.Window_Block_Button)
         self.widget_2 = QtWidgets.QWidget(self.widget)
         self.widget_2.setGeometry(QtCore.QRect(170, 50, 671, 481))
         self.widget_2.setStyleSheet("background-color:rgb(255, 255, 255);")
@@ -1683,7 +1683,7 @@ class Ui_MainWindow(object):
         self.Language_Choose_widget_2.setFont(font)
         self.Language_Choose_widget_2.setObjectName("Language_Choose_widget_2")
         self.gridLayoutWidget_2 = QtWidgets.QWidget(self.Language_Choose_widget_2)
-        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(0, 0, 381, 61))
+        self.gridLayoutWidget_2.setGeometry(QtCore.QRect(0, 0, 381, 71))
         self.gridLayoutWidget_2.setObjectName("gridLayoutWidget_2")
         self.gridLayout_2 = QtWidgets.QGridLayout(self.gridLayoutWidget_2)
         self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
@@ -1746,8 +1746,8 @@ class Ui_MainWindow(object):
         self.Navigation_Bar.raise_()
         self.Protection_widget.raise_()
         self.About_widget.raise_()
-        self.Tools_widget.raise_()
         self.Virus_Scan_widget.raise_()
+        self.Tools_widget.raise_()
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
@@ -1802,10 +1802,10 @@ class Ui_MainWindow(object):
         self.Process_Total_title.setText(_translate("MainWindow", "進程總數:"))
         self.More_Tools_Back_Button.setText(_translate("MainWindow", "工具>"))
         self.System_Process_Manage_Button.setText(_translate("MainWindow", "系統進程管理"))
-        self.Repair_System_Files_Button.setText(_translate("MainWindow", "修復系統檔案"))
         self.Clean_System_Files_Button.setText(_translate("MainWindow", "清理系統檔案"))
-        self.Enable_Safe_Mode_Button.setText(_translate("MainWindow", "啟動安全模式"))
-        self.Disable_Safe_Mode_Button.setText(_translate("MainWindow", "關閉安全模式"))
+        self.Repair_System_Files_Button.setText(_translate("MainWindow", "修復系統檔案"))
+        self.Repair_System_Network_Button.setText(_translate("MainWindow", "修復系統網路"))
+        self.Window_Block_Button.setText(_translate("MainWindow", "軟體彈窗攔截"))
         self.high_sensitivity_title.setText(_translate("MainWindow", "高靈敏度模式"))
         self.high_sensitivity_illustrate.setText(_translate("MainWindow", "啟用此選項可以提高引擎的靈敏度"))
         self.high_sensitivity_switch_Button.setText(_translate("MainWindow", "已關閉"))

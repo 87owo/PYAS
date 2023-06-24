@@ -1,6 +1,6 @@
 import os, sys, time, json, psutil
 import ctypes, requests, subprocess
-import win32file, win32api, win32con
+import win32file, win32api, win32con, win32gui
 import xml.etree.ElementTree as ET
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
@@ -25,10 +25,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.init_config_ui()
         self.init_config_mbr()
         self.init_whitelist()
+        self.init_blocklist()
         self.init_tray_icon()
         self.setup_control()
-        self.init_protect()
         self.showNormal()
+        self.init_protect()
 
     def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
@@ -42,10 +43,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.protect_threading_init_3()
         self.protect_threading_init_4()
         self.protect_threading_init_5()
+        self.block_window_threading_init()
 
     def init_config(self):
         self.Safe = True
         self.Virus_Scan = False
+        self.block_window = True
         self.pyas_opacity = 0
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
@@ -56,24 +59,31 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def writeConfig(self, config):
         try:
-            with open("C:/Windows/SysWOW64/Library/PYAS.json", "w", encoding="utf-8") as f:
+            with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "w", encoding="utf-8") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
         except Exception as e:
             self.pyas_bug_log(e)
 
     def create_library(self):
         try:
-            if not os.path.exists("C:/Windows/SysWOW64/Library"):
-                os.makedirs("C:/Windows/SysWOW64/Library")
+            if not os.path.exists("C:/Windows/SysWOW64/PYAS"):
+                os.makedirs("C:/Windows/SysWOW64/PYAS")
         except Exception as e:
             self.pyas_bug_log(e)
 
     def init_whitelist(self):
         try:
-            with open("C:/Windows/SysWOW64/Library/Whitelist.txt", "r", encoding="utf-8") as f:
+            with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "r", encoding="utf-8") as f:
                 self.whitelist = [line.strip() for line in f.readlines()]
         except:
             self.whitelist = []
+
+    def init_blocklist(self):
+        try:
+            with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "r", encoding="utf-8") as f:
+                self.blocklist = [line.strip() for line in f.readlines()]
+        except:
+            self.blocklist = []
 
     def init_config_mbr(self):
         try:
@@ -83,9 +93,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.mbr_value = None
 
     def init_config_json(self):
-        if not os.path.exists("C:/Windows/SysWOW64/Library/PYAS.json"):
+        if not os.path.exists("C:/Windows/SysWOW64/PYAS/PYAS.json"):
             self.writeConfig({"language":"en_US","high_sensitivity":0,"cloud_services":1})
-        with open("C:/Windows/SysWOW64/Library/PYAS.json", "r", encoding="utf-8") as f:
+        with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "r", encoding="utf-8") as f:
             return json.load(f)
 
     def init_config_lang(self):
@@ -132,8 +142,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Setting_Back.clicked.connect(self.Setting_Back)
         self.ui.Repair_System_Files_Button.clicked.connect(self.Repair_System_Files)
         self.ui.Clean_System_Files_Button.clicked.connect(self.Clean_System_Files)
-        self.ui.Enable_Safe_Mode_Button.clicked.connect(self.Enable_Safe_Mode)
-        self.ui.Disable_Safe_Mode_Button.clicked.connect(self.Disable_Safe_Mode)
+        self.ui.Window_Block_Button.clicked.connect(self.Get_Software_Window)
+        self.ui.Repair_System_Network_Button.clicked.connect(self.Repair_System_Network)
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.Process_list_Menu)
         self.ui.Protection_switch_Button.clicked.connect(self.protect_threading_init)
@@ -249,8 +259,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.System_Process_Manage_Button.setText(self.text_Translate("系統進程管理"))
         self.ui.Repair_System_Files_Button.setText(self.text_Translate("系統檔案修復"))
         self.ui.Clean_System_Files_Button.setText(self.text_Translate("系統垃圾清理"))
-        self.ui.Enable_Safe_Mode_Button.setText(self.text_Translate("啟用安全模式"))
-        self.ui.Disable_Safe_Mode_Button.setText(self.text_Translate("禁用安全模式"))
+        self.ui.Window_Block_Button.setText(self.text_Translate("軟體彈窗攔截"))
+        self.ui.Repair_System_Network_Button.setText(self.text_Translate("系統網路修復"))
         self.ui.About_Back.setText(self.text_Translate("返回"))
         self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} {self.md5_key}"))
         self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
@@ -518,13 +528,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            self.block_window = False
             self.proc_protect = False
             self.file_protect = False
             self.mbr_protect = False
             self.reg_protect = False
             self.enh_protect = False
-            self.hideWindow()
             self.tray_icon.hide()
+            self.hideWindow()
             app.quit()
         event.ignore()
 
@@ -626,18 +637,28 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def add_white_list(self):
         file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("增加到白名單"),"C:/","All File *.*")
         try:
-            if file != "":
-                if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                    if str(file.replace("\\", "/")) not in self.whitelist:
+            if file != "" and file != "PYAS":
+                if str(file.replace("\\", "/")) not in self.whitelist:
+                    if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                         try:
                             self.whitelist.append(str(file.replace("\\", "/")))
-                            with open("C:/Windows/SysWOW64/Library/Whitelist.file", "a+", encoding="utf-8") as f:
+                            with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
                                 f.write(str(file.replace("\\", "/"))+'\n')
                             QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
                         except:
                             self.pyas_bug_log('增加到白名單失敗')
                     else:
                         self.pyas_bug_log('檔案已增加到白名單')
+                elif QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                    try:
+                        self.whitelist.remove(str(file.replace("\\", "/")))
+                        with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
+                            for file in self.whitelist:
+                                f.write(f'{file}\n')
+                        QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
+                    except Exception as e:
+                        print(e)
+                        self.pyas_bug_log('取消增加到白名單失敗')
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -854,7 +875,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Repair_System_Files(self):
         try:
-            if QMessageBox.warning(self,self.text_Translate("修復系統檔案"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.repair_system_wallpaper()
                 self.repair_system_explorer()
                 self.repair_system_restrictions()
@@ -868,7 +889,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def repair_system_icon(self):
         try:
             for file_type in ['exefile', 'comfile', 'txtfile', 'dllfile', 'inifile', 'VBSfile']:
-                time.sleep(0.001)
                 try:
                     key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, file_type, 0, win32con.KEY_ALL_ACCESS)
                     win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
@@ -888,7 +908,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             count = win32api.RegQueryInfoKey(key)[0]
             while count >= 0:
                 try:
-                    time.sleep(0.001)
                     subKeyName = win32api.RegEnumKey(key, count)
                     win32api.RegDeleteKey(key, subKeyName)
                 except:
@@ -905,12 +924,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     ('.txt', 'txtfile'),('txtfile', 'Text Document'),('.ini', 'inifile'),('inifile', 'Configuration Settings')]
             key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_LOCAL_MACHINE
             for ext, value in data:
-                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
             win32api.RegCloseKey(key)
             key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER
             for ext, value in data:
-                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 try:
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
@@ -922,12 +939,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts
             extensions = ['.exe', '.zip', '.dll', '.sys', '.bat', '.txt', '.msc']
             for ext in extensions:
-                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, '')
             win32api.RegCloseKey(key)
             key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, None, 0, win32con.KEY_ALL_ACCESS)# HKEY_CLASSES_ROOT
             for ext, value in data:
-                time.sleep(0.001)
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 if ext in ['.cmd', '.vbs']:
                     win32api.RegSetValue(key, ext + 'file', win32con.REG_SZ, 'Windows Command Script')
@@ -970,7 +985,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for key in keys:
                 for i in Permission:
                     try:
-                        time.sleep(0.001)
                         win32api.RegDeleteValue(key,i)
                     except:
                         pass
@@ -999,7 +1013,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Clean_System_Files(self):
         try:
-            if QMessageBox.warning(self,self.text_Translate("清理系統垃圾"),self.text_Translate("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.total_deleted_size = 0
                 self.traverse_temp_files(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
                 self.traverse_temp_files(f"C:/Windows/Temp")
@@ -1022,19 +1036,56 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             except:
                 continue
 
-    def Enable_Safe_Mode(self):
+    def Get_Software_Window(self):
         try:
-            if QMessageBox.warning(self,self.text_Translate("啟用安全模式"),self.text_Translate("您確定要啟用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                subprocess.run("bcdedit /set {default} safeboot minimal", check=True)
-                if QMessageBox.warning(self,self.text_Translate("重啟"),self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                     subprocess.run("shutdown -r -t 0", check=True)
+            self.block_window = False
+            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("請選擇要攔截的軟體彈窗"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                while self.block_window == False:
+                    window_name = str(win32gui.GetWindowText(win32gui.GetForegroundWindow()))
+                    QApplication.processEvents()
+                    if window_name != "" and window_name != "PYAS":
+                        if window_name not in self.blocklist:
+                            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                                try:
+                                    self.blocklist.append(window_name)
+                                    with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "a+", encoding="utf-8") as f:
+                                        f.write(f'{window_name}\n')
+                                    QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
+                                except:
+                                    self.pyas_bug_log('增加到彈窗攔截失敗')
+                        elif QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要取消攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                            try:
+                                self.blocklist.remove(window_name)
+                                with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "w", encoding="utf-8") as f:
+                                    for window_name in self.blocklist:
+                                        f.write(f'{window_name}\n')
+                                QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
+                            except:
+                                self.pyas_bug_log('取消到彈窗攔截失敗')
+                        self.block_window = True
+                        self.block_window_threading_init()
+            self.block_window = True
+            self.block_window_threading_init()
         except Exception as e:
             self.pyas_bug_log(e) 
 
-    def Disable_Safe_Mode(self):
+    def block_window_threading_init(self):
+        Thread(target=self.block_software_window).start()
+
+    def block_software_window(self):
+        while self.block_window:
+            time.sleep(0.2)
+            QApplication.processEvents()
+            for window_name in self.blocklist:
+                try:
+                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_CLOSE, 0, 0)
+                except:
+                    pass
+
+    def Repair_System_Network(self):
         try:
-            if QMessageBox.warning(self,self.text_Translate("禁用安全模式"),self.text_Translate("您確定要禁用安全模式嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                subprocess.run("bcdedit /deletevalue {current} safeboot", check=True)
+            if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修復系統網路嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                subprocess.run("netsh winsock reset", check=True)
                 if QMessageBox.warning(self,self.text_Translate("重啟"),self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     subprocess.run("shutdown -r -t 0", check=True)
         except Exception as e:
@@ -1208,7 +1259,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_mbr_repair(self):
         while self.mbr_protect and self.mbr_value != None:
             try:
-                time.sleep(0.5)
+                time.sleep(0.2)
+                QApplication.processEvents()
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
@@ -1220,6 +1272,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_reg_repair(self):
         while self.reg_protect:
             try:
+                time.sleep(0.2)
+                QApplication.processEvents()
                 self.repair_system_restrictions()
             except:
                 pass
@@ -1227,6 +1281,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_enhanced(self):
         while self.enh_protect:
             try:
+                time.sleep(0.2)
+                QApplication.processEvents()
                 self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()
@@ -1234,7 +1290,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.3"
+    pyas_version = "2.7.4"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

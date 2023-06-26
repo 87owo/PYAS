@@ -264,7 +264,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.About_Back.setText(self.text_Translate("返回"))
         self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} {self.md5_key}"))
         self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
-        self.ui.GUI_Made_Name.setText(self.text_Translate("87owo"))
+        self.ui.GUI_Made_Name.setText(self.text_Translate("mtkiao"))
         self.ui.Core_Made_title.setText(self.text_Translate("核心製作:"))
         self.ui.Core_Made_Name.setText(self.text_Translate("87owo"))
         self.ui.Testers_title.setText(self.text_Translate("測試人員:"))
@@ -635,8 +635,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
 
     def add_white_list(self):
-        file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("增加到白名單"),"C:/","All File *.*")
         try:
+            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("增加到白名單"),"C:/","All File *.*")
             if file != "" and file != "PYAS":
                 if str(file.replace("\\", "/")) not in self.whitelist:
                     if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -647,8 +647,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
                         except:
                             self.pyas_bug_log('增加到白名單失敗')
-                    else:
-                        self.pyas_bug_log('檔案已增加到白名單')
                 elif QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     try:
                         self.whitelist.remove(str(file.replace("\\", "/")))
@@ -656,8 +654,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             for file in self.whitelist:
                                 f.write(f'{file}\n')
                         QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
-                    except Exception as e:
-                        print(e)
+                    except:
                         self.pyas_bug_log('取消增加到白名單失敗')
         except Exception as e:
             self.pyas_bug_log(e)
@@ -882,7 +879,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()
-                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate("修復系統檔案成功"),QMessageBox.Ok)
+                QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate("修復系統檔案成功"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1018,7 +1015,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.traverse_temp_files(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
                 self.traverse_temp_files(f"C:/Windows/Temp")
                 self.traverse_temp_files(f"C:/$Recycle.Bin")
-                QMessageBox.information(self,self.text_Translate("完成"),self.text_Translate(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
+                QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -1062,8 +1059,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
                             except:
                                 self.pyas_bug_log('取消到彈窗攔截失敗')
-                        self.block_window = True
-                        self.block_window_threading_init()
             self.block_window = True
             self.block_window_threading_init()
         except Exception as e:
@@ -1086,7 +1081,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修復系統網路嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 subprocess.run("netsh winsock reset", check=True)
-                if QMessageBox.warning(self,self.text_Translate("重啟"),self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     subprocess.run("shutdown -r -t 0", check=True)
         except Exception as e:
             self.pyas_bug_log(e)
@@ -1137,7 +1132,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.system_notification(self.text_Translate("進程防護已關閉"))
         else:
             self.proc_protect = True
             self.ui.Protection_switch_Button.setText(self.text_Translate("已開啟"))
@@ -1153,7 +1147,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.system_notification(self.text_Translate("檔案防護已關閉"))
         else:
             self.file_protect = True
             self.ui.Protection_switch_Button_2.setText(self.text_Translate("已開啟"))
@@ -1171,7 +1164,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_3.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.system_notification(self.text_Translate("引導分區防護已關閉"))
         else:
             self.mbr_protect = True
             self.ui.Protection_switch_Button_3.setText(self.text_Translate("已開啟"))
@@ -1187,7 +1179,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_4.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.system_notification(self.text_Translate("註冊表防護已關閉"))
         else:
             self.reg_protect = True
             self.ui.Protection_switch_Button_4.setText(self.text_Translate("已開啟"))
@@ -1203,7 +1194,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
-            self.system_notification(self.text_Translate("增強防護已關閉"))
         else:
             self.enh_protect = True
             self.ui.Protection_switch_Button_5.setText(self.text_Translate("已開啟"))
@@ -1290,7 +1280,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.4"
+    pyas_version = "2.7.5"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

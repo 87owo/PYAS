@@ -1,4 +1,4 @@
-import os, sys, time, json, psutil
+import os, gc, sys, time, json, psutil
 import ctypes, requests, subprocess
 import win32file, win32api, win32con, win32gui
 import xml.etree.ElementTree as ET
@@ -52,6 +52,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.pyas_opacity = 0
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.sflist = [".exe",".dll",".com",".msi",".js",".jar",".vbs",".ps1",".xls",".xlsx",".doc",".docx"]
         self.md5_key = self.pyas_key()
         self.pyasConfig = self.init_config_json()
         self.init_config_lang()
@@ -676,7 +677,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pass
 
     def Virus_Scan_Break(self):
-        self.Virus_Scan = False
+        try:
+            self.ui.Virus_Scan_Break_Button.hide()
+            self.Virus_Scan = False
+        except:
+            pass
 
     def Virus_Solve(self):
         try:
@@ -746,14 +751,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             self.ui.Virus_Scan_Solve_Button.show()
             self.ui.Virus_Scan_choose_Button.show()
-            self.ui.Virus_Scan_Break_Button.hide()
-            self.Virus_Scan = False
+            self.Virus_Scan_Break()
             self.system_unsafe()
             text = self.text_Translate(f"當前發現 {len(self.Virus_List)} 個病毒")
         else:
-            self.ui.Virus_Scan_Break_Button.hide()
             self.ui.Virus_Scan_choose_Button.show()
-            self.Virus_Scan = False
+            self.Virus_Scan_Break()
             self.system_safe()
             text = self.text_Translate("當前未發現病毒")
         self.ui.Virus_Scan_text.setText(text)
@@ -788,6 +791,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if self.api_scan(file) or self.pe_scan(file):
                             self.write_scan(file)
                 self.answer_scan()
+                gc.collect()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -811,8 +815,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 self.ui.Virus_Scan_choose_Button.hide()
                 self.ui.Virus_Scan_Break_Button.show()
                 QApplication.processEvents()
-                self.traverse_path(path,[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
+                self.traverse_path(path)
                 self.answer_scan()
+                gc.collect()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -836,37 +841,38 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             for d in range(26):
                 try:
-                    self.traverse_path(f"{chr(65+d)}:/",[".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"])
+                    self.traverse_path(f"{chr(65+d)}:/")
                 except:
                     pass
             self.answer_scan()
+            gc.collect()
         except Exception as e:
             self.pyas_bug_log(e)
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
             self.ui.Virus_Scan_choose_Button.show()
             self.ui.Virus_Scan_Break_Button.hide()
 
-    def traverse_path(self,path,sflist):
+    def traverse_path(self,path):
         for fd in os.listdir(path):
             try:
                 fullpath = str(os.path.join(path,fd)).replace("\\", "/")
                 if self.Virus_Scan == False:
-                    self.ui.Virus_Scan_Break_Button.hide()
                     break
                 elif fullpath in self.whitelist or ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath:
                     continue
                 elif os.path.isdir(fullpath):
-                    self.traverse_path(fullpath,sflist)
+                    self.traverse_path(fullpath)
                 else:
                     self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
                     QApplication.processEvents()
                     if self.high_sensitivity == 0 and self.sign_scan(fullpath):
-                        if str(os.path.splitext(fd)[1]).lower() in sflist:
+                        if str(os.path.splitext(fd)[1]).lower() in self.sflist:
                             if self.api_scan(fullpath) or self.pe_scan(fullpath):
                                 self.write_scan(fullpath)
                     elif self.high_sensitivity == 1:
                         if self.api_scan(fullpath) or self.pe_scan(fullpath):
                             self.write_scan(fullpath)
+                gc.collect()
             except:
                 continue
 
@@ -1040,7 +1046,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 while self.block_window == False:
                     window_name = str(win32gui.GetWindowText(win32gui.GetForegroundWindow()))
                     QApplication.processEvents()
-                    if window_name != "" and window_name != "PYAS":
+                    if window_name not in ["", "PYAS"]:
                         if window_name not in self.blocklist:
                             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                                 try:
@@ -1059,6 +1065,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
                             except:
                                 self.pyas_bug_log('取消到彈窗攔截失敗')
+                        self.block_window = True
             self.block_window = True
             self.block_window_threading_init()
         except Exception as e:
@@ -1208,38 +1215,36 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 try:
                     time.sleep(0.001)
                     file, name = str(p.exe()).replace("\\", "/"), str(p.name())
-                    if self.pyas == file or file in self.whitelist or ":/Windows" in file or ":/Program" in file or "AppData" in file:
+                    if file == self.pyas or file in self.whitelist:
                         continue
-                    elif self.high_sensitivity == 0:
-                        if self.api_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
-                        elif self.pe_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
-                    elif self.high_sensitivity == 1:
-                        if self.sign_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
-                        elif self.api_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
-                        elif self.pe_scan(file):
-                            p.kill()
-                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
+                    elif ":/Windows" in file or ":/Program" in file or "AppData" in file:
+                        continue
+                    elif file in ["","Registry","vmmemCmZygote","MemCompression"]:
+                        continue
+                    elif self.high_sensitivity == 1 and self.sign_scan(file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
+                    elif self.api_scan(file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
+                    elif self.pe_scan(file):
+                        p.kill()
+                        self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
+                    gc.collect()
                 except:
                     pass
 
     def protect_system_file(self,path):
-        sflist = [".exe",".dll",".com",".msi",".js",".vbs",".xls",".xlsx",".doc",".docx"]
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    if self.pyas == file or file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file:
+                    if file == self.pyas or file in self.whitelist:
                         continue
-                    elif action and str(os.path.splitext(file)[1]).lower() in sflist:
+                    elif ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file:
+                        continue
+                    elif action == 3 and str(os.path.splitext(file)[1]).lower() in self.sflist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)

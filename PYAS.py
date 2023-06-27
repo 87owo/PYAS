@@ -28,8 +28,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.init_blocklist()
         self.init_tray_icon()
         self.setup_control()
-        self.showNormal()
         self.init_protect()
+        self.showNormal()
 
     def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
@@ -537,7 +537,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.enh_protect = False
             self.tray_icon.hide()
             self.hideWindow()
-            app.quit()
+            self.quit()
         event.ignore()
 
     def pyas_bug_log(self, e):

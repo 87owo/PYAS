@@ -89,7 +89,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def init_config_mbr(self):
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(16384)
+                self.mbr_value = f.read(512)
         except:
             self.mbr_value = None
 
@@ -1257,7 +1257,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 time.sleep(0.2)
                 QApplication.processEvents()
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if f.read(16384) != self.mbr_value:
+                    if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
                         self.system_notification(self.text_Translate("引導分區修復: PhysicalDrive0"))

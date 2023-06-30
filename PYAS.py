@@ -638,7 +638,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def add_white_list(self):
         try:
             file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("增加到白名單"),"C:/","All File *.*")
-            if file != "" and file != "PYAS":
+            if file not in ["", "PYAS"]:
                 if str(file.replace("\\", "/")) not in self.whitelist:
                     if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                         try:
@@ -1080,7 +1080,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             QApplication.processEvents()
             for window_name in self.blocklist:
                 try:
-                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_CLOSE, 0, 0)
+                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
                 except:
                     pass
 

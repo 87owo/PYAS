@@ -537,7 +537,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.enh_protect = False
             self.tray_icon.hide()
             self.hideWindow()
-            self.quit()
+            QApplication.instance().quit()
         event.ignore()
 
     def pyas_bug_log(self, e):
@@ -1077,10 +1077,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def block_software_window(self):
         while self.block_window:
             time.sleep(0.2)
-            QApplication.processEvents()
-            for window_name in self.blocklist:
+            for name in self.blocklist:
                 try:
-                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
+                    win32gui.PostMessage(win32gui.FindWindow(None, name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
                 except:
                     pass
 
@@ -1255,7 +1254,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.mbr_protect and self.mbr_value != None:
             try:
                 time.sleep(0.2)
-                QApplication.processEvents()
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
@@ -1268,7 +1266,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.reg_protect:
             try:
                 time.sleep(0.2)
-                QApplication.processEvents()
                 self.repair_system_restrictions()
             except:
                 pass
@@ -1277,7 +1274,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.enh_protect:
             try:
                 time.sleep(0.2)
-                QApplication.processEvents()
                 self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()

@@ -1077,9 +1077,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def block_software_window(self):
         while self.block_window:
             time.sleep(0.2)
-            for name in self.blocklist:
+            for window_name in self.blocklist:
                 try:
-                    win32gui.PostMessage(win32gui.FindWindow(None, name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
+                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
                 except:
                     pass
 
@@ -1206,7 +1206,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_enhanced).start()
+            #Thread(target=self.protect_system_enhanced).start()
 
     def protect_system_processes(self):
         while self.proc_protect:
@@ -1267,21 +1267,22 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.2)
                 self.repair_system_restrictions()
-            except:
-                pass
-
-    def protect_system_enhanced(self):
-        while self.enh_protect:
-            try:
-                time.sleep(0.2)
                 self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()
             except:
                 pass
 
+    def protect_system_enhanced(self):
+        pass
+        #while self.enh_protect:
+            #try:
+                #time.sleep(0.2)
+            #except:
+                #pass
+
 if __name__ == '__main__':
-    pyas_version = "2.7.5"
+    pyas_version = "2.7.6"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

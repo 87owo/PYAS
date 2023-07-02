@@ -244,7 +244,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程並攔截病毒"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.Protection_title_2.setText(self.text_Translate("檔案防護"))
-        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以刪除病毒檔案變更"))
+        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以監控病毒檔案變更"))
         self.ui.Protection_switch_Button_2.setText(self.text_Translate(self.ui.Protection_switch_Button_2.text()))
         self.ui.Protection_title_3.setText(self.text_Translate("引導防護"))
         self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以修復系統引導分區"))
@@ -458,7 +458,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def mousePressEvent(self, event):
         def updateOpacity():
-            if self.pyas_opacity > 70 and self.m_flag == True:
+            if self.pyas_opacity > 80 and self.m_flag == True:
                 self.pyas_opacity -= 1
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
@@ -731,7 +731,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     fn.append(str(func.name, "utf-8"))
             for vfl in function_list:
                 QApplication.processEvents()
-                if (sum(1 for num in fn if num in vfl)/len(vfl)) - (sum(1 for num in fn if num not in vfl)/len(vfl)) == 1.0:
+                if sum(1 for i in range(min(len(vfl), len(fn))) if vfl[i] == fn[i]) / min(len(vfl), len(fn)) > 0.5:
                     return True
             return False
         except:
@@ -1206,7 +1206,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            #Thread(target=self.protect_system_enhanced).start()
+            Thread(target=self.protect_system_enhanced).start()
 
     def protect_system_processes(self):
         while self.proc_protect:
@@ -1267,19 +1267,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.2)
                 self.repair_system_restrictions()
+            except:
+                pass
+
+    def protect_system_enhanced(self):
+        while self.enh_protect:
+            try:
+                time.sleep(0.2)
                 self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()
             except:
                 pass
-
-    def protect_system_enhanced(self):
-        pass
-        #while self.enh_protect:
-            #try:
-                #time.sleep(0.2)
-            #except:
-                #pass
 
 if __name__ == '__main__':
     pyas_version = "2.7.6"

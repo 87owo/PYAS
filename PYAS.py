@@ -1069,12 +1069,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             except:
                                 self.pyas_bug_log('取消到彈窗攔截失敗')
                         self.block_window = True
-            self.block_window = True
             self.block_window_threading_init()
         except Exception as e:
             self.pyas_bug_log(e) 
 
     def block_window_threading_init(self):
+        self.block_window = True
         Thread(target=self.block_software_window).start()
 
     def block_software_window(self):

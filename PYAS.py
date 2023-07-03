@@ -559,16 +559,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             with open(self.pyas, "rb") as f:
                 file_md5 = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={"key": file_md5}, timeout=3)
-            if response.status_code == 200:
-                if response.text == "True":
-                    return ""
-                elif response.text == "Update":
-                    return "(軟體需要更新)"
-                else:
-                    return "(安全密鑰錯誤)"
-            else:
-                return "(網路連接錯誤)"
+            for url in ["http://27.147.30.238:5001/pyas","https://api.pyas.cf/pyas"]:
+                try:
+                    response = requests.get(url, params={"key": file_md5}, timeout=3)
+                    if response.status_code == 200:
+                        if response.text == "True":
+                            return ""
+                        elif response.text == "Update":
+                            return "(軟體需要更新)"
+                        else:
+                            return "(安全密鑰錯誤)"
+                except:
+                    pass
+            return "(網路連接錯誤)"
         except:
             return "(網路連接錯誤)"
 

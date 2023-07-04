@@ -1226,7 +1226,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     for name, file in new_processes.items():
                         if file == self.pyas or file in self.whitelist:
                             continue
-                        elif ":/Windows" in file or ":/Program" in file or "AppData" in file:
+                        elif ":/Windows" in file or ":/Program" in file:
                             continue
                         elif file in ["","Registry","vmmemCmZygote","MemCompression"]:
                             continue

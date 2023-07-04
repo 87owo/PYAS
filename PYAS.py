@@ -1213,9 +1213,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def protect_system_processes(self):
         while self.proc_protect:
+            time.sleep(0.2)
             for p in psutil.process_iter():
                 try:
-                    time.sleep(0.001)
                     file, name = str(p.exe()).replace("\\", "/"), str(p.name())
                     if file == self.pyas or file in self.whitelist:
                         continue
@@ -1232,6 +1232,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     elif self.pe_scan(file):
                         p.kill()
                         self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
+                    else:
+                        self.whitelist.append(str(file.replace("\\", "/")))#
                     gc.collect()
                 except:
                     pass

@@ -15,6 +15,6 @@ Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 os, sys, time, json, psutil, ctypes, requests, subprocess, win32file, win32api, win32con, elementpath, hashlib, pefile, threading, PyQt5, PYAS_Language, PYAS_Model, PYAS_UI
 
 ## Special Thanks
-360, Wix, VirusShare, mtkiao129, LenStevens
+360, Wix, VirusShare, mtkiao129, LenStevens, 0607zzy
 
 Copyright© 2020~2023 PYAS Security By 87owo

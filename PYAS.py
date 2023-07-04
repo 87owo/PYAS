@@ -52,7 +52,17 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.pyas_opacity = 0
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.sflist = [".exe",".dll",".com",".msi",".js",".jar",".vbs",".ps1",".xls",".xlsx",".doc",".docx"]
+        self.sflist = [".exe",".dll",".com",".msi",".scr",
+                       ".bat",".cmd",".ps1",".vbs",".js",
+                       ".jar",".htm",".html",".ppt",".pptx",
+                       ".pdf",".xls",".xlsx",".doc",".docx"]
+        self.aflist = [".exe",".dll",".com",".msi",".scr",
+                       ".bat",".cmd",".ps1",".vbs",".js",
+                       ".jar",".htm",".html",".ppt",".pptx",
+                       ".pdf",".xls",".xlsx",".doc",".docx",
+                       ".jpg",".jpeg",".png",".webp",".gif",
+                       ".mp3",".wav",".aac",".flac",".alac",
+                       ".mp4",".avi",".mov",".wmv",".flv"]
         self.md5_key = self.pyas_key()
         self.pyasConfig = self.init_config_json()
         self.init_config_lang()
@@ -858,23 +868,23 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def traverse_path(self,path):
         for fd in os.listdir(path):
             try:
-                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                file = str(os.path.join(path,fd)).replace("\\", "/")
                 if self.Virus_Scan == False:
                     break
-                elif fullpath in self.whitelist or ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath:
+                elif file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file:
                     continue
-                elif os.path.isdir(fullpath):
-                    self.traverse_path(fullpath)
+                elif os.path.isdir(file):
+                    self.traverse_path(file)
                 else:
-                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
+                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+file)
                     QApplication.processEvents()
-                    if self.high_sensitivity == 0 and self.sign_scan(fullpath):
+                    if self.high_sensitivity == 0 and self.sign_scan(file):
                         if str(os.path.splitext(fd)[1]).lower() in self.sflist:
-                            if self.api_scan(fullpath) or self.pe_scan(fullpath):
-                                self.write_scan(fullpath)
+                            if self.api_scan(file) or self.pe_scan(file):
+                                self.write_scan(file)
                     elif self.high_sensitivity == 1:
-                        if self.api_scan(fullpath) or self.pe_scan(fullpath):
-                            self.write_scan(fullpath)
+                        if self.api_scan(file) or self.pe_scan(file):
+                            self.write_scan(file)
                 gc.collect()
             except:
                 continue
@@ -1006,14 +1016,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def repair_system_explorer(self):
         try:
-            if not self.is_explorer_running():
+            if not self.is_process_running('explorer.exe'):
                 subprocess.run("explorer.exe", check=True)
         except:
             pass
 
-    def is_explorer_running(self):
+    def is_process_running(self, name):
         for proc in psutil.process_iter(['name']):
-            if proc.info['name'] == 'explorer.exe':
+            if proc.info['name'] == name:
                 return True
         return False
 
@@ -1031,13 +1041,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def traverse_temp_files(self, path):
         for fd in os.listdir(path):
             try:
-                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                file = str(os.path.join(path,fd)).replace("\\", "/")
                 QApplication.processEvents()
-                if os.path.isdir(fullpath):
-                    self.traverse_temp_files(fullpath)
+                if os.path.isdir(file):
+                    self.traverse_temp_files(file)
                 else:
-                    file_size = os.path.getsize(fullpath)
-                    os.remove(fullpath)
+                    file_size = os.path.getsize(file)
+                    os.remove(file)
                     self.total_deleted_size += file_size
             except:
                 continue
@@ -1223,26 +1233,26 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     current_processes[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
                 new_processes = {name: path for name, path in current_processes.items() if name not in existing_processes}
                 if new_processes:
-                    for name, file in new_processes.items():
+                    for self.p_name, self.p_file in new_processes.items():
                         if file == self.pyas or file in self.whitelist:
                             continue
-                        elif ":/Windows" in file or ":/Program" in file:
+                        elif ":/Windows" in self.p_file or ":/Program" in self.p_file:
                             continue
-                        elif self.high_sensitivity == 1 and self.sign_scan(file):
+                        elif self.high_sensitivity == 1 and self.sign_scan(self.p_file):
                             for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == name:
+                                if p.info['name'] == self.p_name:
                                     p.kill()
-                            self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
-                        elif self.api_scan(file):
+                            self.system_notification(self.text_Translate("無效簽名攔截: ")+self.p_name)
+                        elif self.api_scan(self.p_file):
                             for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == name:
+                                if p.info['name'] == self.p_name:
                                     p.kill()
-                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
-                        elif self.pe_scan(file):
+                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+self.p_name)
+                        elif self.pe_scan(self.p_file):
                             for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == name:
+                                if p.info['name'] == self.p_name:
                                     p.kill()
-                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
+                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
                         gc.collect()
                 existing_processes = current_processes
             except:
@@ -1254,14 +1264,25 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
+                    file_type = str(os.path.splitext(file)[1]).lower()
                     if file == self.pyas or file in self.whitelist:
                         continue
                     elif ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file:
                         continue
-                    elif action == 3 and str(os.path.splitext(file)[1]).lower() in self.sflist:
+                    elif action == 1 and file_type in self.sflist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
+                    elif action == 3 and file_type in self.sflist:
+                        if self.sign_scan(file) and self.api_scan(file):
+                            os.remove(file)
+                            self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
+                    elif action == 4 and file_type in self.aflist:
+                        if self.is_process_running(self.p_name):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == self.p_name:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
             except:
                 pass
 

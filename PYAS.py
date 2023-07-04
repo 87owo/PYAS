@@ -1212,31 +1212,43 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target=self.protect_system_enhanced).start()
 
     def protect_system_processes(self):
+        existing_processes = {}
+        for proc in psutil.process_iter(['name', 'exe']):
+            existing_processes[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
         while self.proc_protect:
-            time.sleep(0.2)
-            for p in psutil.process_iter():
-                try:
-                    file, name = str(p.exe()).replace("\\", "/"), str(p.name())
-                    if file == self.pyas or file in self.whitelist:
-                        continue
-                    elif ":/Windows" in file or ":/Program" in file or "AppData" in file:
-                        continue
-                    elif file in ["","Registry","vmmemCmZygote","MemCompression"]:
-                        continue
-                    elif self.high_sensitivity == 1 and self.sign_scan(file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
-                    elif self.api_scan(file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
-                    elif self.pe_scan(file):
-                        p.kill()
-                        self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
-                    else:
-                        self.whitelist.append(str(file.replace("\\", "/")))#
-                    gc.collect()
-                except:
-                    pass
+            try:
+                time.sleep(0.2)
+                current_processes = {}
+                for proc in psutil.process_iter(['name', 'exe']):
+                    current_processes[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
+                new_processes = {name: path for name, path in current_processes.items() if name not in existing_processes}
+                if new_processes:
+                    for name, file in new_processes.items():
+                        if file == self.pyas or file in self.whitelist:
+                            continue
+                        elif ":/Windows" in file or ":/Program" in file or "AppData" in file:
+                            continue
+                        elif file in ["","Registry","vmmemCmZygote","MemCompression"]:
+                            continue
+                        elif self.high_sensitivity == 1 and self.sign_scan(file):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == name:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
+                        elif self.api_scan(file):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == name:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
+                        elif self.pe_scan(file):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == name:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
+                        gc.collect()
+                existing_processes = current_processes
+            except:
+                pass
 
     def protect_system_file(self,path):
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)

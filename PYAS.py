@@ -1228,8 +1228,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             continue
                         elif ":/Windows" in file or ":/Program" in file:
                             continue
-                        elif file in ["","Registry","vmmemCmZygote","MemCompression"]:
-                            continue
                         elif self.high_sensitivity == 1 and self.sign_scan(file):
                             for p in psutil.process_iter(['name', 'exe']):
                                 if p.info['name'] == name:

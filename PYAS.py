@@ -1234,7 +1234,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 new_processes = {name: path for name, path in current_processes.items() if name not in existing_processes}
                 if new_processes:
                     for self.p_name, self.p_file in new_processes.items():
-                        if file == self.pyas or file in self.whitelist:
+                        if self.p_file == self.pyas or self.p_file in self.whitelist:
                             continue
                         elif ":/Windows" in self.p_file or ":/Program" in self.p_file:
                             continue

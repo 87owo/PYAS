@@ -861,23 +861,23 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def traverse_path(self,path):
         for fd in os.listdir(path):
             try:
-                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                file = str(os.path.join(path,fd)).replace("\\", "/")
                 if self.Virus_Scan == False:
                     break
-                elif fullpath in self.whitelist or ":/$Recycle.Bin" in fullpath or ":/Windows" in fullpath:
+                elif file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file:
                     continue
-                elif os.path.isdir(fullpath):
-                    self.traverse_path(fullpath)
+                elif os.path.isdir(file):
+                    self.traverse_path(file)
                 else:
-                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+fullpath)
+                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+file)
                     QApplication.processEvents()
-                    if self.high_sensitivity == 0 and self.sign_scan(fullpath):
+                    if self.high_sensitivity == 0 and self.sign_scan(file):
                         if str(os.path.splitext(fd)[1]).lower() in self.sflist:
-                            if self.api_scan(fullpath) or self.pe_scan(fullpath):
-                                self.write_scan(fullpath)
+                            if self.api_scan(file) or self.pe_scan(file):
+                                self.write_scan(file)
                     elif self.high_sensitivity == 1:
-                        if self.api_scan(fullpath) or self.pe_scan(fullpath):
-                            self.write_scan(fullpath)
+                        if self.api_scan(file) or self.pe_scan(file):
+                            self.write_scan(file)
                 gc.collect()
             except:
                 continue
@@ -1009,14 +1009,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def repair_system_explorer(self):
         try:
-            if not self.is_explorer_running():
+            if not self.is_process_running("explorer.exe"):
                 subprocess.run("explorer.exe", check=True)
         except:
             pass
 
-    def is_explorer_running(self):
+    def is_process_running(self, name):
         for proc in psutil.process_iter(['name']):
-            if proc.info['name'] == 'explorer.exe':
+            if proc.info['name'] == name:
                 return True
         return False
 
@@ -1034,13 +1034,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def traverse_temp_files(self, path):
         for fd in os.listdir(path):
             try:
-                fullpath = str(os.path.join(path,fd)).replace("\\", "/")
+                file = str(os.path.join(path,fd)).replace("\\", "/")
                 QApplication.processEvents()
-                if os.path.isdir(fullpath):
-                    self.traverse_temp_files(fullpath)
+                if os.path.isdir(file):
+                    self.traverse_temp_files(file)
                 else:
-                    file_size = os.path.getsize(fullpath)
-                    os.remove(fullpath)
+                    file_size = os.path.getsize(file)
+                    os.remove(file)
                     self.total_deleted_size += file_size
             except:
                 continue

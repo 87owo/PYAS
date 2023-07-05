@@ -56,6 +56,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                        ".bat",".cmd",".ps1",".vbs",".js",
                        ".jar",".htm",".html",".ppt",".pptx",
                        ".pdf",".xls",".xlsx",".doc",".docx"]
+        self.aflist = [".exe",".dll",".com",".msi",".scr",
+                       ".bat",".cmd",".ps1",".vbs",".js",
+                       ".jar",".htm",".html",".ppt",".pptx",
+                       ".pdf",".xls",".xlsx",".doc",".docx",
+                       ".jpg",".jpeg",".png",".webp",".gif",
+                       ".mp3",".wav",".aac",".flac",".alac",
+                       ".mp4",".avi",".mov",".wmv",".flv"]
         self.md5_key = self.pyas_key()
         self.pyasConfig = self.init_config_json()
         self.init_config_lang()
@@ -1215,39 +1222,39 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target=self.protect_system_enhanced).start()
 
     def protect_system_processes(self):
-        existing_processes = {}
+        existing_proc = {}
         for proc in psutil.process_iter(['name', 'exe']):
-            existing_processes[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
+            existing_proc[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
         while self.proc_protect:
             try:
                 time.sleep(0.2)
-                current_processes = {}
+                current_proc = {}
                 for proc in psutil.process_iter(['name', 'exe']):
-                    current_processes[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
-                new_processes = {name: path for name, path in current_processes.items() if name not in existing_processes}
-                if new_processes:
-                    for name, file in new_processes.items():
-                        if file == self.pyas or file in self.whitelist:
+                    current_proc[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
+                new_proc = {name: path for name, path in current_proc.items() if name not in existing_proc}
+                if new_proc:
+                    for self.p_name, self.p_file in new_proc.items():
+                        if self.p_file == self.pyas or self.p_file in self.whitelist:
                             continue
-                        elif ":/Windows" in file or ":/Program" in file:
+                        elif ":/Windows" in self.p_file or ":/Program" in self.p_file:
                             continue
-                        elif self.high_sensitivity == 1 and self.sign_scan(file):
+                        elif self.high_sensitivity == 1 and self.sign_scan(self.p_file):
                             for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == name:
+                                if p.info['name'] == self.p_name:
                                     p.kill()
-                            self.system_notification(self.text_Translate("無效簽名攔截: ")+name)
-                        elif self.api_scan(file):
+                            self.system_notification(self.text_Translate("無效簽名攔截: ")+self.p_name)
+                        elif self.api_scan(self.p_file):
                             for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == name:
+                                if p.info['name'] == self.p_name:
                                     p.kill()
-                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
-                        elif self.pe_scan(file):
+                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+self.p_name)
+                        elif self.pe_scan(self.p_file):
                             for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == name:
+                                if p.info['name'] == self.p_name:
                                     p.kill()
-                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+name)
+                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
                         gc.collect()
-                existing_processes = current_processes
+                existing_proc = current_proc
             except:
                 pass
 
@@ -1257,15 +1264,23 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
+                    file_type = str(os.path.splitext(file)[1]).lower()
                     if file == self.pyas or file in self.whitelist:
                         continue
-                    elif ":/$Recycle.Bin" in file or ":/Windows" in file or ":/Program" in file:
+                    elif ":/Windows" in file or ":/Program" in file:
                         continue
-                    elif action == 3 and str(os.path.splitext(file)[1]).lower() in self.sflist:
+                    elif action == 3 and file_type in self.sflist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
-            except:
+                    elif action == 4 and file_type in self.aflist:
+                        if self.is_process_running(self.p_name):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == self.p_name:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
+            except Exception as e:
+                print(e)
                 pass
 
     def protect_system_mbr_repair(self):

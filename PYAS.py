@@ -1,4 +1,4 @@
-import os, gc, sys, time, json, psutil
+import os, sys, time, json, psutil
 import ctypes, requests, subprocess
 import win32file, win32api, win32con, win32gui
 import xml.etree.ElementTree as ET
@@ -50,6 +50,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Virus_Scan = False
         self.block_window = True
         self.pyas_opacity = 0
+        self.pyas_version = "2.7.6"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.sflist = [".exe",".dll",".com",".msi",".scr",
@@ -230,7 +231,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def lang_init_refresh(self):
         self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.Safe else "此裝置當前不安全"))
-        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{pyas_version} {self.md5_key}"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.md5_key}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
         self.ui.State_Button.setText(self.text_Translate("狀態"))
         self.ui.Virus_Scan_Button.setText(self.text_Translate("掃描"))
@@ -269,7 +270,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Window_Block_Button.setText(self.text_Translate("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.text_Translate("系統網路修復"))
         self.ui.About_Back.setText(self.text_Translate("返回"))
-        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{pyas_version} {self.md5_key}"))
+        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.md5_key}"))
         self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.text_Translate("mtkiao"))
         self.ui.Core_Made_title.setText(self.text_Translate("核心製作:"))
@@ -558,7 +559,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
             self.ui.State_output.append(f"[{now_time}] {text}")
             self.tray_icon.showMessage(now_time, text, 5)
-            gc.collect()
         except:
             pass
 
@@ -801,7 +801,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if self.api_scan(file) or self.pe_scan(file):
                             self.write_scan(file)
                 self.answer_scan()
-                gc.collect()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -827,7 +826,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QApplication.processEvents()
                 self.traverse_path(path)
                 self.answer_scan()
-                gc.collect()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -855,7 +853,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 except:
                     pass
             self.answer_scan()
-            gc.collect()
         except Exception as e:
             self.pyas_bug_log(e)
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -882,7 +879,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     elif self.high_sensitivity == 1:
                         if self.api_scan(file) or self.pe_scan(file):
                             self.write_scan(file)
-                gc.collect()
             except:
                 continue
 
@@ -1158,9 +1154,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            for d in range(26):
-                if os.path.exists(f"{chr(65+d)}:/"):
-                    Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",)).start()
+            Thread(target=self.protect_system_file, args=("C:/",)).start()
+            #for d in range(26):
+                #if os.path.exists(f"{chr(65+d)}:/"):
+                    #Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",)).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
@@ -1239,7 +1236,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_name:
                                     p.kill()
                             self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
-                        gc.collect()
                 existing_proc = current_proc
             except:
                 pass
@@ -1265,7 +1261,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_name:
                                     p.kill()
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
-                    gc.collect()
             except:
                 pass
 
@@ -1277,7 +1272,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        self.system_notification(self.text_Translate("引導分區修復: PhysicalDrive0"))
             except:
                 pass
 
@@ -1300,7 +1294,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    pyas_version = "2.7.6"
     QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QtWidgets.QApplication(sys.argv)

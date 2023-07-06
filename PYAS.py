@@ -56,6 +56,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                        ".bat",".cmd",".ps1",".vbs",".js",
                        ".jar",".htm",".html",".ppt",".pptx",
                        ".pdf",".xls",".xlsx",".doc",".docx"]
+        self.aflist = [".jpg",".jpeg",".png",".webp",".gif",
+                       ".mp3",".wav",".aac",".flac",".alac",
+                       ".mp4",".avi",".mov",".wmv",".flv"]
         self.md5_key = self.pyas_key()
         self.pyasConfig = self.init_config_json()
         self.init_config_lang()
@@ -92,7 +95,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def init_config_mbr(self):
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(520)
+                self.mbr_value = f.read(512)
         except:
             self.mbr_value = None
 
@@ -1256,9 +1259,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
-                    elif action == 4 and file_type in self.sflist:
+                    elif action == 4 and file_type in self.sflist+self.aflist:
                         if self.is_process_running(self.p_name):
-                            self.system_notification(self.text_Translate("勒索軟體檢測: ")+self.p_name)
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == self.p_name:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
                     gc.collect()
             except:
                 pass
@@ -1268,7 +1274,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if f.read(520) != self.mbr_value:
+                    if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
                         self.system_notification(self.text_Translate("引導分區修復: PhysicalDrive0"))

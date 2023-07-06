@@ -56,13 +56,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                        ".bat",".cmd",".ps1",".vbs",".js",
                        ".jar",".htm",".html",".ppt",".pptx",
                        ".pdf",".xls",".xlsx",".doc",".docx"]
-        self.aflist = [".exe",".dll",".com",".msi",".scr",
-                       ".bat",".cmd",".ps1",".vbs",".js",
-                       ".jar",".htm",".html",".ppt",".pptx",
-                       ".pdf",".xls",".xlsx",".doc",".docx",
-                       ".jpg",".jpeg",".png",".webp",".gif",
-                       ".mp3",".wav",".aac",".flac",".alac",
-                       ".mp4",".avi",".mov",".wmv",".flv"]
         self.md5_key = self.pyas_key()
         self.pyasConfig = self.init_config_json()
         self.init_config_lang()
@@ -99,7 +92,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def init_config_mbr(self):
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(512)
+                self.mbr_value = f.read(520)
         except:
             self.mbr_value = None
 
@@ -562,6 +555,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
             self.ui.State_output.append(f"[{now_time}] {text}")
             self.tray_icon.showMessage(now_time, text, 5)
+            gc.collect()
         except:
             pass
 
@@ -904,17 +898,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def repair_system_icon(self):
         try:
-            for file_type in ['exefile', 'comfile', 'txtfile', 'dllfile', 'inifile', 'VBSfile']:
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, file_type, 0, win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
-                except:
-                    pass
-                try:
-                    key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes\\' + file_type, 0, win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
-                except:
-                    pass
+            key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, 'exefile', 0, win32con.KEY_ALL_ACCESS)
+            win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
+        except:
+            pass
+        try:
+            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes\exefile', 0, win32con.KEY_ALL_ACCESS)
+            win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
         except:
             pass
 
@@ -934,35 +924,28 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def repair_system_file_type(self):
         try:
-            data = [('jpegfile', 'JPEG Image'),('.exe', 'exefile'),('exefile', 'Application'),('.com', 'comfile'),('comfile', 'MS-DOS Application'),
-                    ('.zip', 'CompressedFolder'),('.dll', 'dllfile'),('dllfile', 'Application Extension'),('.sys', 'sysfile'),('sysfile', 'System file'),
-                    ('.bat', 'batfile'),('batfile', 'Windows Batch File'),('VBS', 'VB Script Language'),('VBSfile', 'VBScript Script File'),
-                    ('.txt', 'txtfile'),('txtfile', 'Text Document'),('.ini', 'inifile'),('inifile', 'Configuration Settings')]
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_LOCAL_MACHINE
+            data = [('.exe', 'exefile'),('exefile', 'Application')]
+            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)
             for ext, value in data:
                 win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
             win32api.RegCloseKey(key)
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER
+            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)
             for ext, value in data:
-                win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                 try:
+                    win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
                     win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" %*')
                     win32api.RegCloseKey(keyopen)
                 except:
                     pass
             win32api.RegCloseKey(key)
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0, win32con.KEY_ALL_ACCESS)# HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts
-            extensions = ['.exe', '.zip', '.dll', '.sys', '.bat', '.txt', '.msc']
-            for ext in extensions:
-                win32api.RegSetValue(key, ext, win32con.REG_SZ, '')
+            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0, win32con.KEY_ALL_ACCESS)
+            win32api.RegSetValue(key, '.exe', win32con.REG_SZ, '')
             win32api.RegCloseKey(key)
-            key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, None, 0, win32con.KEY_ALL_ACCESS)# HKEY_CLASSES_ROOT
+            key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, None, 0, win32con.KEY_ALL_ACCESS)
             for ext, value in data:
-                win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
-                if ext in ['.cmd', '.vbs']:
-                    win32api.RegSetValue(key, ext + 'file', win32con.REG_SZ, 'Windows Command Script')
                 try:
+                    win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
                     keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
                     win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" %*')
                     win32api.RegCloseKey(keyopen)
@@ -1273,14 +1256,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
-                    elif action == 4 and file_type in self.aflist:
+                    elif action == 4 and file_type in self.sflist:
                         if self.is_process_running(self.p_name):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_name:
-                                    p.kill()
-                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
-            except Exception as e:
-                print(e)
+                            self.system_notification(self.text_Translate("勒索軟體檢測: ")+self.p_name)
+                    gc.collect()
+            except:
                 pass
 
     def protect_system_mbr_repair(self):
@@ -1288,7 +1268,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if f.read(512) != self.mbr_value:
+                    if f.read(520) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
                         self.system_notification(self.text_Translate("引導分區修復: PhysicalDrive0"))

@@ -1,4 +1,4 @@
-import os, sys, time, json, psutil
+import os, gc, sys, time, json, psutil
 import ctypes, requests, subprocess
 import win32file, win32api, win32con, win32gui
 import xml.etree.ElementTree as ET
@@ -801,6 +801,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if self.api_scan(file) or self.pe_scan(file):
                             self.write_scan(file)
                 self.answer_scan()
+                gc.collect()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -826,6 +827,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QApplication.processEvents()
                 self.traverse_path(path)
                 self.answer_scan()
+                gc.collect()
             else:
                 self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         except Exception as e:
@@ -853,6 +855,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 except:
                     pass
             self.answer_scan()
+            gc.collect()
         except Exception as e:
             self.pyas_bug_log(e)
             self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
@@ -879,6 +882,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     elif self.high_sensitivity == 1:
                         if self.api_scan(file) or self.pe_scan(file):
                             self.write_scan(file)
+                gc.collect()
             except:
                 continue
 
@@ -1236,6 +1240,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_name:
                                     p.kill()
                             self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
+                        gc.collect()
                 existing_proc = current_proc
             except:
                 pass
@@ -1261,6 +1266,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_name:
                                     p.kill()
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
+                    gc.collect()
             except:
                 pass
 

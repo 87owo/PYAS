@@ -1,9 +1,10 @@
-import os, gc, sys, time, json, psutil
-import ctypes, requests, subprocess
+import os, gc, sys, time, json
+import ctypes, psutil, requests, subprocess
 import win32file, win32api, win32con, win32gui
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as et
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
+from PYAS_Extension import flist, alist
 from PYAS_Language import translations
 from PYAS_Model import function_list
 from PYAS_UI import Ui_MainWindow
@@ -21,20 +22,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.create_library()
-        self.init_config()
-        self.init_config_ui()
-        self.init_config_mbr()
+        self.init_configs()
         self.init_whitelist()
         self.init_blocklist()
         self.init_tray_icon()
         self.setup_control()
         self.init_protect()
-        self.showNormal()
+        self.show_pyas_ui()
 
     def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
-        self.tray_icon.activated.connect(self.showNormal)
+        self.tray_icon.activated.connect(self.show_pyas_ui)
         self.tray_icon.show()
 
     def init_protect(self):
@@ -45,37 +44,32 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.protect_threading_init_5()
         self.block_window_threading_init()
 
-    def init_config(self):
-        self.Safe = True
-        self.Virus_Scan = False
+    def init_configs(self):
+        self.safe = True
+        self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.7.6"
+        self.pyas_version = "2.7.7"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.sflist = [".exe",".dll",".com",".msi",".scr",
-                       ".bat",".cmd",".ps1",".vbs",".js",
-                       ".jar",".htm",".html",".ppt",".pptx",
-                       ".pdf",".xls",".xlsx",".doc",".docx"]
-        self.aflist = [".jpg",".jpeg",".png",".webp",".gif",
-                       ".mp3",".wav",".aac",".flac",".alac",
-                       ".mp4",".avi",".mov",".wmv",".flv"]
-        self.md5_key = self.pyas_key()
-        self.pyasConfig = self.init_config_json()
+        self.key = self.pyas_key()
+        self.json = self.init_config_json()
         self.init_config_lang()
         self.init_config_sens()
-
-    def writeConfig(self, config):
-        try:
-            with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "w", encoding="utf-8") as f:
-                f.write(json.dumps(config, indent=4, ensure_ascii=False))
-        except Exception as e:
-            self.pyas_bug_log(e)
+        self.init_config_ui()
+        self.init_config_mbr()
 
     def create_library(self):
         try:
             if not os.path.exists("C:/Windows/SysWOW64/PYAS"):
                 os.makedirs("C:/Windows/SysWOW64/PYAS")
+        except Exception as e:
+            self.pyas_bug_log(e)
+
+    def writeConfig(self, config):
+        try:
+            with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "w", encoding="utf-8") as f:
+                f.write(json.dumps(config, indent=4, ensure_ascii=False))
         except Exception as e:
             self.pyas_bug_log(e)
 
@@ -107,7 +101,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             return json.load(f)
 
     def init_config_lang(self):
-        self.language = self.pyasConfig.get("language", "en_US")
+        self.language = self.json.get("language", "en_US")
         if self.language == "zh_TW":
             self.ui.Language_Traditional_Chinese.setChecked(True)
         elif self.language == "zh_CN":
@@ -117,13 +111,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.lang_init_refresh()
 
     def init_config_sens(self):
-        self.high_sensitivity = self.pyasConfig.get("high_sensitivity", 0)
+        self.high_sensitivity = self.json.get("high_sensitivity", 0)
         if self.high_sensitivity == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        self.cloud_services = self.pyasConfig.get("cloud_services", 1)
+        self.cloud_services = self.json.get("cloud_services", 1)
         if self.cloud_services == 1:
             self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
@@ -137,9 +131,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_Button.clicked.connect(self.Change_to_State_widget)
         self.ui.Protection_Button.clicked.connect(self.Change_to_Protection_widget)        
         self.ui.Virus_Scan_Button.clicked.connect(self.Change_to_Virus_Scan_widget)
-        self.ui.Virus_Scan_Solve_Button.clicked.connect(self.Virus_Solve)
-        self.ui.Virus_Scan_choose_Button.clicked.connect(self.Virus_Scan_Choose_Menu)
-        self.ui.Virus_Scan_Break_Button.clicked.connect(self.Virus_Scan_Break)
+        self.ui.Virus_Scan_Solve_Button.clicked.connect(self.virus_solve)
+        self.ui.Virus_Scan_choose_Button.clicked.connect(self.virus_scan_choose_menu)
+        self.ui.Virus_Scan_Break_Button.clicked.connect(self.virus_scan_break)
         self.ui.File_Scan_Button.clicked.connect(self.file_scan)
         self.ui.Path_Scan_Button.clicked.connect(self.path_scan)
         self.ui.Disk_Scan_Button.clicked.connect(self.disk_scan)
@@ -212,26 +206,26 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             self.ui.State_output.clear()
             if self.ui.Language_Traditional_Chinese.isChecked():
-                self.pyasConfig["language"] = "zh_TW"
-                self.writeConfig(self.pyasConfig)
+                self.json["language"] = "zh_TW"
+                self.writeConfig(self.json)
             elif self.ui.Language_Simplified_Chinese.isChecked():
-                self.pyasConfig["language"] = "zh_CN"
-                self.writeConfig(self.pyasConfig)
+                self.json["language"] = "zh_CN"
+                self.writeConfig(self.json)
             else:
-                self.pyasConfig["language"] = "en_US"
-                self.writeConfig(self.pyasConfig)
+                self.json["language"] = "en_US"
+                self.writeConfig(self.json)
             self.lang_init_refresh()
         except Exception as e:
             self.pyas_bug_log(e)
 
     def text_Translate(self, text):
-        for k, v in translations.get(self.pyasConfig["language"], translations).items():
+        for k, v in translations.get(self.json["language"], translations).items():
             text = text.replace(str(k), str(v))
         return text
 
     def lang_init_refresh(self):
-        self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.Safe else "此裝置當前不安全"))
-        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.md5_key}"))
+        self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.safe else "此裝置當前不安全"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.key}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
         self.ui.State_Button.setText(self.text_Translate("狀態"))
         self.ui.Virus_Scan_Button.setText(self.text_Translate("掃描"))
@@ -248,19 +242,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Process_Tools_Back.setText(self.text_Translate("返回"))
         self.ui.Process_Total_title.setText(self.text_Translate("進程總數:"))
         self.ui.Protection_title.setText(self.text_Translate("進程防護"))
-        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以監控進程並攔截病毒"))
+        self.ui.Protection_illustrate.setText(self.text_Translate("啟用此選項可以攔截進程病毒"))
         self.ui.Protection_switch_Button.setText(self.text_Translate(self.ui.Protection_switch_Button.text()))
         self.ui.Protection_title_2.setText(self.text_Translate("檔案防護"))
-        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以監控病毒檔案變更"))
+        self.ui.Protection_illustrate_2.setText(self.text_Translate("啟用此選項可以監控檔案變更"))
         self.ui.Protection_switch_Button_2.setText(self.text_Translate(self.ui.Protection_switch_Button_2.text()))
         self.ui.Protection_title_3.setText(self.text_Translate("引導防護"))
-        self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以修復系統引導分區"))
+        self.ui.Protection_illustrate_3.setText(self.text_Translate("啟用此選項可以修復引導分區"))
         self.ui.Protection_switch_Button_3.setText(self.text_Translate(self.ui.Protection_switch_Button_3.text()))
         self.ui.Protection_title_4.setText(self.text_Translate("註冊表防護"))
-        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以修復系統註冊表項目"))
+        self.ui.Protection_illustrate_4.setText(self.text_Translate("啟用此選項可以修復註冊表項目"))
         self.ui.Protection_switch_Button_4.setText(self.text_Translate(self.ui.Protection_switch_Button_4.text()))
         self.ui.Protection_title_5.setText(self.text_Translate("增強防護"))
-        self.ui.Protection_illustrate_5.setText(self.text_Translate("啟用此選項可以增強系統防護項目"))
+        self.ui.Protection_illustrate_5.setText(self.text_Translate("啟用此選項可以增強系統防護"))
         self.ui.Protection_switch_Button_5.setText(self.text_Translate(self.ui.Protection_switch_Button_5.text()))
         self.ui.State_log.setText(self.text_Translate("日誌:"))
         self.ui.More_Tools_Back_Button.setText(self.text_Translate("工具>"))
@@ -270,7 +264,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Window_Block_Button.setText(self.text_Translate("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.text_Translate("系統網路修復"))
         self.ui.About_Back.setText(self.text_Translate("返回"))
-        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.md5_key}"))
+        self.ui.PYAS_Version.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.key}"))
         self.ui.GUI_Made_title.setText(self.text_Translate("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.text_Translate("mtkiao"))
         self.ui.Core_Made_title.setText(self.text_Translate("核心製作:"))
@@ -514,7 +508,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
-    def showNormal(self):
+    def show_pyas_ui(self):
         self.show()
         while self.pyas_opacity < 100:
             time.sleep(0.001)
@@ -522,7 +516,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.setWindowOpacity(self.pyas_opacity/100)
             QApplication.processEvents()
 
-    def hideWindow(self):
+    def hide_pyas_ui(self):
         while self.pyas_opacity > 0:
             time.sleep(0.001)
             self.pyas_opacity -= 1
@@ -531,7 +525,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.hide()
 
     def showMinimized(self):
-        self.hideWindow()
+        self.hide_pyas_ui()
         self.system_notification(self.text_Translate("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
@@ -543,7 +537,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.reg_protect = False
             self.enh_protect = False
             self.tray_icon.hide()
-            self.hideWindow()
+            self.hide_pyas_ui()
             QApplication.instance().quit()
         event.ignore()
 
@@ -611,16 +605,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
         if sw_state == self.text_Translate("已關閉"):
             self.high_sensitivity = 1
-            self.pyasConfig["high_sensitivity"] = 1
-            self.writeConfig(self.pyasConfig)
+            self.json["high_sensitivity"] = 1
+            self.writeConfig(self.json)
             self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         elif sw_state == self.text_Translate("已開啟"):
             self.high_sensitivity = 0
-            self.pyasConfig["high_sensitivity"] = 0
-            self.writeConfig(self.pyasConfig)
+            self.json["high_sensitivity"] = 0
+            self.writeConfig(self.json)
             self.ui.high_sensitivity_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
@@ -630,77 +624,89 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         sw_state = self.ui.cloud_services_switch_Button.text()
         if sw_state == self.text_Translate("已關閉"):
             self.cloud_services = 1
-            self.pyasConfig["cloud_services"] = 1
-            self.writeConfig(self.pyasConfig)
+            self.json["cloud_services"] = 1
+            self.writeConfig(self.json)
             self.ui.cloud_services_switch_Button.setText(self.text_Translate("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         elif sw_state == self.text_Translate("已開啟"):
             self.cloud_services = 0
-            self.pyasConfig["cloud_services"] = 0
-            self.writeConfig(self.pyasConfig)
+            self.json["cloud_services"] = 0
+            self.writeConfig(self.json)
             self.ui.cloud_services_switch_Button.setText(self.text_Translate("已關閉"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
 
-    def add_white_list(self):
-        try:
-            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("增加到白名單"),"C:/","All File *.*")
-            if file not in ["", "PYAS"]:
-                if str(file.replace("\\", "/")) not in self.whitelist:
-                    if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                        try:
-                            self.whitelist.append(str(file.replace("\\", "/")))
-                            with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
-                                f.write(str(file.replace("\\", "/"))+'\n')
-                            QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
-                        except:
-                            self.pyas_bug_log('增加到白名單失敗')
-                elif QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                    try:
-                        self.whitelist.remove(str(file.replace("\\", "/")))
-                        with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
-                            for file in self.whitelist:
-                                f.write(f'{file}\n')
-                        QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
-                    except:
-                        self.pyas_bug_log('取消增加到白名單失敗')
-        except Exception as e:
-            self.pyas_bug_log(e)
-
     def system_safe(self):
         try:
+            self.safe = True
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
             self.ui.State_title.setText(self.text_Translate("此裝置已受到防護"))
-            self.Safe = True
         except:
             pass
 
     def system_unsafe(self):
         try:
+            self.safe = False
             self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
             self.ui.State_title.setText(self.text_Translate("此裝置當前不安全"))
-            self.Safe = False
         except:
             pass
 
-    def Virus_Scan_Break(self):
+    def init_scan(self):
+        self.scan = True
+        self.Virus_List = []
+        self.ui.Virus_Scan_Solve_Button.hide()
+        self.ui.Virus_Scan_choose_widget.hide()
+        self.ui.Virus_Scan_choose_Button.hide()
+        self.Virus_List_output=QStringListModel()
+        self.Virus_List_output.setStringList(self.Virus_List)
+        self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
+
+    def virus_scan_break(self):
+        self.scan = False
+        self.ui.Virus_Scan_Break_Button.hide()
+        self.ui.Virus_Scan_choose_Button.show()
+
+    def virus_scan_choose_menu(self):
+        if self.ui.Virus_Scan_choose_widget.isHidden():
+            self.ui.Virus_Scan_choose_widget.show()
+            self.Change_animation_4(self.ui.Virus_Scan_choose_widget,100,0,101)
+        else:
+            self.ui.Virus_Scan_choose_widget.hide()
+
+    def write_scan(self,file):
         try:
-            self.ui.Virus_Scan_Break_Button.hide()
-            self.Virus_Scan = False
+            self.Virus_List.append(file)
+            self.Virus_List_output.setStringList(self.Virus_List)
+            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         except:
             pass
 
-    def Virus_Solve(self):
+    def answer_scan(self):
+        if self.Virus_List != []:
+            self.Virus_List_output.setStringList(self.Virus_List)
+            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
+            self.ui.Virus_Scan_Solve_Button.show()
+            self.virus_scan_break()
+            self.system_unsafe()
+            text = self.text_Translate(f"當前發現 {len(self.Virus_List)} 個病毒")
+        else:
+            self.virus_scan_break()
+            self.system_safe()
+            text = self.text_Translate("當前未發現病毒")
+        self.ui.Virus_Scan_text.setText(text)
+        self.system_notification(text)
+
+    def virus_solve(self):
         try:
             for line in self.Virus_List:
                 try:
-                    if ":/Windows" not in str(line):
-                        self.ui.Virus_Scan_text.setText(self.text_Translate("正在刪除: ")+line)
-                        QApplication.processEvents()
-                        os.remove(str(line))
+                    self.ui.Virus_Scan_text.setText(self.text_Translate("正在刪除: ")+line)
+                    QApplication.processEvents()
+                    os.remove(str(line))
                 except:
                     continue
             self.Virus_List = []
@@ -712,6 +718,83 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except Exception as e:
             self.pyas_bug_log(e)
 
+    def file_scan(self):
+        try:
+            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("病毒掃描"),"C:/","")
+            if file != "":
+                self.init_scan()
+                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
+                QApplication.processEvents()
+                if file not in self.whitelist and ":/Windows" not in file:
+                    if self.high_sensitivity == 0 and self.sign_scan(file):
+                        if self.api_scan(file) or self.pe_scan(file):
+                            self.write_scan(file)
+                    elif self.high_sensitivity == 1:
+                        if self.api_scan(file) or self.pe_scan(file):
+                            self.write_scan(file)
+                self.answer_scan()
+                gc.collect()
+        except Exception as e:
+            self.pyas_bug_log(e)
+            self.virus_scan_break()
+            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+
+    def path_scan(self):
+        try:
+            path = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/")
+            if path != "":
+                self.init_scan()
+                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
+                self.ui.Virus_Scan_Break_Button.show()
+                QApplication.processEvents()
+                self.traverse_path(path)
+                self.answer_scan()
+                gc.collect()
+        except Exception as e:
+            self.pyas_bug_log(e)
+            self.virus_scan_break()
+            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+
+    def disk_scan(self):
+        try:
+            self.init_scan()
+            self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
+            self.ui.Virus_Scan_Break_Button.show()
+            QApplication.processEvents()
+            for d in range(26):
+                if os.path.exists(f"{chr(65+d)}:/"):
+                    self.traverse_path(f"{chr(65+d)}:/")
+            self.answer_scan()
+            gc.collect()
+        except Exception as e:
+            self.pyas_bug_log(e)
+            self.virus_scan_break()
+            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
+
+    def traverse_path(self,path):
+        for fd in os.listdir(path):
+            try:
+                file = str(os.path.join(path,fd)).replace("\\", "/")
+                if self.scan == False:
+                    break
+                elif file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file:
+                    continue
+                elif os.path.isdir(file):
+                    self.traverse_path(file)
+                else:
+                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+file)
+                    QApplication.processEvents()
+                    if self.high_sensitivity == 0 and self.sign_scan(file):
+                        if str(os.path.splitext(fd)[1]).lower() in flist:
+                            if self.api_scan(file) or self.pe_scan(file):
+                                self.write_scan(file)
+                    elif self.high_sensitivity == 1:
+                        if self.api_scan(file) or self.pe_scan(file):
+                            self.write_scan(file)
+                gc.collect()
+            except:
+                continue
+
     def api_scan(self, file):
         try:
             if self.cloud_services == 1:
@@ -719,7 +802,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     text = str(md5(f.read()).hexdigest())
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
-                return response.status_code == 200 and float(ET.fromstring(response.text).find('.//e_level').text) > 50
+                return response.status_code == 200 and float(et.fromstring(response.text).find('.//e_level').text) > 50
         except:
             return False
 
@@ -746,145 +829,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             return False
         except:
             return False
-
-    def write_scan(self,file):
-        try:
-            self.Virus_List.append(file)
-            self.Virus_List_output.setStringList(self.Virus_List)
-            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        except:
-            pass
-
-    def answer_scan(self):
-        if self.Virus_List != []:
-            self.Virus_List_output.setStringList(self.Virus_List)
-            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.Virus_Scan_Solve_Button.show()
-            self.ui.Virus_Scan_choose_Button.show()
-            self.Virus_Scan_Break()
-            self.system_unsafe()
-            text = self.text_Translate(f"當前發現 {len(self.Virus_List)} 個病毒")
-        else:
-            self.ui.Virus_Scan_choose_Button.show()
-            self.Virus_Scan_Break()
-            self.system_safe()
-            text = self.text_Translate("當前未發現病毒")
-        self.ui.Virus_Scan_text.setText(text)
-        self.system_notification(text)
-
-    def Virus_Scan_Choose_Menu(self):
-        if self.ui.Virus_Scan_choose_widget.isHidden():
-            self.ui.Virus_Scan_choose_widget.show()
-            self.Change_animation_4(self.ui.Virus_Scan_choose_widget,100,0,101)
-        else:
-            self.ui.Virus_Scan_choose_widget.hide()
-
-    def file_scan(self):
-        self.Virus_List = []
-        self.ui.Virus_Scan_choose_widget.hide()
-        self.ui.Virus_Scan_Solve_Button.hide()
-        self.Virus_List_output=QStringListModel()
-        self.Virus_List_output.setStringList(self.Virus_List)
-        self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("病毒掃描"),"C:/","")
-        try:
-            if file != "":
-                self.Virus_Scan = True
-                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
-                self.ui.Virus_Scan_choose_Button.hide()
-                QApplication.processEvents()
-                if file not in self.whitelist:
-                    if self.high_sensitivity == 0 and self.sign_scan(file):
-                        if self.api_scan(file) or self.pe_scan(file):
-                            self.write_scan(file)
-                    elif self.high_sensitivity == 1:
-                        if self.api_scan(file) or self.pe_scan(file):
-                            self.write_scan(file)
-                self.answer_scan()
-                gc.collect()
-            else:
-                self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
-        except Exception as e:
-            self.pyas_bug_log(e)
-            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
-            self.ui.Virus_Scan_choose_Button.show()
-            self.ui.Virus_Scan_Break_Button.hide()
-
-    def path_scan(self):
-        self.ui.Virus_Scan_choose_widget.hide()
-        self.ui.Virus_Scan_Solve_Button.hide()
-        self.Virus_List = []
-        self.Virus_List_output=QStringListModel()
-        self.Virus_List_output.setStringList(self.Virus_List)
-        self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        path = QFileDialog.getExistingDirectory(self,self.text_Translate("病毒掃描"),"C:/")
-        try:
-            if path != "":
-                self.Virus_Scan = True
-                self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
-                self.ui.Virus_Scan_choose_Button.hide()
-                self.ui.Virus_Scan_Break_Button.show()
-                QApplication.processEvents()
-                self.traverse_path(path)
-                self.answer_scan()
-                gc.collect()
-            else:
-                self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
-        except Exception as e:
-            self.pyas_bug_log(e)
-            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
-            self.ui.Virus_Scan_choose_Button.show()
-            self.ui.Virus_Scan_Break_Button.hide()
-
-    def disk_scan(self):
-        try:
-            self.ui.Virus_Scan_choose_widget.hide()
-            self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
-            QApplication.processEvents()
-            self.Virus_Scan = True
-            self.ui.Virus_Scan_Solve_Button.hide()
-            self.ui.Virus_Scan_choose_Button.hide()
-            self.ui.Virus_Scan_Break_Button.show()
-            self.Virus_List = []
-            self.Virus_List_output=QStringListModel()
-            self.Virus_List_output.setStringList(self.Virus_List)
-            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            for d in range(26):
-                try:
-                    self.traverse_path(f"{chr(65+d)}:/")
-                except:
-                    pass
-            self.answer_scan()
-            gc.collect()
-        except Exception as e:
-            self.pyas_bug_log(e)
-            self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
-            self.ui.Virus_Scan_choose_Button.show()
-            self.ui.Virus_Scan_Break_Button.hide()
-
-    def traverse_path(self,path):
-        for fd in os.listdir(path):
-            try:
-                file = str(os.path.join(path,fd)).replace("\\", "/")
-                if self.Virus_Scan == False:
-                    break
-                elif file in self.whitelist or ":/$Recycle.Bin" in file or ":/Windows" in file:
-                    continue
-                elif os.path.isdir(file):
-                    self.traverse_path(file)
-                else:
-                    self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+file)
-                    QApplication.processEvents()
-                    if self.high_sensitivity == 0 and self.sign_scan(file):
-                        if str(os.path.splitext(fd)[1]).lower() in self.sflist:
-                            if self.api_scan(file) or self.pe_scan(file):
-                                self.write_scan(file)
-                    elif self.high_sensitivity == 1:
-                        if self.api_scan(file) or self.pe_scan(file):
-                            self.write_scan(file)
-                gc.collect()
-            except:
-                continue
 
     def Repair_System_Files(self):
         try:
@@ -1038,6 +982,31 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             except:
                 continue
 
+    def add_white_list(self):
+        try:
+            file, filetype= QFileDialog.getOpenFileName(self,self.text_Translate("增加到白名單"),"C:/","All File *.*")
+            if file not in ["", "PYAS"]:
+                if str(file.replace("\\", "/")) not in self.whitelist:
+                    if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                        try:
+                            self.whitelist.append(str(file.replace("\\", "/")))
+                            with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
+                                f.write(str(file.replace("\\", "/"))+'\n')
+                            QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
+                        except:
+                            self.pyas_bug_log('增加到白名單失敗')
+                elif QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate(f"您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                    try:
+                        self.whitelist.remove(str(file.replace("\\", "/")))
+                        with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
+                            for file in self.whitelist:
+                                f.write(f'{file}\n')
+                        QMessageBox.information(self,self.text_Translate("成功"),self.text_Translate(f"成功取消增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
+                    except:
+                        self.pyas_bug_log('取消增加到白名單失敗')
+        except Exception as e:
+            self.pyas_bug_log(e)
+
     def Get_Software_Window(self):
         try:
             self.block_window = False
@@ -1158,10 +1127,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_file, args=("C:/",)).start()
-            #for d in range(26):
-                #if os.path.exists(f"{chr(65+d)}:/"):
-                    #Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",)).start()
+            for d in range(26):
+                if os.path.exists(f"{chr(65+d)}:/"):
+                    Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",)).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
@@ -1240,6 +1208,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_name:
                                     p.kill()
                             self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
+                        else:
+                            self.p_check = self.p_name
                         gc.collect()
                 existing_proc = current_proc
             except:
@@ -1247,6 +1217,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def protect_system_file(self,path):
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        self.ransom_block = False
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
@@ -1256,16 +1227,30 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         continue
                     elif ":/Windows" in file or ":/Program" in file:
                         continue
-                    elif action == 3 and file_type in self.sflist:
+                    elif action == 1 or action == 5:
+                        if not self.ransom_block and file_type not in alist:
+                            self.ransom_block = True
+                        elif self.is_process_running(self.p_check):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == self.p_check:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
+                        else:
+                            self.ransom_block = False
+                    elif action == 2 or action == 4:
+                        if not self.ransom_block and file_type in alist:
+                            self.ransom_block = True
+                        elif self.is_process_running(self.p_check):
+                            for p in psutil.process_iter(['name', 'exe']):
+                                if p.info['name'] == self.p_check:
+                                    p.kill()
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
+                        else:
+                            self.ransom_block = False
+                    elif action == 3 and file_type in flist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
-                    elif action == 4 and file_type in self.sflist+self.aflist:
-                        if self.is_process_running(self.p_name):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_name:
-                                    p.kill()
-                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
                     gc.collect()
             except:
                 pass

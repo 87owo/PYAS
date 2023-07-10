@@ -1,13 +1,13 @@
-import os, gc, sys, time, json
-import ctypes, psutil, requests, subprocess
-import win32file, win32api, win32con, win32gui
+import os, gc, sys, time, json, requests
+import psutil, ctypes, win32con, win32gui
+import win32file, win32api, subprocess
 import xml.etree.ElementTree as et
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Language import translations
-from PYAS_Extension import slist, alist
 from PYAS_Function import function_list
-from PYAS_UI import Ui_MainWindow
+from PYAS_Extension import slist, alist
+from PYAS_Interface import Ui_MainWindow
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *

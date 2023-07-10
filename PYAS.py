@@ -1235,7 +1235,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_check:
                                     p.kill()
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
-                        else:
                             self.ransom_block = False
                     elif action == 2 or action == 4:
                         if not self.ransom_block and file_type in alist:
@@ -1245,7 +1244,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 if p.info['name'] == self.p_check:
                                     p.kill()
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
-                        else:
                             self.ransom_block = False
                     elif action == 3 and file_type in flist:
                         if self.sign_scan(file) and self.api_scan(file):

@@ -1,4 +1,4 @@
-flist = [".exe",".dll",".com",".msi",".scr",
+slist = [".exe",".dll",".com",".msi",".scr",
          ".bat",".cmd",".ps1",".vbs",".js",
          ".jar",".htm",".html",".ppt",".pptx",
          ".pdf",".xls",".xlsx",".doc",".docx"]

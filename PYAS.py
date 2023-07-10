@@ -4,9 +4,9 @@ import win32file, win32api, win32con, win32gui
 import xml.etree.ElementTree as et
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
-from PYAS_Extension import flist, alist
 from PYAS_Language import translations
-from PYAS_Model import function_list
+from PYAS_Extension import slist, alist
+from PYAS_Function import function_list
 from PYAS_UI import Ui_MainWindow
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import *
@@ -785,7 +785,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     self.ui.Virus_Scan_text.setText(self.text_Translate(f"正在掃描: ")+file)
                     QApplication.processEvents()
                     if self.high_sensitivity == 0 and self.sign_scan(file):
-                        if str(os.path.splitext(fd)[1]).lower() in flist:
+                        if str(os.path.splitext(fd)[1]).lower() in slist:
                             if self.api_scan(file) or self.pe_scan(file):
                                 self.write_scan(file)
                     elif self.high_sensitivity == 1:
@@ -1245,7 +1245,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     p.kill()
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
                             self.ransom_block = False
-                    elif action == 3 and file_type in flist:
+                    elif action == 3 and file_type in slist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)

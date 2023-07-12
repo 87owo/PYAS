@@ -45,7 +45,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.block_window_threading_init()
 
     def init_configs(self):
-        self.safe = True
         self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
@@ -54,6 +53,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.key = self.pyas_key()
         self.json = self.init_config_json()
+        self.system_safe()
         self.init_config_lang()
         self.init_config_sens()
         self.init_config_ui()
@@ -227,10 +227,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.safe else "此裝置當前不安全"))
         self.ui.Window_title.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.key}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
-        self.ui.State_Button.setText(self.text_Translate("狀態"))
-        self.ui.Virus_Scan_Button.setText(self.text_Translate("掃描"))
-        self.ui.Tools_Button.setText(self.text_Translate("工具"))
-        self.ui.Protection_Button.setText(self.text_Translate("防護"))
+        self.ui.State_Button.setText(self.text_Translate(" 狀態"))
+        self.ui.Virus_Scan_Button.setText(self.text_Translate(" 掃描"))
+        self.ui.Tools_Button.setText(self.text_Translate(" 工具"))
+        self.ui.Protection_Button.setText(self.text_Translate(" 防護"))
         self.ui.Virus_Scan_title.setText(self.text_Translate("病毒掃描"))
         self.ui.Virus_Scan_text.setText(self.text_Translate("請選擇掃描方式"))
         self.ui.Virus_Scan_choose_Button.setText(self.text_Translate("病毒掃描"))
@@ -387,7 +387,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_State_widget(self):
         if self.ui.State_widget.isHidden():
-            self.Change_animation_2(25,50)
+            self.Change_animation_2(20,50)
             self.Change_animation_3(self.ui.State_widget,0.5)
             self.Change_animation(self.ui.State_widget)
             self.ui.State_widget.show()
@@ -400,7 +400,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_Virus_Scan_widget(self):
         if self.ui.Virus_Scan_widget.isHidden():
-            self.Change_animation_2(25,168)
+            self.Change_animation_2(20,168)
             self.Change_animation_3(self.ui.Virus_Scan_widget,0.5)
             self.Change_animation(self.ui.Virus_Scan_widget)
             self.ui.State_widget.hide()
@@ -413,7 +413,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_Tools_widget(self):
         if self.ui.Tools_widget.isHidden():
-            self.Change_animation_2(25,285)
+            self.Change_animation_2(20,285)
             self.Change_animation_3(self.ui.Tools_widget,0.5)
             self.Change_animation(self.ui.Tools_widget)
             self.ui.State_widget.hide()
@@ -426,7 +426,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def Change_to_Protection_widget(self):
         if self.ui.Protection_widget.isHidden():
-            self.Change_animation_2(25,405)
+            self.Change_animation_2(20,405)
             self.Change_animation_3(self.ui.Protection_widget,0.5)
             self.Change_animation(self.ui.Protection_widget)
             self.ui.State_widget.hide()
@@ -563,13 +563,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             for url in ["http://27.147.30.238:5001/pyas","https://api.pyas.cf/pyas"]:
                 try:
                     response = requests.get(url, params={"key": file_md5}, timeout=3)
-                    if response.status_code == 200:
-                        if response.text == "True":
-                            return ""
-                        elif response.text == "Update":
-                            return "(軟體需要更新)"
-                        else:
-                            return "(安全密鑰錯誤)"
+                    if response.status_code == 200 and response.text == "True":
+                        return ""
+                    else:
+                        return "(安全密鑰錯誤)"
                 except:
                     pass
             return "(網路連接錯誤)"
@@ -642,7 +639,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def system_safe(self):
         try:
             self.safe = True
-            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/check.png"))
+            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Check.png"))
             self.ui.State_title.setText(self.text_Translate("此裝置已受到防護"))
         except:
             pass
@@ -650,7 +647,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def system_unsafe(self):
         try:
             self.safe = False
-            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Icon/X2.png"))
+            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Close.png"))
             self.ui.State_title.setText(self.text_Translate("此裝置當前不安全"))
         except:
             pass
@@ -1215,9 +1212,19 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             except:
                 pass
 
+    def protect_system_track(self,proc):
+        try:
+            if self.is_process_running(proc):
+                for p in psutil.process_iter(['name', 'exe']):
+                    if p.info['name'] == proc:
+                        p.kill()
+                        return True
+            return False
+        except:
+            return False
+
     def protect_system_file(self,path):
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
-        self.ransom_block = False
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
@@ -1227,24 +1234,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         continue
                     elif ":/Windows" in file or ":/Program" in file:
                         continue
-                    elif action == 1 or action == 5:
-                        if not self.ransom_block and file_type not in alist:
-                            self.ransom_block = True
-                        elif self.is_process_running(self.p_check):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_check:
-                                    p.kill()
+                    elif action == 4 and file_type in alist:
+                        if self.protect_system_track(self.p_check):
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
-                            self.ransom_block = False
-                    elif action == 2 or action == 4:
-                        if not self.ransom_block and file_type in alist:
-                            self.ransom_block = True
-                        elif self.is_process_running(self.p_check):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_check:
-                                    p.kill()
-                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
-                            self.ransom_block = False
                     elif action == 3 and file_type in slist:
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)

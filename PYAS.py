@@ -1190,20 +1190,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         elif ":/Windows" in self.p_file or ":/Program" in self.p_file:
                             continue
                         elif self.high_sensitivity == 1 and self.sign_scan(self.p_file):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_name:
-                                    p.kill()
-                            self.system_notification(self.text_Translate("無效簽名攔截: ")+self.p_name)
+                            if self.protect_process_kill(self.p_name):
+                                self.system_notification(self.text_Translate("無效簽名攔截: ")+self.p_name)
                         elif self.api_scan(self.p_file):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_name:
-                                    p.kill()
-                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+self.p_name)
+                            if self.protect_process_kill(self.p_name):
+                                self.system_notification(self.text_Translate("惡意軟體攔截: ")+self.p_name)
                         elif self.pe_scan(self.p_file):
-                            for p in psutil.process_iter(['name', 'exe']):
-                                if p.info['name'] == self.p_name:
-                                    p.kill()
-                            self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
+                            if self.protect_process_kill(self.p_name):
+                                self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
                         else:
                             self.p_check = self.p_name
                         gc.collect()
@@ -1211,13 +1205,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             except:
                 pass
 
-    def protect_system_track(self,proc):
+    def protect_process_kill(self,proc):
         try:
-            if self.is_process_running(proc):
-                for p in psutil.process_iter(['name', 'exe']):
-                    if p.info['name'] == proc:
-                        p.kill()
-                        return True
+            for p in psutil.process_iter(['name', 'exe']):
+                if p.info['name'] == proc:
+                    p.kill()
+                    return True
             return False
         except:
             return False
@@ -1240,7 +1233,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
                         elif file_type in alist and self.last_file == file_name:
-                            if self.protect_system_track(self.p_check):
+                            if self.protect_process_kill(self.p_check):
                                 self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
                         self.last_file = file_name
                     gc.collect()

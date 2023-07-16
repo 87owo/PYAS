@@ -295,7 +295,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.ui.Language_title.setText(self.text_Translate("顯示語言"))
         self.ui.Language_illustrate.setText(self.text_Translate("請選擇語言"))
         self.ui.License_terms_title.setText(self.text_Translate("許可條款:"))
-    
+
     def Change_Theme(self):
         if self.ui.Theme_White.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
@@ -820,8 +820,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for func in entry.imports:
                     fn.append(str(func.name, "utf-8"))
             for vfl in function_list:
-                QApplication.processEvents()
-                if sum(1 for i in range(min(len(vfl), len(fn))) if vfl[i] == fn[i]) / min(len(vfl), len(fn)) > 0.5:
+                if len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) == 1.0:
                     return True
             return False
         except:
@@ -1225,22 +1224,25 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def protect_system_file(self,path):
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        self.last_file = ""
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
                     file_type = str(os.path.splitext(file)[1]).lower()
+                    file_name = str(os.path.splitext(file)[0])
                     if file == self.pyas or file in self.whitelist:
                         continue
-                    elif ":/Windows" in file or ":/Program" in file:
+                    elif ":/Windows" in file or ":/Program" in file or "/AppData/" in file:
                         continue
-                    elif action == 4 and file_type in alist:
-                        if self.protect_system_track(self.p_check):
-                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
-                    elif action == 3 and file_type in slist:
-                        if self.sign_scan(file) and self.api_scan(file):
+                    elif action:
+                        if file_type in slist and self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
+                        elif file_type in alist and self.last_file == file_name:
+                            if self.protect_system_track(self.p_check):
+                                self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
+                        self.last_file = file_name
                     gc.collect()
             except:
                 pass
@@ -1261,6 +1263,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 time.sleep(0.2)
                 self.repair_system_restrictions()
+                self.repair_system_file_type()
             except:
                 pass
 
@@ -1268,7 +1271,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.enh_protect:
             try:
                 time.sleep(0.2)
-                self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()
             except:

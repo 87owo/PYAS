@@ -48,7 +48,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.7.7"
+        self.pyas_version = "2.7.8"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.key = self.pyas_key()
@@ -818,10 +818,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pe.close()
             for entry in pe.DIRECTORY_ENTRY_IMPORT:
                 for func in entry.imports:
-                    fn.append(str(func.name, "utf-8"))
-            for vfl in function_list:
-                if len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) == 1.0:
-                    return True
+                    try:
+                        fn.append(str(func.name, "utf-8"))
+                    except:
+                        pass
+            if fn in function_list:
+                print(fn)
+                return True
             return False
         except:
             return False
@@ -1189,16 +1192,13 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             continue
                         elif ":/Windows" in self.p_file or ":/Program" in self.p_file:
                             continue
-                        elif self.high_sensitivity == 1 and self.sign_scan(self.p_file):
-                            if self.protect_process_kill(self.p_name):
-                                self.system_notification(self.text_Translate("無效簽名攔截: ")+self.p_name)
                         elif self.api_scan(self.p_file):
                             if self.protect_process_kill(self.p_name):
                                 self.system_notification(self.text_Translate("惡意軟體攔截: ")+self.p_name)
                         elif self.pe_scan(self.p_file):
                             if self.protect_process_kill(self.p_name):
                                 self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
-                        else:
+                        elif self.sign_scan(self.p_file):
                             self.p_check = self.p_name
                         gc.collect()
                 existing_proc = current_proc
@@ -1232,9 +1232,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if file_type in slist and self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
-                        elif file_type in alist and self.last_file == file_name:
-                            if self.protect_process_kill(self.p_check):
-                                self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
+                        elif self.last_file == file_name and self.protect_process_kill(self.p_check):
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
                         self.last_file = file_name
                     gc.collect()
             except:

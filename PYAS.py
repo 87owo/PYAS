@@ -823,7 +823,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     except:
                         pass
             if fn in function_list:
-                print(fn)
                 return True
             return False
         except:

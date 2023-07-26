@@ -48,7 +48,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.7.8"
+        self.pyas_version = "2.7.9"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.key = self.pyas_key()

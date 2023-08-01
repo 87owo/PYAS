@@ -655,6 +655,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def init_scan(self):
         self.scan = True
         self.Virus_List = []
+        self.Virus_List_Ui = []
         self.ui.Virus_Scan_Solve_Button.hide()
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_choose_Button.hide()
@@ -674,17 +675,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         else:
             self.ui.Virus_Scan_choose_widget.hide()
 
-    def write_scan(self,file):
+    def write_scan(self,state,file):
         try:
             self.Virus_List.append(file)
-            self.Virus_List_output.setStringList(self.Virus_List)
+            self.Virus_List_Ui.append(f"[{state}] {file}")
+            self.Virus_List_output.setStringList(self.Virus_List_Ui)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         except:
             pass
 
     def answer_scan(self):
         if self.Virus_List != []:
-            self.Virus_List_output.setStringList(self.Virus_List)
+            self.Virus_List_output.setStringList(self.Virus_List_Ui)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             self.ui.Virus_Scan_Solve_Button.show()
             self.virus_scan_break()
@@ -707,6 +709,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 except:
                     continue
             self.Virus_List = []
+            self.Virus_List_Ui = []
             self.Virus_List_output.setStringList(self.Virus_List)
             self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
             self.ui.Virus_Scan_text.setText(self.text_Translate("成功: 刪除成功"))
@@ -724,11 +727,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 QApplication.processEvents()
                 if file not in self.whitelist and ":/Windows" not in file:
                     if self.high_sensitivity == 0 and self.sign_scan(file):
-                        if self.api_scan(file) or self.pe_scan(file):
-                            self.write_scan(file)
+                        if self.api_scan(file):
+                            self.write_scan(self.text_Translate("惡意"),file)
+                        elif self.pe_scan(file):
+                            self.write_scan(self.text_Translate("可疑"),file)
                     elif self.high_sensitivity == 1:
-                        if self.api_scan(file) or self.pe_scan(file):
-                            self.write_scan(file)
+                        if self.api_scan(file):
+                            self.write_scan(self.text_Translate("惡意"),file)
+                        elif self.pe_scan(file):
+                            self.write_scan(self.text_Translate("可疑"),file)
                 self.answer_scan()
                 gc.collect()
         except Exception as e:
@@ -783,11 +790,15 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     QApplication.processEvents()
                     if self.high_sensitivity == 0 and self.sign_scan(file):
                         if str(os.path.splitext(fd)[1]).lower() in slist:
-                            if self.api_scan(file) or self.pe_scan(file):
-                                self.write_scan(file)
+                            if self.api_scan(file):
+                                self.write_scan(self.text_Translate("惡意"),file)
+                            elif self.pe_scan(file):
+                                self.write_scan(self.text_Translate("可疑"),file)
                     elif self.high_sensitivity == 1:
-                        if self.api_scan(file) or self.pe_scan(file):
-                            self.write_scan(file)
+                        if self.api_scan(file):
+                            self.write_scan(self.text_Translate("惡意"),file)
+                        elif self.pe_scan(file):
+                            self.write_scan(self.text_Translate("可疑"),file)
                 gc.collect()
             except:
                 continue

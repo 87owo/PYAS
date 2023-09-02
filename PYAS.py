@@ -5,6 +5,7 @@ import xml.etree.ElementTree as et
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Language import translations
+from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
 from PYAS_Interface import Ui_MainWindow
@@ -48,7 +49,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.7.9"
+        self.pyas_version = "2.8.0"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.key = self.pyas_key()
@@ -729,12 +730,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if self.high_sensitivity == 0 and self.sign_scan(file):
                         if self.api_scan(file):
                             self.write_scan(self.text_Translate("惡意"),file)
-                        elif self.pe_scan(file):
+                        elif self.pe_scan(file) or self.scr_scan(file):
                             self.write_scan(self.text_Translate("可疑"),file)
                     elif self.high_sensitivity == 1:
                         if self.api_scan(file):
                             self.write_scan(self.text_Translate("惡意"),file)
-                        elif self.pe_scan(file):
+                        elif self.pe_scan(file) or self.scr_scan(file):
                             self.write_scan(self.text_Translate("可疑"),file)
                 self.answer_scan()
                 gc.collect()
@@ -792,12 +793,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         if str(os.path.splitext(fd)[1]).lower() in slist:
                             if self.api_scan(file):
                                 self.write_scan(self.text_Translate("惡意"),file)
-                            elif self.pe_scan(file):
+                            elif self.pe_scan(file) or self.scr_scan(file):
                                 self.write_scan(self.text_Translate("可疑"),file)
                     elif self.high_sensitivity == 1:
                         if self.api_scan(file):
                             self.write_scan(self.text_Translate("惡意"),file)
-                        elif self.pe_scan(file):
+                        elif self.pe_scan(file) or self.scr_scan(file):
                             self.write_scan(self.text_Translate("可疑"),file)
                 gc.collect()
             except:
@@ -822,6 +823,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             return True
 
+    def scr_scan(self,file):
+        try:
+            with open(file, "r") as f:
+                text = str(f.read())
+            for sn in scripts_list:
+                if sn in text:
+                    #print(sn)
+                    return True
+            return False
+        except:
+            return False
+
     def pe_scan(self,file):
         try:
             fn = []
@@ -834,6 +847,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     except:
                         pass
             if fn in function_list:
+                #print(fn)
                 return True
             return False
         except:

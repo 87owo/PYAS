@@ -847,7 +847,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     except:
                         pass
             if fn in function_list:
-                print(fn)
+                #print(fn)
                 return True
             return False
         except:
@@ -1063,7 +1063,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def block_window_threading_init(self):
         self.block_window = True
-        Thread(target=self.block_software_window).start()
+        Thread(target=self.block_software_window, daemon=True).start()
 
     def block_software_window(self):
         while self.block_window:
@@ -1135,7 +1135,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_processes).start()
+            Thread(target=self.protect_system_processes, daemon=True).start()
 
     def protect_threading_init_2(self):
         if self.ui.Protection_switch_Button_2.text() == self.text_Translate("已開啟"):
@@ -1150,7 +1150,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_file, args=("C:/Users/",)).start()
+            for d in range(26):
+                if os.path.exists(f"{chr(65+d)}:/"):
+                    Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",), daemon=True).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
@@ -1165,7 +1167,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_3.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_mbr_repair).start()
+            Thread(target=self.protect_system_mbr_repair, daemon=True).start()
 
     def protect_threading_init_4(self):
         if self.ui.Protection_switch_Button_4.text() == self.text_Translate("已開啟"):
@@ -1180,7 +1182,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_4.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_reg_repair).start()
+            Thread(target=self.protect_system_reg_repair, daemon=True).start()
 
     def protect_threading_init_5(self):
         if self.ui.Protection_switch_Button_5.text() == self.text_Translate("已開啟"):
@@ -1195,7 +1197,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_enhanced).start()
+            Thread(target=self.protect_system_enhanced, daemon=True).start()
 
     def protect_system_processes(self):
         existing_proc = {}

@@ -847,7 +847,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     except:
                         pass
             if fn in function_list:
-                #print(fn)
+                print(fn)
                 return True
             return False
         except:
@@ -1150,9 +1150,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            for d in range(26):
-                if os.path.exists(f"{chr(65+d)}:/"):
-                    Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",)).start()
+            Thread(target=self.protect_system_file, args=("C:/Users/",)).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):

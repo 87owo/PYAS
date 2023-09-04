@@ -537,6 +537,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.mbr_protect = False
             self.reg_protect = False
             self.enh_protect = False
+            self.scan = False
             self.tray_icon.hide()
             self.hide_pyas_ui()
             QApplication.instance().quit()

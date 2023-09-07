@@ -1,2 +1,1 @@
-#scripts_list = ["-enc","-ep","-nop","XOR","RC4","%0|%0","ExclusionPath","cmdkey","eiculwo","fromCharCode","GetObject"]
-scripts_list = ["-ep","%0|%0","ExclusionPath","cmdkey","eiculwo"]
+scripts_list = ["%0|%0","ExclusionPath","cmdkey","eiculwo"]

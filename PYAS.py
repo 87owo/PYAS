@@ -49,7 +49,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.8.0"
+        self.pyas_version = "2.8.1"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.key = self.pyas_key()
@@ -226,7 +226,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def lang_init_refresh(self):
         self.ui.State_title.setText(self.text_Translate("此裝置已受到防護" if self.safe else "此裝置當前不安全"))
-        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{self.pyas_version} {self.key}"))
+        self.ui.Window_title.setText(self.text_Translate(f"PYAS V{self.pyas_version}"))
         self.ui.PYAS_CopyRight.setText(self.text_Translate(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
         self.ui.State_Button.setText(self.text_Translate(" 狀態"))
         self.ui.Virus_Scan_Button.setText(self.text_Translate(" 掃描"))
@@ -826,11 +826,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def scr_scan(self,file):
         try:
-            with open(file, "r") as f:
+            with open(file, "r", encoding="utf-8") as f:
                 text = str(f.read())
             for sn in scripts_list:
                 if sn in text:
-                    #print(sn)
+                    print(sn)
                     return True
             return False
         except:
@@ -848,7 +848,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     except:
                         pass
             if fn in function_list:
-                #print(fn)
+                print(fn)
                 return True
             return False
         except:
@@ -976,8 +976,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             pass
 
     def is_process_running(self, name):
-        for proc in psutil.process_iter(['name']):
-            if proc.info['name'] == name:
+        for proc in psutil.process_iter():
+            if p.name() == name:
                 return True
         return False
 
@@ -1151,9 +1151,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            for d in range(26):
-                if os.path.exists(f"{chr(65+d)}:/"):
-                    Thread(target=self.protect_system_file, args=(f"{chr(65+d)}:/",), daemon=True).start()
+            Thread(target=self.protect_system_file, args=("C:/Users/",), daemon=True).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
@@ -1201,39 +1199,35 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             Thread(target=self.protect_system_enhanced, daemon=True).start()
 
     def protect_system_processes(self):
-        existing_proc = {}
-        for proc in psutil.process_iter(['name', 'exe']):
-            existing_proc[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
-        while self.proc_protect:
-            try:
-                time.sleep(0.2)
-                current_proc = {}
-                for proc in psutil.process_iter(['name', 'exe']):
-                    current_proc[str(proc.info['name'])] = str(proc.info['exe']).replace("\\", "/")
-                new_proc = {name: path for name, path in current_proc.items() if name not in existing_proc}
-                if new_proc:
-                    for self.p_name, self.p_file in new_proc.items():
-                        if self.p_file == self.pyas or self.p_file in self.whitelist:
+        existing_processes = set()
+        for p in psutil.process_iter():
+            if p.pid not in existing_processes:
+                existing_processes.add(p.pid)
+        while True:
+            time.sleep(0.1)
+            for p in psutil.process_iter():
+                try:
+                    if p.pid not in existing_processes:
+                        existing_processes.add(p.pid)
+                        name, file = p.name(), p.exe().replace("\\", "/")
+                        if ':/Windows' in file or ':/Program' in file:
                             continue
-                        elif ":/Windows" in self.p_file or ":/Program" in self.p_file:
+                        elif file == self.pyas or file in self.whitelist:
                             continue
-                        elif self.api_scan(self.p_file):
-                            if self.protect_process_kill(self.p_name):
-                                self.system_notification(self.text_Translate("惡意軟體攔截: ")+self.p_name)
-                        elif self.pe_scan(self.p_file):
-                            if self.protect_process_kill(self.p_name):
-                                self.system_notification(self.text_Translate("可疑檔案攔截: ")+self.p_name)
-                        elif self.sign_scan(self.p_file):
-                            self.p_check = self.p_name
+                        elif self.api_scan(file) and self.protect_process_kill(name):
+                            self.system_notification(self.text_Translate("惡意軟體攔截: ")+name)
+                        elif self.pe_scan(file) and self.protect_process_kill(name):
+                            self.system_notification(self.text_Translate("可疑軟體攔截: ")+name)
+                        elif self.sign_scan(file):
+                            self.p_check = name
                         gc.collect()
-                existing_proc = current_proc
-            except:
-                pass
+                except:
+                    pass
 
     def protect_process_kill(self,proc):
         try:
-            for p in psutil.process_iter(['name', 'exe']):
-                if p.info['name'] == proc:
+            for p in psutil.process_iter():
+                if p.name() == proc:
                     p.kill()
                     return True
             return False
@@ -1243,23 +1237,21 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def protect_system_file(self,path):
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         self.last_file = ""
+        kill_ransom = False
         while self.file_protect:
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    file_type = str(os.path.splitext(file)[1]).lower()
-                    file_name = str(os.path.splitext(file)[0])
+                    file_type_end = str("."+file.split(".")[-1]).lower()
+                    file_type_mid = str("."+file.split(".")[-2]).lower()
                     if file == self.pyas or file in self.whitelist:
                         continue
-                    elif ":/Windows" in file or ":/Program" in file or "/AppData/" in file:
-                        continue
-                    elif action:
-                        if file_type in slist and self.sign_scan(file) and self.api_scan(file):
+                    elif action == 1 or action == 3:
+                        if file_type_mid in alist and self.protect_process_kill(self.p_check):
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
+                        elif file_type_end in slist and self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
-                        elif self.last_file == file_name and self.protect_process_kill(self.p_check):
-                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
-                        self.last_file = file_name
                     gc.collect()
             except:
                 pass
@@ -1272,6 +1264,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
+                        if self.protect_process_kill(self.p_check):
+                            self.system_notification(self.text_Translate("惡意行為攔截: ")+self.p_check)
             except:
                 pass
 

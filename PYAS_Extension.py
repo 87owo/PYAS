@@ -1,7 +1,5 @@
 slist = [".exe",".dll",".com",".msi",".scr",
-         ".bat",".cmd",".ps1",".vbs",".js",
-         ".jar",".htm",".html",".ppt",".pptx",
-         ".pdf",".xls",".xlsx",".doc",".docx"]
+         ".bat",".cmd",".ps1",".vbs",".js"]
 
 alist = [".exe",".dll",".ppt",".pptx",".wps",
          ".pdf",".xls",".xlsx",".doc",".docx",

@@ -661,6 +661,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Virus_List_output.setStringList(self.Virus_List)
         self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
         self.ui.Virus_Scan_text.setText(self.text_Translate("正在初始化中"))
+        QApplication.processEvents()
 
     def virus_scan_break(self):
         self.scan = False

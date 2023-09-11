@@ -838,7 +838,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if QMessageBox.warning(self,self.text_Translate("警告"),self.text_Translate("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.repair_system_wallpaper()
                 self.repair_system_explorer()
-                self.repair_system_restrictions()
+                self.repair_system_restriction()
                 self.repair_system_file_type()
                 self.repair_system_image()
                 self.repair_system_icon()
@@ -905,7 +905,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-    def repair_system_restrictions(self):
+    def repair_system_restriction(self):
         try:
             Permission = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
             "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD",
@@ -1130,7 +1130,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_file, args=("C:/Users/",), daemon=True).start()
+            Thread(target=self.protect_system_file, args=("C:/",), daemon=True).start()
 
     def protect_threading_init_3(self):
         if self.ui.Protection_switch_Button_3.text() == self.text_Translate("已開啟"):
@@ -1175,7 +1175,6 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_system_enhanced, daemon=True).start()
 
     def protect_system_processes(self):
         existing_processes = set()
@@ -1189,6 +1188,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
                         name, file = p.name(), p.exe()
+                        if not self.enh_protect and ':/Windows' in file:
+                            continue
                         if file == self.pyas or file in self.whitelist:
                             continue
                         elif self.api_scan(file):
@@ -1221,6 +1222,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file = str(f"{path}{file}").replace("\\", "/")
                     file_type_end = str("."+file.split(".")[-1]).lower()
                     file_type_mid = str("."+file.split(".")[-2]).lower()
+                    if not self.enh_protect and ':/Windows' in file:
+                        continue
                     if action == 1 or action == 3:
                         if file_type_mid in alist and self.protect_process_kill(self.p_name):
                             self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
@@ -1239,7 +1242,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        if self.protect_process_kill(name):
+                        if self.protect_process_kill(self.p_name):
                             self.system_notification(self.text_Translate("惡意行為攔截: ")+self.p_name)
             except:
                 pass
@@ -1248,15 +1251,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         while self.reg_protect:
             try:
                 time.sleep(0.2)
-                self.repair_system_restrictions()
+                self.repair_system_restriction()
                 self.repair_system_file_type()
-            except:
-                pass
-
-    def protect_system_enhanced(self):
-        while self.enh_protect:
-            try:
-                time.sleep(0.2)
                 self.repair_system_image()
                 self.repair_system_icon()
             except:

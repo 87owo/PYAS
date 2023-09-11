@@ -49,7 +49,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.scan = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.8.1"
+        self.pyas_version = "2.8.2"
         self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.key = self.pyas_key()
@@ -1182,16 +1182,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         for p in psutil.process_iter():
             if p.pid not in existing_processes:
                 existing_processes.add(p.pid)
-        while proc_protect:
+        while self.proc_protect:
             time.sleep(0.1)
             for p in psutil.process_iter():
                 try:
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
-                        name, file = p.name(), p.exe().replace("\\", "/")
-                        if ':/Windows' in file or ':/Program' in file:
-                            continue
-                        elif file == self.pyas or file in self.whitelist:
+                        name, file = p.name(), p.exe()
+                        if file == self.pyas or file in self.whitelist:
                             continue
                         elif self.api_scan(file):
                             p.kill()
@@ -1200,7 +1198,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             p.kill()
                             self.system_notification(self.text_Translate("可疑軟體攔截: ")+name)
                         elif self.sign_scan(file):
-                            self.p_check = name
+                            self.p_name = name
                         gc.collect()
                 except:
                     pass
@@ -1223,11 +1221,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file = str(f"{path}{file}").replace("\\", "/")
                     file_type_end = str("."+file.split(".")[-1]).lower()
                     file_type_mid = str("."+file.split(".")[-2]).lower()
-                    if file == self.pyas or file in self.whitelist:
-                        continue
-                    elif action == 1 or action == 3:
-                        if file_type_mid in alist and self.protect_process_kill(self.p_check):
-                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_check)
+                    if action == 1 or action == 3:
+                        if file_type_mid in alist and self.protect_process_kill(self.p_name):
+                            self.system_notification(self.text_Translate("勒索軟體攔截: ")+self.p_name)
                         elif file_type_end in slist and self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.system_notification(self.text_Translate("惡意軟體刪除: ")+file)
@@ -1243,8 +1239,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     if f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        if self.protect_process_kill(self.p_check):
-                            self.system_notification(self.text_Translate("惡意行為攔截: ")+self.p_check)
+                        if self.protect_process_kill(name):
+                            self.system_notification(self.text_Translate("惡意行為攔截: ")+self.p_name)
             except:
                 pass
 

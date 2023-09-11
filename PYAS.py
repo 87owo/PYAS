@@ -1182,7 +1182,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         for p in psutil.process_iter():
             if p.pid not in existing_processes:
                 existing_processes.add(p.pid)
-        while True:
+        while proc_protect:
             time.sleep(0.1)
             for p in psutil.process_iter():
                 try:

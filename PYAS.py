@@ -7,7 +7,7 @@ from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Scripts import scripts_list
 from PYAS_Language import translations
 from PYAS_Function import function_list
-from PYAS_Extension import slist, alist
+from PYAS_Extension import ele, sle, rle
 from PYAS_Interface import Ui_MainWindow
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import *
@@ -765,7 +765,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     self.write_scan(self.trans("可疑"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and self.sign_scan(file):
+            elif file_type in ele and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.scr_scan(file):
@@ -813,8 +813,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def scr_scan(self, file):
         try:
-            with open(file, "r", encoding="utf-8") as f:
-                text = f.read()
+            file_type = str("."+file.split(".")[-1]).lower()
+            if file_type in sle:
+                with open(file, "r", encoding="iso-8859-1") as f:
+                    text = f.read()
             return any(sn in text for sn in scripts_list)
         except:
             return False
@@ -1195,9 +1197,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         elif self.api_scan(file):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.api_scan(cmd[-1]):
+                        elif self.scr_scan(cmd[-1]):
                             p.kill()
-                            self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                            self.send_notify(self.trans("可疑腳本攔截: ")+name)
                         elif self.pe_scan(file):
                             p.kill()
                             self.send_notify(self.trans("可疑軟體攔截: ")+name)
@@ -1226,9 +1228,9 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file_type_end = str("."+file.split(".")[-1]).lower()
                     file_type_mid = str("."+file.split(".")[-2]).lower()
                     if action == 3:
-                        if file_type_mid in alist and self.protect_proc_kill(self.p_name):
+                        if file_type_mid in rle and self.protect_proc_kill(self.p_name):
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                        elif file_type_end in slist and self.sign_scan(file) and self.api_scan(file):
+                        elif file_type_end in ele and self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.send_notify(self.trans("惡意軟體刪除: ")+file)
                     gc.collect()

@@ -1197,8 +1197,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             elif "powershell.exe" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                        elif ":/Program" in file and self.sign_scan(file):
-                            if self.api_scan(file) or self.pe_scan(file):
+                        elif ":/Program" in file and self.enh_protect:
+                            if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif self.api_scan(file) or self.pe_scan(file):
@@ -1229,11 +1229,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file_end = str(f".{file.split('.')[-1]}").lower()
                     file_mid = str(f".{file.split('.')[-2]}").lower()
                     if action == 1 or action == 3:
-                        if file_end in slist and self.api_scan(file):
+                        if file_mid in alist and self.protect_proc_kill(self.p_name):
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                        elif file_end in slist and self.api_scan(file):
                             os.remove(file)
                             self.send_notify(self.trans("惡意檔案刪除: ")+file)
-                        elif file_mid in alist and self.protect_proc_kill(self.p_name):
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                     gc.collect()
             except:
                 pass

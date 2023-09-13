@@ -1,2 +1,1 @@
-scripts_list = ["-ep","-nop","XOR","RC4","%0|%0","random",
-                "cmdkey","fromCharCode","ExclusionPath"]
+scripts_list = ["%0|%0","ExclusionPath","cmdkey","eiculwo"]

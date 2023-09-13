@@ -7,7 +7,7 @@ from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Scripts import scripts_list
 from PYAS_Language import translations
 from PYAS_Function import function_list
-from PYAS_Extension import ele, sle, rle
+from PYAS_Extension import slist, alist
 from PYAS_Interface import Ui_MainWindow
 from PyQt5 import QtWidgets, QtGui, QtCore
 from PyQt5.QtWidgets import *
@@ -765,7 +765,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     self.write_scan(self.trans("可疑"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in ele and self.sign_scan(file):
+            elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.scr_scan(file):
@@ -813,10 +813,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def scr_scan(self, file):
         try:
-            file_type = str("."+file.split(".")[-1]).lower()
-            if file_type in sle:
-                with open(file, "r", encoding="iso-8859-1") as f:
-                    text = f.read()
+            with open(file, "r", encoding="utf-8") as f:
+                text = f.read()
             return any(sn in text for sn in scripts_list)
         except:
             return False
@@ -1189,21 +1187,24 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 for p in psutil.process_iter():
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
-                        name, file, cmd = p.name(), p.exe(), p.cmdline()
-                        if not self.enh_protect and ':/Windows' in file:
+                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
+                        if file == self.pyas or file in self.whitelist:
                             continue
-                        elif file == self.pyas or file in self.whitelist:
-                            continue
-                        elif self.api_scan(file):
+                        elif ":/Windows" in file and self.enh_protect:
+                            if "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                            elif "powershell.exe" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                        elif ":/Program" in file and self.sign_scan(file):
+                            if self.api_scan(file) or self.pe_scan(file):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                        elif self.api_scan(file) or self.pe_scan(file):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.scr_scan(cmd[-1]):
-                            p.kill()
-                            self.send_notify(self.trans("可疑腳本攔截: ")+name)
-                        elif self.pe_scan(file):
-                            p.kill()
-                            self.send_notify(self.trans("可疑軟體攔截: ")+name)
-                        elif self.sign_scan(file):
+                        else:
                             self.p_name = name
                         gc.collect()
             except:
@@ -1225,14 +1226,14 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             try:
                 for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                     file = str(f"{path}{file}").replace("\\", "/")
-                    file_type_end = str("."+file.split(".")[-1]).lower()
-                    file_type_mid = str("."+file.split(".")[-2]).lower()
-                    if action == 3:
-                        if file_type_mid in rle and self.protect_proc_kill(self.p_name):
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                        elif file_type_end in ele and self.sign_scan(file) and self.api_scan(file):
+                    file_end = str(f".{file.split('.')[-1]}").lower()
+                    file_mid = str(f".{file.split('.')[-2]}").lower()
+                    if action == 1 or action == 3:
+                        if file_end in slist and self.api_scan(file):
                             os.remove(file)
-                            self.send_notify(self.trans("惡意軟體刪除: ")+file)
+                            self.send_notify(self.trans("惡意檔案刪除: ")+file)
+                        elif file_mid in alist and self.protect_proc_kill(self.p_name):
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                     gc.collect()
             except:
                 pass

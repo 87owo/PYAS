@@ -539,7 +539,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def showMinimized(self):
         self.hide_pyas_ui()
-        self.send_notifiy(self.trans("PYAS 已最小化到系統托盤圖標"))
+        self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -562,7 +562,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         except:
             pass
 
-    def send_notifiy(self,text):
+    def send_notify(self,text):
         try:
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
             self.ui.State_output.append(f"[{now_time}] {text}")
@@ -698,7 +698,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             self.ui.Virus_Scan_Solve_Button.show()
             text = self.trans(f"當前發現 {len(self.Virus_List)} 個病毒")
         self.ui.Virus_Scan_text.setText(text)
-        self.send_notifiy(text)
+        self.send_notify(text)
 
     def virus_solve(self):
         try:
@@ -1182,10 +1182,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
             if p.pid not in existing_processes:
                 existing_processes.add(p.pid)
         while self.proc_protect:
-            time.sleep(0.1)
-            for p in psutil.process_iter():
-                if p.pid not in existing_processes:
-                    try:
+            try:
+                time.sleep(0.1)
+                for p in psutil.process_iter():
+                    if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
                         name, file, cmd = p.name(), p.exe(), p.cmdline()
                         if not self.enh_protect and ':/Windows' in file:
@@ -1194,18 +1194,18 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             continue
                         elif self.api_scan(file):
                             p.kill()
-                            self.send_notifiy(self.trans("惡意軟體攔截: ")+name)
+                            self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif self.api_scan(cmd[-1]):
                             p.kill()
-                            self.send_notifiy(self.trans("惡意腳本攔截: ")+name)
+                            self.send_notify(self.trans("惡意腳本攔截: ")+name)
                         elif self.pe_scan(file):
                             p.kill()
-                            self.send_notifiy(self.trans("可疑軟體攔截: ")+name)
+                            self.send_notify(self.trans("可疑軟體攔截: ")+name)
                         elif self.sign_scan(file):
                             self.p_name = name
                         gc.collect()
-                    except:
-                        pass
+            except:
+                pass
 
     def protect_proc_kill(self,proc):
         try:
@@ -1227,16 +1227,16 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     file_type_mid = str("."+file.split(".")[-2]).lower()
                     if action == 3:
                         if file_type_mid in alist and self.protect_proc_kill(self.p_name):
-                            self.send_notifiy(self.trans("勒索軟體攔截: ")+self.p_name)
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                         elif file_type_end in slist and self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
-                            self.send_notifiy(self.trans("惡意軟體刪除: ")+file)
+                            self.send_notify(self.trans("惡意軟體刪除: ")+file)
                     gc.collect()
             except:
                 pass
 
     def protect_boot_thread(self):
-        while self.mbr_protect and self.mbr_value != None:
+        while self.mbr_protect and self.mbr_value:
             try:
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
@@ -1244,7 +1244,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         f.seek(0)
                         f.write(self.mbr_value)
                         if self.protect_proc_kill(self.p_name):
-                            self.send_notifiy(self.trans("惡意行為攔截: ")+self.p_name)
+                            self.send_notify(self.trans("惡意行為攔截: ")+self.p_name)
             except:
                 pass
 

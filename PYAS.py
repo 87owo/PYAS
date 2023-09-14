@@ -987,24 +987,24 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def add_white_list(self):
         try:
-            file, filetype= QFileDialog.getOpenFileName(self,self.trans("增加到白名單"),"C:/","All File *.*")
-            if file not in ["", "PYAS"]:
-                if str(file.replace("\\", "/")) not in self.whitelist:
+            file, ftype = QFileDialog.getOpenFileName(self,self.trans("增加到白名單"),"C:/")
+            if file and file.replace("\\", "/") != self.pyas:
+                if file.replace("\\", "/") not in self.whitelist:
                     if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                         try:
-                            self.whitelist.append(str(file.replace("\\", "/")))
+                            self.whitelist.append(file.replace("\\", "/"))
                             with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
-                                f.write(str(file.replace("\\", "/"))+'\n')
-                            QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
+                                f.write(file.replace("\\", "/")+'\n')
+                            QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file.replace("\\", "/"),QMessageBox.Ok)
                         except:
                             self.bug_event('增加到白名單失敗')
                 elif QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     try:
-                        self.whitelist.remove(str(file.replace("\\", "/")))
+                        self.whitelist.remove(file.replace("\\", "/"))
                         with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
-                            for file in self.whitelist:
-                                f.write(f'{file}\n')
-                        QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+str(file.replace("\\", "/")),QMessageBox.Ok)
+                            for white_file in self.whitelist:
+                                f.write(f'{white_file}\n')
+                        QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file.replace("\\", "/"),QMessageBox.Ok)
                     except:
                         self.bug_event('取消增加到白名單失敗')
         except Exception as e:
@@ -1014,10 +1014,11 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         try:
             self.block_window = False
             if QMessageBox.warning(self,self.trans("警告"),self.trans("請選擇要攔截的軟體彈窗"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                while self.block_window == False:
+                while not self.block_window:
+                    time.sleep(0.2)
                     window_name = str(win32gui.GetWindowText(win32gui.GetForegroundWindow()))
                     QApplication.processEvents()
-                    if window_name not in ["", "PYAS"]:
+                    if window_name not in "PYAS" and window_name not in self.trans("警告"):
                         if window_name not in self.blocklist:
                             if QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                                 try:
@@ -1031,8 +1032,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             try:
                                 self.blocklist.remove(window_name)
                                 with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "w", encoding="utf-8") as f:
-                                    for window_name in self.blocklist:
-                                        f.write(f'{window_name}\n')
+                                    for block_name in self.blocklist:
+                                        f.write(f'{block_name}\n')
                                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
                             except:
                                 self.bug_event('取消到彈窗攔截失敗')
@@ -1047,12 +1048,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def block_software_window(self):
         while self.block_window:
-            time.sleep(0.2)
-            for window_name in self.blocklist:
-                try:
+            try:
+                time.sleep(0.2)
+                for window_name in self.blocklist:
                     win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
-                except:
-                    pass
+            except:
+                pass
 
     def repair_network(self):
         try:
@@ -1201,9 +1202,12 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                             if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.api_scan(file) or self.pe_scan(file):
+                        elif self.api_scan(file):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                        elif self.pe_scan(file):
+                            p.kill()
+                            self.send_notify(self.trans("可疑軟體攔截: ")+name)
                         elif self.sign_scan(file):
                             self.p_name = name
                         gc.collect()

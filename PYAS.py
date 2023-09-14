@@ -1204,7 +1204,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                         elif self.api_scan(file) or self.pe_scan(file):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        else:
+                        elif self.sign_scan(file):
                             self.p_name = name
                         gc.collect()
             except:

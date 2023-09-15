@@ -942,7 +942,10 @@ class MainWindow_Controller(QMainWindow):
 
     def repair_system_wallpaper(self):
         try:
-            win32api.SystemParametersInfo(win32con.SPI_SETDESKWALLPAPER, 0, 'C:/Windows/web/wallpaper/windows/img0.jpg', win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE)
+            key = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER, "Control Panel\\Desktop", 0, win32con.KEY_SET_VALUE)
+            win32api.RegSetValueEx(key, "Wallpaper", 0, win32con.REG_SZ, 'C:/Windows/web/wallpaper/windows/img0.jpg')
+            win32api.RegCloseKey(key)
+            win32gui.SystemParametersInfo(win32con.SPI_SETDESKWALLPAPER, 'C:/Windows/web/wallpaper/windows/img0.jpg', win32con.SPIF_SENDCHANGE)
         except:
             pass
 

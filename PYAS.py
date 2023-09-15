@@ -1,7 +1,7 @@
 import os, gc, sys, time, json, requests
 import psutil, ctypes, win32con, win32gui
 import win32file, win32api, subprocess
-import xml.etree.ElementTree as et
+import xml.etree.ElementTree as xmlet
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Scripts import scripts_list
@@ -9,13 +9,12 @@ from PYAS_Language import translations
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
 from PYAS_Interface import Ui_MainWindow
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
 from threading import Thread
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
 
-class MainWindow_Controller(QtWidgets.QMainWindow):
+class MainWindow_Controller(QMainWindow):
     def __init__(self):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
@@ -190,20 +189,20 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.Process_Timer = QTimer()
         self.Process_Timer.timeout.connect(self.process_list)
         self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
-        self.effect_shadow = QtWidgets.QGraphicsDropShadowEffect(self)
+        self.effect_shadow = QGraphicsDropShadowEffect(self)
         self.effect_shadow.setOffset(0,0)
         self.effect_shadow.setBlurRadius(10)
-        self.effect_shadow.setColor(QtCore.Qt.gray)
+        self.effect_shadow.setColor(Qt.gray)
         self.ui.widget_2.setGraphicsEffect(self.effect_shadow)
-        self.effect_shadow2 = QtWidgets.QGraphicsDropShadowEffect(self)
+        self.effect_shadow2 = QGraphicsDropShadowEffect(self)
         self.effect_shadow2.setOffset(0,0)
         self.effect_shadow2.setBlurRadius(10)
-        self.effect_shadow2.setColor(QtCore.Qt.gray) 
+        self.effect_shadow2.setColor(Qt.gray) 
         self.ui.Navigation_Bar.setGraphicsEffect(self.effect_shadow2)
-        self.effect_shadow3 = QtWidgets.QGraphicsDropShadowEffect(self)
+        self.effect_shadow3 = QGraphicsDropShadowEffect(self)
         self.effect_shadow3.setOffset(0,0)
         self.effect_shadow3.setBlurRadius(7)
-        self.effect_shadow3.setColor(QtCore.Qt.gray) 
+        self.effect_shadow3.setColor(Qt.gray) 
         self.ui.Window_widget.setGraphicsEffect(self.effect_shadow3)
         self.ui.Virus_Scan_choose_widget.hide()
         self.ui.Virus_Scan_widget.hide()
@@ -333,7 +332,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         x = 170
         y = widget.pos().y()
         self.anim = QPropertyAnimation(widget, b"geometry")
-        widget.setGeometry(QtCore.QRect(x - 100,y, 671,481))
+        widget.setGeometry(QRect(x - 100,y, 671,481))
         self.anim.setKeyValueAt(0.2, QRect(x - 60,y,671,481))
         self.anim.setKeyValueAt(0.4, QRect(x - 10,y,671,481))
         self.anim.setKeyValueAt(0.7, QRect(x - 3,y,671,481))
@@ -361,7 +360,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.anim2.start()
 
     def change_animation_3(self,widget,time):
-        self.opacity = QtWidgets.QGraphicsOpacityEffect()
+        self.opacity = QGraphicsOpacityEffect()
         self.opacity.setOpacity(0)
         widget.setGraphicsEffect(self.opacity)
         widget.setAutoFillBackground(True)
@@ -378,7 +377,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
 
     def change_animation_5(self,widget,x,y,nx,ny):
         self.anim = QPropertyAnimation(widget, b"geometry")
-        widget.setGeometry(QtCore.QRect(x,y - 45, nx,ny))
+        widget.setGeometry(QRect(x,y - 45, nx,ny))
         self.anim.setKeyValueAt(0.2, QRect(x,y - 30,nx,ny))
         self.anim.setKeyValueAt(0.4, QRect(x,y - 10,nx,ny))
         self.anim.setKeyValueAt(0.7, QRect(x,y - 3,nx,ny))
@@ -576,7 +575,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
         self.WindowMenu.addAction(Main_About)
-        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QtCore.QPoint(0, 30)))
+        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About:
             if self.ui.About_widget.isHidden():
                 self.ui.About_widget.show()
@@ -636,7 +635,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def set_system_safe(self):
         try:
             self.safe = True
-            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Check.png"))
+            self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
             self.ui.State_title.setText(self.trans("此裝置已受到防護"))
         except:
             pass
@@ -644,7 +643,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
     def set_system_unsafe(self):
         try:
             self.safe = False
-            self.ui.State_icon.setPixmap(QtGui.QPixmap(":/icon/Close.png"))
+            self.ui.State_icon.setPixmap(QPixmap(":/icon/Close.png"))
             self.ui.State_title.setText(self.trans("此裝置當前不安全"))
         except:
             pass
@@ -800,7 +799,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                     text = str(md5(f.read()).hexdigest())
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
-                return response.status_code == 200 and float(et.fromstring(response.text).find('.//e_level').text) > 50
+                return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
         except:
             return False
 
@@ -1266,8 +1265,8 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                 pass
 
 if __name__ == '__main__':
-    QtCore.QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QtGui.QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QtWidgets.QApplication(sys.argv)
+    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+    app = QApplication(sys.argv)
     MainWindow_Controller()
     sys.exit(app.exec_())

@@ -1229,16 +1229,16 @@ class MainWindow_Controller(QMainWindow):
         hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
-                for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+                action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
+                if action == 1 or action == 3:
                     file = str(f"{path}{file}").replace("\\", "/")
                     file_end = str(f".{file.split('.')[-1]}").lower()
                     file_mid = str(f".{file.split('.')[-2]}").lower()
-                    if action == 1 or action == 3:
-                        if file_mid in alist and self.protect_proc_kill(self.p_name):
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                        elif file_end in slist and self.api_scan(file):
-                            os.remove(file)
-                            self.send_notify(self.trans("惡意檔案刪除: ")+file)
+                    if file_mid in alist and self.protect_proc_kill(self.p_name):
+                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                    elif file_end in slist and self.api_scan(file):
+                        os.remove(file)
+                        self.send_notify(self.trans("惡意檔案刪除: ")+file)
                     gc.collect()
             except:
                 pass

@@ -1024,7 +1024,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                     self.blocklist.append(window_name)
                                     with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "a+", encoding="utf-8") as f:
                                         f.write(f'{window_name}\n')
-                                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: "+window_name),QMessageBox.Ok)
+                                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
                                 except:
                                     self.bug_event('增加到彈窗攔截失敗')
                         elif QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要取消攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -1033,7 +1033,7 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
                                 with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "w", encoding="utf-8") as f:
                                     for block_name in self.blocklist:
                                         f.write(f'{block_name}\n')
-                                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: "+window_name),QMessageBox.Ok)
+                                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
                             except:
                                 self.bug_event('取消到彈窗攔截失敗')
                         self.block_window = True

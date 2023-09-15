@@ -1,13 +1,13 @@
-import os, gc, sys, time, json, requests
-import psutil, ctypes, win32con, win32gui
-import win32file, win32api, subprocess
+import os, gc, sys, time, json, psutil
+import win32con, win32api, subprocess
+import win32file, win32gui, requests
 import xml.etree.ElementTree as xmlet
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Scripts import scripts_list
-from PYAS_Language import translations
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
+from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
 from threading import Thread
 from PyQt5.QtWidgets import *
@@ -231,7 +231,7 @@ class MainWindow_Controller(QMainWindow):
             self.bug_event(e)
 
     def trans(self, text):
-        for k, v in translations.get(self.json["language"], translations).items():
+        for k, v in translate_dict.get(self.json["language"], translate_dict).items():
             text = text.replace(str(k), str(v))
         return text
 
@@ -942,7 +942,7 @@ class MainWindow_Controller(QMainWindow):
 
     def repair_system_wallpaper(self):
         try:
-            ctypes.windll.user32.SystemParametersInfoW(0x0014, 0, 'C:/Windows/web/wallpaper/windows/img0.jpg', 0x01 | 0x02)
+            win32api.SystemParametersInfo(win32con.SPI_SETDESKWALLPAPER, 0, 'C:/Windows/web/wallpaper/windows/img0.jpg', win32con.SPIF_UPDATEINIFILE | win32con.SPIF_SENDCHANGE)
         except:
             pass
 

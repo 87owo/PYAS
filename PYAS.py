@@ -50,10 +50,10 @@ class MainWindow_Controller(QtWidgets.QMainWindow):
         self.block_window = True
         self.pyas_opacity = 0
         self.pyas_version = "2.8.2"
-        self.ui.Theme_White.setChecked(True)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.key = self.pyas_key()
+        self.ui.Theme_White.setChecked(True)
         self.json = self.init_config_json()
+        self.key = self.pyas_key()
         self.set_system_safe()
         self.init_config_lang()
         self.init_config_sens()

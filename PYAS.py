@@ -48,7 +48,7 @@ class MainWindow_Controller(QMainWindow):
         self.scan_file = False
         self.block_window = True
         self.pyas_opacity = 0
-        self.pyas_version = "2.8.2"
+        self.pyas_version = "2.8.3"
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.ui.Theme_White.setChecked(True)
         self.json = self.init_config_json()

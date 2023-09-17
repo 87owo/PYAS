@@ -1,6 +1,6 @@
 import os, gc, sys, time, json, psutil
-import win32con, win32api, subprocess
-import win32file, win32gui, requests
+import requests, subprocess, win32con
+import win32file, win32gui, win32api
 import xml.etree.ElementTree as xmlet
 from hashlib import md5, sha1, sha256
 from pefile import PE, DIRECTORY_ENTRY
@@ -52,24 +52,11 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.ui.Theme_White.setChecked(True)
         self.json = self.init_config_json()
-        self.key = self.pyas_key()
         self.set_system_safe()
         self.init_config_lang()
         self.init_config_sens()
         self.init_boot_config()
         self.init_config_ui()
-
-    def pyas_key(self):
-        try:
-            with open(self.pyas, "rb") as f:
-                text = str(md5(f.read()).hexdigest())
-            response = requests.get("http://27.147.30.238:5001/pyas", params={"key": text}, timeout=3)
-            if response.status_code == 200 and response.text == "True":
-                return ""
-            else:
-                return "(安全密鑰錯誤)"
-        except:
-            return "(網路連接錯誤)"
 
     def init_library(self):
         try:
@@ -276,7 +263,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
         self.ui.About_Back.setText(self.trans("返回"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} {self.key}"))
+        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version}"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))
@@ -1189,26 +1176,26 @@ class MainWindow_Controller(QMainWindow):
                 for p in psutil.process_iter():
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
-                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
+                        name, file, cmd = p.name(), p.exe(), p.cmdline()
                         if file == self.pyas or file in self.whitelist:
                             continue
-                        elif ":/Windows" in file and self.enh_protect:
-                            if "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                        elif ":\\Windows" in file and self.enh_protect:
+                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "powershell.exe" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                            elif "cmd" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                        elif ":/Program" in file and self.enh_protect:
+                            elif "msiexec" in name and self.api_scan(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                        elif ":\\Program" in file and self.enh_protect:
                             if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.api_scan(file):
+                        elif self.api_scan(file) or self.pe_scan(file):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.pe_scan(file):
-                            p.kill()
-                            self.send_notify(self.trans("可疑軟體攔截: ")+name)
                         elif self.sign_scan(file):
                             self.p_name = name
                         gc.collect()
@@ -1230,16 +1217,19 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
-                if action == 1 or action == 3:
-                    file = str(f"{path}{file}").replace("\\", "/")
-                    file_end = str(f".{file.split('.')[-1]}").lower()
-                    file_mid = str(f".{file.split('.')[-2]}").lower()
-                    if file_mid in alist and self.protect_proc_kill(self.p_name):
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                    elif file_end in slist and self.api_scan(file):
-                        os.remove(file)
-                        self.send_notify(self.trans("惡意檔案刪除: ")+file)
-                    gc.collect()
+                file = str(f"{path}{file}").replace("\\", "/")
+                file_end = str(f".{file.split('.')[-1]}").lower()
+                file_mid = str(f".{file.split('.')[-2]}").lower()
+                if action == 3 and file_end in slist and self.api_scan(file):
+                    os.remove(file)
+                    self.send_notify(self.trans("惡意檔案刪除: ")+file)
+                elif action == 1 and file_mid in alist and self.protect_proc_kill(self.p_name):
+                    self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                elif action == 2 and file_end in alist and self.protect_proc_kill(self.p_name):
+                    self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                elif action == 4 and file_end in alist and self.protect_proc_kill(self.p_name):
+                    self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                gc.collect()
             except:
                 pass
 
@@ -1248,11 +1238,15 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if f.read(512) != self.mbr_value:
-                        f.seek(0)
-                        f.write(self.mbr_value)
-                        if self.protect_proc_kill(self.p_name):
-                            self.send_notify(self.trans("惡意行為攔截: ")+self.p_name)
+                    if self.mbr_value[510:512] == b'\x55\xAA':
+                        if f.read(512) != self.mbr_value:
+                            f.seek(0)
+                            f.write(self.mbr_value)
+                            if self.protect_proc_kill(self.p_name):
+                                self.send_notify(self.trans("惡意行為攔截: ")+self.p_name)
+                    elif self.protect_proc_kill(self.p_name):
+                        self.send_notify(self.trans("惡意行為攔截: ")+self.p_name)
+                        self.init_boot_config()
             except:
                 pass
 

@@ -1,7 +1,7 @@
 slist = [".exe",".dll",".com",".msi",".scr",
          ".bat",".cmd",".ps1",".vbs",".js"]
 
-alist = [".exe",".dll",".ppt",".pptx",".wps",
+alist = [".ppt",".pptx",".wps",".txt",".rtf",
          ".pdf",".xls",".xlsx",".doc",".docx",
          ".jpg",".jpeg",".png",".webp",".gif",
          ".mp3",".wav",".aac",".ogg",".flac",

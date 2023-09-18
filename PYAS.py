@@ -49,7 +49,7 @@ class MainWindow_Controller(QMainWindow):
         self.block_window = True
         self.pyas_opacity = 0
         self.pyas_version = "2.8.3"
-        self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.pyas = str(sys.argv[0])
         self.ui.Theme_White.setChecked(True)
         self.json = self.init_config_json()
         self.set_system_safe()
@@ -977,25 +977,24 @@ class MainWindow_Controller(QMainWindow):
     def add_white_list(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("增加到白名單"),"C:/")[0]).replace("\\", "/")
-            if file and file != self.pyas:
-                if file not in self.whitelist:
-                    if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                        try:
-                            self.whitelist.append(file.replace("\\", "/"))
-                            with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
-                                f.write(file.replace("\\", "/")+'\n')
-                            QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
-                        except:
-                            self.bug_event('增加到白名單失敗')
-                elif QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if file and file not in self.whitelist:
+                if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     try:
-                        self.whitelist.remove(file.replace("\\", "/"))
-                        with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
-                            for white_file in self.whitelist:
-                                f.write(f'{white_file}\n')
-                        QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
+                        self.whitelist.append(file)
+                        with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
+                            f.write(f"{file}\n")
+                        QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
                     except:
-                        self.bug_event('取消增加到白名單失敗')
+                        self.bug_event('增加到白名單失敗')
+            elif QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                try:
+                    self.whitelist.remove(file)
+                    with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
+                        for white_file in self.whitelist:
+                            f.write(f'{white_file}\n')
+                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
+                except:
+                    self.bug_event('取消增加到白名單失敗')
         except Exception as e:
             self.bug_event(e)
 
@@ -1213,22 +1212,21 @@ class MainWindow_Controller(QMainWindow):
             return False
 
     def protect_file_thread(self):
-        hDir = win32file.CreateFile(f"C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        hDir = win32file.CreateFile("C:/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
-                file = str(f"C:/Users/{file}").replace("\\", "/")
-                file_end = str(f".{file.split('.')[-1]}").lower()
-                file_mid = str(f".{file.split('.')[-2]}").lower()
-                if action == 3 and file_end in slist and self.api_scan(file):
-                    os.remove(file)
-                    self.send_notify(self.trans("惡意檔案刪除: ")+file)
-                elif action == 1 and file_mid in alist and self.protect_proc_kill(self.p_name):
-                    self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                elif action == 2 and file_end in alist and self.protect_proc_kill(self.p_name):
-                    self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                elif action == 4 and file_end in alist and self.protect_proc_kill(self.p_name):
-                    self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                file = str(f"C:/{file}").replace("\\", "/")
+                if ":/Windows" in file or ":/Program" in file or "/AppData/" in file:
+                    continue
+                elif action == 1 or action == 3:
+                    file_mid = str(f".{file.split('.')[-2]}").lower()
+                    if file_mid in alist and self.protect_proc_kill(self.p_name):
+                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                elif action == 2 or action == 4:
+                    file_end = str(f".{file.split('.')[-1]}").lower()
+                    if file_end in alist and self.protect_proc_kill(self.p_name):
+                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                 gc.collect()
             except:
                 pass

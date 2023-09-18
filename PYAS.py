@@ -1212,20 +1212,16 @@ class MainWindow_Controller(QMainWindow):
             return False
 
     def protect_file_thread(self):
-        hDir = win32file.CreateFile("C:/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        hDir = win32file.CreateFile("C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
-                file = str(f"C:/{file}").replace("\\", "/")
-                if ":/Windows" in file or ":/Program" in file or "/AppData/" in file:
-                    continue
-                elif action == 1 or action == 3:
-                    file_mid = str(f".{file.split('.')[-2]}").lower()
-                    if file_mid in alist and self.protect_proc_kill(self.p_name):
+                file = str(f"C:/Users/{file}").replace("\\", "/")
+                if action == 1 or action == 3:
+                    if str(f".{file.split('.')[-2]}").lower() in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                 elif action == 2 or action == 4:
-                    file_end = str(f".{file.split('.')[-1]}").lower()
-                    if file_end in alist and self.protect_proc_kill(self.p_name):
+                    if str(f".{file.split('.')[-1]}").lower() in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                 gc.collect()
             except:

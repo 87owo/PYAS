@@ -6,4 +6,4 @@ alist = [".ppt",".pptx",".wps",".txt",".rtf",
          ".jpg",".jpeg",".png",".webp",".gif",
          ".mp3",".wav",".aac",".ogg",".flac",
          ".mp4",".avi",".mov",".wmv",".mkv",
-         ".zip",".gz",".7z",".rar",".tar"]
+         ".zip",".7z",".rar",".exe",".dll"]

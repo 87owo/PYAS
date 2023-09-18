@@ -1119,7 +1119,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Protection_switch_Button_2.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-            Thread(target=self.protect_file_thread, args=("C:/Users/",), daemon=True).start()
+            Thread(target=self.protect_file_thread, daemon=True).start()
 
     def protect_boot_init(self):
         if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
@@ -1212,12 +1212,12 @@ class MainWindow_Controller(QMainWindow):
         except:
             return False
 
-    def protect_file_thread(self,path):
-        hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+    def protect_file_thread(self):
+        hDir = win32file.CreateFile(f"C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
-                file = str(f"{path}{file}").replace("\\", "/")
+                file = str(f"C:/Users/{file}").replace("\\", "/")
                 file_end = str(f".{file.split('.')[-1]}").lower()
                 file_mid = str(f".{file.split('.')[-2]}").lower()
                 if action == 3 and file_end in slist and self.api_scan(file):

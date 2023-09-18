@@ -1216,8 +1216,10 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
-                file = str(f"C:/Users/{file}").replace("\\", "/")
-                if action == 1 or action == 3:
+                file = str(f"C:/Users/{file}")
+                if "\\AppData\\" in file:
+                    continue
+                elif action == 1 or action == 3:
                     if str(f".{file.split('.')[-2]}").lower() in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                 elif action == 2 or action == 4:

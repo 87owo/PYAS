@@ -19,22 +19,23 @@ class MainWindow_Controller(QMainWindow):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
+        self.pyas = str(sys.argv[0])
+        self.pyas_version = "2.8.4"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_library()
-        self.init_configs()
-        self.init_whitelist()
-        self.init_blocklist()
         self.init_tray_icon()
+        self.init_white_list()
+        self.init_block_list()
+        self.set_system_safe()
+        self.init_config_boot()
+        self.init_config_json()
+        self.init_config_lang()
+        self.init_config_sens()
+        self.init_config_qtui()
         self.init_control()
-        self.init_threads()
         self.show_pyas_ui()
-
-    def init_tray_icon(self):
-        self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
-        self.tray_icon.activated.connect(self.show_pyas_ui)
-        self.tray_icon.show()
+        self.init_threads()
 
     def init_threads(self):
         self.protect_proc_init()
@@ -44,19 +45,11 @@ class MainWindow_Controller(QMainWindow):
         self.protect_enh_init()
         self.block_window_init()
 
-    def init_configs(self):
-        self.scan_file = False
-        self.block_window = True
-        self.pyas_opacity = 0
-        self.pyas_version = "2.8.3"
-        self.pyas = str(sys.argv[0])
-        self.ui.Theme_White.setChecked(True)
-        self.json = self.init_config_json()
-        self.set_system_safe()
-        self.init_config_lang()
-        self.init_config_sens()
-        self.init_boot_config()
-        self.init_config_ui()
+    def init_tray_icon(self):
+        self.tray_icon = QSystemTrayIcon(self)
+        self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
+        self.tray_icon.activated.connect(self.show_pyas_ui)
+        self.tray_icon.show()
 
     def init_library(self):
         try:
@@ -69,27 +62,29 @@ class MainWindow_Controller(QMainWindow):
         try:
             with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "w", encoding="utf-8") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
-        except Exception as e:
-            self.bug_event(e)
+        except:
+            pass
 
-    def init_whitelist(self):
+    def init_white_list(self):
         try:
             with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "r", encoding="utf-8") as f:
                 self.whitelist = [line.strip() for line in f.readlines()]
         except:
             self.whitelist = []
 
-    def init_blocklist(self):
+    def init_block_list(self):
         try:
             with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "r", encoding="utf-8") as f:
                 self.blocklist = [line.strip() for line in f.readlines()]
         except:
             self.blocklist = []
 
-    def init_boot_config(self):
+    def init_config_boot(self):
         try:
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
                 self.mbr_value = f.read(512)
+            if self.mbr_value[510:512] != b'\x55\xAA':
+                self.mbr_value = None
         except:
             self.mbr_value = None
 
@@ -97,7 +92,7 @@ class MainWindow_Controller(QMainWindow):
         if not os.path.exists("C:/Windows/SysWOW64/PYAS/PYAS.json"):
             self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
         with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "r", encoding="utf-8") as f:
-            return json.load(f)
+            self.json = json.load(f)
 
     def init_config_lang(self):
         self.language = self.json.get("language", "en_US")
@@ -124,6 +119,7 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
 
     def init_control(self):
+        self.ui.Theme_White.setChecked(True)
         self.ui.Close_Button.clicked.connect(self.close)
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
         self.ui.Menu_Button.clicked.connect(self.show_menu)
@@ -165,7 +161,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Theme_Blue.clicked.connect(self.change_theme)
         self.ui.Theme_Red.clicked.connect(self.change_theme)
 
-    def init_config_ui(self):
+    def init_config_qtui(self):
         self.ui.widget_2.lower()
         self.ui.Navigation_Bar.raise_()
         self.ui.Window_widget.raise_()
@@ -349,9 +345,19 @@ class MainWindow_Controller(QMainWindow):
     def change_animation_3(self,widget,time):
         self.opacity = QGraphicsOpacityEffect()
         self.opacity.setOpacity(0)
+        self.opacity.i = self.opacity.opacity()
         widget.setGraphicsEffect(self.opacity)
         widget.setAutoFillBackground(True)
-        self.draw(widget=widget,time=time)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.timeout)
+        self.timer.start(0)
+
+    def timeout(self):
+        if self.opacity.i < 1:
+            self.opacity.i += 0.02
+            self.opacity.setOpacity(self.opacity.i)
+        else:
+            self.timer.stop()
 
     def change_animation_4(self,widget,time,ny,ny2):
         x = widget.pos().x()
@@ -370,19 +376,6 @@ class MainWindow_Controller(QMainWindow):
         self.anim.setKeyValueAt(0.7, QRect(x,y - 3,nx,ny))
         self.anim.setKeyValueAt(1, QRect(x,y,nx,ny))
         self.anim.start()
-
-    def draw(self,widget,time):
-        self.opacity.i = 0
-        def timeout():
-            if self.opacity.i < 100:
-                self.opacity.i += 2
-                self.opacity.setOpacity(self.opacity.i/100)
-                widget.setGraphicsEffect(self.opacity)
-            else:
-                self.timer.stop()
-        self.timer = QTimer()
-        self.timer.timeout.connect(timeout)
-        self.timer.start(5)
 
     def change_state_widget(self):
         if self.ui.State_widget.isHidden():
@@ -463,8 +456,7 @@ class MainWindow_Controller(QMainWindow):
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
-        x = event.x()
-        y = event.y()
+        x, y = event.x(), event.y()
         if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
             self.m_flag=True
             self.m_Position=event.globalPos()-self.pos()
@@ -509,6 +501,7 @@ class MainWindow_Controller(QMainWindow):
 
     def show_pyas_ui(self):
         self.show()
+        self.pyas_opacity = 0
         while self.pyas_opacity < 100:
             time.sleep(0.001)
             self.pyas_opacity += 1
@@ -552,7 +545,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
             self.ui.State_output.append(f"[{now_time}] {text}")
-            self.tray_icon.showMessage(now_time, text, 5)
+            self.tray_icon.showMessage(now_time, text, 5000)
         except:
             pass
 
@@ -672,19 +665,23 @@ class MainWindow_Controller(QMainWindow):
             pass
 
     def answer_scan(self):
-        if self.Virus_List == []:
-            self.set_system_safe()
-            self.virus_scan_break()
-            text = self.trans("當前未發現病毒")
-        else:
-            self.virus_scan_break()
-            self.set_system_unsafe()
-            self.Virus_List_output.setStringList(self.Virus_List_Ui)
-            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.Virus_Scan_Solve_Button.show()
-            text = self.trans(f"當前發現 {len(self.Virus_List)} 個病毒")
-        self.ui.Virus_Scan_text.setText(text)
-        self.send_notify(text)
+        try:
+            if self.Virus_List == []:
+                self.set_system_safe()
+                self.virus_scan_break()
+                text = self.trans("當前未發現病毒")
+            else:
+                self.virus_scan_break()
+                self.set_system_unsafe()
+                self.Virus_List_output.setStringList(self.Virus_List_Ui)
+                self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
+                self.ui.Virus_Scan_Solve_Button.show()
+                text = self.trans(f"當前發現 {len(self.Virus_List)} 個病毒")
+            self.ui.Virus_Scan_text.setText(text)
+            self.send_notify(text)
+            gc.collect()
+        except Exception as e:
+            self.bug_event(e)
 
     def virus_solve(self):
         try:
@@ -712,7 +709,6 @@ class MainWindow_Controller(QMainWindow):
                 self.init_scan()
                 self.start_scan(file)
                 self.answer_scan()
-                gc.collect()
         except Exception as e:
             self.bug_event(e)
             self.virus_scan_break()
@@ -724,7 +720,6 @@ class MainWindow_Controller(QMainWindow):
                 self.init_scan()
                 self.traverse_path(path)
                 self.answer_scan()
-                gc.collect()
         except Exception as e:
             self.bug_event(e)
             self.virus_scan_break()
@@ -736,14 +731,13 @@ class MainWindow_Controller(QMainWindow):
                 if os.path.exists(f"{chr(65+d)}:/"):
                     self.traverse_path(f"{chr(65+d)}:/")
             self.answer_scan()
-            gc.collect()
         except Exception as e:
             self.bug_event(e)
             self.virus_scan_break()
 
     def start_scan(self, file):
         try:
-            file_type = str("."+file.split(".")[-1]).lower()
+            file_type = str(f".{file.split('.')[-1]}").lower()
             if self.high_sensitivity == 1:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
@@ -775,7 +769,7 @@ class MainWindow_Controller(QMainWindow):
                     self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
                     QApplication.processEvents()
                     self.start_scan(file)
-                gc.collect()
+                    gc.collect()
             except:
                 continue
 
@@ -1216,16 +1210,17 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
-                file = str(f"C:/Users/{file}")
-                if "\\AppData\\" in file:
+                file = str(f"C:/Users/{file}").replace("\\", "/")
+                file_mid = str(f".{file.split('.')[-2]}").lower()
+                file_end = str(f".{file.split('.')[-1]}").lower()
+                if "/AppData/" in file or file in self.whitelist:
                     continue
-                elif action == 1 or action == 3:
-                    if str(f".{file.split('.')[-2]}").lower() in alist and self.protect_proc_kill(self.p_name):
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                 elif action == 2 or action == 4:
-                    if str(f".{file.split('.')[-1]}").lower() in alist and self.protect_proc_kill(self.p_name):
+                    if file_end in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                gc.collect()
+                elif action == 1 or action == 3:
+                    if file_mid in alist and self.protect_proc_kill(self.p_name):
+                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
             except:
                 pass
 
@@ -1242,7 +1237,7 @@ class MainWindow_Controller(QMainWindow):
                                 self.send_notify(self.trans("惡意行為攔截: ")+self.p_name)
                     elif self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("惡意行為攔截: ")+self.p_name)
-                        self.init_boot_config()
+                        self.init_config_boot()
             except:
                 pass
 

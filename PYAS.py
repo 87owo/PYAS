@@ -25,14 +25,12 @@ class MainWindow_Controller(QMainWindow):
         self.ui.setupUi(self)
         self.init_library()
         self.init_tray_icon()
-        self.init_white_list()
-        self.init_block_list()
-        self.set_system_safe()
+        self.init_state_safe()
+        self.init_config_list()
         self.init_config_boot()
         self.init_config_json()
-        self.init_config_lang()
-        self.init_config_sens()
         self.init_config_qtui()
+        self.init_change_lang()
         self.init_control()
         self.show_pyas_ui()
         self.init_threads()
@@ -65,14 +63,12 @@ class MainWindow_Controller(QMainWindow):
         except:
             pass
 
-    def init_white_list(self):
+    def init_config_list(self):
         try:
             with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "r", encoding="utf-8") as f:
                 self.whitelist = [line.strip() for line in f.readlines()]
         except:
             self.whitelist = []
-
-    def init_block_list(self):
         try:
             with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "r", encoding="utf-8") as f:
                 self.blocklist = [line.strip() for line in f.readlines()]
@@ -93,18 +89,6 @@ class MainWindow_Controller(QMainWindow):
             self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
         with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "r", encoding="utf-8") as f:
             self.json = json.load(f)
-
-    def init_config_lang(self):
-        self.language = self.json.get("language", "en_US")
-        if self.language == "zh_TW":
-            self.ui.Language_Traditional_Chinese.setChecked(True)
-        elif self.language == "zh_CN":
-            self.ui.Language_Simplified_Chinese.setChecked(True)
-        else:
-            self.ui.Language_English.setChecked(True)
-        self.init_lang_text()
-
-    def init_config_sens(self):
         self.high_sensitivity = self.json.get("high_sensitivity", 0)
         if self.high_sensitivity == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
@@ -117,6 +101,13 @@ class MainWindow_Controller(QMainWindow):
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+        self.language = self.json.get("language", "en_US")
+        if self.language == "zh_TW":
+            self.ui.Language_Traditional_Chinese.setChecked(True)
+        elif self.language == "zh_CN":
+            self.ui.Language_Simplified_Chinese.setChecked(True)
+        else:
+            self.ui.Language_English.setChecked(True)
 
     def init_control(self):
         self.ui.Theme_White.setChecked(True)
@@ -151,9 +142,9 @@ class MainWindow_Controller(QMainWindow):
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
         self.ui.cloud_services_switch_Button.clicked.connect(self.change_cloud_service)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
-        self.ui.Language_Traditional_Chinese.clicked.connect(self.change_lang)
-        self.ui.Language_Simplified_Chinese.clicked.connect(self.change_lang)
-        self.ui.Language_English.clicked.connect(self.change_lang)
+        self.ui.Language_Traditional_Chinese.clicked.connect(self.init_change_lang)
+        self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
+        self.ui.Language_English.clicked.connect(self.init_change_lang)
         self.ui.Theme_White.clicked.connect(self.change_theme)
         self.ui.Theme_Black.clicked.connect(self.change_theme)
         self.ui.Theme_Green.clicked.connect(self.change_theme)
@@ -197,7 +188,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Setting_widget.hide()
         self.ui.About_widget.hide()
 
-    def change_lang(self):
+    def init_change_lang(self):
         try:
             self.ui.State_output.clear()
             if self.ui.Language_Traditional_Chinese.isChecked():
@@ -537,7 +528,7 @@ class MainWindow_Controller(QMainWindow):
     def bug_event(self, error):
         try:
             print(f"[Error] {error}")
-            QMessageBox.critical(self,self.trans("錯誤"),self.trans(f"錯誤: {error}"),QMessageBox.Ok)
+            QMessageBox.critical(self,self.trans("錯誤"),error,QMessageBox.Ok)
         except:
             pass
 
@@ -552,27 +543,29 @@ class MainWindow_Controller(QMainWindow):
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
+        #Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
+        #self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
-        if Qusetion == Main_About:
-            if self.ui.About_widget.isHidden():
-                self.ui.About_widget.show()
-                self.ui.About_widget.raise_()
-                self.ui.Navigation_Bar.raise_()
-                self.ui.Window_widget.raise_()
-                self.change_animation_3(self.ui.About_widget,0.5)
-                self.change_animation_5(self.ui.About_widget,170,50,671,481)
-                self.setting_back()
-        if Qusetion == Main_Settings:
-            if self.ui.Setting_widget.isHidden():
-                self.ui.Setting_widget.show()
-                self.ui.About_widget.hide()
-                self.ui.Setting_widget.raise_()
-                self.ui.Window_widget.raise_()
-                self.change_animation_3(self.ui.Setting_widget,0.5)
-                self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
+        if Qusetion == Main_About and self.ui.About_widget.isHidden():
+            self.ui.About_widget.show()
+            self.ui.About_widget.raise_()
+            self.ui.Navigation_Bar.raise_()
+            self.ui.Window_widget.raise_()
+            self.change_animation_3(self.ui.About_widget,0.5)
+            self.change_animation_5(self.ui.About_widget,170,50,671,481)
+            self.setting_back()
+        if Qusetion == Main_Settings and self.ui.Setting_widget.isHidden():
+            self.ui.Setting_widget.show()
+            self.ui.About_widget.hide()
+            self.ui.Setting_widget.raise_()
+            self.ui.Window_widget.raise_()
+            self.change_animation_3(self.ui.Setting_widget,0.5)
+            self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
+        #if Qusetion == Main_Update:
+            #print(1)
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -612,7 +605,7 @@ class MainWindow_Controller(QMainWindow):
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
 
-    def set_system_safe(self):
+    def init_state_safe(self):
         try:
             self.safe = True
             self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
@@ -620,7 +613,7 @@ class MainWindow_Controller(QMainWindow):
         except:
             pass
 
-    def set_system_unsafe(self):
+    def init_state_unsafe(self):
         try:
             self.safe = False
             self.ui.State_icon.setPixmap(QPixmap(":/icon/Close.png"))
@@ -667,12 +660,12 @@ class MainWindow_Controller(QMainWindow):
     def answer_scan(self):
         try:
             if self.Virus_List == []:
-                self.set_system_safe()
+                self.init_state_safe()
                 self.virus_scan_break()
                 text = self.trans("當前未發現病毒")
             else:
+                self.init_state_unsafe()
                 self.virus_scan_break()
-                self.set_system_unsafe()
                 self.Virus_List_output.setStringList(self.Virus_List_Ui)
                 self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
                 self.ui.Virus_Scan_Solve_Button.show()
@@ -693,7 +686,7 @@ class MainWindow_Controller(QMainWindow):
                     os.remove(file)
                 except:
                     continue
-            self.set_system_safe()
+            self.init_state_safe()
             self.Virus_List = []
             self.Virus_List_Ui = []
             self.Virus_List_output.setStringList(self.Virus_List)
@@ -957,7 +950,7 @@ class MainWindow_Controller(QMainWindow):
     def traverse_temp(self, path):
         for fd in os.listdir(path):
             try:
-                file = str(os.path.join(path,fd)).replace("\\", "/")
+                file = str(os.path.join(path,fd))
                 QApplication.processEvents()
                 if os.path.isdir(file):
                     self.traverse_temp(file)
@@ -1053,8 +1046,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             self.Process_list_app = []
             self.Process_list_app_pid = []
-            self.Process_list_iter = psutil.process_iter()
-            for p in self.Process_list_iter:
+            for p in psutil.process_iter():
                 try:
                     self.Process_list_app.append(f"{p.name()} ({p.pid}) > {p.exe()}")
                     self.Process_list_app_pid.append(p.pid)

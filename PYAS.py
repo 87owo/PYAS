@@ -19,14 +19,14 @@ class MainWindow_Controller(QMainWindow):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.user = str(os.getlogin())
-        self.pyas = str(sys.argv[0])
         self.pyas_version = "2.8.4"
+        self.user = os.getlogin()
+        self.pyas = sys.argv[0]
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.init_library()
         self.init_tray_icon()
         self.init_state_safe()
+        self.init_config_path()
         self.init_config_list()
         self.init_config_boot()
         self.init_config_json()
@@ -50,7 +50,7 @@ class MainWindow_Controller(QMainWindow):
         self.tray_icon.activated.connect(self.show_pyas_ui)
         self.tray_icon.show()
 
-    def init_library(self):
+    def init_config_path(self):
         try:
             if not os.path.exists("C:/Windows/SysWOW64/PYAS"):
                 os.makedirs("C:/Windows/SysWOW64/PYAS")
@@ -66,15 +66,16 @@ class MainWindow_Controller(QMainWindow):
 
     def init_config_list(self):
         try:
-            with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "r", encoding="utf-8") as f:
-                self.whitelist = [line.strip() for line in f.readlines()]
-        except:
             self.whitelist = []
-        try:
-            with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "r", encoding="utf-8") as f:
-                self.blocklist = [line.strip() for line in f.readlines()]
-        except:
+            if os.path.exists("C:/Windows/SysWOW64/PYAS/Whitelist.txt"):
+                with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "r", encoding="utf-8") as f:
+                    self.whitelist = [line.strip() for line in f.readlines()]
             self.blocklist = []
+            if os.path.exists("C:/Windows/SysWOW64/PYAS/Blocklist.txt"):
+                with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "r", encoding="utf-8") as f:
+                    self.blocklist = [line.strip() for line in f.readlines()]
+        except:
+            pass
 
     def init_config_boot(self):
         try:
@@ -511,17 +512,10 @@ class MainWindow_Controller(QMainWindow):
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            self.block_window = False
-            self.proc_protect = False
-            self.file_protect = False
-            self.mbr_protect = False
-            self.reg_protect = False
-            self.enh_protect = False
-            self.scan_file = False
-            self.tray_icon.hide()
             self.hide_pyas_ui()
-            QApplication.instance().quit()
-        event.ignore()
+            event.accept()
+        else:
+            event.ignore()
 
     def bug_event(self, error):
         try:
@@ -541,10 +535,8 @@ class MainWindow_Controller(QMainWindow):
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
-        #Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
-        #self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About and self.ui.About_widget.isHidden():
@@ -562,25 +554,23 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
-        #if Qusetion == Main_Update:
-            #pass
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
-        if sw_state == self.trans("已關閉") and QMessageBox.warning(self,self.trans("警告"),self.trans("高靈敏度模式可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            self.high_sensitivity = 1
-            self.json["high_sensitivity"] = 1
-            self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
-            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
-        elif sw_state == self.trans("已開啟"):
+        if sw_state == self.trans("已開啟"):
             self.high_sensitivity = 0
             self.json["high_sensitivity"] = 0
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+        elif QMessageBox.warning(self,self.trans("警告"),self.trans("此選項可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            self.high_sensitivity = 1
+            self.json["high_sensitivity"] = 1
+            self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
+            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
+            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
         self.write_config(self.json)
 
     def change_cloud_service(self):

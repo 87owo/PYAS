@@ -925,9 +925,9 @@ class MainWindow_Controller(QMainWindow):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.total_deleted_size = 0
-                self.traverse_temp(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
-                self.traverse_temp(f"C:/Windows/Temp")
-                self.traverse_temp(f"C:/$Recycle.Bin")
+                self.traverse_temp(f"C:/Users/{os.getlogin()}/AppData/Local/Temp/")
+                self.traverse_temp(f"C:/Windows/Temp/")
+                self.traverse_temp(f"C:/$Recycle.Bin/")
                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
         except Exception as e:
             self.bug_event(e)
@@ -1183,11 +1183,22 @@ class MainWindow_Controller(QMainWindow):
                 elif action == 1 or action == 3:
                     if file_mid in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                    elif file_end in slist and self.api_scan(file):
+                        self.protect_lock_thread(file)
+                        self.send_notify(self.trans("惡意軟體攔截: ")+file)
                 elif action == 2 or action == 4:
                     if file_end in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
             except:
                 pass
+
+    def protect_lock_thread(self,file):
+        try:
+            handle = win32file.CreateFile(file,win32con.GENERIC_READ,0,None,win32con.OPEN_EXISTING,win32con.FILE_ATTRIBUTE_NORMAL,None)
+            win32file.LockFile(handle, 0, 0, 0, 0xFFFF0000)
+            #win32file.CloseHandle(handle)
+        except Exception as e:
+            self.send_notify(e)
 
     def protect_boot_thread(self):
         while self.mbr_protect and self.mbr_value:

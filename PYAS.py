@@ -19,6 +19,7 @@ class MainWindow_Controller(QMainWindow):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
+        self.user = str(os.getlogin())
         self.pyas = str(sys.argv[0])
         self.pyas_version = "2.8.4"
         self.ui = Ui_MainWindow()
@@ -935,7 +936,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.total_deleted_size = 0
-                self.traverse_temp(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
+                self.traverse_temp(f"C:/Users/{self.user}/AppData/Local/Temp")
                 self.traverse_temp(f"C:/Windows/Temp")
                 self.traverse_temp(f"C:/$Recycle.Bin")
                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
@@ -1181,7 +1182,7 @@ class MainWindow_Controller(QMainWindow):
             return False
 
     def protect_file_thread(self):
-        hDir = win32file.CreateFile("C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        hDir = win32file.CreateFile(f"C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
@@ -1190,11 +1191,11 @@ class MainWindow_Controller(QMainWindow):
                 file_end = str(f".{file.split('.')[-1]}").lower()
                 if "/AppData/" in file or file in self.whitelist:
                     continue
-                elif action == 2 or action == 4:
-                    if file_end in alist and self.protect_proc_kill(self.p_name):
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
                 elif action == 1 or action == 3:
                     if file_mid in alist and self.protect_proc_kill(self.p_name):
+                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                elif action == 2 or action == 4:
+                    if file_end in alist and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
             except:
                 pass

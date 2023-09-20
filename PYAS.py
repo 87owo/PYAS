@@ -780,13 +780,13 @@ class MainWindow_Controller(QMainWindow):
     def pe_scan(self, file):
         try:
             fn = []
-            pe = PE(file)
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for func in entry.imports:
-                    try:
-                        fn.append(str(func.name, "utf-8"))
-                    except:
-                        pass
+            with PE(file) as pe:
+                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    for func in entry.imports:
+                        try:
+                            fn.append(str(func.name, "utf-8"))
+                        except:
+                            pass
             return fn in function_list
         except:
             return False
@@ -1172,20 +1172,19 @@ class MainWindow_Controller(QMainWindow):
 
     def protect_file_thread(self):
         hDir = win32file.CreateFile(f"C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        self.ransom_check = False
         while self.file_protect:
             try:
                 action, file = win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None)[0]
                 file = str(f"C:/Users/{file}").replace("\\", "/")
-                file_mid = str(f".{file.split('.')[-2]}").lower()
                 file_end = str(f".{file.split('.')[-1]}").lower()
-                if "/AppData/" in file or file in self.whitelist:
-                    continue
-                elif action == 1 or action == 3:
-                    if file_mid in alist and self.protect_proc_kill(self.p_name):
+                if action == 1 or action == 3:
+                    self.ransom_check = True
+                elif action == 2 and file_end in alist:
+                    if self.ransom_check and self.protect_proc_kill(self.p_name):
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
-                elif action == 2 or action == 4:
-                    if file_end in alist and self.protect_proc_kill(self.p_name):
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.p_name)
+                else:
+                    self.ransom_check = False
             except:
                 pass
 

@@ -19,9 +19,8 @@ class MainWindow_Controller(QMainWindow):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
+        self.pyas = str(sys.argv[0])
         self.pyas_version = "2.8.4"
-        self.user = os.getlogin()
-        self.pyas = sys.argv[0]
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -926,7 +925,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.total_deleted_size = 0
-                self.traverse_temp(f"C:/Users/{self.user}/AppData/Local/Temp")
+                self.traverse_temp(f"C:/Users/{os.getlogin()}/AppData/Local/Temp")
                 self.traverse_temp(f"C:/Windows/Temp")
                 self.traverse_temp(f"C:/$Recycle.Bin")
                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)

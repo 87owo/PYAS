@@ -303,8 +303,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(0,190,255);}""")
 
     def change_animation(self,widget):
-        x = 170
-        y = widget.pos().y()
+        x, y = 170, widget.pos().y()
         self.anim = QPropertyAnimation(widget, b"geometry")
         widget.setGeometry(QRect(x - 100,y, 671,481))
         self.anim.setKeyValueAt(0.2, QRect(x - 60,y,671,481))
@@ -314,8 +313,7 @@ class MainWindow_Controller(QMainWindow):
         self.anim.start()
 
     def change_animation_2(self,nx,ny):
-        x = self.ui.label.pos().x()
-        y = self.ui.label.pos().y()
+        x, y = self.ui.label.pos().x(), self.ui.label.pos().y()
         self.anim2 = QPropertyAnimation(self.ui.label, b"geometry")
         if y > ny:
             self.anim2.setKeyValueAt(0.4, QRect(nx,ny + 25, 5, 35))
@@ -351,8 +349,7 @@ class MainWindow_Controller(QMainWindow):
             self.timer.stop()
 
     def change_animation_4(self,widget,time,ny,ny2):
-        x = widget.pos().x()
-        y = widget.pos().y()
+        x, y = widget.pos().x(), widget.pos().y()
         self.anim4 = QPropertyAnimation(widget, b"geometry")
         self.anim4.setDuration(time)
         self.anim4.setStartValue(QRect(x, y, 141, ny))
@@ -565,14 +562,13 @@ class MainWindow_Controller(QMainWindow):
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
         #if Qusetion == Main_Update:
-            #print(1)
+            #pass
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
         if sw_state == self.trans("已關閉") and QMessageBox.warning(self,self.trans("警告"),self.trans("高靈敏度模式可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
             self.high_sensitivity = 1
             self.json["high_sensitivity"] = 1
-            self.write_config(self.json)
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
@@ -580,18 +576,17 @@ class MainWindow_Controller(QMainWindow):
         elif sw_state == self.trans("已開啟"):
             self.high_sensitivity = 0
             self.json["high_sensitivity"] = 0
-            self.write_config(self.json)
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+        self.write_config(self.json)
 
     def change_cloud_service(self):
         sw_state = self.ui.cloud_services_switch_Button.text()
         if sw_state == self.trans("已關閉"):
             self.cloud_services = 1
             self.json["cloud_services"] = 1
-            self.write_config(self.json)
             self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
@@ -599,11 +594,11 @@ class MainWindow_Controller(QMainWindow):
         elif sw_state == self.trans("已開啟"):
             self.cloud_services = 0
             self.json["cloud_services"] = 0
-            self.write_config(self.json)
             self.ui.cloud_services_switch_Button.setText(self.trans("已關閉"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+        self.write_config(self.json)
 
     def init_state_safe(self):
         try:
@@ -966,22 +961,16 @@ class MainWindow_Controller(QMainWindow):
             file = str(QFileDialog.getOpenFileName(self,self.trans("增加到白名單"),"C:/")[0]).replace("\\", "/")
             if file and file not in self.whitelist:
                 if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                    try:
-                        self.whitelist.append(file)
-                        with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
-                            f.write(f"{file}\n")
-                        QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
-                    except:
-                        self.bug_event('增加到白名單失敗')
-            elif QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                try:
-                    self.whitelist.remove(file)
-                    with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
-                        for white_file in self.whitelist:
-                            f.write(f'{white_file}\n')
-                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
-                except:
-                    self.bug_event('取消增加到白名單失敗')
+                    self.whitelist.append(file)
+                    with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
+                        f.write(f"{file}\n")
+                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
+            elif file and QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                self.whitelist.remove(file)
+                with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
+                    for white_file in self.whitelist:
+                        f.write(f'{white_file}\n')
+                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
         except Exception as e:
             self.bug_event(e)
 
@@ -995,22 +984,16 @@ class MainWindow_Controller(QMainWindow):
                     if window_name not in ["","PYAS",self.trans("警告")]:
                         if window_name not in self.blocklist:
                             if QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                                try:
-                                    self.blocklist.append(window_name)
-                                    with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "a+", encoding="utf-8") as f:
-                                        f.write(f'{window_name}\n')
-                                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
-                                except:
-                                    self.bug_event('增加到彈窗攔截失敗')
+                                self.blocklist.append(window_name)
+                                with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "a+", encoding="utf-8") as f:
+                                    f.write(f'{window_name}\n')
+                                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
                         elif QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要取消攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                            try:
-                                self.blocklist.remove(window_name)
-                                with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "w", encoding="utf-8") as f:
-                                    for block_name in self.blocklist:
-                                        f.write(f'{block_name}\n')
-                                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
-                            except:
-                                self.bug_event('取消到彈窗攔截失敗')
+                            self.blocklist.remove(window_name)
+                            with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "w", encoding="utf-8") as f:
+                                for block_name in self.blocklist:
+                                    f.write(f'{block_name}\n')
+                            QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
                         self.block_window = True
             self.block_window_init()
         except Exception as e:
@@ -1156,10 +1139,10 @@ class MainWindow_Controller(QMainWindow):
             if p.pid not in existing_processes:
                 existing_processes.add(p.pid)
         while self.proc_protect:
-            try:
-                time.sleep(0.1)
-                for p in psutil.process_iter():
-                    if p.pid not in existing_processes:
+            time.sleep(0.1)
+            for p in psutil.process_iter():
+                if p.pid not in existing_processes:
+                    try:
                         existing_processes.add(p.pid)
                         name, file, cmd = p.name(), p.exe(), p.cmdline()
                         if file == self.pyas or file in self.whitelist:
@@ -1184,8 +1167,8 @@ class MainWindow_Controller(QMainWindow):
                         elif self.sign_scan(file):
                             self.p_name = name
                         gc.collect()
-            except:
-                pass
+                    except:
+                        pass
 
     def protect_proc_kill(self,proc):
         try:

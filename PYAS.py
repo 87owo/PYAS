@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.pyas = str(sys.argv[0])
+        self.pyas = str(sys.argv[0]).replace("\\", "/")
         self.pyas_version = "2.8.4"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -935,7 +935,7 @@ class MainWindow_Controller(QMainWindow):
     def traverse_temp(self, path):
         for fd in os.listdir(path):
             try:
-                file = str(os.path.join(path,fd))
+                file = str(os.path.join(path,fd)).replace("\\", "/")
                 QApplication.processEvents()
                 if os.path.isdir(file):
                     self.traverse_temp(file)
@@ -1134,28 +1134,26 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
-                        name, file, cmd = p.name(), p.exe(), p.cmdline()
-                        if file == self.pyas and file in self.whitelist:
-                            continue
-                        elif ":\\Windows" in file and self.enh_protect:
-                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
+                        if ":/Windows" in file and self.enh_protect:
+                            if "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "msiexec" in name and self.api_scan(cmd[-1]):
+                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif ":\\Program" in file and self.enh_protect:
+                            elif "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                        elif ":/Program" in file and self.enh_protect:
                             if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.api_scan(file) or self.pe_scan(file):
-                            p.kill()
-                            self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif self.sign_scan(file):
+                        elif file != self.pyas and file not in self.whitelist:
                             self.proc = p
+                            if self.api_scan(file) or self.pe_scan(file):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         gc.collect()
                 except:
                     pass
@@ -1166,18 +1164,19 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
-                    if action == 1 or action == 3:
-                        if str(f".{file.split('.')[-2]}").lower() in alist:
-                            self.proc.kill()
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                    elif action == 2 or action == 4:
-                        if self.ransom_block:
-                            self.proc.kill()
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif str(f".{file.split('.')[-1]}").lower() in alist:
-                            self.ransom_block = True
-                        else:
-                            self.ransom_block = False
+                    if action and "AppData" not in file:
+                        if action == 1 or action == 3:
+                            if str(f".{file.split('.')[-2]}").lower() in alist:
+                                self.proc.kill()
+                                self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                        elif action == 2 or action == 4:
+                            if self.ransom_block:
+                                self.proc.kill()
+                                self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                            elif str(f".{file.split('.')[-1]}").lower() in alist:
+                                self.ransom_block = True
+                            else:
+                                self.ransom_block = False
                 except:
                     pass
 

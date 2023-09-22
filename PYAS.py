@@ -1162,15 +1162,22 @@ class MainWindow_Controller(QMainWindow):
 
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        self.ransom_block = False
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
-                    if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
-                        self.proc.kill()
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                    elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                        self.proc.kill()
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                    if action == 1 or action == 3:
+                        if str(f".{file.split('.')[-2]}").lower() in alist:
+                            self.proc.kill()
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                    elif action == 2 or action == 4:
+                        if self.ransom_block:
+                            self.proc.kill()
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                        elif str(f".{file.split('.')[-1]}").lower() in alist:
+                            self.ransom_block = True
+                        else:
+                            self.ransom_block = False
                 except:
                     pass
 

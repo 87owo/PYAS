@@ -1,9 +1,8 @@
 import os, gc, sys, time, json, psutil
-import requests, subprocess, win32con
-import win32file, win32gui, win32api
+import subprocess, requests, msvcrt
+import hashlib, pefile, win32file
+import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
-from hashlib import md5, sha1, sha256
-from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
@@ -24,6 +23,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
+        self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
         self.init_config_list()
@@ -60,6 +60,14 @@ class MainWindow_Controller(QMainWindow):
         try:
             with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "w", encoding="utf-8") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
+        except:
+            pass
+
+    def init_virus_list(self):
+        try:
+            self.virus_lock = {}
+            self.virus_list = []
+            self.virus_list_ui = []
         except:
             pass
 
@@ -607,18 +615,76 @@ class MainWindow_Controller(QMainWindow):
             pass
 
     def init_scan(self):
-        self.scan_file = True
-        self.Virus_List = []
-        self.Virus_List_Ui = []
-        self.ui.Virus_Scan_Solve_Button.hide()
-        self.ui.Virus_Scan_choose_widget.hide()
-        self.ui.Virus_Scan_choose_Button.hide()
-        self.ui.Virus_Scan_Break_Button.show()
-        self.Virus_List_output=QStringListModel()
-        self.Virus_List_output.setStringList(self.Virus_List)
-        self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
-        QApplication.processEvents()
+        try:
+            self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
+            QApplication.processEvents()
+            for file in self.virus_list:
+                try:
+                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+                    os.close(self.virus_lock[file])
+                    del self.virus_lock[file]
+                except:
+                    continue
+            self.scan_file = True
+            self.init_virus_list()
+            self.ui.Virus_Scan_Solve_Button.hide()
+            self.ui.Virus_Scan_choose_widget.hide()
+            self.ui.Virus_Scan_choose_Button.hide()
+            self.ui.Virus_Scan_Break_Button.show()
+            self.virus_list_output = QStringListModel()
+            self.virus_list_output.setStringList(self.virus_list)
+            self.ui.Virus_Scan_output.setModel(self.virus_list_output)
+        except Exception as e:
+            self.bug_event(e)
+
+    def virus_solve(self):
+        try:
+            self.ui.Virus_Scan_Solve_Button.hide()
+            for file in self.virus_list:
+                try:
+                    self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
+                    QApplication.processEvents()
+                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+                    os.close(self.virus_lock[file])
+                    os.remove(file)
+                except:
+                    continue
+            self.init_state_safe()
+            self.init_virus_list()
+            self.virus_list_output.setStringList(self.virus_list)
+            self.ui.Virus_Scan_output.setModel(self.virus_list_output)
+            self.ui.Virus_Scan_text.setText(self.trans("成功: 刪除成功"))
+        except Exception as e:
+            self.bug_event(e)
+
+    def write_scan(self, state, file):
+        try:
+            self.virus_list.append(file)
+            self.virus_list_ui.append(f"[{state}] {file}")
+            self.virus_list_output.setStringList(self.virus_list_ui)
+            self.ui.Virus_Scan_output.setModel(self.virus_list_output)
+            self.virus_lock[file] = os.open(file, os.O_RDWR)
+            msvcrt.locking(self.virus_lock[file], msvcrt.LK_RLCK, 0)
+        except:
+            pass
+
+    def answer_scan(self):
+        try:
+            if self.virus_list:
+                self.init_state_unsafe()
+                self.ui.Virus_Scan_Solve_Button.show()
+                self.ui.Virus_Scan_Break_Button.hide()
+                self.ui.Virus_Scan_choose_Button.show()
+                text = self.trans(f"當前發現 {len(self.virus_list)} 個病毒")
+            else:
+                self.virus_scan_break()
+                self.init_state_safe()
+                text = self.trans("當前未發現病毒")
+            self.ui.Virus_Scan_text.setText(text)
+            self.send_notify(text)
+            gc.collect()
+        except Exception as e:
+            self.bug_event(e)
 
     def virus_scan_break(self):
         self.scan_file = False
@@ -633,57 +699,10 @@ class MainWindow_Controller(QMainWindow):
         else:
             self.ui.Virus_Scan_choose_widget.hide()
 
-    def write_scan(self,state,file):
-        try:
-            self.Virus_List.append(file)
-            self.Virus_List_Ui.append(f"[{state}] {file}")
-            self.Virus_List_output.setStringList(self.Virus_List_Ui)
-            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-        except:
-            pass
-
-    def answer_scan(self):
-        try:
-            if self.Virus_List == []:
-                self.init_state_safe()
-                self.virus_scan_break()
-                text = self.trans("當前未發現病毒")
-            else:
-                self.init_state_unsafe()
-                self.virus_scan_break()
-                self.Virus_List_output.setStringList(self.Virus_List_Ui)
-                self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-                self.ui.Virus_Scan_Solve_Button.show()
-                text = self.trans(f"當前發現 {len(self.Virus_List)} 個病毒")
-            self.ui.Virus_Scan_text.setText(text)
-            self.send_notify(text)
-            gc.collect()
-        except Exception as e:
-            self.bug_event(e)
-
-    def virus_solve(self):
-        try:
-            self.ui.Virus_Scan_Solve_Button.hide()
-            for file in self.Virus_List:
-                try:
-                    self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
-                    QApplication.processEvents()
-                    os.remove(file)
-                except:
-                    continue
-            self.init_state_safe()
-            self.Virus_List = []
-            self.Virus_List_Ui = []
-            self.Virus_List_output.setStringList(self.Virus_List)
-            self.ui.Virus_Scan_output.setModel(self.Virus_List_output)
-            self.ui.Virus_Scan_text.setText(self.trans("成功: 刪除成功"))
-        except Exception as e:
-            self.bug_event(e)
-
     def file_scan(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file:
+            if file and file != self.pyas:
                 self.init_scan()
                 self.start_scan(file)
                 self.answer_scan()
@@ -743,7 +762,7 @@ class MainWindow_Controller(QMainWindow):
                     continue
                 elif os.path.isdir(file):
                     self.traverse_path(file)
-                else:
+                elif file != self.pyas:
                     self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
                     QApplication.processEvents()
                     self.start_scan(file)
@@ -755,7 +774,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             if self.cloud_services == 1:
                 with open(file, "rb") as f:
-                    text = str(md5(f.read()).hexdigest())
+                    text = str(hashlib.md5(f.read()).hexdigest())
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
                 return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
@@ -764,8 +783,8 @@ class MainWindow_Controller(QMainWindow):
 
     def sign_scan(self, file):
         try:
-            with PE(file, fast_load=True) as pe:
-                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
+            with pefile.PE(file, fast_load=True) as pe:
+                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
         except:
             return True
 
@@ -780,7 +799,7 @@ class MainWindow_Controller(QMainWindow):
     def pe_scan(self, file):
         try:
             fn = []
-            with PE(file) as pe:
+            with pefile.PE(file) as pe:
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
@@ -1139,12 +1158,12 @@ class MainWindow_Controller(QMainWindow):
                             if "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
                             elif "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif ":/Program" in file and self.enh_protect:
                             if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
@@ -1165,19 +1184,22 @@ class MainWindow_Controller(QMainWindow):
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     if action and "AppData" not in file:
-                        if action == 1 or action == 3:
-                            if str(f".{file.split('.')[-2]}").lower() in alist:
+                        file = str(f"C:/Users/{file}").replace("\\", "/")
+                        if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
+                            self.proc.kill()
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                        elif action == 3 and str(f".{file.split('.')[-1]}").lower() in slist:
+                            if self.sign_scan(file) and self.api_scan(file):
+                                os.remove(file)
+                                self.send_notify(self.trans("惡意軟體刪除: ")+file)
+                        elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
+                            if self.ransom_block:
+                                self.ransom_block = False
                                 self.proc.kill()
                                 self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif action == 2 or action == 4:
-                            if str(f".{file.split('.')[-1]}").lower() in alist:
-                                if self.ransom_block:
-                                    self.proc.kill()
-                                    self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                                else:
-                                    self.ransom_block = True
                             else:
-                                self.ransom_block = False
+                                self.ransom_block = True
+                        gc.collect()
                 except:
                     pass
 

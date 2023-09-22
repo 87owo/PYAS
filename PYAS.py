@@ -1,9 +1,8 @@
 import os, gc, sys, time, json, psutil
-import requests, subprocess, win32con
-import win32file, win32gui, win32api
+import subprocess, requests, msvcrt
+import hashlib, pefile, win32file
+import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
-from hashlib import md5, sha1, sha256
-from pefile import PE, DIRECTORY_ENTRY
 from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
@@ -20,6 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.pyas_file = os.open(self.pyas, os.O_RDWR)
         self.pyas_version = "2.8.4"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -755,7 +755,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             if self.cloud_services == 1:
                 with open(file, "rb") as f:
-                    text = str(md5(f.read()).hexdigest())
+                    text = str(hashlib.md5(f.read()).hexdigest())
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
                 return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
@@ -764,8 +764,8 @@ class MainWindow_Controller(QMainWindow):
 
     def sign_scan(self, file):
         try:
-            with PE(file, fast_load=True) as pe:
-                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
+            with pefile.PE(file, fast_load=True) as pe:
+                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
         except:
             return True
 
@@ -780,7 +780,7 @@ class MainWindow_Controller(QMainWindow):
     def pe_scan(self, file):
         try:
             fn = []
-            with PE(file) as pe:
+            with pefile.PE(file) as pe:
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
@@ -1111,17 +1111,18 @@ class MainWindow_Controller(QMainWindow):
 
     def protect_enh_init(self):
         if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
-            self.enh_protect = False
             self.ui.Protection_switch_Button_5.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            msvcrt.locking(self.pyas_file, msvcrt.LK_UNLCK, os.path.getsize(self.pyas))
+            os.close(self.pyas_file)
         else:
-            self.enh_protect = True
             self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            msvcrt.locking(self.pyas_file, msvcrt.LK_LOCK, os.path.getsize(self.pyas))
 
     def protect_proc_thread(self):
         existing_processes = set()
@@ -1135,18 +1136,17 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if ":/Windows" in file and self.enh_protect:
+                        if ":/Windows" in file or ":/Program" in file:
                             if "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                            elif "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
                             elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                            elif "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                        elif ":/Program" in file and self.enh_protect:
-                            if self.sign_scan(file) and self.api_scan(file):
+                            elif self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:

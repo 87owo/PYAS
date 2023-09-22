@@ -1170,11 +1170,12 @@ class MainWindow_Controller(QMainWindow):
                                 self.proc.kill()
                                 self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
                         elif action == 2 or action == 4:
-                            if self.ransom_block:
-                                self.proc.kill()
-                                self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                            elif str(f".{file.split('.')[-1]}").lower() in alist:
-                                self.ransom_block = True
+                            if str(f".{file.split('.')[-1]}").lower() in alist:
+                                if self.ransom_block:
+                                    self.proc.kill()
+                                    self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                                else:
+                                    self.ransom_block = True
                             else:
                                 self.ransom_block = False
                 except:

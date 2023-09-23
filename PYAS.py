@@ -1,7 +1,7 @@
 import os, gc, sys, time, json, psutil
 import subprocess, requests, msvcrt
-import hashlib, pefile, win32file
 import win32gui, win32api, win32con
+import hashlib, pefile, win32file
 import xml.etree.ElementTree as xmlet
 from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
@@ -664,7 +664,7 @@ class MainWindow_Controller(QMainWindow):
             self.virus_list_output.setStringList(self.virus_list_ui)
             self.ui.Virus_Scan_output.setModel(self.virus_list_output)
             self.virus_lock[file] = os.open(file, os.O_RDWR)
-            msvcrt.locking(self.virus_lock[file], msvcrt.LK_RLCK, 0)
+            msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
         except:
             pass
 

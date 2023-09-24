@@ -788,10 +788,11 @@ class MainWindow_Controller(QMainWindow):
         except:
             return True
 
-    def scr_scan(self, file):
+    def scr_scan(self, text):
         try:
-            with open(file, "r", encoding="utf-8") as f:
-                text = f.read()
+            if os.path.isfile(text):
+                with open(text, "r", encoding="utf-8") as f:
+                    text = f.read()
             return any(sn in text for sn in scripts_list)
         except:
             return False
@@ -1155,13 +1156,13 @@ class MainWindow_Controller(QMainWindow):
                         existing_processes.add(p.pid)
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if ":/Windows" in file and self.enh_protect:
-                            if "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
+                            elif self.api_scan(cmd[-1]) or self.scr_scan(cmd):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif ":/Program" in file and self.enh_protect:
@@ -1184,18 +1185,13 @@ class MainWindow_Controller(QMainWindow):
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     if action and "AppData" not in file:
-                        file = str(f"C:/Users/{file}").replace("\\", "/")
                         if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
                             self.proc.kill()
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif action == 3 and str(f".{file.split('.')[-1]}").lower() in slist:
-                            if self.sign_scan(file) and self.api_scan(file):
-                                os.remove(file)
-                                self.send_notify(self.trans("惡意軟體刪除: ")+file)
                         elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
                             if self.ransom_block:
-                                self.ransom_block = False
                                 self.proc.kill()
+                                self.ransom_block = False
                                 self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
                             else:
                                 self.ransom_block = True

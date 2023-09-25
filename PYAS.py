@@ -702,7 +702,7 @@ class MainWindow_Controller(QMainWindow):
     def file_scan(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file and file != self.pyas:
+            if file and file not in self.whitelist:
                 self.init_scan()
                 self.start_scan(file)
                 self.answer_scan()
@@ -735,19 +735,15 @@ class MainWindow_Controller(QMainWindow):
     def start_scan(self, file):
         try:
             file_type = str(f".{file.split('.')[-1]}").lower()
-            if self.high_sensitivity == 1:
+            if self.high_sensitivity and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
-                    self.write_scan(self.trans("可疑"),file)
-                elif self.scr_scan(file):
                     self.write_scan(self.trans("可疑"),file)
             elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
-                    self.write_scan(self.trans("可疑"),file)
-                elif self.scr_scan(file):
                     self.write_scan(self.trans("可疑"),file)
         except:
             pass
@@ -758,11 +754,11 @@ class MainWindow_Controller(QMainWindow):
                 file = str(os.path.join(path,fd)).replace("\\", "/")
                 if self.scan_file == False:
                     return
-                elif file in self.whitelist or ":/Windows" in file:
+                elif ":/Windows" in file:
                     continue
                 elif os.path.isdir(file):
                     self.traverse_path(file)
-                elif file != self.pyas:
+                elif file not in self.whitelist:
                     self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
                     QApplication.processEvents()
                     self.start_scan(file)
@@ -799,8 +795,8 @@ class MainWindow_Controller(QMainWindow):
 
     def pe_scan(self, file):
         try:
-            fn = []
             with pefile.PE(file) as pe:
+                fn = []
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
@@ -1162,9 +1158,12 @@ class MainWindow_Controller(QMainWindow):
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.api_scan(cmd[-1]) or self.scr_scan(cmd):
+                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                            elif self.scr_scan(str(cmd)) or self.api_scan(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
                         elif ":/Program" in file and self.enh_protect:
                             if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
@@ -1202,7 +1201,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_boot_thread(self):
         while self.mbr_protect and self.mbr_value:
             try:
-                time.sleep(0.2)
+                time.sleep(0.1)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] == b'\x55\xAA':
                         if f.read(512) != self.mbr_value:
@@ -1220,11 +1219,14 @@ class MainWindow_Controller(QMainWindow):
     def protect_reg_thread(self):
         while self.reg_protect:
             try:
-                time.sleep(0.2)
-                self.repair_system_restrict()
-                self.repair_system_file_type()
-                self.repair_system_file_icon()
+                time.sleep(0.1)
                 self.repair_system_image()
+                time.sleep(0.1)
+                self.repair_system_restrict()
+                time.sleep(0.1)
+                self.repair_system_file_type()
+                time.sleep(0.1)
+                self.repair_system_file_icon()
             except:
                 pass
 

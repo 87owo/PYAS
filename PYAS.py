@@ -51,14 +51,14 @@ class MainWindow_Controller(QMainWindow):
 
     def init_config_path(self):
         try:
-            if not os.path.exists("C:/Windows/SysWOW64/PYAS"):
-                os.makedirs("C:/Windows/SysWOW64/PYAS")
+            if not os.path.exists("C:/ProgramData/PYAS"):
+                os.makedirs("C:/ProgramData/PYAS")
         except Exception as e:
             self.bug_event(e)
 
     def write_config(self, config):
         try:
-            with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "w", encoding="utf-8") as f:
+            with open("C:/ProgramData/PYAS/PYAS.json", "w", encoding="utf-8") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
         except:
             pass
@@ -74,12 +74,12 @@ class MainWindow_Controller(QMainWindow):
     def init_config_list(self):
         try:
             self.whitelist = []
-            if os.path.exists("C:/Windows/SysWOW64/PYAS/Whitelist.txt"):
-                with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "r", encoding="utf-8") as f:
+            if os.path.exists("C:/ProgramData/PYAS/Whitelist.ini"):
+                with open("C:/ProgramData/PYAS/Whitelist.ini", "r", encoding="utf-8") as f:
                     self.whitelist = [line.strip() for line in f.readlines()]
             self.blocklist = []
-            if os.path.exists("C:/Windows/SysWOW64/PYAS/Blocklist.txt"):
-                with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "r", encoding="utf-8") as f:
+            if os.path.exists("C:/ProgramData/PYAS/Blocklist.ini"):
+                with open("C:/ProgramData/PYAS/Blocklist.ini", "r", encoding="utf-8") as f:
                     self.blocklist = [line.strip() for line in f.readlines()]
         except:
             pass
@@ -94,9 +94,9 @@ class MainWindow_Controller(QMainWindow):
             self.mbr_value = False
 
     def init_config_json(self):
-        if not os.path.exists("C:/Windows/SysWOW64/PYAS/PYAS.json"):
+        if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
             self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
-        with open("C:/Windows/SysWOW64/PYAS/PYAS.json", "r", encoding="utf-8") as f:
+        with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
             self.json = json.load(f)
         self.high_sensitivity = self.json.get("high_sensitivity", 0)
         if self.high_sensitivity == 1:
@@ -970,12 +970,12 @@ class MainWindow_Controller(QMainWindow):
             if file and file not in self.whitelist:
                 if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     self.whitelist.append(file)
-                    with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "a+", encoding="utf-8") as f:
+                    with open("C:/ProgramData/PYAS/Whitelist.ini", "a+", encoding="utf-8") as f:
                         f.write(f"{file}\n")
                     QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
             elif file and QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.whitelist.remove(file)
-                with open("C:/Windows/SysWOW64/PYAS/Whitelist.txt", "w", encoding="utf-8") as f:
+                with open("C:/ProgramData/PYAS/Whitelist.ini", "w", encoding="utf-8") as f:
                     for white_file in self.whitelist:
                         f.write(f'{white_file}\n')
                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
@@ -993,12 +993,12 @@ class MainWindow_Controller(QMainWindow):
                         if window_name not in self.blocklist:
                             if QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                                 self.blocklist.append(window_name)
-                                with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "a+", encoding="utf-8") as f:
+                                with open("C:/ProgramData/PYAS/Blocklist.ini", "a+", encoding="utf-8") as f:
                                     f.write(f'{window_name}\n')
                                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
                         elif QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要取消攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                             self.blocklist.remove(window_name)
-                            with open("C:/Windows/SysWOW64/PYAS/Blocklist.txt", "w", encoding="utf-8") as f:
+                            with open("C:/ProgramData/PYAS/Blocklist.ini", "w", encoding="utf-8") as f:
                                 for block_name in self.blocklist:
                                     f.write(f'{block_name}\n')
                             QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)

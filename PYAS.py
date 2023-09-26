@@ -752,6 +752,8 @@ class MainWindow_Controller(QMainWindow):
         for fd in os.listdir(path):
             try:
                 file = str(os.path.join(path,fd)).replace("\\", "/")
+                self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
+                QApplication.processEvents()
                 if self.scan_file == False:
                     return
                 elif ":/Windows" in file:
@@ -759,8 +761,6 @@ class MainWindow_Controller(QMainWindow):
                 elif os.path.isdir(file):
                     self.traverse_path(file)
                 elif file not in self.whitelist:
-                    self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
-                    QApplication.processEvents()
                     self.start_scan(file)
                     gc.collect()
             except:
@@ -774,6 +774,7 @@ class MainWindow_Controller(QMainWindow):
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
                 return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
+            return False
         except:
             return False
 
@@ -803,7 +804,8 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            return fn in function_list
+                return fn in function_list
+            return False
         except:
             return False
 
@@ -1183,25 +1185,23 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
-                    if action and "AppData" not in file:
-                        if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
+                    if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
+                        self.proc.kill()
+                        self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                    elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
+                        if self.ransom_block:
                             self.proc.kill()
+                            self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                            if self.ransom_block:
-                                self.proc.kill()
-                                self.ransom_block = False
-                                self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                            else:
-                                self.ransom_block = True
-                        gc.collect()
+                        else:
+                            self.ransom_block = True
                 except:
                     pass
 
     def protect_boot_thread(self):
         while self.mbr_protect and self.mbr_value:
             try:
-                time.sleep(0.1)
+                time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] == b'\x55\xAA':
                         if f.read(512) != self.mbr_value:

@@ -1193,7 +1193,7 @@ class MainWindow_Controller(QMainWindow):
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        else:
+                        elif "AppData" not in file:
                             self.ransom_block = True
                 except:
                     pass
@@ -1219,13 +1219,10 @@ class MainWindow_Controller(QMainWindow):
     def protect_reg_thread(self):
         while self.reg_protect:
             try:
-                time.sleep(0.1)
+                time.sleep(0.2)
                 self.repair_system_image()
-                time.sleep(0.1)
                 self.repair_system_restrict()
-                time.sleep(0.1)
                 self.repair_system_file_type()
-                time.sleep(0.1)
                 self.repair_system_file_icon()
             except:
                 pass

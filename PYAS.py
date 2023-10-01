@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.8.4"
+        self.pyas_version = "2.8.5"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -622,7 +622,6 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
                     os.close(self.virus_lock[file])
-                    del self.virus_lock[file]
                 except:
                     continue
             self.scan_file = True
@@ -702,7 +701,7 @@ class MainWindow_Controller(QMainWindow):
     def file_scan(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file and file not in self.whitelist:
+            if file:
                 self.init_scan()
                 self.start_scan(file)
                 self.answer_scan()
@@ -762,7 +761,7 @@ class MainWindow_Controller(QMainWindow):
                     self.traverse_path(file)
                 elif file not in self.whitelist:
                     self.start_scan(file)
-                    gc.collect()
+                gc.collect()
             except:
                 continue
 
@@ -790,7 +789,7 @@ class MainWindow_Controller(QMainWindow):
             if os.path.isfile(text):
                 with open(text, "r", encoding="utf-8") as f:
                     text = f.read()
-            return any(sn in text for sn in scripts_list)
+            return any(sn in str(text) for sn in scripts_list)
         except:
             return False
 
@@ -1160,12 +1159,9 @@ class MainWindow_Controller(QMainWindow):
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
+                            elif self.scr_scan(cmd) or self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                            elif self.scr_scan(str(cmd)) or self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
                         elif ":/Program" in file and self.enh_protect:
                             if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
@@ -1189,7 +1185,7 @@ class MainWindow_Controller(QMainWindow):
                         self.proc.kill()
                         self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
                     elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                        if self.ransom_block:
+                        if self.ransom_block and self.sign_scan(self.proc.exe()):
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
@@ -1209,7 +1205,7 @@ class MainWindow_Controller(QMainWindow):
                             f.write(self.mbr_value)
                             self.proc.kill()
                             self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
-                    else:
+                    elif self.sign_scan(self.proc.exe()):
                         self.proc.kill()
                         self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
                         self.init_config_boot()

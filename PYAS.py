@@ -1234,7 +1234,7 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.2)
                 for conn in self.proc.connections():
-                    if conn.status == "SYN_SENT" and self.sign_scan(self.proc.exe()):
+                    if conn.status == "ESTABLISHED" and self.sign_scan(self.proc.exe()):
                         self.proc.kill()
                         self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
             except:

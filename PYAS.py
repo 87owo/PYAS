@@ -1197,6 +1197,7 @@ class MainWindow_Controller(QMainWindow):
                         if self.sign_scan(file) and self.api_scan(file):
                             os.remove(file)
                             self.send_notify(self.trans("惡意軟體刪除: ")+file)
+                        gc.collect()
                 except:
                     pass
 
@@ -1214,7 +1215,6 @@ class MainWindow_Controller(QMainWindow):
                     elif self.sign_scan(self.proc.exe()):
                         self.proc.kill()
                         self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
-                        self.init_config_boot()
             except:
                 pass
 

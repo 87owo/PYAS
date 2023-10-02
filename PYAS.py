@@ -1,7 +1,6 @@
-import os, gc, sys, time, json, psutil
-import subprocess, requests, msvcrt
-import win32gui, win32api, win32con
-import hashlib, pefile, win32file
+import os, gc, sys, time, json, psutil, msvcrt
+import win32gui, win32api, win32con, win32file
+import requests, socket, hashlib, pefile
 import xml.etree.ElementTree as xmlet
 from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
@@ -926,7 +925,7 @@ class MainWindow_Controller(QMainWindow):
     def repair_system_explorer(self):
         try:
             if not self.is_process_running("explorer.exe"):
-                subprocess.run("explorer.exe", check=True)
+                os.system("explorer.exe", check=True)
         except:
             pass
 
@@ -1020,9 +1019,9 @@ class MainWindow_Controller(QMainWindow):
     def repair_network(self):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要修復系統網路嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                subprocess.run("netsh winsock reset", check=True)
+                os.system("netsh winsock reset", check=True)
                 if QMessageBox.warning(self,self.trans("警告"),self.trans("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                    subprocess.run("shutdown -r -t 0", check=True)
+                    os.system("shutdown -r -t 0", check=True)
         except Exception as e:
             self.bug_event(e)
 
@@ -1234,6 +1233,10 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.2)
                 for conn in self.proc.connections():
+                    local_ip = socket.gethostbyname(socket.gethostname())
+                    if local_ip == conn.laddr.ip and self.sign_scan(self.proc.exe()):
+                        self.proc.kill()
+                        self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
                     if conn.status == "ESTABLISHED" and self.sign_scan(self.proc.exe()):
                         self.proc.kill()
                         self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())

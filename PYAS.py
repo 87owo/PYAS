@@ -40,7 +40,7 @@ class MainWindow_Controller(QMainWindow):
         self.protect_file_init()
         self.protect_boot_init()
         self.protect_reg_init()
-        self.protect_enh_init()
+        self.protect_net_init()
         self.block_window_init()
 
     def init_tray_icon(self):
@@ -147,7 +147,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Protection_switch_Button_2.clicked.connect(self.protect_file_init)
         self.ui.Protection_switch_Button_3.clicked.connect(self.protect_boot_init)
         self.ui.Protection_switch_Button_4.clicked.connect(self.protect_reg_init)
-        self.ui.Protection_switch_Button_5.clicked.connect(self.protect_enh_init)
+        self.ui.Protection_switch_Button_5.clicked.connect(self.protect_net_init)
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
         self.ui.cloud_services_switch_Button.clicked.connect(self.change_cloud_service)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
@@ -248,8 +248,8 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Protection_title_4.setText(self.trans("註冊表防護"))
         self.ui.Protection_illustrate_4.setText(self.trans("啟用此選項可以修復註冊表項目"))
         self.ui.Protection_switch_Button_4.setText(self.trans(self.ui.Protection_switch_Button_4.text()))
-        self.ui.Protection_title_5.setText(self.trans("增強防護"))
-        self.ui.Protection_illustrate_5.setText(self.trans("啟用此選項可以增強系統防護"))
+        self.ui.Protection_title_5.setText(self.trans("網路防護"))
+        self.ui.Protection_illustrate_5.setText(self.trans("啟用此選項可以監控網路通訊"))
         self.ui.Protection_switch_Button_5.setText(self.trans(self.ui.Protection_switch_Button_5.text()))
         self.ui.State_log.setText(self.trans("日誌:"))
         self.ui.More_Tools_Back_Button.setText(self.trans("工具>"))
@@ -701,7 +701,7 @@ class MainWindow_Controller(QMainWindow):
     def file_scan(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file:
+            if file and file not in self.whitelist:
                 self.init_scan()
                 self.start_scan(file)
                 self.answer_scan()
@@ -755,8 +755,6 @@ class MainWindow_Controller(QMainWindow):
                 QApplication.processEvents()
                 if self.scan_file == False:
                     return
-                elif ":/Windows" in file:
-                    continue
                 elif os.path.isdir(file):
                     self.traverse_path(file)
                 elif file not in self.whitelist:
@@ -1126,19 +1124,20 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
             Thread(target=self.protect_reg_thread, daemon=True).start()
 
-    def protect_enh_init(self):
+    def protect_net_init(self):
         if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
-            self.enh_protect = False
+            self.net_protect = False
             self.ui.Protection_switch_Button_5.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,20,20,50);}""")
         else:
-            self.enh_protect = True
+            self.net_protect = True
             self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button_5.setStyleSheet("""
             QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
             QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            Thread(target=self.protect_net_thread, daemon=True).start()
 
     def protect_proc_thread(self):
         existing_processes = set()
@@ -1152,18 +1151,17 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if ":/Windows" in file and self.enh_protect:
+                        if ":/Windows" in file or ":/Program" in file:
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.scr_scan(cmd) or self.api_scan(cmd[-1]):
+                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif ":/Program" in file and self.enh_protect:
-                            if self.sign_scan(file) and self.api_scan(file):
+                            elif self.scr_scan(cmd) or self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:
@@ -1181,16 +1179,24 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
+                    file = str(f"C:/Users/{file}").replace("\\", "/")
                     if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
-                        self.proc.kill()
-                        self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                        if self.ransom_block and self.sign_scan(self.proc.exe()):
+                            self.proc.kill()
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                        elif "/AppData/" not in file:
+                            self.ransom_block = True
                     elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
                         if self.ransom_block and self.sign_scan(self.proc.exe()):
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif "AppData" not in file:
+                        elif "/AppData/" not in file:
                             self.ransom_block = True
+                    elif action == 3 and str(f".{file.split('.')[-1]}").lower() in slist:
+                        if self.sign_scan(file) and self.api_scan(file):
+                            os.remove(file)
+                            self.send_notify(self.trans("惡意軟體刪除: ")+file)
                 except:
                     pass
 
@@ -1220,6 +1226,17 @@ class MainWindow_Controller(QMainWindow):
                 self.repair_system_restrict()
                 self.repair_system_file_type()
                 self.repair_system_file_icon()
+            except:
+                pass
+
+    def protect_net_thread(self):
+        while self.net_protect:
+            try:
+                time.sleep(0.2)
+                for conn in self.proc.connections():
+                    if conn.status == "SYN_SENT" and self.sign_scan(self.proc.exe()):
+                        self.proc.kill()
+                        self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
             except:
                 pass
 

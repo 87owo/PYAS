@@ -809,7 +809,6 @@ class MainWindow_Controller(QMainWindow):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.repair_system_wallpaper()
-                self.repair_system_explorer()
                 self.repair_system_restrict()
                 self.repair_system_file_type()
                 self.repair_system_file_icon()
@@ -922,19 +921,6 @@ class MainWindow_Controller(QMainWindow):
         except:
             pass
 
-    def repair_system_explorer(self):
-        try:
-            if not self.is_process_running("explorer.exe"):
-                os.system("explorer.exe", check=True)
-        except:
-            pass
-
-    def is_process_running(self, name):
-        for proc in psutil.process_iter():
-            if p.name() == name:
-                return True
-        return False
-
     def clean_system(self):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -1019,9 +1005,9 @@ class MainWindow_Controller(QMainWindow):
     def repair_network(self):
         try:
             if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要修復系統網路嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                os.system("netsh winsock reset", check=True)
+                os.system("netsh winsock reset")
                 if QMessageBox.warning(self,self.trans("警告"),self.trans("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-                    os.system("shutdown -r -t 0", check=True)
+                    os.system("shutdown -r -t 0")
         except Exception as e:
             self.bug_event(e)
 

@@ -1136,18 +1136,17 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if ":/Windows" in file:
+                        if ":/Windows" in file or ":/Program" in file:
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.scr_scan(cmd) or self.api_scan(cmd[-1]):
+                            elif self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif ":/Program" in file:
-                            if self.sign_scan(file) and self.api_scan(file):
+                            elif self.scr_scan(cmd) or self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:
@@ -1165,15 +1164,8 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
-                    if action == 1 and str(f".{file.split('.')[-2]}").lower() in alist:
+                    if action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
                         if self.ransom_block and self.sign_scan(self.proc.exe()):
-                            self.proc.kill()
-                            self.ransom_block = False
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif "/AppData/" not in file:
-                            self.ransom_block = True
-                    elif action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                        if self.ransom_block:
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
@@ -1191,7 +1183,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_boot_thread(self):
         while self.mbr_protect and self.mbr_value:
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] == b'\x55\xAA':
                         if f.read(512) != self.mbr_value:
@@ -1208,7 +1200,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_reg_thread(self):
         while self.reg_protect:
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 self.repair_system_image()
                 self.repair_system_restrict()
                 self.repair_system_file_type()
@@ -1219,13 +1211,10 @@ class MainWindow_Controller(QMainWindow):
     def protect_net_thread(self):
         while self.net_protect:
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 for conn in self.proc.connections():
                     local_ip = socket.gethostbyname(socket.gethostname())
                     if local_ip == conn.laddr.ip and self.sign_scan(self.proc.exe()):
-                        self.proc.kill()
-                        self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
-                    if conn.status == "ESTABLISHED" and self.sign_scan(self.proc.exe()):
                         self.proc.kill()
                         self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
             except:

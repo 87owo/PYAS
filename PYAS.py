@@ -793,14 +793,14 @@ class MainWindow_Controller(QMainWindow):
     def pe_scan(self, file):
         try:
             with pefile.PE(file) as pe:
-                self.fn = []
+                fn = []
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
-                            self.fn.append(str(func.name, "utf-8"))
+                            fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-                return self.fn in function_list
+                return fn in function_list
             return False
         except:
             return False

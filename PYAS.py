@@ -201,13 +201,11 @@ class MainWindow_Controller(QMainWindow):
             self.ui.State_output.clear()
             if self.ui.Language_Traditional_Chinese.isChecked():
                 self.json["language"] = "zh_TW"
-                self.write_config(self.json)
             elif self.ui.Language_Simplified_Chinese.isChecked():
                 self.json["language"] = "zh_CN"
-                self.write_config(self.json)
-            else:
+            elif self.ui.Language_English.isChecked():
                 self.json["language"] = "en_US"
-                self.write_config(self.json)
+            self.write_config(self.json)
             self.init_lang_text()
         except Exception as e:
             self.bug_event(e)
@@ -996,9 +994,9 @@ class MainWindow_Controller(QMainWindow):
     def block_software_window(self):
         while self.block_window:
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 for window_name in self.blocklist:
-                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_SYSCOMMAND, win32con.SC_CLOSE, 0)
+                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_CLOSE, 0, 0)
             except:
                 pass
 

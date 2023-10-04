@@ -741,7 +741,6 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            gc.collect()
         except:
             pass
 
@@ -753,12 +752,15 @@ class MainWindow_Controller(QMainWindow):
                 QApplication.processEvents()
                 if self.scan_file == False:
                     return
+                elif ":/Windows" in file:
+                    continue
                 elif os.path.isdir(file):
                     self.traverse_path(file)
                 elif file not in self.whitelist:
                     self.start_scan(file)
+                gc.collect()
             except:
-                continue
+                pass
 
     def api_scan(self, file):
         try:
@@ -791,14 +793,14 @@ class MainWindow_Controller(QMainWindow):
     def pe_scan(self, file):
         try:
             with pefile.PE(file) as pe:
-                fn = []
+                self.fn = []
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
-                            fn.append(str(func.name, "utf-8"))
+                            self.fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-                return fn in function_list
+                return self.fn in function_list
             return False
         except:
             return False
@@ -1141,7 +1143,7 @@ class MainWindow_Controller(QMainWindow):
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "msiexec" in name and self.api_scan(cmd[-1]):
+                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                             elif self.scr_scan(cmd) or self.api_scan(file):

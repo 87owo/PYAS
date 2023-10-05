@@ -1150,7 +1150,8 @@ class MainWindow_Controller(QMainWindow):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:
-                            self.proc = p
+                            if self.sign_scan(file):
+                                self.proc = p
                             if self.api_scan(file) or self.pe_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
@@ -1165,7 +1166,7 @@ class MainWindow_Controller(QMainWindow):
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     if action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                        if self.ransom_block and self.sign_scan(self.proc.exe()):
+                        if self.ransom_block:
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
@@ -1191,7 +1192,7 @@ class MainWindow_Controller(QMainWindow):
                             f.write(self.mbr_value)
                             self.proc.kill()
                             self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
-                    elif self.sign_scan(self.proc.exe()):
+                    else:
                         self.proc.kill()
                         self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
             except:
@@ -1213,8 +1214,7 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.5)
                 for conn in self.proc.connections():
-                    local_ip = socket.gethostbyname(socket.gethostname())
-                    if local_ip == conn.laddr.ip and self.sign_scan(self.proc.exe()):
+                    if socket.gethostbyname(socket.gethostname()) == conn.laddr.ip:
                         self.proc.kill()
                         self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
             except:

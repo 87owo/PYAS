@@ -1143,10 +1143,7 @@ class MainWindow_Controller(QMainWindow):
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "msiexec.exe" in name and self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                            elif self.scr_scan(cmd) or self.api_scan(file):
+                            elif self.scr_scan(cmd) or self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:
@@ -1170,7 +1167,7 @@ class MainWindow_Controller(QMainWindow):
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
-                        elif "/AppData/" not in file:
+                        elif "AppData" not in file:
                             self.ransom_block = True
                     elif action == 3 and str(f".{file.split('.')[-1]}").lower() in slist:
                         file = str(f"C:/Users/{file}").replace("\\", "/")

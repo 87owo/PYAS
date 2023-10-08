@@ -1163,17 +1163,11 @@ class MainWindow_Controller(QMainWindow):
             for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     if action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                        if self.ransom_block:
+                        if self.ransom_block and "AppData" not in file:
                             self.proc.kill()
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
                         self.ransom_block = True
-                    elif action == 3 and str(f".{file.split('.')[-1]}").lower() in slist:
-                        file = str(f"C:/Users/{file}").replace("\\", "/")
-                        if self.sign_scan(file) and self.api_scan(file):
-                            os.remove(file)
-                            self.send_notify(self.trans("惡意軟體刪除: ")+file)
-                        gc.collect()
                 except:
                     pass
 

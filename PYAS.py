@@ -195,6 +195,8 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Process_widget.hide()
         self.ui.Setting_widget.hide()
         self.ui.About_widget.hide()
+        self.ui.State_output.style().polish(self.ui.State_output.verticalScrollBar())
+        self.ui.Virus_Scan_output.style().polish(self.ui.Virus_Scan_output.verticalScrollBar())
 
     def init_change_lang(self):
         try:
@@ -627,9 +629,8 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_choose_Button.hide()
             self.ui.Virus_Scan_Break_Button.show()
-            self.virus_list_output = QStringListModel()
-            self.virus_list_output.setStringList(self.virus_list)
-            self.ui.Virus_Scan_output.setModel(self.virus_list_output)
+
+            self.ui.Virus_Scan_output.clear()
         except Exception as e:
             self.bug_event(e)
 
@@ -638,17 +639,20 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Virus_Scan_Solve_Button.hide()
             for file in self.virus_list:
                 try:
-                    self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
-                    QApplication.processEvents()
-                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
-                    os.close(self.virus_lock[file])
-                    os.remove(file)
+                    if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
+                        self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
+                        QApplication.processEvents()
+                        msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+                        os.close(self.virus_lock[file])
+                        os.remove(file)
+                    else:
+                        msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+                        os.close(self.virus_lock[file])
                 except:
                     continue
             self.init_state_safe()
             self.init_virus_list()
-            self.virus_list_output.setStringList(self.virus_list)
-            self.ui.Virus_Scan_output.setModel(self.virus_list_output)
+            self.ui.Virus_Scan_output.clear()
             self.ui.Virus_Scan_text.setText(self.trans("成功: 刪除成功"))
         except Exception as e:
             self.bug_event(e)
@@ -657,8 +661,11 @@ class MainWindow_Controller(QMainWindow):
         try:
             self.virus_list.append(file)
             self.virus_list_ui.append(f"[{state}] {file}")
-            self.virus_list_output.setStringList(self.virus_list_ui)
-            self.ui.Virus_Scan_output.setModel(self.virus_list_output)
+            item = QListWidgetItem()
+            item.setText(f"[{state}] {file}")
+            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            item.setCheckState(Qt.Checked)
+            self.ui.Virus_Scan_output.addItem(item)
             self.virus_lock[file] = os.open(file, os.O_RDWR)
             msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
         except:
@@ -998,7 +1005,7 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.5)
                 for window_name in self.blocklist:
-                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), win32con.WM_CLOSE, 0, 0)
+                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), 274, 61536, 0)
             except:
                 pass
 

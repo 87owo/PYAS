@@ -1,6 +1,7 @@
-import os, gc, sys, time, json, psutil, msvcrt
-import win32gui, win32api, win32con, win32file
-import requests, socket, hashlib, pefile
+import os, gc, sys, time, json, psutil
+import hashlib, pefile, socket, msvcrt
+import requests, pyperclip, win32file
+import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
 from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
@@ -126,6 +127,8 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Tools_Button.clicked.connect(self.change_tools_widget)    
         self.ui.Virus_Scan_Button.clicked.connect(self.change_scan_widget)
         self.ui.Protection_Button.clicked.connect(self.change_protect_widget)
+        self.ui.Virus_Scan_output.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.Virus_Scan_output.customContextMenuRequested.connect(self.Virus_Scan_output_menu)
         self.ui.System_Process_Manage_Button.clicked.connect(lambda:self.change_tools(self.ui.Process_widget))
         self.ui.Process_Tools_Back.clicked.connect(lambda:self.back_to_tools(self.ui.Process_widget))
         self.ui.Virus_Scan_Solve_Button.clicked.connect(self.virus_solve)
@@ -629,10 +632,21 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_choose_Button.hide()
             self.ui.Virus_Scan_Break_Button.show()
-
             self.ui.Virus_Scan_output.clear()
         except Exception as e:
             self.bug_event(e)
+
+    def Virus_Scan_output_menu(self, point):
+        def copyPathFunc():
+            item_row = None
+            for i in self.ui.Virus_Scan_output.selectedIndexes():
+                item_row = self.virus_list[i.row()]
+            if item_row:
+                pyperclip.copy(item_row)
+        menu = QMenu()
+        copyPath = menu.addAction(self.trans("複製路徑"))
+        copyPath.triggered.connect(lambda: copyPathFunc())
+        menu.exec_(self.ui.Virus_Scan_output.mapToGlobal(point))
 
     def virus_solve(self):
         try:

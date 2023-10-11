@@ -638,7 +638,7 @@ class MainWindow_Controller(QMainWindow):
 
     def Virus_Scan_output_menu(self, point):
         def copyPathFunc():
-            item_row = None
+            item_row = False
             for i in self.ui.Virus_Scan_output.selectedIndexes():
                 item_row = self.virus_list[i.row()]
             if item_row:
@@ -1197,13 +1197,12 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.5)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if self.mbr_value[510:512] == b'\x55\xAA':
-                        if f.read(512) != self.mbr_value:
-                            f.seek(0)
-                            f.write(self.mbr_value)
-                            self.proc.kill()
-                            self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
-                    else:
+                    if self.mbr_value[510:512] != b'\x55\xAA':
+                        self.proc.kill()
+                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
+                    elif f.read(512) != self.mbr_value:
+                        f.seek(0)
+                        f.write(self.mbr_value)
                         self.proc.kill()
                         self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
             except:

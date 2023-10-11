@@ -1,7 +1,7 @@
 import pyinstaller_versionfile
 pyinstaller_versionfile.create_versionfile(
 output_file="versionfile.txt",
-version='2.8.6',
+version='2.8.7',
 company_name="PYAS Security",
 file_description="Python Antivirus Software",
 internal_name="PYAS",

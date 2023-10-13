@@ -1,5 +1,8 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-import PYAS_Resource, sys
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
+import sys, PYAS_Resource
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -11,9 +14,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         MainWindow.setFont(font)
         MainWindow.setFocusPolicy(QtCore.Qt.TabFocus)
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(":/icon/Icon.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        MainWindow.setWindowIcon(icon)
+        MainWindow.setWindowIcon(QtGui.QIcon(QFileIconProvider().icon(QFileInfo(str(sys.argv[0])))))
         MainWindow.setIconSize(QtCore.QSize(64, 64))
         MainWindow.setToolButtonStyle(QtCore.Qt.ToolButtonIconOnly)
         MainWindow.setDocumentMode(False)

@@ -350,7 +350,7 @@ class MainWindow_Controller(QMainWindow):
         widget.setAutoFillBackground(True)
         self.timer = QTimer()
         self.timer.timeout.connect(self.timeout)
-        self.timer.start(0)
+        self.timer.start(2)
 
     def timeout(self):
         if self.opacity.i < 1:
@@ -457,7 +457,7 @@ class MainWindow_Controller(QMainWindow):
                 self.timer.stop()
         x, y = event.x(), event.y()
         if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
-            self.m_flag=True
+            self.m_flag = True
             self.m_Position=event.globalPos()-self.pos()
             event.accept()
             self.timer = QTimer()
@@ -480,7 +480,7 @@ class MainWindow_Controller(QMainWindow):
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
-        self.m_flag=False
+        self.m_flag = False
         self.setCursor(QCursor(Qt.ArrowCursor))
         self.timer = QTimer()
         self.timer.timeout.connect(update_opacity)
@@ -499,21 +499,29 @@ class MainWindow_Controller(QMainWindow):
         pat2.drawRoundedRect(rect, 1, 1)
 
     def show_pyas_ui(self):
+        def update_opacity():
+            if self.pyas_opacity <= 100:
+                self.pyas_opacity += 1
+                self.setWindowOpacity(self.pyas_opacity/100)
+            else:
+                self.timer.stop()
         self.show()
         self.pyas_opacity = 0
-        while self.pyas_opacity < 100:
-            time.sleep(0.001)
-            self.pyas_opacity += 1
-            self.setWindowOpacity(self.pyas_opacity/100)
-            QApplication.processEvents()
+        self.timer = QTimer()
+        self.timer.timeout.connect(update_opacity)
+        self.timer.start(2)
 
     def hide_pyas_ui(self):
-        while self.pyas_opacity > 0:
-            time.sleep(0.001)
-            self.pyas_opacity -= 1
-            self.setWindowOpacity(self.pyas_opacity/100)
-            QApplication.processEvents()
-        self.hide()
+        def update_opacity():
+            if self.pyas_opacity >= 0:
+                self.pyas_opacity -= 1
+                self.setWindowOpacity(self.pyas_opacity/100)
+            else:
+                self.timer.stop()
+                self.hide()
+        self.timer = QTimer()
+        self.timer.timeout.connect(update_opacity)
+        self.timer.start(2)
 
     def showMinimized(self):
         self.hide_pyas_ui()

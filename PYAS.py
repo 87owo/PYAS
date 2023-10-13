@@ -807,22 +807,21 @@ class MainWindow_Controller(QMainWindow):
             if os.path.isfile(text):
                 with open(text, "r", encoding="utf-8") as f:
                     text = f.read()
-            return any(sn in str(text) for sn in scripts_list)
+            return any(sn.lower() in str(text).lower() for sn in scripts_list)
         except:
             return False
 
     def pe_scan(self, file):
         try:
+            pe_func = []
             with pefile.PE(file) as pe:
-                fn = []
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
-                            fn.append(str(func.name, "utf-8"))
+                            pe_func.append(str(func.name, "utf-8"))
                         except:
                             pass
-                return fn in function_list
-            return False
+            return pe_func in function_list
         except:
             return False
 

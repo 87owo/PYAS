@@ -529,7 +529,6 @@ class MainWindow_Controller(QMainWindow):
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            self.hide_pyas_ui()
             event.accept()
         else:
             event.ignore()

@@ -11,6 +11,14 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 ## Support System
 Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 
+## Requirements
+psutil==5.9.5
+pefile==2023.2.7
+requests==2.31.0
+pyperclip==1.8.2
+pywin32==306
+PyQt5==5.15.9
+
 ## Import Module
 os, gc, sys, time, json, requests, pyperclip, psutil, ctypes, pywin32, subprocess, xml, hashlib, pefile, PyQt5, threading, PYAS_Language, PYAS_Scripts, PYAS_Function, PYAS_Extension, PYAS_Interface
 

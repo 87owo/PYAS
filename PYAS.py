@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.8.7"
+        self.pyas_version = "2.8.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -759,12 +759,12 @@ class MainWindow_Controller(QMainWindow):
     def start_scan(self, file):
         try:
             file_type = str(f".{file.split('.')[-1]}").lower()
-            if self.high_sensitivity and file != self.pyas:
+            if self.high_sensitivity:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and self.sign_scan(file):
+            elif file_type in slist:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):

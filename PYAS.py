@@ -759,12 +759,12 @@ class MainWindow_Controller(QMainWindow):
     def start_scan(self, file):
         try:
             file_type = str(f".{file.split('.')[-1]}").lower()
-            if self.high_sensitivity:
+            if self.high_sensitivity and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist:
+            elif file_type in slist and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):

@@ -628,11 +628,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
             QApplication.processEvents()
             for file in self.virus_list:
-                try:
-                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
-                    os.close(self.virus_lock[file])
-                except:
-                    continue
+                self.unlock_file(file)
             self.scan_file = True
             self.init_virus_list()
             self.ui.Virus_Scan_Solve_Button.hide()
@@ -655,6 +651,20 @@ class MainWindow_Controller(QMainWindow):
         copyPath.triggered.connect(lambda: copyPathFunc())
         menu.exec_(self.ui.Virus_Scan_output.mapToGlobal(point))
 
+    def lock_file(self, file):
+        try:
+            self.virus_lock[file] = os.open(file, os.O_RDWR)
+            msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
+        except:
+            pass
+
+    def unlock_file(self, file):
+        try:
+            msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+            os.close(self.virus_lock[file])
+        except:
+            pass
+
     def virus_solve(self):
         try:
             self.ui.Virus_Scan_Solve_Button.hide()
@@ -663,12 +673,10 @@ class MainWindow_Controller(QMainWindow):
                     if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
                         self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
                         QApplication.processEvents()
-                        msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
-                        os.close(self.virus_lock[file])
+                        self.unlock_file(file)
                         os.remove(file)
                     else:
-                        msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
-                        os.close(self.virus_lock[file])
+                        self.unlock_file(file)
                 except:
                     continue
             self.init_state_safe()
@@ -680,6 +688,7 @@ class MainWindow_Controller(QMainWindow):
 
     def write_scan(self, state, file):
         try:
+            self.lock_file(file)
             self.virus_list.append(file)
             self.virus_list_ui.append(f"[{state}] {file}")
             item = QListWidgetItem()
@@ -687,8 +696,6 @@ class MainWindow_Controller(QMainWindow):
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Checked)
             self.ui.Virus_Scan_output.addItem(item)
-            self.virus_lock[file] = os.open(file, os.O_RDWR)
-            msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
         except:
             pass
 

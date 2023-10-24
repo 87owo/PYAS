@@ -839,10 +839,7 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            for vfn in function_list:
-                if len(set(fn)&set(vfn))/len(set(fn)|set(vfn)) == 1.0:
-                    return True
-            return False
+            return fn in function_list
         except:
             return False
 

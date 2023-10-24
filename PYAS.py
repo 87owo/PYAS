@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.8.8"
+        self.pyas_version = "2.8.9"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -831,16 +831,16 @@ class MainWindow_Controller(QMainWindow):
 
     def pe_scan(self, file):
         try:
-            pe_func = []
+            fn = []
             with pefile.PE(file) as pe:
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
-                            pe_func.append(str(func.name, "utf-8"))
+                            fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            for vfl in function_list:
-                if len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) == 1.0:
+            for vfn in function_list:
+                if len(set(fn)&set(vfn))/len(set(fn)|set(vfn)) == 1.0:
                     return True
             return False
         except:

@@ -771,10 +771,14 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
+                elif self.scr_scan(file):
+                    self.write_scan(self.trans("可疑"),file)
             elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
+                    self.write_scan(self.trans("可疑"),file)
+                elif self.scr_scan(file):
                     self.write_scan(self.trans("可疑"),file)
         except:
             pass
@@ -835,7 +839,10 @@ class MainWindow_Controller(QMainWindow):
                             pe_func.append(str(func.name, "utf-8"))
                         except:
                             pass
-            return pe_func in function_list
+            for vfl in function_list:
+                if len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) == 1.0:
+                    return True
+            return False
         except:
             return False
 
@@ -1178,7 +1185,7 @@ class MainWindow_Controller(QMainWindow):
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.scr_scan(cmd) or self.api_scan(cmd[-1]):
+                            elif self.scr_scan(file) or self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:

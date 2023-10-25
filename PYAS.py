@@ -839,7 +839,12 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            return fn in function_list
+            for vfn in function_list:
+                QApplication.processEvents()
+                vfn_count = sum([num in vfn for num in fn])
+                if (vfn_count/len(vfn))-(len(fn)-vfn_count/len(vfn)) == 1.0:
+                    return True
+            return False
         except:
             return False
 

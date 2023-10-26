@@ -262,7 +262,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
         self.ui.About_Back.setText(self.trans("返回"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} ({len(function_list)})"))
+        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} (ML Engine)"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))
@@ -842,7 +842,7 @@ class MainWindow_Controller(QMainWindow):
                             pass
             max_vfl = max(len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) for vfl in function_list)
             max_sfl = max(len(set(fn) & set(sfl)) / len(set(fn) | set(sfl)) for sfl in function_list_safe)
-            #print(int(max_vfl * 100), int(max_sfl * 100))
+            #print(f'Virus:{int(max_vfl * 100)}%, Safe:{int(max_sfl * 100)}%')
             return int(max_vfl * 100) > int(max_sfl * 100)
         except:
             return False

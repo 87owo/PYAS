@@ -842,8 +842,8 @@ class MainWindow_Controller(QMainWindow):
                             pass
             max_vfl = max(len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) for vfl in function_list)
             max_sfl = max(len(set(fn) & set(sfl)) / len(set(fn) | set(sfl)) for sfl in function_list_safe)
-            #print(f'Virus:{int(max_vfl * 100)}%, Safe:{int(max_sfl * 100)}%')
-            return int(max_vfl * 100) > int(max_sfl * 100)
+            print(f'Virus:{int(max_vfl * 100)}%, Safe:{int(max_sfl * 100)}%, Gap:{int((max_vfl - max_sfl) * 100)}')
+            return max_vfl - max_sfl > 0.1
         except:
             return False
 

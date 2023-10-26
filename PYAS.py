@@ -5,6 +5,7 @@ import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
 from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
+from PYAS_Function_Safe import function_list_safe
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -831,18 +832,18 @@ class MainWindow_Controller(QMainWindow):
 
     def pe_scan(self, file):
         try:
-            fn = []
+            fn = set()
             with pefile.PE(file) as pe:
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
-                            fn.append(str(func.name, "utf-8"))
+                            fn.add(str(func.name, "utf-8"))
                         except:
                             pass
-            for vfl in function_list:
-                if len(set(fn)&set(vfl))/len(set(fn)|set(vfl)) == 1.0:
-                    return True
-            return False
+            max_vfl = max(len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) for vfl in function_list)
+            max_sfl = max(len(set(fn) & set(sfl)) / len(set(fn) | set(sfl)) for sfl in function_list_safe)
+            #print(int(max_vfl * 100), int(max_sfl * 100))
+            return int(max_vfl * 100) > int(max_sfl * 100)
         except:
             return False
 

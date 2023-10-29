@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.8.9"
+        self.pyas_version = "2.9.0"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -842,8 +842,8 @@ class MainWindow_Controller(QMainWindow):
                             pass
             max_vfl = max(len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) for vfl in function_list)
             max_sfl = max(len(set(fn) & set(sfl)) / len(set(fn) | set(sfl)) for sfl in function_list_safe)
-            print(f'Virus:{int(max_vfl * 100)}%, Safe:{int(max_sfl * 100)}%, Gap:{int((max_vfl - max_sfl) * 100)}')
-            return max_vfl - max_sfl > 0.1
+            print(f'Virus:{int(max_vfl * 100)}%, Safe:{int(max_sfl * 100)}%')
+            return max_vfl > max_sfl and max_vfl > 0.5
         except:
             return False
 

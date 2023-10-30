@@ -826,10 +826,16 @@ class MainWindow_Controller(QMainWindow):
                             fn.add(str(func.name, "utf-8"))
                         except:
                             pass
-            max_vfl = max(len(set(fn) & set(vfl)) / len(set(fn) | set(vfl)) for vfl in function_list)
-            max_sfl = max(len(set(fn) & set(sfl)) / len(set(fn) | set(sfl)) for sfl in function_list_safe)
-            print(f'Virus:{int(max_vfl * 100)}%, Safe:{int(max_sfl * 100)}%')
-            return max_vfl > max_sfl and max_vfl > 0.5
+            max_vfl = []
+            for vfl in function_list:
+                QApplication.processEvents()
+                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            max_sfl = []
+            for sfl in function_list_safe:
+                QApplication.processEvents()
+                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
+            print(f'Virus:{max(max_vfl)*100}%, Safe:{max(max_sfl)*100}%')
+            return max(max_vfl) - max(max_sfl) > 0.1
         except:
             return False
 

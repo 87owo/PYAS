@@ -3,7 +3,6 @@ import hashlib, pefile, socket, msvcrt
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
-from PYAS_Scripts import scripts_list
 from PYAS_Function import function_list
 from PYAS_Function_Safe import function_list_safe
 from PYAS_Extension import slist, alist
@@ -772,14 +771,10 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-                elif self.scr_scan(file):
-                    self.write_scan(self.trans("可疑"),file)
             elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
-                    self.write_scan(self.trans("可疑"),file)
-                elif self.scr_scan(file):
                     self.write_scan(self.trans("可疑"),file)
         except:
             pass
@@ -788,15 +783,15 @@ class MainWindow_Controller(QMainWindow):
         for fd in os.listdir(path):
             try:
                 file = str(os.path.join(path,fd)).replace("\\", "/")
-                self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
-                QApplication.processEvents()
                 if self.scan_file == False:
-                    return
+                    break
                 elif ":/Windows" in file:
                     continue
                 elif os.path.isdir(file):
                     self.traverse_path(file)
                 elif file not in self.whitelist:
+                    self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
+                    QApplication.processEvents()
                     self.start_scan(file)
                 gc.collect()
             except:
@@ -820,15 +815,6 @@ class MainWindow_Controller(QMainWindow):
                 return pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
         except:
             return True
-
-    def scr_scan(self, text):
-        try:
-            if os.path.isfile(text):
-                with open(text, "r", encoding="utf-8") as f:
-                    text = f.read()
-            return any(sn.lower() in str(text).lower() for sn in scripts_list)
-        except:
-            return False
 
     def pe_scan(self, file):
         try:
@@ -1179,22 +1165,21 @@ class MainWindow_Controller(QMainWindow):
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if ":/Windows" in file or ":/Program" in file:
-                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.scr_scan(file) or self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                        if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                            p.kill()
+                            self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                        elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                            p.kill()
+                            self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                        elif ":/Windows" in file and self.api_scan(cmd[-1]):
+                            p.kill()
+                            self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:
-                            if self.sign_scan(file):
-                                self.proc = p
                             if self.api_scan(file) or self.pe_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                            elif self.sign_scan(file):
+                                self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()
                 except:

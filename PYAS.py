@@ -1180,12 +1180,13 @@ class MainWindow_Controller(QMainWindow):
                         elif ":/Windows" in file and self.api_scan(cmd[-1]):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif file != self.pyas and file not in self.whitelist:
-                            if self.api_scan(file) or self.pe_scan(file):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                            elif self.sign_scan(file):
-                                self.proc = p
+                        elif ":/Windows" not in file and ":/Program" not in file:
+                            if file != self.pyas and file not in self.whitelist:
+                                if self.api_scan(file) or self.pe_scan(file):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                                elif self.sign_scan(file):
+                                    self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()
                 except:

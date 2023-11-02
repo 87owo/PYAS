@@ -25,9 +25,10 @@ class MainWindow_Controller(QMainWindow):
         self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
+        self.init_config_read()
+        self.init_config_json()
         self.init_config_list()
         self.init_config_boot()
-        self.init_config_json()
         self.init_config_qtui()
         self.init_change_lang()
         self.init_control()
@@ -92,11 +93,18 @@ class MainWindow_Controller(QMainWindow):
         except:
             self.mbr_value = False
 
-    def init_config_json(self):
-        if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
+    def init_config_read(self):
+        try:
+            if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
+                self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
+            with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
+                self.json = json.load(f)
+        except:
             self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
-        with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
-            self.json = json.load(f)
+            with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
+                self.json = json.load(f)
+
+    def init_config_json(self):
         self.high_sensitivity = self.json.get("high_sensitivity", 0)
         if self.high_sensitivity == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
@@ -528,14 +536,15 @@ class MainWindow_Controller(QMainWindow):
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            self.virus_scan_break()
             event.accept()
         else:
             event.ignore()
 
-    def bug_event(self, error):
+    def bug_event(self, text):
         try:
-            print(f"[Error] {error}")
-            QMessageBox.critical(self,self.trans("錯誤"),error,QMessageBox.Ok)
+            print(f"[Error] {text}")
+            QMessageBox.critical(self,self.trans("錯誤"), text, QMessageBox.Ok)
         except:
             pass
 

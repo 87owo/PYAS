@@ -817,12 +817,12 @@ class MainWindow_Controller(QMainWindow):
 
     def pe_scan(self, file):
         try:
-            fn = set()
+            fn = []
             with pefile.PE(file) as pe:
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
                         try:
-                            fn.add(str(func.name, "utf-8"))
+                            fn.append(str(func.name, "utf-8"))
                         except:
                             pass
             max_vfl = []

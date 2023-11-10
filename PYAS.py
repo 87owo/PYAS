@@ -834,12 +834,11 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            max_vfl = []
             for vfl in function_list:
                 QApplication.processEvents()
-                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-            print(f'Virus:{int(max(max_vfl)*100)}%')
-            return max(max_vfl) > 0.9
+                if len(set(fn)&set(vfl))/len(set(fn)|set(vfl)) == 1.0:
+                    return True
+            return False
         except:
             return False
 

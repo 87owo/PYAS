@@ -834,15 +834,14 @@ class MainWindow_Controller(QMainWindow):
             with open(file, "rb") as f:
                 data = str(f.read()).lower()
             for key, value in pyasrule_dict.items():
-                matchs = 0
-                QApplication.processEvents()
                 for conditions, strings in value.items():
+                    matchs = 0
+                    QApplication.processEvents()
                     for string in strings:
-                        if string.lower() in data:
+                        if matchs >= conditions:
+                            return True
+                        elif string.lower() in data:
                             matchs += 1
-                if matchs >= conditions:
-                    print(f'Rules:{key}, Matchs:{matchs}')
-                    return True
             return False
         except:
             return False
@@ -857,12 +856,11 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            max_vfl = []
             for vfl in function_list:
                 QApplication.processEvents()
-                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-            print(f'Virus:{int(max(max_vfl) * 100)}%')
-            return max(max_vfl) > 0.9
+                if len(set(fn)&set(vfl))/len(set(fn)|set(vfl)) == 1.0:
+                    return True
+            return False 
         except:
             return False
 
@@ -1205,14 +1203,11 @@ class MainWindow_Controller(QMainWindow):
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.rule_scan(file) or self.api_scan(cmd[-1]):
+                            elif self.rule_scan(cmd[-1]) or self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                         elif file != self.pyas and file not in self.whitelist:
-                            if self.api_scan(file) or self.pe_scan(file):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                            elif self.rule_scan(file):
+                            if self.api_scan(file) or self.pe_scan(file) or self.rule_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+name)
                             elif self.sign_scan(file):

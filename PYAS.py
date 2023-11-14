@@ -3,6 +3,7 @@ import hashlib, pefile, socket, msvcrt
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
+from PYAS_Rules import pyasrule_dict
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
@@ -18,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.1"
+        self.pyas_version = "2.9.2"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -268,7 +269,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
         self.ui.About_Back.setText(self.trans("返回"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version}"))
+        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} (ML Engine)"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))
@@ -777,11 +778,15 @@ class MainWindow_Controller(QMainWindow):
             if self.high_sensitivity and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
+                elif self.rule_scan(file):
+                    self.write_scan(self.trans("可疑"), file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
             elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
+                elif self.rule_scan(file):
+                    self.write_scan(self.trans("可疑"), file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
         except:
@@ -824,6 +829,24 @@ class MainWindow_Controller(QMainWindow):
         except:
             return True
 
+    def rule_scan(self, file):
+        try:
+            with open(file, "rb") as f:
+                data = str(f.read()).lower()
+            for key, value in pyasrule_dict.items():
+                matchs = 0
+                QApplication.processEvents()
+                for conditions, strings in value.items():
+                    for string in strings:
+                        if string.lower() in data:
+                            matchs += 1
+                if matchs >= conditions:
+                    print(f'Rules:{key}, Matchs:{matchs}')
+                    return True
+            return False
+        except:
+            return False
+
     def pe_scan(self, file):
         try:
             fn = []
@@ -834,11 +857,12 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            max_vfl = []
             for vfl in function_list:
                 QApplication.processEvents()
-                if len(set(fn)&set(vfl))/len(set(fn)|set(vfl)) == 1.0:
-                    return True
-            return False
+                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            print(f'Virus:{int(max(max_vfl) * 100)}%')
+            return max(max_vfl) > 0.9
         except:
             return False
 
@@ -1174,22 +1198,25 @@ class MainWindow_Controller(QMainWindow):
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                            p.kill()
-                            self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                        elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                            p.kill()
-                            self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                        elif ":/Windows" in file and self.api_scan(cmd[-1]):
-                            p.kill()
-                            self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif ":/Windows" not in file and ":/Program" not in file:
-                            if file != self.pyas and file not in self.whitelist:
-                                if self.api_scan(file) or self.pe_scan(file):
-                                    p.kill()
-                                    self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                                elif self.sign_scan(file):
-                                    self.proc = p
+                        if ":/Windows" in file or ":/Program" in file:
+                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
+                            elif self.rule_scan(file) or self.api_scan(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                        elif file != self.pyas and file not in self.whitelist:
+                            if self.api_scan(file) or self.pe_scan(file):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                            elif self.rule_scan(file):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
+                            elif self.sign_scan(file):
+                                self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()
                 except:

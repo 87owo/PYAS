@@ -1196,26 +1196,31 @@ class MainWindow_Controller(QMainWindow):
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if ":/Windows" in file or ":/Program" in file:
-                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+name)
-                            elif self.rule_scan(cmd[-1]) or self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                        elif file != self.pyas and file not in self.whitelist:
-                            if self.api_scan(file) or self.pe_scan(file) or self.rule_scan(file):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+name)
-                            elif self.sign_scan(file):
-                                self.proc = p
+                        if self.protect_proc_scan(name, file, cmd):
+                            p.kill()
+                            self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                        elif ":/Windows" not in file and self.sign_scan(file):
+                            self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()
                 except:
                     pass
+
+    def protect_proc_scan(self, name, file, cmd):
+        try:
+            if file != self.pyas and file not in self.whitelist:
+                if "powershell" in name:
+                    file = str(cmd[-1].split("'")[-2])
+                elif "cmd.exe" in name:
+                    file = str(" ".join(cmd[2:]))
+                elif ":/Windows" in file:
+                    file = str(cmd[-1])
+                elif ":/Program" in file:
+                    file = str(cmd[-1])
+                return self.api_scan(file) or self.rule_scan(file) or self.pe_scan(file)
+            return False
+        except:
+            pass
 
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)

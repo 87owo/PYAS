@@ -835,10 +835,14 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            max_vfl = []
             for vfl in function_list:
                 QApplication.processEvents()
-                if len(set(fn)&set(vfl))/len(set(fn)|set(vfl)) == 1.0:
-                    return True
+                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            if self.high_sensitivity and max(max_vfl) == 1.0:
+                return True
+            elif "_CorExeMain" not in fn and max(max_vfl) == 1.0:
+                return True
             return False
         except:
             return False

@@ -3,7 +3,6 @@ import hashlib, pefile, socket, msvcrt
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
-from PYAS_Rules import pyasrule_dict
 from PYAS_Function import function_list
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict

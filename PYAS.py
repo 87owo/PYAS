@@ -948,6 +948,8 @@ class MainWindow_Controller(QMainWindow):
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
+                        self.proc.kill()
+                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
                     except:
                         pass
                 win32api.RegCloseKey(key)

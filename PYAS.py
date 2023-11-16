@@ -269,7 +269,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
         self.ui.About_Back.setText(self.trans("返回"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version}"))
+        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} (ML Engine)"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))
@@ -778,15 +778,11 @@ class MainWindow_Controller(QMainWindow):
             if self.high_sensitivity and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
-                elif self.rule_scan(file):
-                    self.write_scan(self.trans("可疑"), file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
             elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
-                elif self.rule_scan(file):
-                    self.write_scan(self.trans("可疑"), file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
         except:
@@ -829,23 +825,6 @@ class MainWindow_Controller(QMainWindow):
         except:
             return True
 
-    def rule_scan(self, file):
-        try:
-            with open(file, "rb") as f:
-                data = str(f.read()).lower()
-            for key, value in pyasrule_dict.items():
-                for conditions, strings in value.items():
-                    matchs = 0
-                    QApplication.processEvents()
-                    for string in strings:
-                        if matchs >= conditions:
-                            return True
-                        elif string.lower() in data:
-                            matchs += 1
-            return False
-        except:
-            return False
-
     def pe_scan(self, file):
         try:
             fn = []
@@ -860,7 +839,7 @@ class MainWindow_Controller(QMainWindow):
                 QApplication.processEvents()
                 if len(set(fn)&set(vfl))/len(set(fn)|set(vfl)) == 1.0:
                     return True
-            return False 
+            return False
         except:
             return False
 
@@ -1217,7 +1196,7 @@ class MainWindow_Controller(QMainWindow):
                     file = str(cmd[-1])
                 elif ":/Program" in file:
                     file = str(cmd[-1])
-                return self.api_scan(file) or self.rule_scan(file) or self.pe_scan(file)
+                return self.api_scan(file) or self.pe_scan(file)
             return False
         except:
             pass

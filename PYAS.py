@@ -1188,16 +1188,23 @@ class MainWindow_Controller(QMainWindow):
                         psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
-                            if ":/Windows" in file and "powershell" in name:
-                                file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
-                            elif ":/Windows" in file and "cmd.exe" in name:
-                                file = str(" ".join(cmd[2:])).replace("\\", "/")
-                            elif ":/Windows" in file or ":/Program" in file:
-                                file = str(cmd[-1]).replace("\\", "/")
-                            if self.api_scan(file) or self.pe_scan(file):
+                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+file)
+                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+file)
+                            elif ":/Windows" in file and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif os.path.exists(file) and self.sign_scan(file):
+                            elif ":/Program" in file or "/AppData/" in file:
+                                if self.sign_scan(file) and self.api_scan(file):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                            elif self.api_scan(file) or self.pe_scan(file):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                            elif self.sign_scan(file):
                                 self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()

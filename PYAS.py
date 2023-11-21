@@ -4,6 +4,7 @@ import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
 from PYAS_Function import function_list
+#from PYAS_Function_Safe import function_list_safe
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -18,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.2"
+        self.pyas_version = "2.9.3"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -838,10 +839,16 @@ class MainWindow_Controller(QMainWindow):
             for vfl in function_list:
                 QApplication.processEvents()
                 max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            #max_sfl = []
+            #for sfl in function_list_safe:
+                #QApplication.processEvents()
+                #max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.high_sensitivity and max(max_vfl) == 1.0:
+                print(f'Engine: PYAS ML Engine\nDetect: Virus\nLevels: {max(max_vfl)}/{max(max_sfl)}\nFile: {file}\n{"="*50}')
                 return True
-            elif "_CorExeMain" not in fn and max(max_vfl) == 1.0:
-                return True
+            #elif max(max_vfl) - max(max_sfl) >= 0.1:
+                #print(f'Engine: PYAS ML Engine\nDetect: Suspicious\nLevels: {max(max_vfl)}/{max(max_sfl)}\nFile: {file}\n{"="*50}')
+                #return True
             return False
         except:
             return False
@@ -948,7 +955,7 @@ class MainWindow_Controller(QMainWindow):
                     try:
                         win32api.RegDeleteValue(key,i)
                         self.proc.kill()
-                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
+                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name().replace("\\", "/"))
                     except:
                         pass
                 win32api.RegCloseKey(key)
@@ -1180,43 +1187,36 @@ class MainWindow_Controller(QMainWindow):
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if self.protect_proc_scan(name, file, cmd):
-                            p.kill()
-                            self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                        elif ":/Windows" not in file and self.sign_scan(file):
-                            self.proc = p
+                        if file != self.pyas and file not in self.whitelist:
+                            if "powershell" in name:
+                                file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
+                            elif "cmd.exe" in name:
+                                file = str(" ".join(cmd[2:])).replace("\\", "/")
+                            elif ":/Windows" in file or ":/Program" in file:
+                                file = str(cmd[-1]).replace("\\", "/")
+                            if self.api_scan(file) or self.pe_scan(file):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                            elif os.path.exists(file) and self.sign_scan(file):
+                                self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()
                 except:
                     pass
 
-    def protect_proc_scan(self, name, file, cmd):
-        try:
-            if file != self.pyas and file not in self.whitelist:
-                if "powershell" in name:
-                    file = str(cmd[-1].split("'")[-2])
-                elif "cmd.exe" in name:
-                    file = str(" ".join(cmd[2:]))
-                elif ":/Windows" in file:
-                    file = str(cmd[-1])
-                elif ":/Program" in file:
-                    file = str(cmd[-1])
-                return self.api_scan(file) or self.pe_scan(file)
-            return False
-        except:
-            pass
-
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         self.ransom_block = False
         while self.file_protect:
-            for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+            for action, file in win32file.ReadDirectoryChangesW(hDir,1048576,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
-                    if action == 2 and str(f".{file.split('.')[-1]}").lower() in alist:
-                        if self.ransom_block and "AppData" not in file:
+                    full_path = str(f"C:/Users/{file}").replace("\\", "/")
+                    file_type = str(f".{full_path.split('.')[-1]}").lower()
+                    if action == 2 and "/AppData/" not in full_path and file_type in alist:
+                        if self.ransom_block:
                             self.proc.kill()
                             self.ransom_block = False
-                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.name())
+                            self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.exe().replace("\\", "/"))
                         self.ransom_block = True
                 except:
                     pass
@@ -1228,12 +1228,12 @@ class MainWindow_Controller(QMainWindow):
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] != b'\x55\xAA':
                         self.proc.kill()
-                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
+                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.exe().replace("\\", "/"))
                     elif f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
                         self.proc.kill()
-                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.name())
+                        self.send_notify(self.trans("惡意行為攔截: ")+self.proc.exe().replace("\\", "/"))
             except:
                 pass
 
@@ -1255,7 +1255,7 @@ class MainWindow_Controller(QMainWindow):
                 for conn in self.proc.connections():
                     if socket.gethostbyname(socket.gethostname()) == conn.laddr.ip:
                         self.proc.kill()
-                        self.send_notify(self.trans("網路通訊攔截: ")+self.proc.name())
+                        self.send_notify(self.trans("網路通訊攔截: ")+self.proc.exe().replace("\\", "/"))
             except:
                 pass
 

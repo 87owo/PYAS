@@ -1183,11 +1183,11 @@ class MainWindow_Controller(QMainWindow):
             time.sleep(0.05)
             for p in psutil.process_iter():
                 try:
-                    if p.pid not in existing_processes:
+                    name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
+                    if p.pid not in existing_processes and file not in self.whitelist:
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
-                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if file != self.pyas and file not in self.whitelist:
+                        if ":/Windows" in file or ":/Program" in file:
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意腳本攔截: ")+file)
@@ -1197,15 +1197,14 @@ class MainWindow_Controller(QMainWindow):
                             elif ":/Windows" in file and self.api_scan(cmd[-1]):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif ":/Program" in file or "/AppData/" in file:
-                                if self.sign_scan(file) and self.api_scan(file):
-                                    p.kill()
-                                    self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif self.api_scan(file) or self.pe_scan(file):
+                            elif self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif self.sign_scan(file):
-                                self.proc = p
+                        elif self.api_scan(file) or self.pe_scan(file):
+                            p.kill()
+                            self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                        elif file != self.pyas and self.sign_scan(file):
+                            self.proc = p
                         psutil.Process(p.pid).resume()
                         gc.collect()
                 except:

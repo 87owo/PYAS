@@ -1188,9 +1188,9 @@ class MainWindow_Controller(QMainWindow):
                         psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
-                            if "powershell" in name:
+                            if ":/Windows" in file and "powershell" in name:
                                 file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
-                            elif "cmd.exe" in name:
+                            elif ":/Windows" in file and "cmd.exe" in name:
                                 file = str(" ".join(cmd[2:])).replace("\\", "/")
                             elif ":/Windows" in file or ":/Program" in file:
                                 file = str(cmd[-1]).replace("\\", "/")

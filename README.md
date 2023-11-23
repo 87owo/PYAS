@@ -17,6 +17,6 @@ psutil==5.9.5, pefile==2023.2.7, requests==2.31.0, pyperclip==1.8.2, pywin32==30
 os, gc, sys, time, json, psutil, hashlib, pefile, socket, msvcrt, requests, pyperclip, win32file, win32gui, win32api, win32con, xml, PYAS_Function, PYAS_Function_Safe, PYAS_Extension, PYAS_Language, PYAS_Interface, threading, PyQt5
 
 ## Special Thanks
-360, Wix, VirusShare, mtkiao129, LenStevens
+360, Wix, VirusShare, mtkiao129, LenStevens, AV-T Teams of LisectGroup
 
 Copyright© 2020~2023 PYAS Security By 87owo

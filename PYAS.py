@@ -532,8 +532,9 @@ class MainWindow_Controller(QMainWindow):
         self.timer.start(2)
 
     def showMinimized(self):
-        self.hide_pyas_ui()
-        self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
+        if self.block_window:
+            self.hide_pyas_ui()
+            self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
         if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
@@ -1187,17 +1188,18 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes and file not in self.whitelist:
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
+                        if ":/Windows" in file and "powershell" in name:
+                            file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
+                        elif ":/Windows" in file and "cmd.exe" in name:
+                            file = str(" ".join(cmd[2:])).replace("\\", "/")
+                        elif ":/Windows" in file and "msiexec.exe" in name:
+                            file = str(cmd[-1]).replace("\\", "/")
+                        elif ":/Windows" in file and "cscript.exe" in name:
+                            file = str(cmd[-1]).replace("\\", "/")
+                        elif ":/Windows" in file and "wscript.exe" in name:
+                            file = str(cmd[-1]).replace("\\", "/")
                         if ":/Windows" in file or ":/Program" in file:
-                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+file)
-                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+file)
-                            elif ":/Windows" in file and self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif self.sign_scan(file) and self.api_scan(file):
+                            if self.sign_scan(file) and self.api_scan(file):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                         elif self.api_scan(file) or self.pe_scan(file):

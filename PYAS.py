@@ -4,7 +4,6 @@ import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
 from PYAS_Function import function_list
-from PYAS_Function_Safe import function_list_safe
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -836,20 +835,13 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            max_vfl = []
             for vfl in function_list:
                 QApplication.processEvents()
-                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-            max_sfl = []
-            for sfl in function_list_safe:
-                QApplication.processEvents()
-                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
-            if self.high_sensitivity and max(max_vfl) == 1.0:
-                print(f'Engine: PYAS ML Engine\nDetect: Virus\nLevels: {max(max_vfl)}/{max(max_sfl)}\nFile: {file}\n{"="*50}')
-                return True
-            elif max(max_vfl) - max(max_sfl) >= 0.1:
-                print(f'Engine: PYAS ML Engine\nDetect: Suspicious\nLevels: {max(max_vfl)}/{max(max_sfl)}\nFile: {file}\n{"="*50}')
-                return True
+                similarity = len(set(fn)&set(vfl))/len(set(fn)|set(vfl))
+                if self.high_sensitivity and similarity >= 0.9:
+                    return True
+                elif "_CorExeMain" not in fn and similarity == 1.0:
+                    return True
             return False
         except:
             return False

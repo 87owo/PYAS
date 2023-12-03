@@ -4,6 +4,7 @@ import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
 from PYAS_Function import function_list
+from PYAS_Function_Safe import function_list_safe
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -18,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.4"
+        self.pyas_version = "2.9.5"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -780,7 +781,7 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and self.sign_scan(file):
+            elif file_type in slist and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
@@ -835,13 +836,18 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            max_vfl = []
             for vfl in function_list:
                 QApplication.processEvents()
-                similarity = len(set(fn)&set(vfl))/len(set(fn)|set(vfl))
-                if self.high_sensitivity and similarity >= 0.9:
-                    return True
-                elif "_CorExeMain" not in fn and similarity == 1.0:
-                    return True
+                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            max_sfl = []
+            for sfl in function_list_safe:
+                QApplication.processEvents()
+                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
+            if self.high_sensitivity:
+                return max(max_vfl) == 1.0 or max(max_vfl) - max(max_sfl) >= 0.1
+            elif self.sign_scan(file):
+                return max(max_vfl) == 1.0 and max(max_sfl) != 1.0
             return False
         except:
             return False
@@ -1180,20 +1186,16 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes and file not in self.whitelist:
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
-                        if ":/Windows" in file and "powershell" in name:
-                            file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
-                        elif ":/Windows" in file and "cmd.exe" in name:
-                            file = str(" ".join(cmd[2:])).replace("\\", "/")
-                        elif ":/Windows" in file and "msiexec.exe" in name:
-                            file = str(cmd[-1]).replace("\\", "/")
-                        elif ":/Windows" in file and "cscript.exe" in name:
-                            file = str(cmd[-1]).replace("\\", "/")
-                        elif ":/Windows" in file and "wscript.exe" in name:
-                            file = str(cmd[-1]).replace("\\", "/")
                         if ":/Windows" in file or ":/Program" in file:
-                            if self.sign_scan(file) and self.api_scan(file):
+                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                                self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
+                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
+                            elif self.sign_scan(cmd[-1]) and self.api_scan(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
                         elif self.api_scan(file) or self.pe_scan(file):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+file)
@@ -1218,6 +1220,11 @@ class MainWindow_Controller(QMainWindow):
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.exe().replace("\\", "/"))
                         self.ransom_block = True
+                    elif action == 3 and "/AppData/" not in full_path and file_type in slist:
+                        if os.path.getsize(full_path) <= 10485760:
+                            if self.sign_scan(full_path) and self.api_scan(full_path):
+                                self.lock_file(full_path)
+                                self.send_notify(self.trans("惡意軟體攔截: ")+full_path)
                 except:
                     pass
 

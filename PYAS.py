@@ -781,7 +781,7 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and file != self.pyas:
+            elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
@@ -844,10 +844,10 @@ class MainWindow_Controller(QMainWindow):
             for sfl in function_list_safe:
                 QApplication.processEvents()
                 max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
-            if self.high_sensitivity:
-                return max(max_vfl) == 1.0 or max(max_vfl) - max(max_sfl) >= 0.1
-            elif self.sign_scan(file):
-                return max(max_vfl) == 1.0 and max(max_sfl) != 1.0
+            if self.high_sensitivity and max(max_vfl) == 1.0:
+                return True
+            elif max(max_vfl) - max(max_sfl) >= 0.1:
+                return True
             return False
         except:
             return False
@@ -1221,7 +1221,7 @@ class MainWindow_Controller(QMainWindow):
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.exe().replace("\\", "/"))
                         self.ransom_block = True
                     elif action == 3 and "/AppData/" not in full_path and file_type in slist:
-                        if os.path.getsize(full_path) <= 10485760:
+                        if os.path.getsize(full_path) <= 20971520:
                             if self.sign_scan(full_path) and self.api_scan(full_path):
                                 self.lock_file(full_path)
                                 self.send_notify(self.trans("惡意軟體攔截: ")+full_path)

@@ -305,21 +305,21 @@ class MainWindow_Controller(QMainWindow):
         if self.ui.Theme_White.isChecked():
             self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
-        elif self.ui.Theme_Red.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(255,220,220);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(255,210,210);}""")
         elif self.ui.Theme_Black.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(150,150,150);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(140,140,140);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(230,230,230);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,220,220);}""")
+        elif self.ui.Theme_Red.isChecked():
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(250,230,230);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(250,220,220);}""")
         elif self.ui.Theme_Green.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(220,255,220);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(210,255,210);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(230,250,230);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,250,220);}""")
         elif self.ui.Theme_Yellow.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(250,250,220);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(250,250,210);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(250,250,230);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(250,250,220);}""")
         elif self.ui.Theme_Blue.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(220,250,250);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(210,250,250);}""")
+            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(230,250,250);}""")
+            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,250,250);}""")
 
     def change_animation(self,widget):
         x, y = 170, widget.pos().y()

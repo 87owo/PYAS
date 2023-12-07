@@ -1220,11 +1220,11 @@ class MainWindow_Controller(QMainWindow):
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.exe().replace("\\", "/"))
                         self.ransom_block = True
-                    elif action == 3 and "/AppData/" not in full_path and file_type in slist:
-                        if os.path.getsize(full_path) <= 20971520:
-                            if self.sign_scan(full_path) and self.api_scan(full_path):
-                                self.lock_file(full_path)
-                                self.send_notify(self.trans("惡意軟體攔截: ")+full_path)
+                    #elif action == 3 and "/AppData/" not in full_path and file_type in slist:
+                        #if os.path.getsize(full_path) <= 20971520:
+                            #if self.sign_scan(full_path) and self.api_scan(full_path):
+                                #self.lock_file(full_path)
+                                #self.send_notify(self.trans("惡意軟體攔截: ")+full_path)
                 except:
                     pass
 

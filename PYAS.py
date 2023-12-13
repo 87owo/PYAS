@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.5"
+        self.pyas_version = "2.9.6"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
@@ -846,7 +846,7 @@ class MainWindow_Controller(QMainWindow):
                 max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.high_sensitivity and max(max_vfl) == 1.0:
                 return True
-            elif max(max_vfl) - max(max_sfl) >= 0.1:
+            elif max(max_vfl) - max(max_sfl) > 0.1:
                 return True
             return False
         except:

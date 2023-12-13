@@ -846,7 +846,7 @@ class MainWindow_Controller(QMainWindow):
                 max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.high_sensitivity and max(max_vfl) == 1.0:
                 return True
-            elif max(max_vfl) - max(max_sfl) > 0.1:
+            elif max(max_vfl) - max(max_sfl) >= 0.1:
                 return True
             return False
         except:

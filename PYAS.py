@@ -781,7 +781,7 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and self.sign_scan(file):
+            elif file_type in slist and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
@@ -844,10 +844,10 @@ class MainWindow_Controller(QMainWindow):
             for sfl in function_list_safe:
                 QApplication.processEvents()
                 max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
-            if self.high_sensitivity and max(max_vfl) == 1.0:
-                return True
-            elif max(max_vfl) - max(max_sfl) >= 0.1:
-                return True
+            if self.high_sensitivity:
+                return max(max_vfl) == 1.0 or max(max_vfl) > max(max_sfl)
+            elif self.sign_scan(file):
+                return max(max_vfl) - max(max_sfl) >= 0.1
             return False
         except:
             return False

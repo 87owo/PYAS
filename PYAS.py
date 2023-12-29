@@ -1228,16 +1228,17 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes and file not in self.whitelist:
                         existing_processes.add(p.pid)
                         psutil.Process(p.pid).suspend()
-                        if "powershell" in name and self.scan_proc(cmd[-1].split("'")[-2]):
-                            p.kill()
-                            self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
-                        elif "cmd.exe" in name and self.scan_proc(" ".join(cmd[2:])):
-                            p.kill()
-                            self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
-                        elif ":/Program" not in file and self.scan_proc(cmd[-1]):
-                            p.kill()
-                            self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
-                        elif ":/Windows" not in file and self.scan_proc(p.pid):
+                        if ":/Windows" in file or ":/Program" in file:
+                            if "powershell" in name and self.scan_proc(cmd[-1].split("'")[-2]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
+                            elif "cmd.exe" in name and self.scan_proc(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
+                            elif self.sign_scan(cmd[-1]) and self.scan_proc(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
+                        elif file != self.pyas and self.scan_proc(p.pid):
                             p.kill()
                             self.send_notify(self.trans("惡意軟體攔截: ")+file)
                         elif file != self.pyas and self.sign_scan(file):

@@ -854,7 +854,7 @@ class MainWindow_Controller(QMainWindow):
 
     def dll_scan(self, pid):
         try:
-            for entry in psutil.Process(value).memory_maps():
+            for entry in psutil.Process(pid).memory_maps():
                 file = entry.path.replace("\\", "/")
                 if ":/Windows" in file or ":/Program" in file or "/AppData/" in file:
                     pass

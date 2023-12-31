@@ -856,7 +856,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             for entry in psutil.Process(pid).memory_maps():
                 file = entry.path.replace("\\", "/")
-                if ":/Windows" not in file and ":/Program" not in file and "/AppData/" not in file:
+                if ":/Windows" not in file and ":/Program" not in file:
                     if self.api_scan(file) or self.pe_scan(file):
                         return True
             return False
@@ -1198,19 +1198,20 @@ class MainWindow_Controller(QMainWindow):
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
                             psutil.Process(p.pid).suspend()
-                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
-                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
-                            elif ":/Windows" in file and self.api_scan(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
+                            if ":/Windows" in file or ":/Program" in file:
+                                if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
+                                elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
+                                elif self.sign_scan(cmd[-1]) and self.api_scan(cmd[-1]):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
                             elif self.api_scan(file) or self.pe_scan(file) or self.dll_scan(p.pid):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif ":/Windows" not in file and self.sign_scan(file):
+                            elif self.sign_scan(file):
                                 self.proc = p
                             psutil.Process(p.pid).resume()
                             gc.collect()

@@ -3,14 +3,11 @@ import hashlib, pefile, socket, msvcrt
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
-from PYAS_Database import model_dict
 from PYAS_Function_Virus import func_virus
 from PYAS_Function_Safe import func_safe
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
-from PYML import ListClassifier
-from binascii import hexlify
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -22,11 +19,10 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.7"
+        self.pyas_version = "2.9.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
-        self.init_data_base()
         self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
@@ -39,10 +35,6 @@ class MainWindow_Controller(QMainWindow):
         self.init_control()
         self.show_pyas_ui()
         self.init_threads()
-
-    def init_data_base(self):
-        self.ml = ListClassifier()
-        self.ml.load_model(model_dict)
 
     def init_threads(self):
         self.protect_proc_init()
@@ -277,7 +269,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
         self.ui.About_Back.setText(self.trans("返回"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} (ML Engine Beta)"))
+        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version}"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))
@@ -786,18 +778,14 @@ class MainWindow_Controller(QMainWindow):
             file_type = str(f".{file.split('.')[-1]}").lower()
             if self.high_sensitivity and file != self.pyas:
                 if self.api_scan(file):
-                    self.write_scan(self.trans("Vir.cloud.md5"),file)
-                elif self.ml_scan(file):
-                    self.write_scan(self.trans("Sus.hdfile.ml"),file)
+                    self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
-                    self.write_scan(self.trans("Sus.pefile.he"),file)
-            elif file_type in slist and file != self.pyas:
+                    self.write_scan(self.trans("可疑"),file)
+            elif file_type in slist and self.sign_scan(file):
                 if self.api_scan(file):
-                    self.write_scan(self.trans("Vir.cloud.md5"),file)
-                elif self.ml_scan(file):
-                    self.write_scan(self.trans("Sus.hdfile.ml"),file)
+                    self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
-                    self.write_scan(self.trans("Sus.pefile.he"),file)
+                    self.write_scan(self.trans("可疑"),file)
         except:
             pass
 
@@ -859,37 +847,19 @@ class MainWindow_Controller(QMainWindow):
             if self.high_sensitivity:
                 return max(max_vfl) >= max(max_sfl)
             elif "_CorExeMain" not in fn:
-                return max(max_vfl) >= max(max_sfl)
+                return max(max_vfl) - max(max_sfl) > 0.1
             return False
         except:
             return False
 
-    def ml_scan(self, file):
+    def dll_scan(self, pid):
         try:
-            data = []
-            if os.path.getsize(file) <= 209715200:
-                with open(file, 'rb') as f:
-                    for block in iter(lambda: f.read(3),b''):
-                        QApplication.processEvents()
-                        data.append(str(hexlify(block),'utf-8'))
-            if self.high_sensitivity:
-                return self.ml.predict(data) == 1
-            elif self.sign_scan(file):
-                return self.ml.predict(data) == 1
-            return False
-        except:
-            return False
-
-    def scan_proc(self, value):
-        try:
-            if isinstance(value, int):
-                for entry in psutil.Process(value).memory_maps():
-                    file = entry.path.replace("\\", "/")
-                    if ":/Windows" not in file and ":/Program" not in file and "/AppData/" not in file:
-                        if self.api_scan(file) or self.pe_scan(file) or self.ml_scan(file):
-                            return True
-            elif self.api_scan(value) or self.pe_scan(value) or self.ml_scan(value):
-                return True
+            for entry in psutil.Process(value).memory_maps():
+                file = entry.path.replace("\\", "/")
+                if ":/Windows" in file or ":/Program" in file or "/AppData/" in file:
+                    pass
+                elif self.api_scan(file) or self.pe_scan(file):
+                    return True
             return False
         except:
             return False
@@ -1224,27 +1194,28 @@ class MainWindow_Controller(QMainWindow):
             time.sleep(0.05)
             for p in psutil.process_iter():
                 try:
-                    name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                    if p.pid not in existing_processes and file not in self.whitelist:
+                    if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
-                        psutil.Process(p.pid).suspend()
-                        if ":/Windows" in file or ":/Program" in file:
-                            if "powershell" in name and self.scan_proc(cmd[-1].split("'")[-2]):
+                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
+                        if file != self.pyas and file not in self.whitelist:
+                            psutil.Process(p.pid).suspend()
+                            if ":/Windows" in file or ":/Program" in file:
+                                if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
+                                elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
+                                elif self.sign_scan(cmd[-1]) and self.api_scan(cmd[-1]):
+                                    p.kill()
+                                    self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
+                            elif self.api_scan(file) or self.pe_scan(file) or self.dll_scan(p.pid):
                                 p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
-                            elif "cmd.exe" in name and self.scan_proc(" ".join(cmd[2:])):
-                                p.kill()
-                                self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
-                            elif self.sign_scan(cmd[-1]) and self.scan_proc(cmd[-1]):
-                                p.kill()
-                                self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
-                        elif file != self.pyas and self.scan_proc(p.pid):
-                            p.kill()
-                            self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                        elif file != self.pyas and self.sign_scan(file):
-                            self.proc = p
-                        psutil.Process(p.pid).resume()
-                        gc.collect()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+file)
+                            elif self.sign_scan(file):
+                                self.proc = p
+                            psutil.Process(p.pid).resume()
+                            gc.collect()
                 except:
                     pass
 
@@ -1262,11 +1233,6 @@ class MainWindow_Controller(QMainWindow):
                             self.ransom_block = False
                             self.send_notify(self.trans("勒索軟體攔截: ")+self.proc.exe().replace("\\", "/"))
                         self.ransom_block = True
-                    #elif action == 3 and "/AppData/" not in full_path and file_type in slist:
-                        #if os.path.getsize(full_path) <= 20971520:
-                            #if self.sign_scan(full_path) and self.api_scan(full_path):
-                                #self.lock_file(full_path)
-                                #self.send_notify(self.trans("惡意軟體攔截: ")+full_path)
                 except:
                     pass
 
@@ -1301,9 +1267,8 @@ class MainWindow_Controller(QMainWindow):
         while self.net_protect:
             try:
                 time.sleep(0.5)
-                local_host = socket.gethostbyname(socket.gethostname())
                 for conn in self.proc.connections():
-                    if conn.laddr.ip == local_host:
+                    if conn.laddr.ip == socket.gethostbyname(socket.gethostname()):
                         self.proc.kill()
                         self.send_notify(self.trans("網路通訊攔截: ")+self.proc.exe().replace("\\", "/"))
             except:

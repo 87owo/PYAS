@@ -3,11 +3,11 @@ import hashlib, pefile, socket, msvcrt
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 import xml.etree.ElementTree as xmlet
-from PYAS_Function_Virus import func_virus
-from PYAS_Function_Safe import func_safe
+from PYAS_Function import func_dict
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
+from PYAS_Compress import ListCompressor
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -23,6 +23,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
+        self.init_func_model()
         self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
@@ -35,6 +36,10 @@ class MainWindow_Controller(QMainWindow):
         self.init_control()
         self.show_pyas_ui()
         self.init_threads()
+
+    def init_func_model(self):
+        self.pe = ListCompressor()
+        self.pe.load_model(func_dict)
 
     def init_threads(self):
         self.protect_proc_init()
@@ -836,18 +841,10 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            max_vfl = []
-            for vfl in func_virus:
-                QApplication.processEvents()
-                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-            max_sfl = []
-            for sfl in func_safe:
-                QApplication.processEvents()
-                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.high_sensitivity:
-                return max(max_vfl) >= max(max_sfl)
+                return self.pe.predict(fn, similarity=0.5)
             elif "_CorExeMain" not in fn:
-                return max(max_vfl) - max(max_sfl) > 0.1
+                return self.pe.predict(fn, similarity=0.8)
             return False
         except:
             return False

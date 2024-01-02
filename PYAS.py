@@ -1218,12 +1218,12 @@ class MainWindow_Controller(QMainWindow):
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/Users/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
-            for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+            for action, file in win32file.ReadDirectoryChangesW(hDir,1024,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     full_path = str(f"C:/Users/{file}").replace("\\", "/")
                     file_type = str(f".{full_path.split('.')[-1]}").lower()
                     if action == 3 and file_type in slist and os.path.getsize(full_path) <= 20971520:
-                        if self.sign_scan(full_path) and self.api_scan(full_path):
+                        if os.path.isfile(full_path) and self.api_scan(full_path):
                             os.remove(full_path)
                             self.send_notify(self.trans("惡意軟體刪除: ")+full_path)
                 except:

@@ -1,13 +1,13 @@
 import os, gc, sys, time, json, psutil
 import hashlib, pefile, socket, msvcrt
+import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
-import xml.etree.ElementTree as xmlet
-from PYAS_Function import func_dict
 from PYAS_Extension import slist, alist
+from PYAS_Function_Safe import func_safe
+from PYAS_Function_Virus import func_virus
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
-from PYAS_Compress import ListCompressor
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -23,7 +23,6 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
-        self.init_func_model()
         self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
@@ -36,10 +35,6 @@ class MainWindow_Controller(QMainWindow):
         self.init_control()
         self.show_pyas_ui()
         self.init_threads()
-
-    def init_func_model(self):
-        self.pe = ListCompressor()
-        self.pe.load_model(func_dict)
 
     def init_threads(self):
         self.protect_proc_init()
@@ -786,7 +781,7 @@ class MainWindow_Controller(QMainWindow):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
                     self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and self.sign_scan(file):
+            elif file_type in slist and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
@@ -817,6 +812,7 @@ class MainWindow_Controller(QMainWindow):
             if self.cloud_services == 1:
                 with open(file, "rb") as f:
                     text = str(hashlib.md5(f.read()).hexdigest())
+                QApplication.processEvents()
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
                 return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
@@ -841,16 +837,21 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            QApplication.processEvents()
+            max_vfl = []
+            for vfl in func_virus:
+                QApplication.processEvents()
+                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            max_sfl = []
+            for sfl in func_safe:
+                QApplication.processEvents()
+                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.high_sensitivity:
-                return self.pe.predict(fn, similarity=0.5)
-            elif "_CorExeMain" not in fn:
-                return self.pe.predict(fn, similarity=0.8)
-            return False
+                return max(max_vfl) >= max(max_sfl)
+            return max(max_vfl) - max(max_sfl) >= 0.1
         except:
             return False
 
-    def dll_scan(self, pid):
+    def proc_scan(self, pid):
         try:
             for entry in psutil.Process(pid).memory_maps():
                 file = entry.path.replace("\\", "/")
@@ -1196,17 +1197,16 @@ class MainWindow_Controller(QMainWindow):
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
                             psutil.Process(p.pid).suspend()
-                            if ":/Windows" in file or ":/Program" in file:
-                                if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                    p.kill()
-                                    self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
-                                elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                    p.kill()
-                                    self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
-                                elif self.sign_scan(cmd[-1]) and self.api_scan(cmd[-1]):
-                                    p.kill()
-                                    self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
-                            elif self.api_scan(file) or self.pe_scan(file) or self.dll_scan(p.pid):
+                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+str(cmd[-1].split("'")[-2]))
+                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                                p.kill()
+                                self.send_notify(self.trans("惡意腳本攔截: ")+str(" ".join(cmd[2:])))
+                            elif ":/Windows" in file and self.api_scan(cmd[-1]):
+                                p.kill()
+                                self.send_notify(self.trans("惡意軟體攔截: ")+str(cmd[-1]))
+                            elif self.proc_scan(p.pid):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif self.sign_scan(file):

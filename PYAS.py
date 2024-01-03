@@ -841,6 +841,7 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            QApplication.processEvents()
             if self.high_sensitivity:
                 return self.pe.predict(fn, similarity=0.5)
             elif "_CorExeMain" not in fn:

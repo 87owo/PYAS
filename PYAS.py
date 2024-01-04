@@ -1209,7 +1209,7 @@ class MainWindow_Controller(QMainWindow):
                             elif self.proc_scan(p.pid):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif self.sign_scan(file):
+                            elif ":/Windows" not in file and self.sign_scan(file):
                                 self.proc = p
                             psutil.Process(p.pid).resume()
                             gc.collect()

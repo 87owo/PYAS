@@ -4,10 +4,10 @@ import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 from PYAS_Extension import slist, alist
-from PYAS_Function_Safe import func_safe
-from PYAS_Function_Virus import func_virus
+from PYAS_Compress import ListCompressor
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
+from PYAS_Function import model_dict
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -19,9 +19,10 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.8"
+        self.pyas_version = "2.9.9"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.init_data_base()
         self.init_tray_icon()
         self.init_virus_list()
         self.init_state_safe()
@@ -35,6 +36,10 @@ class MainWindow_Controller(QMainWindow):
         self.init_control()
         self.show_pyas_ui()
         self.init_threads()
+
+    def init_data_base(self):
+        self.pe = ListCompressor()
+        self.pe.load_model(model_dict)
 
     def init_threads(self):
         self.protect_proc_init()
@@ -837,17 +842,11 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            max_vfl = []
-            for vfl in func_virus:
-                QApplication.processEvents()
-                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-            max_sfl = []
-            for sfl in func_safe:
-                QApplication.processEvents()
-                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.high_sensitivity:
-                return max(max_vfl) >= max(max_sfl)
-            return max(max_vfl) - max(max_sfl) >= 0.1
+                return self.pe.predict(fn, similarity=0.5)
+            elif "_CorExeMain" not in fn:
+                return self.pe.predict(fn, similarity=0.6)
+            return False
         except:
             return False
 

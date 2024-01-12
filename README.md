@@ -4,19 +4,19 @@
 
 ## File Function
 
-PYAS.py -> Main PYAS Program
+PYAS.py -> Main PYAS Program (including animation, scanning, protection functions, etc.)
 
-PYAS_Extension.py -> File Extension
+PYAS_Extension.py -> File Extension (including scanned file extensions and common file extensions)
 
-PYAS_Function*.7z -> Compress Database
+PYAS_Function*.7z -> Compress Database (need to use 7zip to decompress and put it in the same directory)
 
-PYAS_Interface.py -> PyQt5 Interface
+PYAS_Interface.py -> PyQt5 Interface (designed by QT designer, must be matched with the main program)
 
-PYAS_Resource.py -> PyQt5 Resource
+PYAS_Resource.py -> PyQt5 Resource (status pictures, icon packages, button icons, etc.)
 
-PYAS_Language.py -> Translate Dict
+PYAS_Language.py -> Translate Dict (Traditional Chinese, Simplified Chinese, English)
 
-PYAS_Version.py -> Pyinstaller Info
+PYAS_Version.py -> Pyinstaller Info (file information, version information, original name, etc.)
 
 ## Requirements
 

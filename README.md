@@ -2,7 +2,8 @@
 ![PYAS](https://github.com/87owo/PYAS/assets/85057800/153bcad9-18ab-4c81-bcb6-186434d0ef1b)
 
 ## Official Website
-https://pyantivirus.wixsite.com/pyas , https://github.com/87owo/PYAS
+https://pyantivirus.wixsite.com/pyas
+https://github.com/87owo/PYAS
 
 ## MIT License
 https://github.com/87owo/PYAS/blob/main/LICENSE.md

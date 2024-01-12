@@ -6,6 +6,8 @@
 
 PYAS.py -> Main PYAS Program
 
+PYAS_Extension.py -> File Extension
+
 PYAS_Function*.7z -> Compress Database
 
 PYAS_Interface.py -> PyQt5 Interface
@@ -32,6 +34,10 @@ PyQt5==5.15.9
 https://pyantivirus.wixsite.com/pyas
 
 https://github.com/87owo/PYAS
+
+## MIT license
+
+https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
 ## Support System
 

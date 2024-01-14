@@ -7,7 +7,7 @@ import sys, PYAS_Resource
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(851, 541)
+        MainWindow.resize(831, 521)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -28,16 +28,17 @@ class Ui_MainWindow(object):
         self.centralwidget.setStyleSheet("")
         self.centralwidget.setObjectName("centralwidget")
         self.widget = QtWidgets.QWidget(self.centralwidget)
-        self.widget.setGeometry(QtCore.QRect(0, 0, 851, 541))
+        self.widget.setGeometry(QtCore.QRect(0, 0, 831, 521))
+        self.widget.setStyleSheet("")
         self.widget.setObjectName("widget")
         self.Protection_widget = QtWidgets.QWidget(self.widget)
-        self.Protection_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
+        self.Protection_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Protection_widget.setFont(font)
-        self.Protection_widget.setStyleSheet("background-color:rgba(255, 255, 255,240);")
+        self.Protection_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.Protection_widget.setObjectName("Protection_widget")
         self.Real_time_Protection_widget = QtWidgets.QWidget(self.Protection_widget)
         self.Real_time_Protection_widget.setGeometry(QtCore.QRect(40, 10, 591, 91))
@@ -87,13 +88,14 @@ class Ui_MainWindow(object):
         self.Protection_switch_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.Protection_switch_Button.setIconSize(QtCore.QSize(16, 16))
         self.Protection_switch_Button.setCheckable(False)
         self.Protection_switch_Button.setObjectName("Protection_switch_Button")
@@ -145,13 +147,14 @@ class Ui_MainWindow(object):
         self.Protection_switch_Button_2.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.Protection_switch_Button_2.setIconSize(QtCore.QSize(16, 16))
         self.Protection_switch_Button_2.setCheckable(False)
         self.Protection_switch_Button_2.setObjectName("Protection_switch_Button_2")
@@ -201,13 +204,14 @@ class Ui_MainWindow(object):
         self.Protection_switch_Button_3.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.Protection_switch_Button_3.setIconSize(QtCore.QSize(16, 16))
         self.Protection_switch_Button_3.setCheckable(False)
         self.Protection_switch_Button_3.setObjectName("Protection_switch_Button_3")
@@ -257,13 +261,14 @@ class Ui_MainWindow(object):
         self.Protection_switch_Button_4.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.Protection_switch_Button_4.setIconSize(QtCore.QSize(16, 16))
         self.Protection_switch_Button_4.setCheckable(False)
         self.Protection_switch_Button_4.setObjectName("Protection_switch_Button_4")
@@ -313,31 +318,25 @@ class Ui_MainWindow(object):
         self.Protection_switch_Button_5.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.Protection_switch_Button_5.setIconSize(QtCore.QSize(16, 16))
         self.Protection_switch_Button_5.setCheckable(False)
         self.Protection_switch_Button_5.setObjectName("Protection_switch_Button_5")
         self.Navigation_Bar = QtWidgets.QWidget(self.widget)
-        self.Navigation_Bar.setGeometry(QtCore.QRect(10, 50, 161, 481))
+        self.Navigation_Bar.setGeometry(QtCore.QRect(0, 40, 161, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Navigation_Bar.setFont(font)
-        self.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar\n"
-"{\n"
-"    background-color:rgb(230, 230, 230);\n"
-"    border-top-right-radius:2px;\n"
-"    border-bottom-right-radius:2px;\n"
-"}\n"
-"\n"
-"")
+        self.Navigation_Bar.setStyleSheet("background-color: rgb(230, 230, 230);")
         self.Navigation_Bar.setObjectName("Navigation_Bar")
         self.verticalLayoutWidget = QtWidgets.QWidget(self.Navigation_Bar)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 0, 161, 481))
@@ -365,8 +364,8 @@ class Ui_MainWindow(object):
 "{\n"
 "    border:none;\n"
 "    background-color:rgba(0,0,0,0);\n"
-"    border-top-left-radius:15px;\n"
-"    border-bottom-left-radius:15px;\n"
+"    border-top-left-radius:10px;\n"
+"    border-bottom-left-radius:10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
@@ -376,7 +375,8 @@ class Ui_MainWindow(object):
 "QPushButton:pressed\n"
 "{\n"
 "    background-color:rgba(255, 255, 255,110);\n"
-"}")
+"}\n"
+"")
         icon1 = QtGui.QIcon()
         icon1.addPixmap(QtGui.QPixmap(":/icon/State.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.State_Button.setIcon(icon1)
@@ -403,8 +403,8 @@ class Ui_MainWindow(object):
 "{\n"
 "    border:none;\n"
 "    background-color:rgba(0,0,0,0);\n"
-"    border-top-left-radius:15px;\n"
-"    border-bottom-left-radius:15px;\n"
+"    border-top-left-radius:10px;\n"
+"    border-bottom-left-radius:10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
@@ -414,7 +414,8 @@ class Ui_MainWindow(object):
 "QPushButton:pressed\n"
 "{\n"
 "    background-color:rgba(255, 255, 255,110);\n"
-"}")
+"}\n"
+"")
         icon2 = QtGui.QIcon()
         icon2.addPixmap(QtGui.QPixmap(":/icon/Scan.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.Virus_Scan_Button.setIcon(icon2)
@@ -444,8 +445,8 @@ class Ui_MainWindow(object):
 "{\n"
 "    border:none;\n"
 "    background-color:rgba(0,0,0,0);\n"
-"    border-top-left-radius:15px;\n"
-"    border-bottom-left-radius:15px;\n"
+"    border-top-left-radius:10px;\n"
+"    border-bottom-left-radius:10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
@@ -455,7 +456,8 @@ class Ui_MainWindow(object):
 "QPushButton:pressed\n"
 "{\n"
 "    background-color:rgba(255, 255, 255,110);\n"
-"}")
+"}\n"
+"")
         icon3 = QtGui.QIcon()
         icon3.addPixmap(QtGui.QPixmap(":/icon/Tool.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.Tools_Button.setIcon(icon3)
@@ -482,8 +484,8 @@ class Ui_MainWindow(object):
 "{\n"
 "    border:none;\n"
 "    background-color:rgba(0,0,0,0);\n"
-"    border-top-left-radius:15px;\n"
-"    border-bottom-left-radius:15px;\n"
+"    border-top-left-radius:10px;\n"
+"    border-bottom-left-radius:10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
@@ -493,7 +495,8 @@ class Ui_MainWindow(object):
 "QPushButton:pressed\n"
 "{\n"
 "    background-color:rgba(255, 255, 255,110);\n"
-"}")
+"}\n"
+"")
         icon4 = QtGui.QIcon()
         icon4.addPixmap(QtGui.QPixmap(":/icon/Protect.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.Protection_Button.setIcon(icon4)
@@ -520,13 +523,13 @@ class Ui_MainWindow(object):
         self.label.setFlat(False)
         self.label.setObjectName("label")
         self.Virus_Scan_widget = QtWidgets.QWidget(self.widget)
-        self.Virus_Scan_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
+        self.Virus_Scan_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Virus_Scan_widget.setFont(font)
-        self.Virus_Scan_widget.setStyleSheet("background-color:rgba(255, 255, 255,240);")
+        self.Virus_Scan_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.Virus_Scan_widget.setObjectName("Virus_Scan_widget")
         self.Virus_Scan_title = QtWidgets.QLabel(self.Virus_Scan_widget)
         self.Virus_Scan_title.setGeometry(QtCore.QRect(45, 30, 281, 41))
@@ -565,16 +568,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_choose_Button.setTabletTracking(False)
         self.Virus_Scan_choose_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.Virus_Scan_choose_Button.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.Virus_Scan_choose_Button.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(100,200,100,200);\n"
-"    border-radius: 3px;\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    background-color:rgba(100,220,100,200);\n"
-"}")
+        self.Virus_Scan_choose_Button.setStyleSheet("QPushButton {border: none; background-color: rgb(200, 250, 200); border-radius: 10px;} QPushButton:pressed {background-color: rgb(210, 250, 210); border-radius: 10px;}")
         self.Virus_Scan_choose_Button.setIconSize(QtCore.QSize(10, 10))
         self.Virus_Scan_choose_Button.setCheckable(False)
         self.Virus_Scan_choose_Button.setAutoRepeat(False)
@@ -591,7 +585,10 @@ class Ui_MainWindow(object):
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.Virus_Scan_choose_widget.sizePolicy().hasHeightForWidth())
         self.Virus_Scan_choose_widget.setSizePolicy(sizePolicy)
-        self.Virus_Scan_choose_widget.setStyleSheet("background-color:rgba(200, 200, 200,200);")
+        self.Virus_Scan_choose_widget.setStyleSheet("QWidget {\n"
+"                background-color: rgb(230, 230, 230);\n"
+"                border-radius: 10px;\n"
+"            }")
         self.Virus_Scan_choose_widget.setObjectName("Virus_Scan_choose_widget")
         self.verticalLayoutWidget_3 = QtWidgets.QWidget(self.Virus_Scan_choose_widget)
         self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 0, 141, 101))
@@ -616,17 +613,18 @@ class Ui_MainWindow(object):
         self.File_Scan_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
+"    background-color:rgb(230,230,230);\n"
 "    border-radius: 5px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(50, 50, 50,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(50, 50, 50,90);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.File_Scan_Button.setIconSize(QtCore.QSize(16, 16))
         self.File_Scan_Button.setCheckable(False)
         self.File_Scan_Button.setObjectName("File_Scan_Button")
@@ -646,17 +644,18 @@ class Ui_MainWindow(object):
         self.Path_Scan_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
+"    background-color:rgb(230,230,230);\n"
 "    border-radius: 5px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(50, 50, 50,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(50, 50, 50,90);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.Path_Scan_Button.setIconSize(QtCore.QSize(16, 16))
         self.Path_Scan_Button.setCheckable(False)
         self.Path_Scan_Button.setObjectName("Path_Scan_Button")
@@ -676,17 +675,18 @@ class Ui_MainWindow(object):
         self.Disk_Scan_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
+"    background-color:rgb(230,230,230);\n"
 "    border-radius: 5px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(50, 50, 50,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(50, 50, 50,90);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.Disk_Scan_Button.setIconSize(QtCore.QSize(16, 16))
         self.Disk_Scan_Button.setCheckable(False)
         self.Disk_Scan_Button.setObjectName("Disk_Scan_Button")
@@ -710,13 +710,16 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Solve_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(230,70,70,200);\n"
-"    border-radius: 3px;\n"
+"    background-color:rgb(250,200,200);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(255,70,70,200);\n"
-"}")
+"    background-color:rgb(250,210,210);\n"
+"}\n"
+"\n"
+"\n"
+"")
         self.Virus_Scan_Solve_Button.setIconSize(QtCore.QSize(10, 10))
         self.Virus_Scan_Solve_Button.setCheckable(False)
         self.Virus_Scan_Solve_Button.setAutoRepeat(False)
@@ -745,13 +748,16 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Break_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(230,70,70,200);\n"
-"    border-radius: 3px;\n"
+"    background-color:rgb(250,200,200);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(255,70,70,200);\n"
-"}")
+"    background-color:rgb(250,210,210);\n"
+"}\n"
+"\n"
+"\n"
+"")
         self.Virus_Scan_Break_Button.setIconSize(QtCore.QSize(10, 10))
         self.Virus_Scan_Break_Button.setCheckable(False)
         self.Virus_Scan_Break_Button.setAutoRepeat(False)
@@ -800,14 +806,21 @@ class Ui_MainWindow(object):
         self.Virus_Scan_output.setUniformItemSizes(False)
         self.Virus_Scan_output.setSelectionRectVisible(False)
         self.Virus_Scan_output.setObjectName("Virus_Scan_output")
+        self.Virus_Scan_title.raise_()
+        self.Virus_Scan_text.raise_()
+        self.Virus_Scan_choose_widget.raise_()
+        self.Virus_Scan_Solve_Button.raise_()
+        self.Virus_Scan_output.raise_()
+        self.Virus_Scan_Break_Button.raise_()
+        self.Virus_Scan_choose_Button.raise_()
         self.State_widget = QtWidgets.QWidget(self.widget)
-        self.State_widget.setGeometry(QtCore.QRect(170, 49, 671, 481))
+        self.State_widget.setGeometry(QtCore.QRect(160, 39, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.State_widget.setFont(font)
-        self.State_widget.setStyleSheet("background-color:rgb(255, 255, 255);")
+        self.State_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.State_widget.setObjectName("State_widget")
         self.State_title = QtWidgets.QLabel(self.State_widget)
         self.State_title.setGeometry(QtCore.QRect(50, 210, 571, 41))
@@ -870,13 +883,13 @@ class Ui_MainWindow(object):
         self.State_log.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.State_log.setObjectName("State_log")
         self.About_widget = QtWidgets.QWidget(self.widget)
-        self.About_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
+        self.About_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.About_widget.setFont(font)
-        self.About_widget.setStyleSheet("background-color:rgba(255, 255, 255,255);")
+        self.About_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.About_widget.setObjectName("About_widget")
         self.About_Back = QtWidgets.QPushButton(self.About_widget)
         self.About_Back.setGeometry(QtCore.QRect(20, 10, 101, 41))
@@ -1026,7 +1039,13 @@ class Ui_MainWindow(object):
         font.setPointSize(11)
         self.License_terms.setFont(font)
         self.License_terms.setStyleSheet("")
+        self.License_terms.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        self.License_terms.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.License_terms.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustIgnored)
+        self.License_terms.setTabChangesFocus(False)
+        self.License_terms.setLineWrapColumnOrWidth(0)
         self.License_terms.setReadOnly(True)
+        self.License_terms.setOverwriteMode(False)
         self.License_terms.setObjectName("License_terms")
         self.License_terms_title = QtWidgets.QLabel(self.About_widget)
         self.License_terms_title.setGeometry(QtCore.QRect(45, 260, 581, 31))
@@ -1040,16 +1059,13 @@ class Ui_MainWindow(object):
         self.License_terms_title.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.License_terms_title.setObjectName("License_terms_title")
         self.Window_widget = QtWidgets.QWidget(self.widget)
-        self.Window_widget.setGeometry(QtCore.QRect(10, 10, 831, 41))
+        self.Window_widget.setGeometry(QtCore.QRect(0, 0, 831, 41))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Window_widget.setFont(font)
-        self.Window_widget.setStyleSheet("QWidget#Window_widget\n"
-"{\n"
-"background-color:rgb(240, 240, 240);\n"
-"}")
+        self.Window_widget.setStyleSheet("background-color: rgb(240, 240, 240);")
         self.Window_widget.setObjectName("Window_widget")
         self.Close_Button = QtWidgets.QPushButton(self.Window_widget)
         self.Close_Button.setGeometry(QtCore.QRect(790, 5, 31, 31))
@@ -1166,13 +1182,13 @@ class Ui_MainWindow(object):
         self.Menu_Button.setCheckable(False)
         self.Menu_Button.setObjectName("Menu_Button")
         self.Process_widget = QtWidgets.QWidget(self.widget)
-        self.Process_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
+        self.Process_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Process_widget.setFont(font)
-        self.Process_widget.setStyleSheet("background-color:rgba(255, 255, 255,240);")
+        self.Process_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.Process_widget.setObjectName("Process_widget")
         self.Process_Tools_Back = QtWidgets.QPushButton(self.Process_widget)
         self.Process_Tools_Back.setGeometry(QtCore.QRect(20, 10, 101, 41))
@@ -1259,13 +1275,13 @@ class Ui_MainWindow(object):
         self.Process_Total_View.setReadOnly(True)
         self.Process_Total_View.setObjectName("Process_Total_View")
         self.Tools_widget = QtWidgets.QWidget(self.widget)
-        self.Tools_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
+        self.Tools_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Tools_widget.setFont(font)
-        self.Tools_widget.setStyleSheet("background-color:rgba(255, 255, 255,240);")
+        self.Tools_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.Tools_widget.setObjectName("Tools_widget")
         self.More_Tools_Back_Button = QtWidgets.QPushButton(self.Tools_widget)
         self.More_Tools_Back_Button.setGeometry(QtCore.QRect(20, 10, 101, 41))
@@ -1312,17 +1328,18 @@ class Ui_MainWindow(object):
         self.System_Process_Manage_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.System_Process_Manage_Button.setIconSize(QtCore.QSize(16, 16))
         self.System_Process_Manage_Button.setCheckable(False)
         self.System_Process_Manage_Button.setObjectName("System_Process_Manage_Button")
@@ -1342,17 +1359,18 @@ class Ui_MainWindow(object):
         self.Clean_System_Files_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.Clean_System_Files_Button.setIconSize(QtCore.QSize(16, 16))
         self.Clean_System_Files_Button.setCheckable(False)
         self.Clean_System_Files_Button.setObjectName("Clean_System_Files_Button")
@@ -1372,17 +1390,18 @@ class Ui_MainWindow(object):
         self.Repair_System_Files_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.Repair_System_Files_Button.setIconSize(QtCore.QSize(16, 16))
         self.Repair_System_Files_Button.setCheckable(False)
         self.Repair_System_Files_Button.setObjectName("Repair_System_Files_Button")
@@ -1402,17 +1421,18 @@ class Ui_MainWindow(object):
         self.Repair_System_Network_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.Repair_System_Network_Button.setIconSize(QtCore.QSize(16, 16))
         self.Repair_System_Network_Button.setCheckable(False)
         self.Repair_System_Network_Button.setObjectName("Repair_System_Network_Button")
@@ -1432,33 +1452,34 @@ class Ui_MainWindow(object):
         self.Window_Block_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
+"    background-color:rgb(220,220,220);\n"
 "}\n"
 "QPushButton:pressed\n"
 "{\n"
-"    background-color:rgba(20,20,20,70);\n"
-"}")
+"    background-color:rgb(230,230,230);\n"
+"}\n"
+"")
         self.Window_Block_Button.setIconSize(QtCore.QSize(16, 16))
         self.Window_Block_Button.setCheckable(False)
         self.Window_Block_Button.setObjectName("Window_Block_Button")
         self.System_verticalLayout.addWidget(self.Window_Block_Button)
         self.widget_2 = QtWidgets.QWidget(self.widget)
-        self.widget_2.setGeometry(QtCore.QRect(170, 50, 671, 481))
-        self.widget_2.setStyleSheet("background-color:rgb(255, 255, 255);")
+        self.widget_2.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.widget_2.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.widget_2.setObjectName("widget_2")
         self.Setting_widget = QtWidgets.QWidget(self.widget)
-        self.Setting_widget.setGeometry(QtCore.QRect(10, 50, 831, 481))
+        self.Setting_widget.setGeometry(QtCore.QRect(0, 40, 831, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Setting_widget.setFont(font)
-        self.Setting_widget.setStyleSheet("background-color:rgba(255, 255, 255,255);")
+        self.Setting_widget.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.Setting_widget.setObjectName("Setting_widget")
         self.Show_high_sensitivity = QtWidgets.QWidget(self.Setting_widget)
         self.Show_high_sensitivity.setGeometry(QtCore.QRect(30, 50, 781, 81))
@@ -1505,13 +1526,14 @@ class Ui_MainWindow(object):
         self.high_sensitivity_switch_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.high_sensitivity_switch_Button.setIconSize(QtCore.QSize(16, 16))
         self.high_sensitivity_switch_Button.setCheckable(False)
         self.high_sensitivity_switch_Button.setObjectName("high_sensitivity_switch_Button")
@@ -1631,13 +1653,14 @@ class Ui_MainWindow(object):
         self.cloud_services_switch_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.cloud_services_switch_Button.setIconSize(QtCore.QSize(16, 16))
         self.cloud_services_switch_Button.setCheckable(False)
         self.cloud_services_switch_Button.setObjectName("cloud_services_switch_Button")
@@ -1717,13 +1740,14 @@ class Ui_MainWindow(object):
         self.Add_White_list_Button.setStyleSheet("QPushButton\n"
 "{\n"
 "    border:none;\n"
-"    background-color:rgba(20,20,20,30);\n"
-"    border-radius: 15px;\n"
+"    background-color:rgb(230,230,230);\n"
+"    border-radius: 10px;\n"
 "}\n"
 "QPushButton:hover\n"
 "{\n"
-"    background-color:rgba(20,20,20,50);\n"
-"}")
+"    background-color:rgb(220,220,220);\n"
+"}\n"
+"")
         self.Add_White_list_Button.setIconSize(QtCore.QSize(16, 16))
         self.Add_White_list_Button.setCheckable(False)
         self.Add_White_list_Button.setObjectName("Add_White_list_Button")
@@ -1819,16 +1843,16 @@ class Ui_MainWindow(object):
         self.Theme_illustrate.raise_()
         self.Language_Choose_widget_2.raise_()
         self.Theme_title.raise_()
-        self.Protection_widget.raise_()
-        self.Setting_widget.raise_()
-        self.About_widget.raise_()
         self.Tools_widget.raise_()
-        self.widget_2.raise_()
         self.Process_widget.raise_()
-        self.Virus_Scan_widget.raise_()
+        self.Protection_widget.raise_()
+        self.State_widget.raise_()
+        self.Setting_widget.raise_()
+        self.widget_2.raise_()
         self.Window_widget.raise_()
         self.Navigation_Bar.raise_()
-        self.State_widget.raise_()
+        self.Virus_Scan_widget.raise_()
+        self.About_widget.raise_()
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)
@@ -1883,6 +1907,11 @@ class Ui_MainWindow(object):
         self.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
         self.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://xiaomi69ai.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://xiaomi69ai.wixsite.com/pyas</span></a></p></body></html>"))
         self.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-2022 PYAS Security"))
+        self.License_terms.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+"p, li { white-space: pre-wrap; }\n"
+"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:11pt; font-weight:400; font-style:normal;\">\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p></body></html>"))
         self.License_terms_title.setText(_translate("MainWindow", "許可條款:"))
         self.Window_title.setText(_translate("MainWindow", "PYAS  V0.0.0"))
         self.Process_Tools_Back.setText(_translate("MainWindow", "返回"))

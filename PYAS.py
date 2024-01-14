@@ -110,14 +110,14 @@ class MainWindow_Controller(QMainWindow):
         if self.high_sensitivity == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
         self.cloud_services = self.json.get("cloud_services", 1)
         if self.cloud_services == 1:
             self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
         self.language = self.json.get("language", "en_US")
         if self.language == "zh_TW":
             self.ui.Language_Traditional_Chinese.setChecked(True)
@@ -322,9 +322,9 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,250,250);}""")
 
     def change_animation(self,widget):
-        x, y = 170, widget.pos().y()
+        x, y = 160, widget.pos().y()
         self.anim = QPropertyAnimation(widget, b"geometry")
-        widget.setGeometry(QRect(x - 100,y, 671,481))
+        widget.setGeometry(QRect(x - 100,y, 671, 481))
         self.anim.setKeyValueAt(0.2, QRect(x - 60,y,671,481))
         self.anim.setKeyValueAt(0.4, QRect(x - 10,y,671,481))
         self.anim.setKeyValueAt(0.7, QRect(x - 3,y,671,481))
@@ -571,7 +571,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Navigation_Bar.raise_()
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.About_widget,0.5)
-            self.change_animation_5(self.ui.About_widget,170,50,671,481)
+            self.change_animation_5(self.ui.About_widget,160,40,671,481)
             self.setting_back()
         if Qusetion == Main_Settings and self.ui.Setting_widget.isHidden():
             self.ui.Setting_widget.show()
@@ -579,7 +579,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Setting_widget.raise_()
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
-            self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
+            self.change_animation_5(self.ui.Setting_widget,0,40,831,481)
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -588,15 +588,15 @@ class MainWindow_Controller(QMainWindow):
             self.json["high_sensitivity"] = 0
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220,220,220);}""")
         elif QMessageBox.warning(self,self.trans("警告"),self.trans("此選項可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
             self.high_sensitivity = 1
             self.json["high_sensitivity"] = 1
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200,250,200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210,250,210);}""")
         self.write_config(self.json)
 
     def change_cloud_service(self):
@@ -606,15 +606,15 @@ class MainWindow_Controller(QMainWindow):
             self.json["cloud_services"] = 1
             self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200,250,200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210,250,210);}""")
         elif sw_state == self.trans("已開啟"):
             self.cloud_services = 0
             self.json["cloud_services"] = 0
             self.ui.cloud_services_switch_Button.setText(self.trans("已關閉"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220,220,220);}""")
         self.write_config(self.json)
 
     def init_state_safe(self):
@@ -1113,14 +1113,14 @@ class MainWindow_Controller(QMainWindow):
             self.proc_protect = False
             self.ui.Protection_switch_Button.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
         else:
             self.proc_protect = True
             self.ui.Protection_switch_Button.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_proc_thread, daemon=True).start()
 
     def protect_file_init(self):
@@ -1128,14 +1128,14 @@ class MainWindow_Controller(QMainWindow):
             self.file_protect = False
             self.ui.Protection_switch_Button_2.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button_2.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
         else:
             self.file_protect = True
             self.ui.Protection_switch_Button_2.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button_2.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_file_thread, daemon=True).start()
 
     def protect_boot_init(self):
@@ -1143,14 +1143,14 @@ class MainWindow_Controller(QMainWindow):
             self.mbr_protect = False
             self.ui.Protection_switch_Button_3.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button_3.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
         else:
             self.mbr_protect = True
             self.ui.Protection_switch_Button_3.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button_3.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_boot_thread, daemon=True).start()
 
     def protect_reg_init(self):
@@ -1158,14 +1158,14 @@ class MainWindow_Controller(QMainWindow):
             self.reg_protect = False
             self.ui.Protection_switch_Button_4.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button_4.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
         else:
             self.reg_protect = True
             self.ui.Protection_switch_Button_4.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button_4.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_reg_thread, daemon=True).start()
 
     def protect_net_init(self):
@@ -1173,14 +1173,14 @@ class MainWindow_Controller(QMainWindow):
             self.net_protect = False
             self.ui.Protection_switch_Button_5.setText(self.trans("已關閉"))
             self.ui.Protection_switch_Button_5.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,20,20,30);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,20,20,50);}""")
+            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
         else:
             self.net_protect = True
             self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
             self.ui.Protection_switch_Button_5.setStyleSheet("""
-            QPushButton{border:none;background-color:rgba(20,200,20,100);border-radius: 15px;}
-            QPushButton:hover{background-color:rgba(20,200,20,120);}""")
+            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_net_thread, daemon=True).start()
 
     def protect_proc_thread(self):

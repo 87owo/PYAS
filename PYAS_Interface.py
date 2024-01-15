@@ -7,7 +7,7 @@ import sys, PYAS_Resource
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(831, 521)
+        MainWindow.resize(851, 541)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -28,11 +28,11 @@ class Ui_MainWindow(object):
         self.centralwidget.setStyleSheet("")
         self.centralwidget.setObjectName("centralwidget")
         self.widget = QtWidgets.QWidget(self.centralwidget)
-        self.widget.setGeometry(QtCore.QRect(0, 0, 831, 521))
+        self.widget.setGeometry(QtCore.QRect(0, 0, 851, 541))
         self.widget.setStyleSheet("")
         self.widget.setObjectName("widget")
         self.Protection_widget = QtWidgets.QWidget(self.widget)
-        self.Protection_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.Protection_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -330,7 +330,7 @@ class Ui_MainWindow(object):
         self.Protection_switch_Button_5.setCheckable(False)
         self.Protection_switch_Button_5.setObjectName("Protection_switch_Button_5")
         self.Navigation_Bar = QtWidgets.QWidget(self.widget)
-        self.Navigation_Bar.setGeometry(QtCore.QRect(0, 40, 161, 481))
+        self.Navigation_Bar.setGeometry(QtCore.QRect(10, 50, 161, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -523,7 +523,7 @@ class Ui_MainWindow(object):
         self.label.setFlat(False)
         self.label.setObjectName("label")
         self.Virus_Scan_widget = QtWidgets.QWidget(self.widget)
-        self.Virus_Scan_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.Virus_Scan_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -568,7 +568,8 @@ class Ui_MainWindow(object):
         self.Virus_Scan_choose_Button.setTabletTracking(False)
         self.Virus_Scan_choose_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.Virus_Scan_choose_Button.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.Virus_Scan_choose_Button.setStyleSheet("QPushButton {border: none; background-color: rgb(200, 250, 200); border-radius: 10px;} QPushButton:pressed {background-color: rgb(210, 250, 210); border-radius: 10px;}")
+        self.Virus_Scan_choose_Button.setStyleSheet("QPushButton{border:none;background-color:rgb(190,250,190);border-radius: 10px;}QPushButton:hover{background-color:rgb(200,250,200);}\n"
+"")
         self.Virus_Scan_choose_Button.setIconSize(QtCore.QSize(10, 10))
         self.Virus_Scan_choose_Button.setCheckable(False)
         self.Virus_Scan_choose_Button.setAutoRepeat(False)
@@ -707,18 +708,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Solve_Button.setTabletTracking(False)
         self.Virus_Scan_Solve_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.Virus_Scan_Solve_Button.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.Virus_Scan_Solve_Button.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgb(250,200,200);\n"
-"    border-radius: 10px;\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    background-color:rgb(250,210,210);\n"
-"}\n"
-"\n"
-"\n"
+        self.Virus_Scan_Solve_Button.setStyleSheet("QPushButton{border:none;background-color:rgb(250,190,190);border-radius: 10px;}QPushButton:hover{background-color:rgb(250,200,200);}\n"
 "")
         self.Virus_Scan_Solve_Button.setIconSize(QtCore.QSize(10, 10))
         self.Virus_Scan_Solve_Button.setCheckable(False)
@@ -745,18 +735,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Break_Button.setTabletTracking(False)
         self.Virus_Scan_Break_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.Virus_Scan_Break_Button.setLayoutDirection(QtCore.Qt.LeftToRight)
-        self.Virus_Scan_Break_Button.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgb(250,200,200);\n"
-"    border-radius: 10px;\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    background-color:rgb(250,210,210);\n"
-"}\n"
-"\n"
-"\n"
+        self.Virus_Scan_Break_Button.setStyleSheet("QPushButton{border:none;background-color:rgb(250,190,190);border-radius: 10px;}QPushButton:hover{background-color:rgb(250,200,200);}\n"
 "")
         self.Virus_Scan_Break_Button.setIconSize(QtCore.QSize(10, 10))
         self.Virus_Scan_Break_Button.setCheckable(False)
@@ -814,7 +793,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Break_Button.raise_()
         self.Virus_Scan_choose_Button.raise_()
         self.State_widget = QtWidgets.QWidget(self.widget)
-        self.State_widget.setGeometry(QtCore.QRect(160, 39, 671, 481))
+        self.State_widget.setGeometry(QtCore.QRect(170, 49, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -883,7 +862,7 @@ class Ui_MainWindow(object):
         self.State_log.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.State_log.setObjectName("State_log")
         self.About_widget = QtWidgets.QWidget(self.widget)
-        self.About_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.About_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -1059,7 +1038,7 @@ class Ui_MainWindow(object):
         self.License_terms_title.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.License_terms_title.setObjectName("License_terms_title")
         self.Window_widget = QtWidgets.QWidget(self.widget)
-        self.Window_widget.setGeometry(QtCore.QRect(0, 0, 831, 41))
+        self.Window_widget.setGeometry(QtCore.QRect(10, 10, 831, 41))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -1182,7 +1161,7 @@ class Ui_MainWindow(object):
         self.Menu_Button.setCheckable(False)
         self.Menu_Button.setObjectName("Menu_Button")
         self.Process_widget = QtWidgets.QWidget(self.widget)
-        self.Process_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.Process_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -1275,7 +1254,7 @@ class Ui_MainWindow(object):
         self.Process_Total_View.setReadOnly(True)
         self.Process_Total_View.setObjectName("Process_Total_View")
         self.Tools_widget = QtWidgets.QWidget(self.widget)
-        self.Tools_widget.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.Tools_widget.setGeometry(QtCore.QRect(170, 50, 671, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -1469,11 +1448,11 @@ class Ui_MainWindow(object):
         self.Window_Block_Button.setObjectName("Window_Block_Button")
         self.System_verticalLayout.addWidget(self.Window_Block_Button)
         self.widget_2 = QtWidgets.QWidget(self.widget)
-        self.widget_2.setGeometry(QtCore.QRect(160, 40, 671, 481))
+        self.widget_2.setGeometry(QtCore.QRect(170, 50, 671, 481))
         self.widget_2.setStyleSheet("background-color: rgb(255, 255, 255);")
         self.widget_2.setObjectName("widget_2")
         self.Setting_widget = QtWidgets.QWidget(self.widget)
-        self.Setting_widget.setGeometry(QtCore.QRect(0, 40, 831, 481))
+        self.Setting_widget.setGeometry(QtCore.QRect(10, 50, 831, 481))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
         font.setPointSize(11)
@@ -1851,8 +1830,8 @@ class Ui_MainWindow(object):
         self.widget_2.raise_()
         self.Window_widget.raise_()
         self.Navigation_Bar.raise_()
-        self.Virus_Scan_widget.raise_()
         self.About_widget.raise_()
+        self.Virus_Scan_widget.raise_()
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)

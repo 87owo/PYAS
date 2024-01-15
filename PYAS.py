@@ -352,7 +352,7 @@ class MainWindow_Controller(QMainWindow):
         self.init_theme_color()
 
     def change_animation(self,widget):
-        x, y = 160, widget.pos().y()
+        x, y = 170, widget.pos().y()
         self.anim = QPropertyAnimation(widget, b"geometry")
         widget.setGeometry(QRect(x - 100,y, 671, 481))
         self.anim.setKeyValueAt(0.2, QRect(x - 60,y,671,481))
@@ -601,7 +601,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Navigation_Bar.raise_()
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.About_widget,0.5)
-            self.change_animation_5(self.ui.About_widget,160,40,671,481)
+            self.change_animation_5(self.ui.About_widget,170,50,671,481)
             self.setting_back()
         if Qusetion == Main_Settings and self.ui.Setting_widget.isHidden():
             self.ui.Setting_widget.show()
@@ -609,7 +609,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Setting_widget.raise_()
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
-            self.change_animation_5(self.ui.Setting_widget,0,40,831,481)
+            self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()

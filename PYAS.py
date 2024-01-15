@@ -19,10 +19,11 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyas_version = "2.9.9"
+        self.pyas_version = "3.0.0"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_tray_icon()
+        self.init_show_pyas()
         self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
@@ -32,8 +33,8 @@ class MainWindow_Controller(QMainWindow):
         self.init_config_boot()
         self.init_config_qtui()
         self.init_change_lang()
+        self.init_theme_color()
         self.init_control()
-        self.show_pyas_ui()
         self.init_threads()
 
     def init_threads(self):
@@ -47,7 +48,7 @@ class MainWindow_Controller(QMainWindow):
     def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
-        self.tray_icon.activated.connect(self.show_pyas_ui)
+        self.tray_icon.activated.connect(self.init_show_pyas)
         self.tray_icon.show()
 
     def init_config_path(self):
@@ -106,28 +107,40 @@ class MainWindow_Controller(QMainWindow):
                 self.json = json.load(f)
 
     def init_config_json(self):
-        self.high_sensitivity = self.json.get("high_sensitivity", 0)
-        if self.high_sensitivity == 1:
+        self.json["high_sensitivity"] = self.json.get("high_sensitivity", 0)
+        if self.json["high_sensitivity"] == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-        self.cloud_services = self.json.get("cloud_services", 1)
-        if self.cloud_services == 1:
+        self.json["cloud_services"] = self.json.get("cloud_services", 1)
+        if self.json["cloud_services"] == 1:
             self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-        self.language = self.json.get("language", "en_US")
-        if self.language == "zh_TW":
+        self.json["language"] = self.json.get("language", "en_US")
+        if self.json["language"] == "zh_TW":
             self.ui.Language_Traditional_Chinese.setChecked(True)
-        elif self.language == "zh_CN":
+        elif self.json["language"] == "zh_CN":
             self.ui.Language_Simplified_Chinese.setChecked(True)
-        else:
+        elif self.json["language"] == "en_US":
             self.ui.Language_English.setChecked(True)
+        self.json["theme_color"] = self.json.get("theme_color", "White")
+        if self.json["theme_color"] == "White":
+            self.ui.Theme_White.setChecked(True)
+        elif self.json["theme_color"] == "Black":
+            self.ui.Theme_Black.setChecked(True)
+        elif self.json["theme_color"] == "Red":
+            self.ui.Theme_Red.setChecked(True)
+        elif self.json["theme_color"] == "Green":
+            self.ui.Theme_Green.setChecked(True)
+        elif self.json["theme_color"] == "Yellow":
+            self.ui.Theme_Yellow.setChecked(True)
+        elif self.json["theme_color"] == "Blue":
+            self.ui.Theme_Blue.setChecked(True)
 
     def init_control(self):
-        self.ui.Theme_White.setChecked(True)
         self.ui.Close_Button.clicked.connect(self.close)
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
         self.ui.Menu_Button.clicked.connect(self.show_menu)
@@ -230,7 +243,7 @@ class MainWindow_Controller(QMainWindow):
 
     def init_lang_text(self):
         self.ui.State_title.setText(self.trans("此裝置已受到防護" if self.safe else "此裝置當前不安全"))
-        self.ui.Window_title.setText(self.trans(f"PYAS V{self.pyas_version}"))
+        self.ui.Window_title.setText(self.trans(f"PYAS Security"))
         self.ui.PYAS_CopyRight.setText(self.trans(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
         self.ui.State_Button.setText(self.trans(" 狀態"))
         self.ui.Virus_Scan_Button.setText(self.trans(" 掃描"))
@@ -301,25 +314,41 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Language_illustrate.setText(self.trans("請選擇語言"))
         self.ui.License_terms_title.setText(self.trans("許可條款:"))
 
+    def init_theme_color(self):
+        if self.json["theme_color"] == "White":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
+        elif self.json["theme_color"] == "Black":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(110,110,110);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(120,120,120);}")
+        elif self.json["theme_color"] == "Red":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,230,230);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,220,220);}")
+        elif self.json["theme_color"] == "Green":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,230);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,220);}")
+        elif self.json["theme_color"] == "Yellow":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,250,230);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
+        elif self.json["theme_color"] == "Blue":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,250);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,250);}")
+
     def change_theme(self):
         if self.ui.Theme_White.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(240,240,240);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(230,230,230);}""")
+            self.json["theme_color"] = "White"
         elif self.ui.Theme_Black.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(230,230,230);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,220,220);}""")
+            self.json["theme_color"] = "Black"
         elif self.ui.Theme_Red.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(250,230,230);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(250,220,220);}""")
+            self.json["theme_color"] = "Red"
         elif self.ui.Theme_Green.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(230,250,230);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,250,220);}""")
+            self.json["theme_color"] = "Green"
         elif self.ui.Theme_Yellow.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(250,250,230);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(250,250,220);}""")
+            self.json["theme_color"] = "Yellow"
         elif self.ui.Theme_Blue.isChecked():
-            self.ui.Window_widget.setStyleSheet("""QWidget#Window_widget {background-color:rgb(230,250,250);}""")
-            self.ui.Navigation_Bar.setStyleSheet("""QWidget#Navigation_Bar {background-color:rgb(220,250,250);}""")
+            self.json["theme_color"] = "Blue"
+        self.write_config(self.json)
+        self.init_theme_color()
 
     def change_animation(self,widget):
         x, y = 160, widget.pos().y()
@@ -506,7 +535,7 @@ class MainWindow_Controller(QMainWindow):
         rect.setHeight(rect.height()-10)
         pat2.drawRoundedRect(rect, 1, 1)
 
-    def show_pyas_ui(self):
+    def init_show_pyas(self):
         def update_opacity():
             if self.pyas_opacity <= 100:
                 self.pyas_opacity += 1
@@ -519,7 +548,7 @@ class MainWindow_Controller(QMainWindow):
         self.timer.timeout.connect(update_opacity)
         self.timer.start(2)
 
-    def hide_pyas_ui(self):
+    def init_hide_pyas(self):
         def update_opacity():
             if self.pyas_opacity >= 0:
                 self.pyas_opacity -= 1
@@ -533,7 +562,7 @@ class MainWindow_Controller(QMainWindow):
 
     def showMinimized(self):
         if self.block_window:
-            self.hide_pyas_ui()
+            self.init_hide_pyas()
             self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
@@ -584,14 +613,12 @@ class MainWindow_Controller(QMainWindow):
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
         if sw_state == self.trans("已開啟"):
-            self.high_sensitivity = 0
             self.json["high_sensitivity"] = 0
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(220,220,220);}""")
         elif QMessageBox.warning(self,self.trans("警告"),self.trans("此選項可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            self.high_sensitivity = 1
             self.json["high_sensitivity"] = 1
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
@@ -602,14 +629,12 @@ class MainWindow_Controller(QMainWindow):
     def change_cloud_service(self):
         sw_state = self.ui.cloud_services_switch_Button.text()
         if sw_state == self.trans("已關閉"):
-            self.cloud_services = 1
             self.json["cloud_services"] = 1
             self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200,250,200);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(210,250,210);}""")
         elif sw_state == self.trans("已開啟"):
-            self.cloud_services = 0
             self.json["cloud_services"] = 0
             self.ui.cloud_services_switch_Button.setText(self.trans("已關閉"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
@@ -776,7 +801,7 @@ class MainWindow_Controller(QMainWindow):
     def start_scan(self, file):
         try:
             file_type = str(f".{file.split('.')[-1]}").lower()
-            if self.high_sensitivity and file != self.pyas:
+            if self.json["high_sensitivity"] and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
@@ -809,7 +834,7 @@ class MainWindow_Controller(QMainWindow):
 
     def api_scan(self, file):
         try:
-            if self.cloud_services == 1:
+            if self.json["cloud_services"] == 1:
                 with open(file, "rb") as f:
                     text = str(hashlib.md5(f.read()).hexdigest())
                 QApplication.processEvents()
@@ -845,7 +870,7 @@ class MainWindow_Controller(QMainWindow):
             for sfl in func_safe:
                 QApplication.processEvents()
                 max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
-            if self.high_sensitivity:
+            if self.json["high_sensitivity"]:
                 return max(max_vfl) >= max(max_sfl)
             return max(max_vfl) - max(max_sfl) >= 0.1
         except:

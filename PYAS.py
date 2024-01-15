@@ -19,11 +19,12 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.pyae_version = "2024-01-15"
         self.pyas_version = "3.0.0"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.init_tray_icon()
         self.init_show_pyas()
+        self.init_tray_icon()
         self.init_virus_list()
         self.init_state_safe()
         self.init_config_path()
@@ -282,7 +283,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
         self.ui.About_Back.setText(self.trans("返回"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version}"))
+        self.ui.PYAS_Version.setText(self.trans(f"PYAS V{self.pyas_version} ({self.pyae_version})"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))

@@ -15,7 +15,7 @@ translate_dict = {
               "詢":"询","製":"制","員":"员","許":"许","條":"条","藍":"蓝","紅":"红",
               "綠":"绿","態":"态","務":"务","連":"连","檢":"检","測":"测","關":"关",
               "強":"强","驅":"驱","為":"为","腳":"脚","增":"增","單":"单","開":"开",
-              "惡":"恶","介":"界"},
+              "惡":"恶","介":"界","預設":"默认"},
     "en_US": {"已開啟":"On","已關閉":"Off","已开启":"On","已关闭":"Off","，":", ",
               "立即刪除":"Delete Now","安全模式":"Safe Mode","官方網站":"Website",
               "惡意檔案":"Virus ","惡意軟體":"Malware ","勒索軟體":"Ransom ",
@@ -25,7 +25,7 @@ translate_dict = {
               "正在掃描":"Scanning ","正在刪除":"Deleting ","最小化到":"Minimize To ",
               "確定要":"Sure Want To ","靈敏度":"Sensitivity ","更新":"Update",
               "白色主題":"White","黑色主題":"Black","黃色主題":"Yellow","紅色主題":"Red",
-              "藍色主題":"Blue","綠色主題":"Green","語言":"Language ","製作":"Make",
+              "藍色主題":"Blue","綠色主題":"Green","預設主題":"Default","語言":"Language ",
               "測試人員":"Testers","版本資訊":"Information","通訊":"Communication ",
               "註冊表":"Registry ","退出":"Quit ","檔案":"File ","當前":"Currently ",
               "狀態":"State ","掃描":"Scan ","工具":"Tools ","防護":"Protect ",
@@ -50,4 +50,5 @@ translate_dict = {
               "高":"High ","新":"New ","和":"And ","可能會":"Possible ","會":"Can ",
               "日誌":"Log","已":"Has ","彈窗":"Window ","要":"To ","驅動":"Drive ",
               "的":"","顯示":"","個":"","嗎":"","中":"","了":"","行":"","立即":"",
-              "密鑰":"Key ","檢測":"Detect ","誤報":"False Positive ","  ":" "}}
+              "密鑰":"Key ","檢測":"Detect ","誤報":"False Positive ","製作":"Make",
+              "  ":" "}}

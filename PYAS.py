@@ -18,7 +18,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyae_version = "2024-01-16"
+        self.pyae_version = "2024-01-17"
         self.pyas_version = "3.0.0"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -127,10 +127,10 @@ class MainWindow_Controller(QMainWindow):
         elif self.json["language"] == "en_US":
             self.ui.Language_English.setChecked(True)
         self.json["theme_color"] = self.json.get("theme_color", "White")
-        if self.json["theme_color"] == "White":
+        if self.json["theme_color"] == "Default":
+            self.ui.Theme_Default.setChecked(True)
+        elif self.json["theme_color"] == "White":
             self.ui.Theme_White.setChecked(True)
-        elif self.json["theme_color"] == "Black":
-            self.ui.Theme_Black.setChecked(True)
         elif self.json["theme_color"] == "Red":
             self.ui.Theme_Red.setChecked(True)
         elif self.json["theme_color"] == "Green":
@@ -178,7 +178,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_English.clicked.connect(self.init_change_lang)
         self.ui.Theme_White.clicked.connect(self.change_theme)
-        self.ui.Theme_Black.clicked.connect(self.change_theme)
+        self.ui.Theme_Default.clicked.connect(self.change_theme)
         self.ui.Theme_Green.clicked.connect(self.change_theme)
         self.ui.Theme_Yellow.clicked.connect(self.change_theme)
         self.ui.Theme_Blue.clicked.connect(self.change_theme)
@@ -303,8 +303,8 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Add_White_list_Button.setText(self.trans("選擇"))
         self.ui.Theme_title.setText(self.trans("顯色主題"))
         self.ui.Theme_illustrate.setText(self.trans("請選擇主題"))
+        self.ui.Theme_Default.setText(self.trans("預設主題"))
         self.ui.Theme_White.setText(self.trans("白色主題"))
-        self.ui.Theme_Black.setText(self.trans("黑色主題"))
         self.ui.Theme_Yellow.setText(self.trans("黃色主題"))
         self.ui.Theme_Red.setText(self.trans("紅色主題"))
         self.ui.Theme_Green.setText(self.trans("綠色主題"))
@@ -315,12 +315,12 @@ class MainWindow_Controller(QMainWindow):
         self.ui.License_terms_title.setText(self.trans("許可條款:"))
 
     def init_theme_color(self):
-        if self.json["theme_color"] == "White":
+        if self.json["theme_color"] == "Default":
             self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
-        elif self.json["theme_color"] == "Black":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(110,110,110);}")
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(120,120,120);}")
+        elif self.json["theme_color"] == "White":
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
         elif self.json["theme_color"] == "Red":
             self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,230,230);}")
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,220,220);}")
@@ -335,10 +335,10 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,250);}")
 
     def change_theme(self):
-        if self.ui.Theme_White.isChecked():
+        if self.ui.Theme_Default.isChecked():
+            self.json["theme_color"] = "Default"
+        elif self.ui.Theme_White.isChecked():
             self.json["theme_color"] = "White"
-        elif self.ui.Theme_Black.isChecked():
-            self.json["theme_color"] = "Black"
         elif self.ui.Theme_Red.isChecked():
             self.json["theme_color"] = "Red"
         elif self.ui.Theme_Green.isChecked():
@@ -400,8 +400,8 @@ class MainWindow_Controller(QMainWindow):
         x, y = widget.pos().x(), widget.pos().y()
         self.anim4 = QPropertyAnimation(widget, b"geometry")
         self.anim4.setDuration(time)
-        self.anim4.setStartValue(QRect(x, y, 141, ny))
-        self.anim4.setEndValue(QRect(x, y, 141, ny2))
+        self.anim4.setStartValue(QRect(x, y, 131, ny))
+        self.anim4.setEndValue(QRect(x, y, 131, ny2))
         self.anim4.start()
 
     def change_animation_5(self,widget,x,y,nx,ny):

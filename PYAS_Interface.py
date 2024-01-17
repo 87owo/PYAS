@@ -553,7 +553,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_text.setWordWrap(True)
         self.Virus_Scan_text.setObjectName("Virus_Scan_text")
         self.Virus_Scan_choose_Button = QtWidgets.QPushButton(self.Virus_Scan_widget)
-        self.Virus_Scan_choose_Button.setGeometry(QtCore.QRect(480, 35, 141, 31))
+        self.Virus_Scan_choose_Button.setGeometry(QtCore.QRect(490, 35, 131, 31))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -580,7 +580,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_choose_Button.setFlat(False)
         self.Virus_Scan_choose_Button.setObjectName("Virus_Scan_choose_Button")
         self.Virus_Scan_choose_widget = QtWidgets.QWidget(self.Virus_Scan_widget)
-        self.Virus_Scan_choose_widget.setGeometry(QtCore.QRect(480, 67, 141, 31))
+        self.Virus_Scan_choose_widget.setGeometry(QtCore.QRect(490, 67, 131, 31))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -592,7 +592,7 @@ class Ui_MainWindow(object):
 "            }")
         self.Virus_Scan_choose_widget.setObjectName("Virus_Scan_choose_widget")
         self.verticalLayoutWidget_3 = QtWidgets.QWidget(self.Virus_Scan_choose_widget)
-        self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 0, 141, 101))
+        self.verticalLayoutWidget_3.setGeometry(QtCore.QRect(0, 0, 131, 101))
         self.verticalLayoutWidget_3.setObjectName("verticalLayoutWidget_3")
         self.Virus_Scan_choose_verticalLayout = QtWidgets.QVBoxLayout(self.verticalLayoutWidget_3)
         self.Virus_Scan_choose_verticalLayout.setSizeConstraint(QtWidgets.QLayout.SetDefaultConstraint)
@@ -693,7 +693,7 @@ class Ui_MainWindow(object):
         self.Disk_Scan_Button.setObjectName("Disk_Scan_Button")
         self.Virus_Scan_choose_verticalLayout.addWidget(self.Disk_Scan_Button)
         self.Virus_Scan_Solve_Button = QtWidgets.QPushButton(self.Virus_Scan_widget)
-        self.Virus_Scan_Solve_Button.setGeometry(QtCore.QRect(330, 35, 141, 31))
+        self.Virus_Scan_Solve_Button.setGeometry(QtCore.QRect(350, 35, 131, 31))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -720,7 +720,7 @@ class Ui_MainWindow(object):
         self.Virus_Scan_Solve_Button.setFlat(False)
         self.Virus_Scan_Solve_Button.setObjectName("Virus_Scan_Solve_Button")
         self.Virus_Scan_Break_Button = QtWidgets.QPushButton(self.Virus_Scan_widget)
-        self.Virus_Scan_Break_Button.setGeometry(QtCore.QRect(480, 35, 141, 31))
+        self.Virus_Scan_Break_Button.setGeometry(QtCore.QRect(490, 35, 131, 31))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -883,17 +883,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.About_Back.setFont(font)
         self.About_Back.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.About_Back.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
-"    color:rgba(60,60,60,200);\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    color:rgba(60,60,60,255);\n"
-"}\n"
-"")
+        self.About_Back.setStyleSheet("QPushButton{border:none; background-color:rgba(0,0,0,0); color:rgba(60,60,60,200);} QPushButton:hover{ color:rgba(60,60,60,255);}")
         icon5 = QtGui.QIcon()
         icon5.addPixmap(QtGui.QPixmap(":/icon/Back.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.About_Back.setIcon(icon5)
@@ -1182,17 +1172,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Process_Tools_Back.setFont(font)
         self.Process_Tools_Back.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.Process_Tools_Back.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
-"    color:rgba(60,60,60,200);\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    color:rgba(60,60,60,255);\n"
-"}\n"
-"")
+        self.Process_Tools_Back.setStyleSheet("QPushButton{border:none; background-color:rgba(0,0,0,0); color:rgba(60,60,60,200);} QPushButton:hover{ color:rgba(60,60,60,255);}")
         self.Process_Tools_Back.setIcon(icon5)
         self.Process_Tools_Back.setIconSize(QtCore.QSize(20, 20))
         self.Process_Tools_Back.setCheckable(False)
@@ -1275,13 +1255,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.More_Tools_Back_Button.setFont(font)
         self.More_Tools_Back_Button.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.More_Tools_Back_Button.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
-"    color:rgba(60,60,60,200);\n"
-"}\n"
-"")
+        self.More_Tools_Back_Button.setStyleSheet("QPushButton{border:none; background-color:rgba(0,0,0,0); color:rgba(60,60,60,200);} QPushButton:hover{ color:rgba(60,60,60,255);}")
         self.More_Tools_Back_Button.setIconSize(QtCore.QSize(20, 20))
         self.More_Tools_Back_Button.setCheckable(False)
         self.More_Tools_Back_Button.setObjectName("More_Tools_Back_Button")
@@ -1659,17 +1633,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Setting_Back.setFont(font)
         self.Setting_Back.setFocusPolicy(QtCore.Qt.StrongFocus)
-        self.Setting_Back.setStyleSheet("QPushButton\n"
-"{\n"
-"    border:none;\n"
-"    background-color:rgba(0,0,0,0);\n"
-"    color:rgba(60,60,60,200);\n"
-"}\n"
-"QPushButton:hover\n"
-"{\n"
-"    color:rgba(60,60,60,255);\n"
-"}\n"
-"")
+        self.Setting_Back.setStyleSheet("QPushButton{border:none; background-color:rgba(0,0,0,0); color:rgba(60,60,60,200);} QPushButton:hover{ color:rgba(60,60,60,255);}")
         self.Setting_Back.setIcon(icon5)
         self.Setting_Back.setIconSize(QtCore.QSize(20, 20))
         self.Setting_Back.setCheckable(False)
@@ -1772,14 +1736,6 @@ class Ui_MainWindow(object):
         self.gridLayout_2 = QtWidgets.QGridLayout(self.gridLayoutWidget_2)
         self.gridLayout_2.setContentsMargins(0, 0, 0, 0)
         self.gridLayout_2.setObjectName("gridLayout_2")
-        self.Theme_Black = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
-        font = QtGui.QFont()
-        font.setFamily("Microsoft YaHei")
-        font.setPointSize(11)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.Theme_Black.setFont(font)
-        self.Theme_Black.setObjectName("Theme_Black")
-        self.gridLayout_2.addWidget(self.Theme_Black, 1, 1, 1, 1)
         self.Theme_White = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
@@ -1787,7 +1743,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferAntialias)
         self.Theme_White.setFont(font)
         self.Theme_White.setObjectName("Theme_White")
-        self.gridLayout_2.addWidget(self.Theme_White, 1, 0, 1, 1)
+        self.gridLayout_2.addWidget(self.Theme_White, 1, 1, 1, 1)
         self.Theme_Yellow = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
@@ -1803,14 +1759,6 @@ class Ui_MainWindow(object):
         self.Theme_Blue.setFont(font)
         self.Theme_Blue.setObjectName("Theme_Blue")
         self.gridLayout_2.addWidget(self.Theme_Blue, 2, 0, 1, 1)
-        self.Theme_Red = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
-        font = QtGui.QFont()
-        font.setFamily("Microsoft YaHei")
-        font.setPointSize(11)
-        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
-        self.Theme_Red.setFont(font)
-        self.Theme_Red.setObjectName("Theme_Red")
-        self.gridLayout_2.addWidget(self.Theme_Red, 2, 1, 1, 1)
         self.Theme_Green = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
@@ -1819,18 +1767,34 @@ class Ui_MainWindow(object):
         self.Theme_Green.setFont(font)
         self.Theme_Green.setObjectName("Theme_Green")
         self.gridLayout_2.addWidget(self.Theme_Green, 2, 2, 1, 1)
+        self.Theme_Red = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
+        font = QtGui.QFont()
+        font.setFamily("Microsoft YaHei")
+        font.setPointSize(11)
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+        self.Theme_Red.setFont(font)
+        self.Theme_Red.setObjectName("Theme_Red")
+        self.gridLayout_2.addWidget(self.Theme_Red, 2, 1, 1, 1)
+        self.Theme_Default = QtWidgets.QRadioButton(self.gridLayoutWidget_2)
+        font = QtGui.QFont()
+        font.setFamily("Microsoft YaHei")
+        font.setPointSize(11)
+        font.setStyleStrategy(QtGui.QFont.PreferAntialias)
+        self.Theme_Default.setFont(font)
+        self.Theme_Default.setObjectName("Theme_Default")
+        self.gridLayout_2.addWidget(self.Theme_Default, 1, 0, 1, 1)
         self.Theme_illustrate.raise_()
         self.Language_Choose_widget_2.raise_()
         self.Theme_title.raise_()
+        self.Setting_widget.raise_()
         self.Tools_widget.raise_()
         self.Process_widget.raise_()
+        self.About_widget.raise_()
         self.Protection_widget.raise_()
-        self.State_widget.raise_()
-        self.Setting_widget.raise_()
         self.widget_2.raise_()
         self.Window_widget.raise_()
         self.Navigation_Bar.raise_()
-        self.About_widget.raise_()
+        self.State_widget.raise_()
         self.Virus_Scan_widget.raise_()
         MainWindow.setCentralWidget(self.centralwidget)
 
@@ -1876,16 +1840,16 @@ class Ui_MainWindow(object):
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p></body></html>"))
         self.State_log.setText(_translate("MainWindow", "日誌:"))
         self.About_Back.setText(_translate("MainWindow", "返回"))
-        self.PYAS_Version.setText(_translate("MainWindow", "PYAS  v2.3.5"))
+        self.PYAS_Version.setText(_translate("MainWindow", "PYAS V0.0.0 (0000-00-00)"))
         self.GUI_Made_title.setText(_translate("MainWindow", "介面製作:"))
-        self.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao129#3921"))
+        self.GUI_Made_Name.setText(_translate("MainWindow", "mtkiao"))
         self.Core_Made_title.setText(_translate("MainWindow", "核心製作:"))
-        self.Core_Made_Name.setText(_translate("MainWindow", "PYAS_Dev#0629"))
+        self.Core_Made_Name.setText(_translate("MainWindow", "87owo"))
         self.Testers_title.setText(_translate("MainWindow", "測試人員:"))
-        self.Testers_Name.setText(_translate("MainWindow", "PYAS_Dev#0629"))
+        self.Testers_Name.setText(_translate("MainWindow", "87owo"))
         self.PYAS_URL_title.setText(_translate("MainWindow", "官方網站:"))
-        self.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://xiaomi69ai.wixsite.com/pyas\"><span style=\" text-decoration: underline; color:#0000ff;\">https://xiaomi69ai.wixsite.com/pyas</span></a></p></body></html>"))
-        self.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 2020-2022 PYAS Security"))
+        self.PYAS_URL.setText(_translate("MainWindow", "<html><head/><body><p><a href=\"https://github.com/87owo/PYAS\"><span style=\" text-decoration: underline; color:#000000;\">https://github.com/87owo/PYAS</span></a></p></body></html>"))
+        self.PYAS_CopyRight.setText(_translate("MainWindow", "Copyright© 0000-9999 PYAS Security"))
         self.License_terms.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
@@ -1904,26 +1868,26 @@ class Ui_MainWindow(object):
         self.high_sensitivity_title.setText(_translate("MainWindow", "高靈敏度模式"))
         self.high_sensitivity_illustrate.setText(_translate("MainWindow", "啟用此選項可以提高引擎的靈敏度"))
         self.high_sensitivity_switch_Button.setText(_translate("MainWindow", "已關閉"))
-        self.Language_title.setText(_translate("MainWindow", "語言"))
+        self.Language_title.setText(_translate("MainWindow", "顯示語言"))
         self.Language_illustrate.setText(_translate("MainWindow", "請選擇語言"))
         self.Language_Traditional_Chinese.setText(_translate("MainWindow", "繁體中文"))
         self.Language_Simplified_Chinese.setText(_translate("MainWindow", "简体中文"))
         self.Language_English.setText(_translate("MainWindow", "English"))
-        self.cloud_services_title.setText(_translate("MainWindow", "高靈敏度模式"))
-        self.cloud_services_illustrate.setText(_translate("MainWindow", "啟用此選項可以提高引擎的靈敏度"))
+        self.cloud_services_title.setText(_translate("MainWindow", "雲端掃描服務"))
+        self.cloud_services_illustrate.setText(_translate("MainWindow", "啟用此選項可以連接雲端掃描服務"))
         self.cloud_services_switch_Button.setText(_translate("MainWindow", "已關閉"))
         self.Setting_Back.setText(_translate("MainWindow", "返回"))
-        self.Add_White_list_title.setText(_translate("MainWindow", "高靈敏度模式"))
-        self.Add_White_list_illustrate.setText(_translate("MainWindow", "啟用此選項可以提高引擎的靈敏度"))
+        self.Add_White_list_title.setText(_translate("MainWindow", "增加到白名單"))
+        self.Add_White_list_illustrate.setText(_translate("MainWindow", "此選項可以選擇檔案並增加到白名單"))
         self.Add_White_list_Button.setText(_translate("MainWindow", "已關閉"))
         self.Theme_title.setText(_translate("MainWindow", "顯色主題"))
         self.Theme_illustrate.setText(_translate("MainWindow", "請選擇主題"))
-        self.Theme_Black.setText(_translate("MainWindow", "黑色主題"))
         self.Theme_White.setText(_translate("MainWindow", "白色主題"))
-        self.Theme_Yellow.setText(_translate("MainWindow", "粉色主題"))
+        self.Theme_Yellow.setText(_translate("MainWindow", "黃色主題"))
         self.Theme_Blue.setText(_translate("MainWindow", "藍色主題"))
-        self.Theme_Red.setText(_translate("MainWindow", "紅色主題"))
         self.Theme_Green.setText(_translate("MainWindow", "綠色主題"))
+        self.Theme_Red.setText(_translate("MainWindow", "紅色主題"))
+        self.Theme_Default.setText(_translate("MainWindow", "預設主題"))
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

@@ -24,10 +24,10 @@ class MainWindow_Controller(QMainWindow):
         self.ui.setupUi(self)
         self.init_show_pyas()
         self.init_tray_icon()
-        self.init_virus_list()
+        self.init_read_json()
         self.init_state_safe()
+        self.init_virus_list()
         self.init_config_path()
-        self.init_config_read()
         self.init_config_json()
         self.init_config_list()
         self.init_config_boot()
@@ -95,20 +95,22 @@ class MainWindow_Controller(QMainWindow):
         except:
             self.mbr_value = False
 
-    def init_config_read(self):
+    def init_read_json(self):
         try:
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
-                self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
+                self.write_config({"high_sensitive":0,"cloud_services":1,
+                "emergency_mode":0,"debug_log_mode":0,"language":"en_US"})
             with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
                 self.json = json.load(f)
         except:
-            self.write_config({"language":"en_US","high_sensitivity":0,"cloud_services":1})
+            self.write_config({"high_sensitive":0,"cloud_services":1,
+            "emergency_mode":0,"debug_log_mode":0,"language":"en_US"})
             with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
                 self.json = json.load(f)
 
     def init_config_json(self):
-        self.json["high_sensitivity"] = self.json.get("high_sensitivity", 0)
-        if self.json["high_sensitivity"] == 1:
+        self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
+        if self.json["high_sensitive"] == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
@@ -126,7 +128,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Language_Simplified_Chinese.setChecked(True)
         elif self.json["language"] == "en_US":
             self.ui.Language_English.setChecked(True)
-        self.json["theme_color"] = self.json.get("theme_color", "White")
+        self.json["theme_color"] = self.json.get("theme_color", "Default")
         if self.json["theme_color"] == "Default":
             self.ui.Theme_Default.setChecked(True)
         elif self.json["theme_color"] == "White":
@@ -242,7 +244,7 @@ class MainWindow_Controller(QMainWindow):
         return text
 
     def init_lang_text(self):
-        self.ui.State_title.setText(self.trans("此裝置已受到防護" if self.safe else "此裝置當前不安全"))
+        self.ui.State_title.setText(self.trans("此裝置已受到防護"))
         self.ui.Window_title.setText(self.trans(f"PYAS Security"))
         self.ui.PYAS_CopyRight.setText(self.trans(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
         self.ui.State_Button.setText(self.trans(" 狀態"))
@@ -316,8 +318,8 @@ class MainWindow_Controller(QMainWindow):
 
     def init_theme_color(self):
         if self.json["theme_color"] == "Default":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
+            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")#
+            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")#
         elif self.json["theme_color"] == "White":
             self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
@@ -613,13 +615,13 @@ class MainWindow_Controller(QMainWindow):
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
         if sw_state == self.trans("已開啟"):
-            self.json["high_sensitivity"] = 0
+            self.json["high_sensitive"] = 0
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(220,220,220);}""")
         elif QMessageBox.warning(self,self.trans("警告"),self.trans("此選項可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
-            self.json["high_sensitivity"] = 1
+            self.json["high_sensitive"] = 1
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200,250,200);border-radius: 10px;}
@@ -643,20 +645,24 @@ class MainWindow_Controller(QMainWindow):
         self.write_config(self.json)
 
     def init_state_safe(self):
-        try:
+        if os.path.exists("./Check.png"):
+            self.safe = True
+            self.ui.State_icon.setPixmap(QPixmap("./Check.png"))
+            self.ui.State_title.setText(self.trans("此裝置已受到防護"))
+        else:
             self.safe = True
             self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
             self.ui.State_title.setText(self.trans("此裝置已受到防護"))
-        except:
-            pass
 
     def init_state_unsafe(self):
-        try:
+        if os.path.exists("./Check.png"):
             self.safe = False
-            self.ui.State_icon.setPixmap(QPixmap(":/icon/Close.png"))
+            self.ui.State_icon.setPixmap(QPixmap("./Wrong.png"))
             self.ui.State_title.setText(self.trans("此裝置當前不安全"))
-        except:
-            pass
+        else:
+            self.safe = False
+            self.ui.State_icon.setPixmap(QPixmap(":/icon/Wrong.png"))
+            self.ui.State_title.setText(self.trans("此裝置當前不安全"))
 
     def init_scan(self):
         try:
@@ -801,7 +807,7 @@ class MainWindow_Controller(QMainWindow):
     def start_scan(self, file):
         try:
             file_type = str(f".{file.split('.')[-1]}").lower()
-            if self.json["high_sensitivity"] and file != self.pyas:
+            if self.json["high_sensitive"] and file != self.pyas:
                 if self.api_scan(file):
                     self.write_scan(self.trans("惡意"),file)
                 elif self.pe_scan(file):
@@ -862,7 +868,7 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            if self.json["high_sensitivity"]:
+            if self.json["high_sensitive"]:
                 max_vfl = []
                 for vfl in func_virus:
                     QApplication.processEvents()

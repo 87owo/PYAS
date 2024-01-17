@@ -645,9 +645,9 @@ class MainWindow_Controller(QMainWindow):
         self.write_config(self.json)
 
     def init_state_safe(self):
-        if os.path.exists("./Check.png"):
+        if os.path.exists("./Theme/Check.png"):
             self.safe = True
-            self.ui.State_icon.setPixmap(QPixmap("./Check.png"))
+            self.ui.State_icon.setPixmap(QPixmap("./Theme/Check.png"))
             self.ui.State_title.setText(self.trans("此裝置已受到防護"))
         else:
             self.safe = True
@@ -655,9 +655,9 @@ class MainWindow_Controller(QMainWindow):
             self.ui.State_title.setText(self.trans("此裝置已受到防護"))
 
     def init_state_unsafe(self):
-        if os.path.exists("./Check.png"):
+        if os.path.exists("./Theme/Wrong.png"):
             self.safe = False
-            self.ui.State_icon.setPixmap(QPixmap("./Wrong.png"))
+            self.ui.State_icon.setPixmap(QPixmap("./Theme/Wrong.png"))
             self.ui.State_title.setText(self.trans("此裝置當前不安全"))
         else:
             self.safe = False

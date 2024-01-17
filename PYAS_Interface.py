@@ -1794,8 +1794,8 @@ class Ui_MainWindow(object):
         self.widget_2.raise_()
         self.Window_widget.raise_()
         self.Navigation_Bar.raise_()
-        self.State_widget.raise_()
         self.Virus_Scan_widget.raise_()
+        self.State_widget.raise_()
         MainWindow.setCentralWidget(self.centralwidget)
 
         self.retranslateUi(MainWindow)

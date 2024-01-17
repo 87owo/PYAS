@@ -23,14 +23,10 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
-        self.init_tray_icon()
         self.init_read_json()
-        self.init_state_safe()
-        self.init_virus_list()
-        self.init_config_path()
+        self.init_tray_icon()
         self.init_config_json()
         self.init_config_list()
-        self.init_config_boot()
         self.init_config_qtui()
         self.init_change_lang()
         self.init_theme_color()
@@ -51,87 +47,64 @@ class MainWindow_Controller(QMainWindow):
         self.tray_icon.activated.connect(self.init_show_pyas)
         self.tray_icon.show()
 
-    def init_config_path(self):
-        try:
-            if not os.path.exists("C:/ProgramData/PYAS"):
-                os.makedirs("C:/ProgramData/PYAS")
-        except Exception as e:
-            self.bug_event(e)
-
     def write_config(self, config):
         try:
-            with open("C:/ProgramData/PYAS/PYAS.json", "w", encoding="utf-8") as f:
+            with open("C:/ProgramData/PYAS/PYAS.json", "w") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
-        except:
-            pass
-
-    def init_virus_list(self):
-        try:
-            self.virus_lock = {}
-            self.virus_list = []
-            self.virus_list_ui = []
-        except:
-            pass
+        except Exception as e:
+            self.bug_event(e)
 
     def init_config_list(self):
         try:
             self.whitelist = []
             if os.path.exists("C:/ProgramData/PYAS/Whitelist.ini"):
-                with open("C:/ProgramData/PYAS/Whitelist.ini", "r", encoding="utf-8") as f:
+                with open("C:/ProgramData/PYAS/Whitelist.ini", "r") as f:
                     self.whitelist = [line.strip() for line in f.readlines()]
             self.blocklist = []
             if os.path.exists("C:/ProgramData/PYAS/Blocklist.ini"):
-                with open("C:/ProgramData/PYAS/Blocklist.ini", "r", encoding="utf-8") as f:
+                with open("C:/ProgramData/PYAS/Blocklist.ini", "r") as f:
                     self.blocklist = [line.strip() for line in f.readlines()]
         except:
             pass
 
-    def init_config_boot(self):
-        try:
-            with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(512)
-            if self.mbr_value[510:512] != b'\x55\xAA':
-                self.mbr_value = False
-        except:
-            self.mbr_value = False
-
     def init_read_json(self):
         try:
+            if not os.path.exists("C:/ProgramData/PYAS"):
+                os.makedirs("C:/ProgramData/PYAS")
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
                 self.write_config({"high_sensitive":0,"cloud_services":1,
-                "emergency_mode":0,"debug_log_mode":0,"language":"en_US"})
-            with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
+                "language":"en_US","theme_color":"White","theme_custom":""})
+            with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
                 self.json = json.load(f)
         except:
             self.write_config({"high_sensitive":0,"cloud_services":1,
-            "emergency_mode":0,"debug_log_mode":0,"language":"en_US"})
-            with open("C:/ProgramData/PYAS/PYAS.json", "r", encoding="utf-8") as f:
+            "language":"en_US","theme_color":"White","theme_custom":""})
+            with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
                 self.json = json.load(f)
 
     def init_config_json(self):
         self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
+        self.json["cloud_services"] = self.json.get("cloud_services", 1)
+        self.json["language"] = self.json.get("language", "en_US")
+        self.json["theme_color"] = self.json.get("theme_color", "White")
+        self.json["theme_custom"] = self.json.get("theme_custom", "")
         if self.json["high_sensitive"] == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-        self.json["cloud_services"] = self.json.get("cloud_services", 1)
         if self.json["cloud_services"] == 1:
             self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
             self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-        self.json["language"] = self.json.get("language", "en_US")
         if self.json["language"] == "zh_TW":
             self.ui.Language_Traditional_Chinese.setChecked(True)
         elif self.json["language"] == "zh_CN":
             self.ui.Language_Simplified_Chinese.setChecked(True)
         elif self.json["language"] == "en_US":
             self.ui.Language_English.setChecked(True)
-        self.json["theme_color"] = self.json.get("theme_color", "Default")
-        if self.json["theme_color"] == "Default":
-            self.ui.Theme_Default.setChecked(True)
-        elif self.json["theme_color"] == "White":
+        if self.json["theme_color"] == "White":
             self.ui.Theme_White.setChecked(True)
         elif self.json["theme_color"] == "Red":
             self.ui.Theme_Red.setChecked(True)
@@ -141,6 +114,8 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Theme_Yellow.setChecked(True)
         elif self.json["theme_color"] == "Blue":
             self.ui.Theme_Blue.setChecked(True)
+        elif self.json["theme_color"] == "Custom":
+            self.ui.Theme_Customize.setChecked(True)
 
     def init_control(self):
         self.ui.Close_Button.clicked.connect(self.close)
@@ -180,7 +155,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_English.clicked.connect(self.init_change_lang)
         self.ui.Theme_White.clicked.connect(self.change_theme)
-        self.ui.Theme_Default.clicked.connect(self.change_theme)
+        self.ui.Theme_Customize.clicked.connect(self.change_theme)
         self.ui.Theme_Green.clicked.connect(self.change_theme)
         self.ui.Theme_Yellow.clicked.connect(self.change_theme)
         self.ui.Theme_Blue.clicked.connect(self.change_theme)
@@ -305,7 +280,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Add_White_list_Button.setText(self.trans("選擇"))
         self.ui.Theme_title.setText(self.trans("顯色主題"))
         self.ui.Theme_illustrate.setText(self.trans("請選擇主題"))
-        self.ui.Theme_Default.setText(self.trans("預設主題"))
+        self.ui.Theme_Customize.setText(self.trans("自定主題"))
         self.ui.Theme_White.setText(self.trans("白色主題"))
         self.ui.Theme_Yellow.setText(self.trans("黃色主題"))
         self.ui.Theme_Red.setText(self.trans("紅色主題"))
@@ -317,29 +292,49 @@ class MainWindow_Controller(QMainWindow):
         self.ui.License_terms_title.setText(self.trans("許可條款:"))
 
     def init_theme_color(self):
-        if self.json["theme_color"] == "Default":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")#
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")#
-        elif self.json["theme_color"] == "White":
+        try:
+            if self.json["theme_color"] == "White":
+                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
+                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
+                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
+            elif self.json["theme_color"] == "Red":
+                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
+                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,230,230);}")
+                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,220,220);}")
+            elif self.json["theme_color"] == "Yellow":
+                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
+                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,250,230);}")
+                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
+            elif self.json["theme_color"] == "Green":
+                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
+                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,230);}")
+                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,220);}")
+            elif self.json["theme_color"] == "Blue":
+                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
+                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,250);}")
+                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,250);}")
+            elif self.json["theme_color"] == "Custom":
+                with open(os.path.join(self.json["theme_custom"],"Color.ini"), "r") as f:
+                    self.themecolor = [line.strip() for line in f.readlines()]
+                self.ui.Window_widget.setStyleSheet(self.themecolor[0])
+                self.ui.Navigation_Bar.setStyleSheet(self.themecolor[1])
+                file = os.path.join(self.json["theme_custom"],"Check.png")
+                self.ui.State_icon.setPixmap(QPixmap(file))
+        except:
+            self.ui.Theme_White.setChecked(True)
             self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
-        elif self.json["theme_color"] == "Red":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,230,230);}")
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,220,220);}")
-        elif self.json["theme_color"] == "Green":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,230);}")
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,220);}")
-        elif self.json["theme_color"] == "Yellow":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,250,230);}")
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
-        elif self.json["theme_color"] == "Blue":
-            self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,250);}")
-            self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,250);}")
+
+    def read_custom_theme(self):
+        try:
+            path = str(QFileDialog.getExistingDirectory(self,self.trans("自定主題"),"C:/"))
+            if os.path.exists(os.path.join(path,"Color.ini")):
+                self.json["theme_custom"] = path
+        except:
+            pass
 
     def change_theme(self):
-        if self.ui.Theme_Default.isChecked():
-            self.json["theme_color"] = "Default"
-        elif self.ui.Theme_White.isChecked():
+        if self.ui.Theme_White.isChecked():
             self.json["theme_color"] = "White"
         elif self.ui.Theme_Red.isChecked():
             self.json["theme_color"] = "Red"
@@ -349,6 +344,9 @@ class MainWindow_Controller(QMainWindow):
             self.json["theme_color"] = "Yellow"
         elif self.ui.Theme_Blue.isChecked():
             self.json["theme_color"] = "Blue"
+        elif self.ui.Theme_Customize.isChecked():
+            self.read_custom_theme()
+            self.json["theme_color"] = "Custom"
         self.write_config(self.json)
         self.init_theme_color()
 
@@ -392,8 +390,8 @@ class MainWindow_Controller(QMainWindow):
         self.timer.start(2)
 
     def timeout(self):
-        if self.opacity.i < 1:
-            self.opacity.i += 0.02
+        if self.opacity.i <= 1:
+            self.opacity.i += 0.03
             self.opacity.setOpacity(self.opacity.i)
         else:
             self.timer.stop()
@@ -644,34 +642,19 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgb(220,220,220);}""")
         self.write_config(self.json)
 
-    def init_state_safe(self):
-        if os.path.exists("./Theme/Check.png"):
-            self.safe = True
-            self.ui.State_icon.setPixmap(QPixmap("./Theme/Check.png"))
-            self.ui.State_title.setText(self.trans("此裝置已受到防護"))
-        else:
-            self.safe = True
-            self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
-            self.ui.State_title.setText(self.trans("此裝置已受到防護"))
-
-    def init_state_unsafe(self):
-        if os.path.exists("./Theme/Wrong.png"):
-            self.safe = False
-            self.ui.State_icon.setPixmap(QPixmap("./Theme/Wrong.png"))
-            self.ui.State_title.setText(self.trans("此裝置當前不安全"))
-        else:
-            self.safe = False
-            self.ui.State_icon.setPixmap(QPixmap(":/icon/Wrong.png"))
-            self.ui.State_title.setText(self.trans("此裝置當前不安全"))
-
     def init_scan(self):
         try:
             self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
             QApplication.processEvents()
-            for file in self.virus_list:
-                self.unlock_file(file)
+            try:
+                for file in self.virus_list:
+                    self.unlock_file(file)
+            except:
+                pass
             self.scan_file = True
-            self.init_virus_list()
+            self.virus_lock = {}
+            self.virus_list = []
+            self.virus_list_ui = []
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.Virus_Scan_choose_widget.hide()
             self.ui.Virus_Scan_choose_Button.hide()
@@ -720,8 +703,9 @@ class MainWindow_Controller(QMainWindow):
                         self.unlock_file(file)
                 except:
                     continue
-            self.init_state_safe()
-            self.init_virus_list()
+            self.virus_lock = {}
+            self.virus_list = []
+            self.virus_list_ui = []
             self.ui.Virus_Scan_output.clear()
             self.ui.Virus_Scan_text.setText(self.trans("成功: 刪除成功"))
         except Exception as e:
@@ -743,14 +727,12 @@ class MainWindow_Controller(QMainWindow):
     def answer_scan(self):
         try:
             if self.virus_list:
-                self.init_state_unsafe()
                 self.ui.Virus_Scan_Solve_Button.show()
                 self.ui.Virus_Scan_Break_Button.hide()
                 self.ui.Virus_Scan_choose_Button.show()
                 text = self.trans(f"當前發現 {len(self.virus_list)} 個病毒")
             else:
                 self.virus_scan_break()
-                self.init_state_safe()
                 text = self.trans("當前未發現病毒")
             self.ui.Virus_Scan_text.setText(text)
             self.send_notify(text)
@@ -1038,12 +1020,12 @@ class MainWindow_Controller(QMainWindow):
             if file and file not in self.whitelist:
                 if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                     self.whitelist.append(file)
-                    with open("C:/ProgramData/PYAS/Whitelist.ini", "a+", encoding="utf-8") as f:
+                    with open("C:/ProgramData/PYAS/Whitelist.ini", "a+") as f:
                         f.write(f"{file}\n")
                     QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
             elif file and QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                 self.whitelist.remove(file)
-                with open("C:/ProgramData/PYAS/Whitelist.ini", "w", encoding="utf-8") as f:
+                with open("C:/ProgramData/PYAS/Whitelist.ini", "w") as f:
                     for white_file in self.whitelist:
                         f.write(f'{white_file}\n')
                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
@@ -1061,12 +1043,12 @@ class MainWindow_Controller(QMainWindow):
                         if window_name not in self.blocklist:
                             if QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                                 self.blocklist.append(window_name)
-                                with open("C:/ProgramData/PYAS/Blocklist.ini", "a+", encoding="utf-8") as f:
+                                with open("C:/ProgramData/PYAS/Blocklist.ini", "a+") as f:
                                     f.write(f'{window_name}\n')
                                 QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
                         elif QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要取消攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
                             self.blocklist.remove(window_name)
-                            with open("C:/ProgramData/PYAS/Blocklist.ini", "w", encoding="utf-8") as f:
+                            with open("C:/ProgramData/PYAS/Blocklist.ini", "w") as f:
                                 for block_name in self.blocklist:
                                     f.write(f'{block_name}\n')
                             QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
@@ -1258,6 +1240,10 @@ class MainWindow_Controller(QMainWindow):
                     pass
 
     def protect_boot_thread(self):
+        with open(r"\\.\PhysicalDrive0", "r+b") as f:
+            self.mbr_value = f.read(512)
+        if self.mbr_value[510:512] != b'\x55\xAA':
+            self.mbr_value = False
         while self.mbr_protect and self.mbr_value:
             try:
                 time.sleep(0.5)

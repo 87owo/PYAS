@@ -855,7 +855,7 @@ class MainWindow_Controller(QMainWindow):
                 for vfl in func_virus:
                     QApplication.processEvents()
                     max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-                return max(max_vfl) >= 0.9
+                return max(max_vfl) >= 0.95
             return "_CorExeMain" not in fn and fn in func_virus
         except:
             return False

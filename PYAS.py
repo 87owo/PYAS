@@ -3,8 +3,8 @@ import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
-from PYAS_Extension import slist, alist
 from PYAS_Function_Virus import func_virus
+from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
 from threading import Thread
@@ -855,7 +855,7 @@ class MainWindow_Controller(QMainWindow):
                 for vfl in func_virus:
                     QApplication.processEvents()
                     max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-                return max(max_vfl) >= 0.95
+                return max(max_vfl) >= 0.9
             return "_CorExeMain" not in fn and fn in func_virus
         except:
             return False

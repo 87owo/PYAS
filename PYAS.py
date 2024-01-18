@@ -4,6 +4,7 @@ import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 from PYAS_Function_Virus import func_virus
+from PYAS_Function_Safe import func_safe
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -850,12 +851,16 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            max_vfl = []
+            for vfl in func_virus:
+                QApplication.processEvents()
+                max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
+            max_sfl = []
+            for sfl in func_safe:
+                QApplication.processEvents()
+                max_sfl.append(len(set(fn)&set(sfl))/len(set(fn)|set(sfl)))
             if self.json["high_sensitive"]:
-                max_vfl = []
-                for vfl in func_virus:
-                    QApplication.processEvents()
-                    max_vfl.append(len(set(fn)&set(vfl))/len(set(fn)|set(vfl)))
-                return max(max_vfl) >= 0.95
+                return max(max_vfl) >= max(max_sfl)
             return "_CorExeMain" not in fn and fn in func_virus
         except:
             return False

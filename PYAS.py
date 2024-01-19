@@ -1240,7 +1240,7 @@ class MainWindow_Controller(QMainWindow):
             for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     fpath = str(f"C:/Users/{file}").replace("\\", "/")
-                    ftype = str(f".{full_path.split('.')[-1]}").lower()
+                    ftype = str(f".{fpath.split('.')[-1]}").lower()
                     if action == 3 and ftype in slist and os.path.getsize(fpath) <= 20971520:
                         if self.api_scan(fpath) or self.pe_scan(fpath):
                             os.remove(fpath)

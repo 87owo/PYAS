@@ -1231,12 +1231,12 @@ class MainWindow_Controller(QMainWindow):
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
-                    full_path = str(f"C:/Users/{file}").replace("\\", "/")
-                    file_type = str(f".{full_path.split('.')[-1]}").lower()
-                    if action == 3 and file_type in slist and os.path.getsize(full_path) <= 20971520:
-                        if self.api_scan(full_path):
-                            os.remove(full_path)
-                            self.send_notify(self.trans("惡意軟體刪除: ")+full_path)
+                    fpath = str(f"C:/Users/{file}").replace("\\", "/")
+                    ftype = str(f".{full_path.split('.')[-1]}").lower()
+                    if action == 3 and ftype in slist and os.path.getsize(fpath) <= 20971520:
+                        if self.api_scan(fpath) or self.pe_scan(fpath):
+                            os.remove(fpath)
+                            self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
                 except:
                     pass
 

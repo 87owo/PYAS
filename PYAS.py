@@ -3,8 +3,9 @@ import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
-from PYAS_Function_Virus import func_virus
+from PYAS_Function import model_dict
 from PYAS_Extension import slist, alist
+from PYAS_Compress import ListCompressor
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
 from threading import Thread
@@ -23,6 +24,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
+        self.init_data_base()
         self.init_read_json()
         self.init_tray_icon()
         self.init_config_json()
@@ -32,6 +34,10 @@ class MainWindow_Controller(QMainWindow):
         self.init_theme_color()
         self.init_control()
         self.init_threads()
+
+    def init_data_base(self):
+        self.pe = ListCompressor()
+        self.pe.load_model(model_dict)
 
     def init_threads(self):
         self.protect_proc_init()
@@ -851,8 +857,10 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             if self.json["high_sensitive"]:
-                return fn in func_virus
-            return "_CorExeMain" not in fn and fn in func_virus
+                return self.pe.predict(fn)
+            elif "_CorExeMain" not in fn:
+                return self.pe.predict(fn)
+            return False
         except:
             return False
 

@@ -19,8 +19,8 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyae_version = "2024-01-19"
-        self.pyas_version = "3.0.0"
+        self.pyae_version = "2024-01-21"
+        self.pyas_version = "3.0.1"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -1208,24 +1208,23 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     if p.pid not in existing_processes:
                         existing_processes.add(p.pid)
-                        name, file, cmd = p.name(), p.exe(), p.cmdline()
+                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
                             psutil.Process(p.pid).suspend()
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
-                                file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
+                                file = cmd[-1].split("'")[-2].replace("\\", "/")
                                 self.send_notify(self.trans("惡意腳本攔截: ")+file)
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
                                 p.kill()
-                                file = str(" ".join(cmd[2:])).replace("\\", "/")
+                                file = " ".join(cmd[2:]).replace("\\", "/")
                                 self.send_notify(self.trans("惡意腳本攔截: ")+file)
                             elif ":/Windows" in file and self.api_scan(cmd[-1]):
                                 p.kill()
-                                file = str(cmd[-1]).replace("\\", "/")
+                                file = cmd[-1].replace("\\", "/")
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif self.proc_scan(p.pid):
                                 p.kill()
-                                file = str(file).replace("\\", "/")
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):
                                 self.proc = p

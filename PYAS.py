@@ -27,6 +27,7 @@ class MainWindow_Controller(QMainWindow):
         self.init_data_base()
         self.init_read_json()
         self.init_tray_icon()
+        self.init_config_boot()
         self.init_config_json()
         self.init_config_list()
         self.init_config_qtui()
@@ -52,6 +53,15 @@ class MainWindow_Controller(QMainWindow):
         self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.activated.connect(self.init_show_pyas)
         self.tray_icon.show()
+
+    def init_config_boot(self):
+        try:
+            with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                self.mbr_value = f.read(512)
+            if self.mbr_value[510:512] != b'\x55\xAA':
+                self.mbr_value = False
+        except:
+            self.mbr_value = False
 
     def write_config(self, config):
         try:
@@ -1248,10 +1258,6 @@ class MainWindow_Controller(QMainWindow):
                     pass
 
     def protect_boot_thread(self):
-        with open(r"\\.\PhysicalDrive0", "r+b") as f:
-            self.mbr_value = f.read(512)
-        if self.mbr_value[510:512] != b'\x55\xAA':
-            self.mbr_value = False
         while self.mbr_protect and self.mbr_value:
             try:
                 time.sleep(0.5)

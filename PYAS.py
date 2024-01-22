@@ -1261,15 +1261,16 @@ class MainWindow_Controller(QMainWindow):
         while self.mbr_protect and self.mbr_value:
             try:
                 time.sleep(0.5)
-                file = self.proc.exe().replace("\\", "/")
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] != b'\x55\xAA':
                         self.proc.kill()
+                        file = self.proc.exe().replace("\\", "/")
                         self.send_notify(self.trans("惡意行為攔截: ")+file)
                     elif f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
                         self.proc.kill()
+                        file = self.proc.exe().replace("\\", "/")
                         self.send_notify(self.trans("惡意行為攔截: ")+file)
             except:
                 pass

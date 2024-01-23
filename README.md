@@ -33,6 +33,8 @@ PyQt5==5.15.9
 
 ## Hash Scanning
 
+Use Qihoo 360 cloud service to scan known malicious files
+
 ```
 import hashlib, requests
 import xml.etree.ElementTree as xmlet
@@ -59,6 +61,9 @@ print(info)
 ```
 
 ## Pefile Scanning
+
+Get the pefile file function import table for scanning
+
 ```
 import pefile
 

@@ -6,6 +6,8 @@
 
 PYAS.py -> Main PYAS Program (including animation, scanning, protection functions, etc.)
 
+PYAS_Compress.py -> Conversion Database (used to convert database dict and list to and from each other)
+
 PYAS_Extension.py -> File Extension (including scanned file extensions and common file extensions)
 
 PYAS_Function.* -> Compress Database (need to use zip to decompress and put it in the same directory)

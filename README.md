@@ -22,6 +22,8 @@ PYAS_Version.py -> Pyinstaller Info (file information, version information, orig
 
 ## Requirements
 
+Use pip install requirements to install import module
+
 ```
 psutil==5.9.5
 pefile==2023.2.7

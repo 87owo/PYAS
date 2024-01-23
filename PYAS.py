@@ -1234,7 +1234,7 @@ class MainWindow_Controller(QMainWindow):
                                 p.kill()
                                 file = cmd[-1].replace("\\", "/")
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif self.proc_scan(p.pid):
+                            elif ":/Windows" not in file and self.proc_scan(p.pid):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):

@@ -408,7 +408,7 @@ class MainWindow_Controller(QMainWindow):
 
     def timeout(self):
         if self.opacity.i <= 1:
-            self.opacity.i += 0.03
+            self.opacity.i += 0.05
             self.opacity.setOpacity(self.opacity.i)
         else:
             self.timer.stop()

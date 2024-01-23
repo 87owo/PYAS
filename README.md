@@ -97,7 +97,7 @@ Show the new process name, file path, cmd line, pid
 ```
 import psutil, time
 
-def proc_info():
+def proc_detect():
     existing_processes = set()
     for p in psutil.process_iter():
         if p.pid not in existing_processes:
@@ -116,7 +116,36 @@ def proc_info():
             except:
                 pass
 
-proc_info()
+proc_detect()
+```
+
+## File Detect
+
+Monitor file changes under the specified path
+
+```
+import os, win32file, win32con
+
+def file_detect(path):
+    hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+    while True:
+        for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
+            try:
+                fpath = os.path.join(path, file)
+                if action == 1:
+                    print(f"File Create: {fpath}")
+                elif action == 2:
+                    print(f"File Delete: {fpath}")
+                elif action == 3:
+                    print(f"File Modify: {fpath}")
+                elif action == 4:
+                    print(f"File Rename: {fpath}")
+                elif action == 5:
+                    print(f"File Rename: {fpath}")
+            except:
+                pass
+
+file_detect("path")
 ```
 
 ## Official Website

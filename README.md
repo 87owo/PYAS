@@ -8,7 +8,7 @@ PYAS.py -> Main PYAS Program (including animation, scanning, protection function
 
 PYAS_Extension.py -> File Extension (including scanned file extensions and common file extensions)
 
-PYAS_Function*.7z -> Compress Database (need to use 7zip to decompress and put it in the same directory)
+PYAS_Function.* -> Compress Database (need to use zip to decompress and put it in the same directory)
 
 PYAS_Interface.py -> PyQt5 Interface (designed by QT designer, must be matched with the main program)
 

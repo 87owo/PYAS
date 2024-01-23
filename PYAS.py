@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyae_version = "2024-01-21"
+        self.pyae_version = "2024-01-23"
         self.pyas_version = "3.0.1"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -338,6 +338,7 @@ class MainWindow_Controller(QMainWindow):
                 self.ui.State_icon.setPixmap(QPixmap(file))
         except:
             self.ui.Theme_White.setChecked(True)
+            self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
             self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
 

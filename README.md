@@ -91,6 +91,9 @@ print(info)
 ```
 
 ## Process Detect
+
+Show the new process name, file path, cmd line, pid
+
 ```
 import psutil, time
 
@@ -108,6 +111,7 @@ def proc_info():
                     name, file, cmd = p.name(), p.exe(), p.cmdline()
                     print(f"Name: {name}")
                     print(f"File: {file}")
+                    print(f"Pid: {p.pid}")
                     print(f"Cmd: {cmd}")
             except:
                 pass

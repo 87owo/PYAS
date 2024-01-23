@@ -90,6 +90,31 @@ info = pe_scan("path to file")
 print(info)
 ```
 
+## Process Detect
+```
+import psutil, time
+
+def proc_info():
+    existing_processes = set()
+    for p in psutil.process_iter():
+        if p.pid not in existing_processes:
+            existing_processes.add(p.pid)
+    while True:
+        time.sleep(0.1)
+        for p in psutil.process_iter():
+            try:
+                if p.pid not in existing_processes:
+                    existing_processes.add(p.pid)
+                    name, file, cmd = p.name(), p.exe(), p.cmdline()
+                    print(f"Name: {name}")
+                    print(f"File: {file}")
+                    print(f"Cmd: {cmd}")
+            except:
+                pass
+
+proc_info()
+```
+
 ## Official Website
 
 https://pyantivirus.wixsite.com/pyas

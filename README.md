@@ -2,7 +2,7 @@
 
 ![PYAS](https://github.com/87owo/PYAS/assets/85057800/153bcad9-18ab-4c81-bcb6-186434d0ef1b)
 
-## File Function
+## File Information
 
 PYAS.py -> Main PYAS Program (including animation, scanning, protection functions, etc.)
 
@@ -43,7 +43,9 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
 Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
 
+Other systems may experience software malfunctions or crash
+
 ## Special Thanks
-360, Wix, VirusShare, mtkiao129, LenStevens, AV-T Team of LisectGroup
+360, Wix, VirusShare, mtkiao129, AV-T Team of LisectGroup
 
 Copyright© 2020~2024 PYAS Security By 87owo

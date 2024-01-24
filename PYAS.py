@@ -555,7 +555,7 @@ class MainWindow_Controller(QMainWindow):
     def init_show_pyas(self):
         def update_opacity():
             if self.pyas_opacity <= 100:
-                self.pyas_opacity += 1
+                self.pyas_opacity += 2
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
@@ -568,7 +568,7 @@ class MainWindow_Controller(QMainWindow):
     def init_hide_pyas(self):
         def update_opacity():
             if self.pyas_opacity >= 0:
-                self.pyas_opacity -= 1
+                self.pyas_opacity -= 2
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()

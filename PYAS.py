@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyae_version = "2024-01-23"
+        self.pyae_version = "2024-01-24"
         self.pyas_version = "3.0.1"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -1214,7 +1214,7 @@ class MainWindow_Controller(QMainWindow):
             if p.pid not in existing_processes:
                 existing_processes.add(p.pid)
         while self.proc_protect:
-            time.sleep(0.05)
+            time.sleep(0.01)
             for p in psutil.process_iter():
                 try:
                     if p.pid not in existing_processes:

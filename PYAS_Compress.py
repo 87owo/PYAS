@@ -24,7 +24,7 @@ class ListCompressor:
     def predict(self, new_list):
         for label, items in self.model.items():
             if label != 'word' and hashlib.md5(''.join(map(str, new_list)).encode()).hexdigest()[:8] in items:
-                return label
+                return True
         return None
 
     def get_label(self):

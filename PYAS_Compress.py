@@ -1,4 +1,4 @@
-import json
+import json, hashlib
 
 class ListCompressor:
     def __init__(self):
@@ -18,13 +18,14 @@ class ListCompressor:
     def train_model(self, label, data):
         if label not in self.model:
             self.model[label] = []
-        unique_words = set([item for sublist in data for item in sublist])
-        self.model['word'] = {word: idx for idx, word in enumerate(unique_words)}
-        self.model[label].extend([[self.model['word'][item] for item in lst] for lst in data])
+        for lst in data:
+            self.model[label].append(hashlib.md5(''.join(map(str, lst)).encode()).hexdigest()[:8])
 
     def predict(self, new_list):
-        new_list = [self.model['word'].get(item, 1) for item in new_list if item in self.model['word']]
         for label, items in self.model.items():
-            if label != 'word' and new_list in items:
+            if label != 'word' and hashlib.md5(''.join(map(str, new_list)).encode()).hexdigest()[:8] in items:
                 return label
         return None
+
+    def get_label(self):
+        return list(self.model.keys())[0]

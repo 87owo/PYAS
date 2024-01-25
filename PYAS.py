@@ -19,8 +19,8 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = str(sys.argv[0]).replace("\\", "/")
-        self.pyae_version = "2024-01-24"
-        self.pyas_version = "3.0.1"
+        self.pyae_version = "0000-00-00"
+        self.pyas_version = "3.0.2"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -36,10 +36,6 @@ class MainWindow_Controller(QMainWindow):
         self.init_control()
         self.init_threads()
 
-    def init_data_base(self):
-        self.pe = ListCompressor()
-        self.pe.load_model(model_dict)
-
     def init_threads(self):
         self.protect_proc_init()
         self.protect_file_init()
@@ -53,6 +49,19 @@ class MainWindow_Controller(QMainWindow):
         self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.activated.connect(self.init_show_pyas)
         self.tray_icon.show()
+
+    def init_data_base(self):
+        try:
+            if os.path.exists("C:/ProgramData/PYAS/PYAS_Function.vdb"):
+                self.pe = ListCompressor()
+                self.pe.load_model("C:/ProgramData/PYAS/PYAS_Function.vdb")
+                self.pyae_version = self.pe.get_label()
+            else:
+                self.pe = ListCompressor()
+                self.pe.load_model(model_dict)
+                self.pyae_version = self.pe.get_label()
+        except Exception as e:
+            self.bug_event(e)
 
     def init_config_boot(self):
         try:

@@ -25,7 +25,7 @@ class ListCompressor:
         for label, items in self.model.items():
             if label != 'word' and hashlib.md5(''.join(map(str, new_list)).encode()).hexdigest()[:8] in items:
                 return True
-        return None
+        return False
 
     def get_label(self):
         return list(self.model.keys())[0]

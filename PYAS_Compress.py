@@ -13,8 +13,7 @@ class ListCompressor:
         if isinstance(model_data, str):
             with open(model_data, 'r') as f:
                 model_data = json.load(f)
-        self.model['word'] = model_data['word']
-        self.model.update(model_data)
+        self.model = model_data
 
     def train_model(self, label, data):
         if label not in self.model:

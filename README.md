@@ -10,7 +10,7 @@ PYAS_Compress.py -> Conversion Database (used to convert database dict and list 
 
 PYAS_Extension.py -> File Extension (including scanned file extensions and common file extensions)
 
-PYAS_Function.* -> Compress Database (need to use zip to decompress and put it in the same directory)
+PYAS_Function.* -> Virus Database (the virus database must be placed in the same directory)
 
 PYAS_Interface.py -> PyQt5 Interface (designed by QT designer, must be matched with the main program)
 

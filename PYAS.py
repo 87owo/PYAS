@@ -618,7 +618,7 @@ class MainWindow_Controller(QMainWindow):
 
     def send_notify(self, text):
         try:
-            now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+            now_time = time.strftime('%Y-%m-%d %H:%M:%S')
             print(f"[Notify] > [{now_time}] {text}")
             self.tray_icon.showMessage(now_time, text, 5000)
             QMetaObject.invokeMethod(self.ui.State_output, "append", Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))

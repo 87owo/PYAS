@@ -52,14 +52,9 @@ class MainWindow_Controller(QMainWindow):
 
     def init_data_base(self):
         try:
-            if os.path.exists("C:/ProgramData/PYAS/PYAS_Function.vdb"):
-                self.pe = ListCompressor()
-                self.pe.load_model("C:/ProgramData/PYAS/PYAS_Function.vdb")
-                self.pyae_version = self.pe.get_label()
-            else:
-                self.pe = ListCompressor()
-                self.pe.load_model(model_dict)
-                self.pyae_version = self.pe.get_label()
+            self.pe = ListCompressor()
+            self.pe.load_model(model_dict)
+            self.pyae_version = self.pe.get_label()
         except Exception as e:
             self.bug_event(e)
 

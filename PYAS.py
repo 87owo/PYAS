@@ -3,7 +3,6 @@ import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
-from PYAS_Function import model_dict
 from PYAS_Extension import slist, alist
 from PYAS_Compress import ListCompressor
 from PYAS_Language import translate_dict
@@ -18,7 +17,8 @@ class MainWindow_Controller(QMainWindow):
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.pyas = str(sys.argv[0]).replace("\\", "/")
+        self.pyas = sys.argv[0].replace("\\", "/")
+        self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "0000-00-00"
         self.pyas_version = "3.0.2"
         self.ui = Ui_MainWindow()
@@ -52,9 +52,11 @@ class MainWindow_Controller(QMainWindow):
 
     def init_data_base(self):
         try:
-            self.pe = ListCompressor()
-            self.pe.load_model(model_dict)
-            self.pyae_version = self.pe.get_label()
+            file_path = os.path.join(self.dir, "PYAS_Function.vdb")
+            if os.path.exists(file_path):
+                self.pe = ListCompressor()
+                self.pe.load_model(file_path)
+                self.pyae_version = self.pe.get_label()
         except Exception as e:
             self.bug_event(e)
 
@@ -587,7 +589,7 @@ class MainWindow_Controller(QMainWindow):
             self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
-        if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要退出 PYAS 和所有防護嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+        if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
             self.virus_scan_break()
             event.accept()
         else:
@@ -595,24 +597,56 @@ class MainWindow_Controller(QMainWindow):
 
     def bug_event(self, text):
         try:
-            print(f"[Error] {text}")
-            QMessageBox.critical(self,self.trans("錯誤"), text, QMessageBox.Ok)
+            print(f"[Error] > {text}")
+            QMessageBox.critical(self, "Error", str(text), QMessageBox.Ok)
         except:
             pass
+
+    def info_event(self, text):
+        try:
+            print(f"[Info] > {text}")
+            QMessageBox.information(self, "Info", self.trans(str(text)), QMessageBox.Ok)
+        except:
+            pass
+
+    def question_event(self, text):
+        try:
+            print(f"[Quest] > {text}")
+            return QMessageBox.question(self, "Quest", self.trans(str(text)),QMessageBox.Yes|QMessageBox.No) == 16384
+        except:
+            return False
 
     def send_notify(self, text):
         try:
             now_time = time.strftime('%Y/%m/%d %H:%M:%S')
+            print(f"[Notify] > [{now_time}] {text}")
             self.tray_icon.showMessage(now_time, text, 5000)
             QMetaObject.invokeMethod(self.ui.State_output, "append", Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))
         except:
             pass
 
+    def update_database(self):
+        try:
+            if self.question_event("您確定要更新數據庫嗎?"):
+                file_path = os.path.join(self.dir, "PYAS_Function.vdb")
+                ver_response = requests.get('http://27.147.30.238:5001/database/check', timeout=5)
+                if ver_response.status_code == 200:
+                    if ver_response.text != self.pyae_version:
+                        response = requests.get('http://27.147.30.238:5001/database/download', timeout=5)
+                        with open(file_path, 'wb') as f:
+                            f.write(response.content)
+                        return True
+                    self.info_event(f"數據庫已經是最新: {ver_response.text}")
+        except Exception as e:
+            self.bug_event(e)
+
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
+        Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
+        self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About and self.ui.About_widget.isHidden():
@@ -630,6 +664,11 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
+        if Qusetion == Main_Update and self.update_database():
+            self.init_data_base()
+            self.init_lang_text()
+            self.info_event(f"數據庫更新成功: {self.pyae_version}")
+            
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -639,7 +678,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(220,220,220);}""")
-        elif QMessageBox.warning(self,self.trans("警告"),self.trans("此選項可能會誤報檔案，您確定要開啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+        elif self.question_event("此選項可能會誤報檔案，您確定要開啟嗎?"):
             self.json["high_sensitive"] = 1
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
@@ -848,7 +887,7 @@ class MainWindow_Controller(QMainWindow):
                     text = str(hashlib.md5(f.read()).hexdigest())
                 QApplication.processEvents()
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
-                response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=3)
+                response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=5)
                 return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
             return False
         except:
@@ -892,13 +931,13 @@ class MainWindow_Controller(QMainWindow):
 
     def repair_system(self):
         try:
-            if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要修復系統檔案嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if self.question_event("您確定要修復系統檔案嗎?"):
                 self.repair_system_wallpaper()
                 self.repair_system_restrict()
                 self.repair_system_file_type()
                 self.repair_system_file_icon()
                 self.repair_system_image()
-                QMessageBox.information(self,self.trans("成功"),self.trans("修復系統檔案成功"),QMessageBox.Ok)
+                self.info_event("修復系統檔案成功")
         except Exception as e:
             self.bug_event(e)
 
@@ -1011,12 +1050,12 @@ class MainWindow_Controller(QMainWindow):
 
     def clean_system(self):
         try:
-            if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要清理系統垃圾嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if self.question_event("您確定要清理系統垃圾嗎?"):
                 self.total_deleted_size = 0
                 self.traverse_temp(f"C:/Users/{os.getlogin()}/AppData/Local/Temp/")
                 self.traverse_temp(f"C:/Windows/Temp/")
                 self.traverse_temp(f"C:/$Recycle.Bin/")
-                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾"),QMessageBox.Ok)
+                self.info_event(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾")
         except Exception as e:
             self.bug_event(e)
 
@@ -1038,40 +1077,40 @@ class MainWindow_Controller(QMainWindow):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("增加到白名單"),"C:/")[0]).replace("\\", "/")
             if file and file not in self.whitelist:
-                if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                if self.question_event("您確定要增加到白名單嗎?"):
                     self.whitelist.append(file)
                     with open("C:/ProgramData/PYAS/Whitelist.ini", "a+") as f:
                         f.write(f"{file}\n")
-                    QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到白名單: ")+file,QMessageBox.Ok)
-            elif file and QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要取消增加到白名單嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                    self.info_event(f"成功增加到白名單: "+file)
+            elif file and self.question_event("您確定要取消增加到白名單嗎?"):
                 self.whitelist.remove(file)
                 with open("C:/ProgramData/PYAS/Whitelist.ini", "w") as f:
                     for white_file in self.whitelist:
                         f.write(f'{white_file}\n')
-                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消增加到白名單: ")+file,QMessageBox.Ok)
+                self.info_event(f"成功取消增加到白名單: "+file)
         except Exception as e:
             self.bug_event(e)
 
     def get_software_window(self):
         try:
             self.block_window = False
-            if QMessageBox.warning(self,self.trans("警告"),self.trans("請選擇要攔截的軟體彈窗"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if self.question_event("請選擇要攔截的軟體彈窗"):
                 while not self.block_window:
                     window_name = str(win32gui.GetWindowText(win32gui.GetForegroundWindow()))
                     QApplication.processEvents()
                     if window_name not in ["","PYAS",self.trans("警告")]:
                         if window_name not in self.blocklist:
-                            if QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                            if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
                                 self.blocklist.append(window_name)
                                 with open("C:/ProgramData/PYAS/Blocklist.ini", "a+") as f:
                                     f.write(f'{window_name}\n')
-                                QMessageBox.information(self,self.trans("成功"),self.trans(f"成功增加到彈窗攔截: ")+window_name,QMessageBox.Ok)
-                        elif QMessageBox.warning(self,self.trans("警告"),self.trans(f"您確定要取消攔截 {window_name} 嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                                self.info_event(f"成功增加到彈窗攔截: "+window_name)
+                        elif self.question_event(f"您確定要取消攔截 {window_name} 嗎?"):
                             self.blocklist.remove(window_name)
                             with open("C:/ProgramData/PYAS/Blocklist.ini", "w") as f:
                                 for block_name in self.blocklist:
                                     f.write(f'{block_name}\n')
-                            QMessageBox.information(self,self.trans("成功"),self.trans(f"成功取消彈窗攔截: ")+window_name,QMessageBox.Ok)
+                            self.info_event(f"成功取消彈窗攔截: "+window_name)
                         self.block_window = True
             self.block_window_init()
         except Exception as e:
@@ -1092,9 +1131,9 @@ class MainWindow_Controller(QMainWindow):
 
     def repair_network(self):
         try:
-            if QMessageBox.warning(self,self.trans("警告"),self.trans("您確定要修復系統網路嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+            if self.question_event("您確定要修復系統網路嗎?"):
                 os.system("netsh winsock reset")
-                if QMessageBox.warning(self,self.trans("警告"),self.trans("使用此選項需要重啟，您確定要重啟嗎?"),QMessageBox.Yes|QMessageBox.No) == 16384:
+                if self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
                     os.system("shutdown -r -t 0")
         except Exception as e:
             self.bug_event(e)

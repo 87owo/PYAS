@@ -629,14 +629,15 @@ class MainWindow_Controller(QMainWindow):
         try:
             if self.question_event("您確定要更新數據庫嗎?"):
                 file_path = os.path.join(self.dir, "PYAS_Function.vdb")
-                ver_response = requests.get('http://27.147.30.238:5001/database/check', timeout=5)
-                if ver_response.status_code == 200:
-                    if ver_response.text != self.pyae_version:
-                        response = requests.get('http://27.147.30.238:5001/database/download', timeout=5)
-                        with open(file_path, 'wb') as f:
-                            f.write(response.content)
-                        return True
-                    self.info_event(f"數據庫已經是最新: {ver_response.text}")
+                response = requests.get('http://27.147.30.238:5001/database', params={"version": self.pyae_version}, timeout=5)
+                if response.status_code == 200:
+                    with open(file_path, 'wb') as f:
+                        f.write(response.content)
+                    self.init_data_base()
+                    self.init_lang_text()
+                    self.info_event(f"數據庫更新成功: {self.pyae_version}")
+                elif response.status_code == 204:
+                    self.info_event(f"數據庫已經是最新: {self.pyae_version}")
         except Exception as e:
             self.bug_event(e)
 
@@ -664,11 +665,8 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
-        if Qusetion == Main_Update and self.update_database():
-            self.init_data_base()
-            self.init_lang_text()
-            self.info_event(f"數據庫更新成功: {self.pyae_version}")
-            
+        if Qusetion == Main_Update:
+            self.update_database()
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()

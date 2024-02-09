@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "0000-00-00"
-        self.pyas_version = "3.0.2"
+        self.pyas_version = "3.0.3"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -885,6 +885,7 @@ class MainWindow_Controller(QMainWindow):
                     text = str(hashlib.md5(f.read()).hexdigest())
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=5)
+                print(response.text)
                 return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
             return False
         except:
@@ -1111,7 +1112,7 @@ class MainWindow_Controller(QMainWindow):
                         self.block_window = True
             self.block_window_init()
         except Exception as e:
-            self.bug_event(e) 
+            self.bug_event(e)
 
     def block_window_init(self):
         self.block_window = True
@@ -1120,7 +1121,7 @@ class MainWindow_Controller(QMainWindow):
     def block_software_window(self):
         while self.block_window:
             try:
-                time.sleep(0.5)
+                time.sleep(0.2)
                 for window_name in self.blocklist:
                     win32gui.PostMessage(win32gui.FindWindow(None, window_name), 274, 61536, 0)
             except:
@@ -1249,19 +1250,19 @@ class MainWindow_Controller(QMainWindow):
             Thread(target=self.protect_net_thread, daemon=True).start()
 
     def protect_proc_thread(self):
-        existing_processes = set()
+        self.existing_processes = set()
         for p in psutil.process_iter():
-            if p.pid not in existing_processes:
-                existing_processes.add(p.pid)
+            if p.pid not in self.existing_processes:
+                self.existing_processes.add(p.pid)
         while self.proc_protect:
-            time.sleep(0.01)
+            time.sleep(0.1)
             for p in psutil.process_iter():
                 try:
-                    if p.pid not in existing_processes:
-                        existing_processes.add(p.pid)
+                    if p.pid not in self.existing_processes:
+                        self.existing_processes.add(p.pid)
+                        psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
-                            psutil.Process(p.pid).suspend()
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 file = cmd[-1].split("'")[-2].replace("\\", "/")
@@ -1279,8 +1280,7 @@ class MainWindow_Controller(QMainWindow):
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):
                                 self.proc = p
-                            psutil.Process(p.pid).resume()
-                            gc.collect()
+                        psutil.Process(p.pid).resume()
                 except:
                     pass
 
@@ -1301,7 +1301,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_boot_thread(self):
         while self.mbr_protect and self.mbr_value:
             try:
-                time.sleep(0.5)
+                time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] != b'\x55\xAA':
                         self.proc.kill()
@@ -1319,7 +1319,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_reg_thread(self):
         while self.reg_protect:
             try:
-                time.sleep(0.5)
+                time.sleep(0.2)
                 self.repair_system_image()
                 self.repair_system_restrict()
                 self.repair_system_file_type()
@@ -1330,7 +1330,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_net_thread(self):
         while self.net_protect:
             try:
-                time.sleep(0.5)
+                time.sleep(0.2)
                 local = socket.gethostbyname(socket.gethostname())
                 for conn in self.proc.connections():
                     file = self.proc.exe().replace("\\", "/")

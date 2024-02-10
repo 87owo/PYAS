@@ -1253,13 +1253,13 @@ class MainWindow_Controller(QMainWindow):
         for p in psutil.process_iter():
             existing_processes.add(p.pid)
         while self.proc_protect:
-            time.sleep(0.01)
+            time.sleep(0.1)
             for p in psutil.process_iter():
                 try:
                     if p.pid not in existing_processes:
+                        psutil.Process(p.pid).suspend()
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
-                            psutil.Process(p.pid).suspend()
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 file = cmd[-1].split("'")[-2].replace("\\", "/")
@@ -1278,7 +1278,7 @@ class MainWindow_Controller(QMainWindow):
                             elif ":/Windows" not in file and self.sign_scan(file):
                                 existing_processes.add(p.pid)
                                 self.proc = p
-                            psutil.Process(p.pid).resume()
+                        psutil.Process(p.pid).resume()
                     elif not psutil.pid_exists(p.pid):
                         existing_processes.remove(p.pid)
                 except:

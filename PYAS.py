@@ -1248,20 +1248,30 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_net_thread, daemon=True).start()
 
+    def lock_process(self, pid):
+        try:
+            psutil.Process(pid).suspend()
+        except:
+            pass
+
+    def unlock_process(self, pid):
+        try:
+            psutil.Process(pid).resume()
+        except:
+            pass
+
     def protect_proc_thread(self):
-        self.existing_processes = set()
+        existing_processes = set()
         for p in psutil.process_iter():
-            if p.pid not in self.existing_processes:
-                self.existing_processes.add(p.pid)
+            existing_processes.add(p.pid)
         while self.proc_protect:
-            time.sleep(0.1)
+            time.sleep(0.01)
             for p in psutil.process_iter():
                 try:
-                    if p.pid not in self.existing_processes:
-                        self.existing_processes.add(p.pid)
-                        psutil.Process(p.pid).suspend()
+                    if p.pid not in existing_processes:
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
+                            psutil.Process(p.pid).suspend()
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 p.kill()
                                 file = cmd[-1].split("'")[-2].replace("\\", "/")
@@ -1278,8 +1288,11 @@ class MainWindow_Controller(QMainWindow):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):
+                                existing_processes.add(p.pid)
                                 self.proc = p
-                        psutil.Process(p.pid).resume()
+                            psutil.Process(p.pid).resume()
+                    elif not psutil.pid_exists(p.pid):
+                        existing_processes.remove(p.pid)
                 except:
                     pass
 

@@ -1276,9 +1276,9 @@ class MainWindow_Controller(QMainWindow):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):
-                                existing_processes.add(p.pid)
                                 self.proc = p
                             psutil.Process(p.pid).resume()
+                            existing_processes.add(p.pid)
                     elif not psutil.pid_exists(p.pid):
                         existing_processes.remove(p.pid)
                 except:

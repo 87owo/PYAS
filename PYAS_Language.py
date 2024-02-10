@@ -18,7 +18,7 @@ translate_dict = {
               "惡":"恶","據":"据","庫":"库","經":"经","敗":"败"},
     "en_US": {"已開啟":"On","已關閉":"Off","已开启":"On","已关闭":"Off","，":", ",
               "立即刪除":"Delete Now","安全模式":"Safe Mode","官方網站":"Website",
-              "惡意檔案":"Virus ","惡意軟體":"Malware ","勒索軟體":"Ransom ",
+              "惡意檔案":"Virus ","惡意軟體":"Malware ","勒索行為":"Ransom ",
               "惡意腳本":"Script ","惡意行為":"Behavior ","可疑軟體":"Suspicious ",
               "許可條款":"License Terms","惡意":"Malicious","可疑":"Suspicious",
               "啟用":"Enable ","禁用":"Disable ","正在初始化中":"Initializing ",

@@ -1169,7 +1169,11 @@ class MainWindow_Controller(QMainWindow):
             if self.Process_popMenu.exec_(self.ui.Process_list.mapToGlobal(pos)) == self.kill_Process:
                 for p in psutil.process_iter():
                     if p.pid == self.pid:
-                        p.kill()
+                        file = p.exe().replace("\\", "/")
+                        if file == self.pyas:
+                            self.close()
+                        else:
+                            p.kill()
         except:
             pass
 

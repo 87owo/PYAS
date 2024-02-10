@@ -1248,18 +1248,6 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
             Thread(target=self.protect_net_thread, daemon=True).start()
 
-    def lock_process(self, pid):
-        try:
-            psutil.Process(pid).suspend()
-        except:
-            pass
-
-    def unlock_process(self, pid):
-        try:
-            psutil.Process(pid).resume()
-        except:
-            pass
-
     def protect_proc_thread(self):
         existing_processes = set()
         for p in psutil.process_iter():

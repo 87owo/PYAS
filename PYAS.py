@@ -1257,7 +1257,7 @@ class MainWindow_Controller(QMainWindow):
         for p in psutil.process_iter():
             existing_processes.add(p.pid)
         while self.proc_protect:
-            time.sleep(0.1)
+            time.sleep(0.01)
             for p in psutil.process_iter():
                 try:
                     if p.pid not in existing_processes:
@@ -1295,15 +1295,17 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
-                    if action == 2 and ":/Users" in fpath and ftype in alist:
-                        if "/AppData/" not in fpath:
+                    if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
+                        if ftype in alist:
                             self.proc.kill()
                             file = self.proc.exe().replace("\\", "/")
                             self.send_notify(self.trans("勒索行為攔截: ")+file)
-                    elif action == 3 and ":/Windows" not in fpath and ftype in slist:
-                        if os.path.getsize(fpath) <= 20971520 and self.api_scan(fpath):
-                            os.remove(fpath)
-                            self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
+                    elif action == 3 and os.path.getsize(fpath) <= 20971520 and ftype in slist:
+                        if ":/Users" in fpath or ":/Windows" not in fpath:
+                            if self.api_scan(fpath) or self.pe_scan(fpath):
+                                os.remove(fpath)
+                                self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
+                    gc.collect()
                 except:
                     pass
 

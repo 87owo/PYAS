@@ -915,9 +915,9 @@ class MainWindow_Controller(QMainWindow):
         except:
             return False
 
-    def proc_scan(self, pid):
+    def proc_scan(self, p):
         try:
-            for entry in psutil.Process(pid).memory_maps():
+            for entry in psutil.Process(p.pid).memory_maps():
                 file = entry.path.replace("\\", "/")
                 if ":/Windows" not in file and ":/Program" not in file:
                     if self.api_scan(file) or self.pe_scan(file):
@@ -1276,7 +1276,7 @@ class MainWindow_Controller(QMainWindow):
                                 p.kill()
                                 file = cmd[-1].replace("\\", "/")
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif ":/Windows" not in file and self.proc_scan(p.pid):
+                            elif ":/Windows" not in file and self.proc_scan(p):
                                 p.kill()
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):

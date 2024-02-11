@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
-        self.pyae_version = "0000-00-00"
+        self.pyae_version = "0000-00-00 00:00:00"
         self.pyas_version = "3.0.3"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)

@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "0000-00-00 00:00:00"
-        self.pyas_version = "3.0.3"
+        self.pyas_version = "3.0.4"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -866,8 +866,6 @@ class MainWindow_Controller(QMainWindow):
                 file = str(os.path.join(path,fd)).replace("\\", "/")
                 if self.scan_file == False:
                     break
-                elif ":/Windows" in file:
-                    continue
                 elif os.path.isdir(file):
                     self.traverse_path(file)
                 elif file not in self.whitelist:
@@ -1027,7 +1025,7 @@ class MainWindow_Controller(QMainWindow):
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
-                        self.proc.kill()
+                        self.kill_process(self.proc)
                         file = self.proc.exe().replace("\\", "/")
                         self.send_notify(self.trans("惡意行為攔截: ")+file)
                     except:
@@ -1265,19 +1263,19 @@ class MainWindow_Controller(QMainWindow):
                         if file != self.pyas and file not in self.whitelist:
                             psutil.Process(p.pid).suspend()
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                p.kill()
+                                self.kill_process(p)
                                 file = cmd[-1].split("'")[-2].replace("\\", "/")
                                 self.send_notify(self.trans("惡意腳本攔截: ")+file)
                             elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                p.kill()
+                                self.kill_process(p)
                                 file = " ".join(cmd[2:]).replace("\\", "/")
                                 self.send_notify(self.trans("惡意腳本攔截: ")+file)
                             elif ":/Windows" in file and self.api_scan(cmd[-1]):
-                                p.kill()
+                                self.kill_process(p)
                                 file = cmd[-1].replace("\\", "/")
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.proc_scan(p):
-                                p.kill()
+                                self.kill_process(p)
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):
                                 self.proc = p
@@ -1288,6 +1286,14 @@ class MainWindow_Controller(QMainWindow):
                 except:
                     pass
 
+    def kill_process(self, parent):
+        try:
+            parent.kill()
+            for child in parent.children(recursive=True):
+                child.kill()
+        except:
+            pass
+
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         while self.file_protect:
@@ -1297,7 +1303,7 @@ class MainWindow_Controller(QMainWindow):
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
                     if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
                         if ftype in alist:
-                            self.proc.kill()
+                            self.kill_process(self.proc)
                             file = self.proc.exe().replace("\\", "/")
                             self.send_notify(self.trans("勒索行為攔截: ")+file)
                     elif action == 3 and os.path.getsize(fpath) <= 20971520 and ftype in slist:
@@ -1315,13 +1321,13 @@ class MainWindow_Controller(QMainWindow):
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] != b'\x55\xAA':
-                        self.proc.kill()
+                        self.kill_process(self.proc)
                         file = self.proc.exe().replace("\\", "/")
                         self.send_notify(self.trans("惡意行為攔截: ")+file)
                     elif f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        self.proc.kill()
+                        self.kill_process(self.proc)
                         file = self.proc.exe().replace("\\", "/")
                         self.send_notify(self.trans("惡意行為攔截: ")+file)
             except:
@@ -1347,7 +1353,7 @@ class MainWindow_Controller(QMainWindow):
                     file = self.proc.exe().replace("\\", "/")
                     if ":/Windows" not in file and ":/Program" not in file:
                         if conn.laddr.ip == local:
-                            self.proc.kill()
+                            self.kill_process(self.proc)
                             self.send_notify(self.trans("網路通訊攔截: ")+file)
             except:
                 pass

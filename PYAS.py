@@ -910,7 +910,7 @@ class MainWindow_Controller(QMainWindow):
             if self.json["high_sensitive"]:
                 return ones >= zero
             elif "_CorExeMain" not in fn:
-                return ones > zero
+                return ones - zero > 0.1
             return False
         except:
             return False

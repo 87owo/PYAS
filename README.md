@@ -6,11 +6,11 @@
 
 PYAS.py -> Main PYAS Program (including animation, scanning, protection functions, etc.)
 
-PYAS_Compress.py -> Conversion Database (used to convert database dict and list to and from each other)
+PYAS_Engine.py -> Conversion Database (used to convert database dict and list to and from each other)
 
 PYAS_Extension.py -> File Extension (including scanned file extensions and common file extensions)
 
-PYAS_Function.* -> Virus Database (the virus database must be placed in the same directory)
+PYAS_Model.* -> Virus Database (the virus database must be placed in the same directory)
 
 PYAS_Interface.py -> PyQt5 Interface (designed by QT designer, must be matched with the main program)
 

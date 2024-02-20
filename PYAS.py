@@ -3,8 +3,8 @@ import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
+from PYAS_Engine import ListSimHash
 from PYAS_Extension import slist, alist
-from PYAS_Compress import ListCompressor
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
 from threading import Thread
@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
-        self.pyae_version = "0000-00-00 00:00:00"
+        self.pyae_version = "PE Simhash Engine"
         self.pyas_version = "3.0.4"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -52,11 +52,10 @@ class MainWindow_Controller(QMainWindow):
 
     def init_data_base(self):
         try:
-            file_path = os.path.join(self.dir, "PYAS_Function.vdb")
+            file_path = os.path.join(self.dir, "PYAS_Model.json")
             if os.path.exists(file_path):
-                self.pe = ListCompressor()
+                self.pe = ListSimHash()
                 self.pe.load_model(file_path)
-                self.pyae_version = self.pe.get_label()
         except Exception as e:
             self.bug_event(e)
 
@@ -644,10 +643,10 @@ class MainWindow_Controller(QMainWindow):
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
-        Main_Update = QAction(self.trans("更新"),self)
+        #Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
-        self.WindowMenu.addAction(Main_Update)
+        #self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About and self.ui.About_widget.isHidden():
@@ -665,8 +664,8 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
-        if Qusetion == Main_Update:
-            self.update_database()
+        #if Qusetion == Main_Update:
+            #self.update_database()
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -905,10 +904,12 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            QApplication.processEvents()
+            ones, zero = self.pe.predict(fn)
             if self.json["high_sensitive"]:
-                return self.pe.predict(fn)
+                return ones >= zero
             elif "_CorExeMain" not in fn:
-                return self.pe.predict(fn)
+                return ones > zero
             return False
         except:
             return False

@@ -1,4 +1,4 @@
-import json, re, hashlib, numpy, time
+import re, time, json, hashlib, numpy
 from itertools import groupby
 
 class ListSimHash:
@@ -19,29 +19,42 @@ class ListSimHash:
     def get_model(self, label):
         return self.model[label]
 
-    def train_model(self, ones, zero, feature=128, batch_size=1000, progress=True):
-        self.progress = progress
+    def train_model(self, ones, zero, feature=128, batch_size=1000):
+        self.model["ones"] = []
+        self.model["zero"] = []
         self.model["feature"] = feature
         self.model["batch_size"] = batch_size
-        self.model["version"] = time.strftime("%Y-%m-%d %H:%M:%S")
-        self.model["ones"] = [self.build_text(" ".join(x)) for x in ones]
-        self.model["zero"] = [self.build_text(" ".join(y)) for y in zero]
+        start = time.time()
+        print("Convert ones")
+        for i, x in enumerate(ones, 1):
+            self.model["ones"].append(self.build_text(x))
+            used = "{0:.2f}".format(time.time()-start)
+            self.progress_bar(i, len(ones), prefix=f'{i}/{len(ones)}:', suffix=f'{used}s')
+        start = time.time()
+        print("Convert zero")
+        for i, y in enumerate(zero, 1):
+            self.model["zero"].append(self.build_text(y))
+            used = "{0:.2f}".format(time.time()-start)
+            self.progress_bar(i, len(zero), prefix=f'{i}/{len(zero)}:', suffix=f'{used}s')
 
     def build_text(self, content, width=4):
         sums, batch, count = [], [], 0
+        if isinstance(content, list):
+            content = ' '.join(content)
+        elif isinstance(content, bytes):
+            content = content.decode('utf-8', errors='ignore')
         content = ''.join(re.findall(r'[\w\u4e00-\u9fcc]+', content.lower()))
         features = [content[i:i + width] for i in range(max(len(content) - width + 1, 1))]
         features = {k: sum(1 for _ in g) for k, g in groupby(sorted(features))}
-        total = len(features)
-        for i, (f, w) in enumerate(features.items(), 1):
+        for f, w in features.items():
             count += w
             h = hashlib.md5(f.encode('utf-8')).digest()
             batch.append(h * w)
-            if len(batch) >= self.model["batch_size"] or i == total:
+            if len(batch) >= self.model["batch_size"]:
                 sums.append(self.sum_hashes(batch))
                 batch = []
-                if self.progress:
-                    self.progress_bar(i, total, prefix=f'Block {i}/{total}:')
+        if batch:
+            sums.append(self.sum_hashes(batch))
         combined_sums = numpy.sum(sums, 0)
         v = numpy.packbits(combined_sums > count / 2).tobytes()
         return int.from_bytes(v, 'big')
@@ -56,11 +69,10 @@ class ListSimHash:
         percent_string = "{0:.2f}".format(percent)
         filled_length = int(length * iteration // total)
         bar = fill * filled_length + ' ' * (length - filled_length)
-        print(f'\r{prefix: <20} |{bar}| {percent_string}% {suffix}', end=end_char)
+        print(f'\r    {prefix: <10} |{bar}| {percent_string}% {suffix}', end=end_char)
 
-    def predict(self, query, progress=False):
-        self.progress = progress
-        query_hash = self.build_text(" ".join(query))
+    def predict(self, query):
+        query_hash = self.build_text(query)
         max_ones = max(self.similar(x, query_hash) for x in self.model["ones"])
         max_zero = max(self.similar(y, query_hash) for y in self.model["zero"])
         return max_ones, max_zero

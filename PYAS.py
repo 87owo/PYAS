@@ -907,9 +907,9 @@ class MainWindow_Controller(QMainWindow):
             QApplication.processEvents()
             ones, zero = self.pe.predict(fn)
             if self.json["high_sensitive"]:
-                return ones == 1.0 or ones >= zero
+                return ones >= zero
             elif "_CorExeMain" not in fn:
-                return ones == 1.0 or ones - zero >= 0.1
+                return ones == 1.0
             return False
         except:
             return False

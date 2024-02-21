@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
-        self.pyae_version = "PE Simhash Engine"
+        self.pyae_version = "PE SimHash Engine"
         self.pyas_version = "3.0.4"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -627,8 +627,8 @@ class MainWindow_Controller(QMainWindow):
     def update_database(self):
         try:
             if self.question_event("您確定要更新數據庫嗎?"):
-                file_path = os.path.join(self.dir, "PYAS_Function.vdb")
-                response = requests.get('http://27.147.30.238:5001/database', params={"version": self.pyae_version}, timeout=5)
+                file_path = os.path.join(self.dir, "PYAS_Model.json")
+                response = requests.get('http://27.147.30.238:5001/model', params={"version": self.pyae_version}, timeout=10)
                 if response.status_code == 200:
                     with open(file_path, 'wb') as f:
                         f.write(response.content)
@@ -906,11 +906,10 @@ class MainWindow_Controller(QMainWindow):
                             pass
             QApplication.processEvents()
             ones, zero = self.pe.predict(fn)
-            #print(ones, zero)
             if self.json["high_sensitive"]:
-                return ones >= zero
+                return ones == 1.0 or ones >= zero
             elif "_CorExeMain" not in fn:
-                return ones - zero > 0.1
+                return ones == 1.0 or ones - zero >= 0.1
             return False
         except:
             return False

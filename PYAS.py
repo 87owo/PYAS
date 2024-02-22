@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "PE SimHash Engine"
-        self.pyas_version = "3.0.4"
+        self.pyas_version = "3.0.5"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -904,7 +904,6 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            QApplication.processEvents()
             ones, zero = self.pe.predict(fn)
             if self.json["high_sensitive"]:
                 return ones >= zero

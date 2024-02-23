@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
-        self.pyae_version = "PE SimHash Engine"
+        self.pyae_version = "SimHash Engine"
         self.pyas_version = "3.0.5"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -1254,6 +1254,7 @@ class MainWindow_Controller(QMainWindow):
         existing_processes = set()
         for p in psutil.process_iter():
             existing_processes.add(p.pid)
+        psutil.Process(os.getpid()).nice(256)
         while self.proc_protect:
             time.sleep(0.01)
             for p in psutil.process_iter():

@@ -1,5 +1,5 @@
 # PYAS (Python Antivirus Software)
-中文
+[中文](https://github.com/zackzheng1121/PYAS/blob/main/README_zh.md)
 
 ![PYAS](https://github.com/87owo/PYAS/assets/85057800/153bcad9-18ab-4c81-bcb6-186434d0ef1b)
 

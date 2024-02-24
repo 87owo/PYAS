@@ -90,10 +90,9 @@ info = pe_scan("path to file")
 print(info)
 ```
 
-## Process Detect
+## 進程偵測
 
-Show the new process name, file path, cmd line, pid
-
+顯示新進程名稱、檔案路徑、cmd 行、pid
 ```
 import psutil, time
 

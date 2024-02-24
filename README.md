@@ -113,6 +113,8 @@ def proc_detect():
                     print(f"File: {file}")
                     print(f"Pid: {p.pid}")
                     print(f"Cmd: {cmd}")
+                elif not psutil.pid_exists(p.pid):
+                    existing_processes.remove(p.pid)
             except:
                 pass
 

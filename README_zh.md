@@ -20,7 +20,7 @@ PYAS_Language.py -> 翻譯字典（繁體中文、簡體中文、英文）
 
 PYAS_Version.py -> Pyinstaller Info（檔案資訊、版本資訊、原名等）
 
-##要求
+## 要求
 
 使用 pip install requirements 來安裝需要的模組
 

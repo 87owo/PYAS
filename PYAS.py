@@ -705,7 +705,7 @@ class MainWindow_Controller(QMainWindow):
             QApplication.processEvents()
             try:
                 for file in self.virus_list:
-                    self.unlock_file(file)
+                    self.lock_file(file, False)
             except:
                 pass
             self.scan_file = True
@@ -732,17 +732,14 @@ class MainWindow_Controller(QMainWindow):
         copyPath.triggered.connect(lambda: copyPathFunc())
         menu.exec_(self.ui.Virus_Scan_output.mapToGlobal(point))
 
-    def lock_file(self, file):
+    def lock_file(self, file, lock):
         try:
-            self.virus_lock[file] = os.open(file, os.O_RDWR)
-            msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
-        except:
-            pass
-
-    def unlock_file(self, file):
-        try:
-            msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
-            os.close(self.virus_lock[file])
+            if lock:
+                self.virus_lock[file] = os.open(file, os.O_RDWR)
+                msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
+            else:
+                msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+                os.close(self.virus_lock[file])
         except:
             pass
 
@@ -754,10 +751,10 @@ class MainWindow_Controller(QMainWindow):
                     if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
                         self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
                         QApplication.processEvents()
-                        self.unlock_file(file)
+                        self.lock_file(file, False)
                         os.remove(file)
                     else:
-                        self.unlock_file(file)
+                        self.lock_file(file, False)
                 except:
                     continue
             self.virus_lock = {}
@@ -770,7 +767,7 @@ class MainWindow_Controller(QMainWindow):
 
     def write_scan(self, state, file):
         try:
-            self.lock_file(file)
+            self.lock_file(file, True)
             self.virus_list.append(file)
             self.virus_list_ui.append(f"[{state}] {file}")
             item = QListWidgetItem()
@@ -904,12 +901,11 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            ones, zero = self.pe.predict(fn)
+            m1, m0 = self.pe.predict(fn)
+            #print(m1, m0, file)
             if self.json["high_sensitive"]:
-                return ones >= zero
-            elif "_CorExeMain" not in fn:
-                return ones == 1.0
-            return False
+                return m1 >= m0
+            return m1 > 0.95 and m1 > m0
         except:
             return False
 
@@ -1262,7 +1258,7 @@ class MainWindow_Controller(QMainWindow):
                     if p.pid not in existing_processes:
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
-                            psutil.Process(p.pid).suspend()
+                            self.lock_process(p, True)
                             if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
                                 self.kill_process(p)
                                 file = cmd[-1].split("'")[-2].replace("\\", "/")
@@ -1280,12 +1276,21 @@ class MainWindow_Controller(QMainWindow):
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
                             elif ":/Windows" not in file and self.sign_scan(file):
                                 self.proc = p
-                            psutil.Process(p.pid).resume()
+                            self.lock_process(p, False)
                             existing_processes.add(p.pid)
                     elif not psutil.pid_exists(p.pid):
                         existing_processes.remove(p.pid)
                 except:
-                    pass
+                    self.lock_process(p, False)
+
+    def lock_process(self, p, lock):
+        try:
+            if lock:
+                psutil.Process(p.pid).suspend()
+            else:
+                psutil.Process(p.pid).resume()
+        except:
+            pass
 
     def kill_process(self, parent):
         try:

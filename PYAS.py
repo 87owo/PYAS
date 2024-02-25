@@ -902,7 +902,7 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             m1, m0 = self.pe.predict(fn)
-            #print(m1, m0, file)
+            print(m1, m0, file)
             if self.json["high_sensitive"]:
                 return m1 >= m0
             return m1 > 0.95 and m1 > m0
@@ -1308,9 +1308,9 @@ class MainWindow_Controller(QMainWindow):
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
                     if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
-                        if ftype in alist:
+                        file = self.proc.exe().replace("\\", "/")
+                        if ":/Program" not in file and ftype in alist:
                             self.kill_process(self.proc)
-                            file = self.proc.exe().replace("\\", "/")
                             self.send_notify(self.trans("勒索行為攔截: ")+file)
                     elif action == 3 and os.path.getsize(fpath) <= 20971520 and ftype in slist:
                         if ":/Users" in fpath or ":/Windows" not in fpath:

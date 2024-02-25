@@ -19,11 +19,12 @@ class ListSimHash:
     def get_model(self, label):
         return self.model[label]
 
-    def train_model(self, ones, zero, feature=128, batch_size=1000):
+    def train_model(self, ones, zero, width=8, feature=128, batch=1000):
+        self.model["feature"] = feature
+        self.model["batch"] = batch
+        self.model["width"] = width
         self.model["ones"] = []
         self.model["zero"] = []
-        self.model["feature"] = feature
-        self.model["batch_size"] = batch_size
         start = time.time()
         print("Convert ones")
         for i, x in enumerate(ones, 1):
@@ -37,7 +38,8 @@ class ListSimHash:
             used = "{0:.2f}".format(time.time()-start)
             self.progress_bar(i, len(zero), prefix=f'{i}/{len(zero)}:', suffix=f'{used}s')
 
-    def build_text(self, content, width=4):
+    def build_text(self, content):
+        width = self.model["width"]
         sums, batch, count = [], [], 0
         if isinstance(content, list):
             content = ' '.join(content)
@@ -50,7 +52,7 @@ class ListSimHash:
             count += w
             h = hashlib.md5(f.encode('utf-8')).digest()
             batch.append(h * w)
-            if len(batch) >= self.model["batch_size"]:
+            if len(batch) >= self.model["batch"]:
                 sums.append(self.sum_hashes(batch))
                 batch = []
         if batch:

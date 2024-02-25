@@ -624,29 +624,11 @@ class MainWindow_Controller(QMainWindow):
         except:
             pass
 
-    def update_database(self):
-        try:
-            if self.question_event("您確定要更新數據庫嗎?"):
-                file_path = os.path.join(self.dir, "PYAS_Model.json")
-                response = requests.get('http://27.147.30.238:5001/model', params={"version": self.pyae_version}, timeout=10)
-                if response.status_code == 200:
-                    with open(file_path, 'wb') as f:
-                        f.write(response.content)
-                    self.init_data_base()
-                    self.init_lang_text()
-                    self.info_event(f"數據庫更新成功: {self.pyae_version}")
-                elif response.status_code == 204:
-                    self.info_event(f"數據庫已經是最新: {self.pyae_version}")
-        except Exception as e:
-            self.bug_event(e)
-
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
-        #Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
-        #self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About and self.ui.About_widget.isHidden():
@@ -664,8 +646,6 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
-        #if Qusetion == Main_Update:
-            #self.update_database()
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -1312,12 +1292,11 @@ class MainWindow_Controller(QMainWindow):
                         if ":/Program" not in file and ftype in alist:
                             self.kill_process(self.proc)
                             self.send_notify(self.trans("勒索行為攔截: ")+file)
-                    elif action == 3 and os.path.getsize(fpath) <= 20971520 and ftype in slist:
-                        if ":/Users" in fpath or ":/Windows" not in fpath:
+                    elif action == 3 and ":/Users" in fpath and ":/Windows" not in fpath:
+                        if os.path.getsize(fpath) <= 20971520 and ftype in slist:
                             if self.api_scan(fpath) or self.pe_scan(fpath):
                                 os.remove(fpath)
                                 self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
-                    gc.collect()
                 except:
                     pass
 

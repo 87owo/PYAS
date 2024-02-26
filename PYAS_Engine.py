@@ -19,10 +19,9 @@ class ListSimHash:
     def get_model(self, label):
         return self.model[label]
 
-    def train_model(self, ones, zero, width=8, feature=128, batch=1000):
+    def train_model(self, ones, zero, feature=128, batch=1000):
         self.model["feature"] = feature
         self.model["batch"] = batch
-        self.model["width"] = width
         self.model["ones"] = []
         self.model["zero"] = []
         start = time.time()
@@ -39,15 +38,8 @@ class ListSimHash:
             self.progress_bar(i, len(zero), prefix=f'{i}/{len(zero)}:', suffix=f'{used}s')
 
     def build_text(self, content):
-        width = self.model["width"]
         sums, batch, count = [], [], 0
-        if isinstance(content, list):
-            content = ' '.join(content)
-        elif isinstance(content, bytes):
-            content = content.decode('utf-8', errors='ignore')
-        content = ''.join(re.findall(r'[\w\u4e00-\u9fcc]+', content.lower()))
-        features = [content[i:i + width] for i in range(max(len(content) - width + 1, 1))]
-        features = {k: sum(1 for _ in g) for k, g in groupby(sorted(features))}
+        features = {k: sum(1 for _ in g) for k, g in groupby(sorted(content))}
         for f, w in features.items():
             count += w
             h = hashlib.md5(f.encode('utf-8')).digest()

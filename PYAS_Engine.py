@@ -1,4 +1,4 @@
-import re, time, json, hashlib, numpy
+import time, json, hashlib, numpy
 from itertools import groupby
 
 class ListSimHash:

@@ -158,7 +158,7 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
 ## 支援的系統
 
-Windows 8.1, 10, 11 (64-bit),記憶體 1GB, 唯讀記憶體 1GB 或更高
+Windows 8.1, 10, 11 (64-bit),記憶體 1GB, 磁碟容量 1GB 或更高
 Other systems may experience software malfunctions or crash
 
 ## Special Thanks

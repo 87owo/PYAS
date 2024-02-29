@@ -4,7 +4,7 @@
 
 ## Readme Language
 
-[中文](https://github.com/zackzheng1121/PYAS/blob/main/README_zh.md)
+[繁體中文](https://github.com/zackzheng1121/PYAS/blob/main/README_zh.md)
 
 ## File Information
 

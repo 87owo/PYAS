@@ -49,8 +49,7 @@ class ListSimHash:
                 batch = []
         if batch:
             sums.append(self.sum_hashes(batch))
-        combined_sums = numpy.sum(sums, 0)
-        v = numpy.packbits(combined_sums > count / 2).tobytes()
+        v = numpy.packbits(numpy.sum(sums, 0) > count / 2).tobytes()
         return int.from_bytes(v, 'big')
 
     def sum_hashes(self, digests):

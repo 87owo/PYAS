@@ -854,7 +854,7 @@ class MainWindow_Controller(QMainWindow):
 
     def api_scan(self, file):
         try:
-            if self.json["cloud_services"] == 1:
+            if self.json["cloud_services"]:
                 with open(file, "rb") as f:
                     text = str(hashlib.md5(f.read()).hexdigest())
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
@@ -882,7 +882,7 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             m1, m0 = self.pe.predict(fn)
-            print(m1, m0, file)
+            #print(m1, m0, file)
             if self.json["high_sensitive"]:
                 return m1 >= m0
             return m1 >= 0.9 and m1 > m0

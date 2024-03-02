@@ -882,10 +882,9 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             m1, m0 = self.pe.predict(fn)
-            #print(m1 - m0, file)
             if self.json["high_sensitive"]:
                 return m1 >= m0
-            return m1 - m0 > 0.03
+            return m1 == 1.0 and m1 > m0
         except:
             return False
 

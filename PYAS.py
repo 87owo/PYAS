@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "SimHash Engine"
-        self.pyas_version = "3.0.5"
+        self.pyas_version = "3.0.6"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -881,10 +881,12 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
-            m1, m0 = self.pe.predict(fn)
+            out = self.pe.predict_all(fn)
+            v, w = out["Virus"], out["White"]
+            print(v, w, file)
             if self.json["high_sensitive"]:
-                return m1 >= m0
-            return m1 == 1.0 and m1 > m0
+                return v >= w
+            return v > w and v == 1.0
         except:
             return False
 
@@ -1253,7 +1255,7 @@ class MainWindow_Controller(QMainWindow):
                             elif ":/Windows" not in file and self.proc_scan(p):
                                 self.kill_process(p)
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif ":/Windows" not in file and self.sign_scan(file):
+                            elif ":/Windows" not in file and ":/Program" not in file:
                                 self.proc = p
                             self.lock_process(p, False)
                             existing_processes.add(p.pid)
@@ -1288,10 +1290,10 @@ class MainWindow_Controller(QMainWindow):
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
                     if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
                         file = self.proc.exe().replace("\\", "/")
-                        if ":/Program" not in file and "/AppData/" not in file and ftype in alist:
+                        if "/AppData/" not in file and ftype in alist:
                             self.kill_process(self.proc)
                             self.send_notify(self.trans("勒索行為攔截: ")+file)
-                    elif action == 3 and ":/Users" in fpath and ":/Windows" not in fpath:
+                    elif action == 3 and ":/Users" in fpath and "/AppData/" not in fpath:
                         if os.path.getsize(fpath) <= 20971520 and ftype in slist:
                             if self.api_scan(fpath) or self.pe_scan(fpath):
                                 os.remove(fpath)

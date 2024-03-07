@@ -1235,7 +1235,7 @@ class MainWindow_Controller(QMainWindow):
             time.sleep(0.01)
             for p in psutil.process_iter():
                 try:
-                    if p.pid not in existing_processes:
+                    if psutil.pid_exists(p.pid) and p.pid not in existing_processes:
                         name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
                         if file != self.pyas and file not in self.whitelist:
                             self.lock_process(p, True)
@@ -1254,8 +1254,6 @@ class MainWindow_Controller(QMainWindow):
                                 self.proc = p
                             self.lock_process(p, False)
                             existing_processes.add(p.pid)
-                    elif not psutil.pid_exists(p.pid):
-                        existing_processes.remove(p.pid)
                 except:
                     self.lock_process(p, False)
 

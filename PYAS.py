@@ -1255,7 +1255,7 @@ class MainWindow_Controller(QMainWindow):
                             elif ":/Windows" not in file and self.proc_scan(p):
                                 self.kill_process(p)
                                 self.send_notify(self.trans("惡意軟體攔截: ")+file)
-                            elif ":/Windows" not in file and ":/Program" not in file:
+                            elif ":/Windows" not in file and self.sign_scan(file):
                                 self.proc = p
                             self.lock_process(p, False)
                             existing_processes.add(p.pid)
@@ -1288,13 +1288,13 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
-                    if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
+                    if action == 2 and ":/Users" in fpath and ftype in alist:
                         file = self.proc.exe().replace("\\", "/")
-                        if "/AppData/" not in file and ftype in alist:
+                        if "/AppData/" not in file and ":/Program" not in file:
                             self.kill_process(self.proc)
                             self.send_notify(self.trans("勒索行為攔截: ")+file)
                     elif action == 3 and ":/Users" in fpath and "/AppData/" not in fpath:
-                        if os.path.getsize(fpath) <= 20971520 and ftype in slist:
+                        if os.path.getsize(fpath) <= 52428800 and ftype in slist:
                             if self.api_scan(fpath) or self.pe_scan(fpath):
                                 os.remove(fpath)
                                 self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
@@ -1337,7 +1337,7 @@ class MainWindow_Controller(QMainWindow):
                 local = socket.gethostbyname(socket.gethostname())
                 for conn in self.proc.connections():
                     file = self.proc.exe().replace("\\", "/")
-                    if ":/Windows" not in file and ":/Program" not in file:
+                    if "/AppData/" not in file and ":/Program" not in file:
                         if conn.laddr.ip == local:
                             self.kill_process(self.proc)
                             self.send_notify(self.trans("網路通訊攔截: ")+file)

@@ -1269,9 +1269,9 @@ class MainWindow_Controller(QMainWindow):
     def kill_process(self, parent, info, file):
         try:
             parent.kill()
+            self.send_notify(self.trans(f"{info}: ")+file)
             for child in parent.children(recursive=True):
                 child.kill()
-            self.send_notify(self.trans(f"{info}: ")+file)
         except:
             pass
 

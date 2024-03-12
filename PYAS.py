@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "SimHash Engine"
-        self.pyas_version = "3.0.6"
+        self.pyas_version = "3.0.7"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -1227,35 +1227,43 @@ class MainWindow_Controller(QMainWindow):
             Thread(target=self.protect_net_thread, daemon=True).start()
 
     def protect_proc_thread(self):
-        existing_processes = set()
+        existing_process = set()
         for p in psutil.process_iter():
-            existing_processes.add(p.pid)
-        psutil.Process(os.getpid()).nice(256)
+            existing_process.add(p.pid)
         while self.proc_protect:
             time.sleep(0.01)
+            new_process = set()
             for p in psutil.process_iter():
+                new_process.add(p.pid)
+            for pid in new_process - existing_process:
                 try:
-                    if psutil.pid_exists(p.pid) and p.pid not in existing_processes:
-                        name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-                        if file != self.pyas and file not in self.whitelist:
-                            self.lock_process(p, True)
-                            if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
-                                file = cmd[-1].split("'")[-2].replace("\\", "/")
-                                self.kill_process(p, "惡意腳本攔截", file)
-                            elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
-                                file = " ".join(cmd[2:]).replace("\\", "/")
-                                self.kill_process(p, "惡意腳本攔截", file)
-                            elif ":/Windows" in file and self.api_scan(cmd[-1]):
-                                file = cmd[-1].replace("\\", "/")
-                                self.kill_process(p, "惡意軟體攔截", file)
-                            elif ":/Windows" not in file and self.proc_scan(p):
-                                self.kill_process(p, "惡意軟體攔截", file)
-                            elif ":/Windows" not in file and self.sign_scan(file):
-                                self.proc = p
-                            self.lock_process(p, False)
-                            existing_processes.add(p.pid)
+                    p = psutil.Process(pid)
+                    self.handle_new_process(p)
                 except:
-                    self.lock_process(p, False)
+                    pass
+            existing_process = new_process
+
+    def handle_new_process(self, p):
+        try:
+            name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
+            if file != self.pyas and file not in self.whitelist:
+                self.lock_process(p, True)
+                if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                    file = cmd[-1].split("'")[-2].replace("\\", "/")
+                    self.kill_process(p, "惡意腳本攔截", file)
+                elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                    file = " ".join(cmd[2:]).replace("\\", "/")
+                    self.kill_process(p, "惡意腳本攔截", file)
+                elif ":/Windows" in file and self.api_scan(cmd[-1]):
+                    file = cmd[-1].replace("\\", "/")
+                    self.kill_process(p, "惡意軟體攔截", file)
+                elif ":/Windows" not in file and self.proc_scan(p):
+                    self.kill_process(p, "惡意軟體攔截", file)
+                elif ":/Windows" not in file and self.sign_scan(file):
+                    self.proc = p
+                self.lock_process(p, False)
+        except:
+            self.lock_process(p, False)
 
     def lock_process(self, p, lock):
         try:
@@ -1264,7 +1272,7 @@ class MainWindow_Controller(QMainWindow):
             else:
                 psutil.Process(p.pid).resume()
         except:
-            return False
+            pass
 
     def kill_process(self, parent, info, file):
         try:

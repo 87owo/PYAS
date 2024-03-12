@@ -747,14 +747,15 @@ class MainWindow_Controller(QMainWindow):
 
     def write_scan(self, state, file):
         try:
-            self.lock_file(file, True)
-            self.virus_list.append(file)
-            self.virus_list_ui.append(f"[{state}] {file}")
-            item = QListWidgetItem()
-            item.setText(f"[{state}] {file}")
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Checked)
-            self.ui.Virus_Scan_output.addItem(item)
+            if state and file:
+                self.lock_file(file, True)
+                self.virus_list.append(file)
+                self.virus_list_ui.append(f"[{state}] {file}")
+                item = QListWidgetItem()
+                item.setText(f"[{state}] {file}")
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                item.setCheckState(Qt.Checked)
+                self.ui.Virus_Scan_output.addItem(item)
         except:
             pass
 
@@ -792,7 +793,7 @@ class MainWindow_Controller(QMainWindow):
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
             if file and file not in self.whitelist:
                 self.init_scan()
-                self.start_scan(file)
+                self.write_scan(self.start_scan(file),file)
                 self.answer_scan()
         except Exception as e:
             self.bug_event(e)
@@ -820,22 +821,6 @@ class MainWindow_Controller(QMainWindow):
             self.bug_event(e)
             self.virus_scan_break()
 
-    def start_scan(self, file):
-        try:
-            file_type = str(f".{file.split('.')[-1]}").lower()
-            if self.json["high_sensitive"] and file != self.pyas:
-                if self.api_scan(file):
-                    self.write_scan(self.trans("惡意"),file)
-                elif self.pe_scan(file):
-                    self.write_scan(self.trans("可疑"),file)
-            elif file_type in slist and file != self.pyas:
-                if self.api_scan(file):
-                    self.write_scan(self.trans("惡意"),file)
-                elif self.pe_scan(file):
-                    self.write_scan(self.trans("可疑"),file)
-        except:
-            pass
-
     def traverse_path(self,path):
         for fd in os.listdir(path):
             try:
@@ -847,29 +832,46 @@ class MainWindow_Controller(QMainWindow):
                 elif file not in self.whitelist:
                     self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
                     QApplication.processEvents()
-                    self.start_scan(file)
+                    self.write_scan(self.start_scan(file),file)
                 gc.collect()
             except:
                 pass
+
+    def start_scan(self, file):
+        try:
+            level = self.api_scan(file)
+            if file != self.pyas and level > 50:
+                return f"Cloud/Blacklist.{level}"
+            elif file != self.pyas and level > 10:
+                vl, wl = self.pe_scan(file)
+                if vl > wl and vl == 100:
+                    return f"Pefile/Blacklist.{vl}"
+                elif vl >= wl and self.json["high_sensitive"]:
+                    return f"Fusion/Predict.{vl}"
+            elif file != self.pyas and not level:
+                vl, wl = self.pe_scan(file)
+                if vl > wl and vl == 100:
+                    return f"Pefile/Blacklist.{vl}"
+                elif vl >= wl and self.json["high_sensitive"]:
+                    return f"Pefile/Predict.{vl}"
+            return False
+        except:
+            return False
 
     def api_scan(self, file):
         try:
             if self.json["cloud_services"]:
                 with open(file, "rb") as f:
                     text = str(hashlib.md5(f.read()).hexdigest())
+                QApplication.processEvents()
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=5)
-                return response.status_code == 200 and float(xmlet.fromstring(response.text).find('.//e_level').text) > 50
+                QApplication.processEvents()
+                if response.status_code == 200:
+                    return int(float(xmlet.fromstring(response.text).find('.//e_level').text))
             return False
         except:
             return False
-
-    def sign_scan(self, file):
-        try:
-            with pefile.PE(file, fast_load=True) as pe:
-                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
-        except:
-            return True
 
     def pe_scan(self, file):
         try:
@@ -881,21 +883,29 @@ class MainWindow_Controller(QMainWindow):
                             fn.append(str(func.name, "utf-8"))
                         except:
                             pass
+            QApplication.processEvents()
             out = self.pe.predict_all(fn)
-            v, w = out["Virus"], out["White"]
-            print(v, w, file)
-            if self.json["high_sensitive"]:
-                return v >= w
-            return v > w and v == 1.0
+            virus = int(out["Virus"]*100)
+            white = int(out["White"]*100)
+            return virus, white
         except:
             return False
 
+    def sign_scan(self, file):
+        try:
+            with pefile.PE(file, fast_load=True) as pe:
+                return pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
+        except:
+            return True
+
     def proc_scan(self, p):
         try:
+            if isinstance(p, str) and os.path.exists(p):
+                return self.start_scan(file)
             for entry in psutil.Process(p.pid).memory_maps():
                 file = entry.path.replace("\\", "/")
                 if ":/Windows" not in file and ":/Program" not in file:
-                    if self.api_scan(file) or self.pe_scan(file):
+                    if self.start_scan(file):
                         return True
             return False
         except:
@@ -1248,13 +1258,13 @@ class MainWindow_Controller(QMainWindow):
             name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
             if file != self.pyas and file not in self.whitelist:
                 self.lock_process(p, True)
-                if "powershell" in name and self.api_scan(cmd[-1].split("'")[-2]):
+                if "powershell" in name and self.start_scan(cmd[-1].split("'")[-2]):
                     file = cmd[-1].split("'")[-2].replace("\\", "/")
                     self.kill_process(p, "惡意腳本攔截", file)
-                elif "cmd.exe" in name and self.api_scan(" ".join(cmd[2:])):
+                elif "cmd.exe" in name and self.start_scan(" ".join(cmd[2:])):
                     file = " ".join(cmd[2:]).replace("\\", "/")
                     self.kill_process(p, "惡意腳本攔截", file)
-                elif ":/Windows" in file and self.api_scan(cmd[-1]):
+                elif ":/Windows" in file and self.start_scan(cmd[-1]):
                     file = cmd[-1].replace("\\", "/")
                     self.kill_process(p, "惡意軟體攔截", file)
                 elif ":/Windows" not in file and self.proc_scan(p):
@@ -1296,7 +1306,7 @@ class MainWindow_Controller(QMainWindow):
                             self.kill_process(self.proc, "勒索行為攔截", file)
                     elif action == 3 and ":/Users" in fpath and "/AppData/" not in fpath:
                         if os.path.getsize(fpath) <= 52428800 and ftype in slist:
-                            if self.api_scan(fpath) or self.pe_scan(fpath):
+                            if self.start_scan(fpath):
                                 os.remove(fpath)
                                 self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
                 except:

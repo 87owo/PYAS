@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "SimHash Engine"
-        self.pyas_version = "3.0.7"
+        self.pyas_version = "3.0.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_show_pyas()
@@ -839,21 +839,21 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
-            level = self.api_scan(file)
+            label, level = self.api_scan(file)
             if file != self.pyas and level > 50:
-                return f"Cloud/Blacklist.{level}"
+                return f"{label}"#.{level}"
             elif file != self.pyas and level > 10:
-                vl, wl = self.pe_scan(file)
-                if vl > wl and vl == 100:
-                    return f"Pefile/Blacklist.{vl}"
-                elif vl >= wl and self.json["high_sensitive"]:
-                    return f"Fusion/Predict.{vl}"
+                label_2, level_2 = self.pe_scan(file)
+                if "White" not in label_2 and "Unknown" not in label_2:
+                    return f"{label_2}"#.{int(level_2*100)}"
+                elif "Unknown" in label_2 and self.json["high_sensitive"]:
+                    return f"{label_2}"#.{int(level_2*100)}"
             elif file != self.pyas and not level:
-                vl, wl = self.pe_scan(file)
-                if vl > wl and vl == 100:
-                    return f"Pefile/Blacklist.{vl}"
-                elif vl >= wl and self.json["high_sensitive"]:
-                    return f"Pefile/Predict.{vl}"
+                label_2, level_2 = self.pe_scan(file)
+                if "White" not in label_2 and "Unknown" not in label_2:
+                    return f"{label_2}"#.{int(level_2*100)}"
+                elif "Unknown" in label_2 and self.json["high_sensitive"]:
+                    return f"{label_2}"#.{int(level_2*100)}"
             return False
         except:
             return False
@@ -868,10 +868,12 @@ class MainWindow_Controller(QMainWindow):
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=5)
                 QApplication.processEvents()
                 if response.status_code == 200:
-                    return int(float(xmlet.fromstring(response.text).find('.//e_level').text))
-            return False
+                    label = str(xmlet.fromstring(response.text).find('.//malware').text).split('/')[1].split('.')
+                    level = int(float(xmlet.fromstring(response.text).find('.//e_level').text))
+                    return f"{label[0]}", level#/{label[1]}"
+            return False, False
         except:
-            return False
+            return False, False
 
     def pe_scan(self, file):
         try:
@@ -884,12 +886,9 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             QApplication.processEvents()
-            out = self.pe.predict_all(fn)
-            virus = int(out["Virus"]*100)
-            white = int(out["White"]*100)
-            return virus, white
+            return self.pe.predict(fn)
         except:
-            return False
+            return False, False
 
     def sign_scan(self, file):
         try:
@@ -1286,10 +1285,11 @@ class MainWindow_Controller(QMainWindow):
 
     def kill_process(self, parent, info, file):
         try:
-            parent.kill()
             self.send_notify(self.trans(f"{info}: ")+file)
             for child in parent.children(recursive=True):
                 child.kill()
+            parent.kill()
+            self.proc = None
         except:
             pass
 
@@ -1326,7 +1326,8 @@ class MainWindow_Controller(QMainWindow):
                         file = self.proc.exe().replace("\\", "/")
                         self.kill_process(self.proc, "惡意行為攔截", file)
             except:
-                pass
+                file = self.proc.exe().replace("\\", "/")
+                self.kill_process(self.proc, "惡意行為攔截", file)
 
     def protect_reg_thread(self):
         while self.reg_protect:

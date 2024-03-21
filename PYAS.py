@@ -1298,8 +1298,9 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
-                    if action == 2 and ":/Users" in fpath and ftype in alist:
-                        if "/AppData/" not in file and ":/Program" not in file:
+                    if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
+                        file = self.proc.exe().replace("\\", "/")
+                        if ":/Program" not in file and ftype in alist:
                             self.kill_process(self.proc, "勒索行為攔截")
                     elif action == 3 and ":/Users" in fpath and "/AppData/" not in fpath:
                         if os.path.getsize(fpath) <= 52428800 and ftype in slist:

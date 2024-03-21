@@ -841,19 +841,19 @@ class MainWindow_Controller(QMainWindow):
         try:
             label, level = self.api_scan(file)
             if file != self.pyas and level > 50:
-                return f"{label}"#.{level}"
+                return f"{label}"
             elif file != self.pyas and level > 10:
                 label_2, level_2 = self.pe_scan(file)
                 if "White" not in label_2 and "Unknown" not in label_2:
-                    return f"{label_2}"#.{int(level_2*100)}"
+                    return f"{label_2}"
                 elif "Unknown" in label_2 and self.json["high_sensitive"]:
-                    return f"{label_2}"#.{int(level_2*100)}"
+                    return f"{label_2}"
             elif file != self.pyas and not level:
                 label_2, level_2 = self.pe_scan(file)
                 if "White" not in label_2 and "Unknown" not in label_2:
-                    return f"{label_2}"#.{int(level_2*100)}"
+                    return f"{label_2}"
                 elif "Unknown" in label_2 and self.json["high_sensitive"]:
-                    return f"{label_2}"#.{int(level_2*100)}"
+                    return f"{label_2}"
             return False
         except:
             return False
@@ -870,7 +870,7 @@ class MainWindow_Controller(QMainWindow):
                 if response.status_code == 200:
                     label = str(xmlet.fromstring(response.text).find('.//malware').text).split('/')[1].split('.')
                     level = int(float(xmlet.fromstring(response.text).find('.//e_level').text))
-                    return f"{label[0]}", level#/{label[1]}"
+                    return f"{label[0]}", level
             return False, False
         except:
             return False, False

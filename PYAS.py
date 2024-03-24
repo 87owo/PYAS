@@ -1,8 +1,8 @@
 import os, gc, sys, time, json, psutil
 import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
-import requests, pyperclip, win32file
-import win32gui, win32api, win32con
+import requests, pyperclip, ctypes
+import win32gui, win32api, win32con, win32file
 from PYAS_Engine import ListSimHash
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
@@ -903,7 +903,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             if isinstance(p, str) and os.path.exists(p):
                 return self.start_scan(file)
-            for entry in psutil.Process(p.pid).memory_maps():
+            for entry in p.memory_maps():
                 file = entry.path.replace("\\", "/")
                 if ":/Windows" not in file and ":/Program" not in file:
                     if self.start_scan(file):
@@ -1237,6 +1237,7 @@ class MainWindow_Controller(QMainWindow):
             Thread(target=self.protect_net_thread, daemon=True).start()
 
     def protect_proc_thread(self):
+        self.proc = None
         existing_process = set()
         for p in psutil.process_iter():
             existing_process.add(p.pid)
@@ -1275,20 +1276,20 @@ class MainWindow_Controller(QMainWindow):
     def lock_process(self, p, lock):
         try:
             if lock:
-                psutil.Process(p.pid).suspend()
+                p.suspend()
             else:
-                psutil.Process(p.pid).resume()
+                p.resume()
         except:
             pass
 
-    def kill_process(self, parent, info):
+    def kill_process(self, p, info):
         try:
-            if psutil.pid_exists(parent.pid):
-                file = parent.exe().replace("\\", "/")
+            if p.is_running():
+                file = p.exe().replace("\\", "/")
                 self.send_notify(self.trans(f"{info}: ")+file)
-                for child in parent.children(recursive=True):
+                for child in p.children(recursive=True):
                     child.kill()
-                parent.kill()
+                p.kill()
             self.proc = None
         except:
             pass

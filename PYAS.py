@@ -1,8 +1,8 @@
 import os, gc, sys, time, json, psutil
 import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
-import requests, pyperclip, ctypes
-import win32gui, win32api, win32con, win32file
+import requests, pyperclip, win32file
+import win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict

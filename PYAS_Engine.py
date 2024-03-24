@@ -35,7 +35,7 @@ class ListSimHash:
         features = dict(Counter(sorted(content)))
         for f, w in features.items():
             count += w
-            batch.append(hashlib.md5(json.dumps(f).encode('utf-8')).digest() * w)
+            batch.append(hashlib.sha256(json.dumps(f).encode('utf-8')).digest() * w)
             if len(batch) >= 10000:
                 sums.append(self.sum_hashes(batch))
                 batch = []
@@ -47,7 +47,7 @@ class ListSimHash:
 
     def sum_hashes(self, digests):
         bitarray = numpy.unpackbits(numpy.frombuffer(b''.join(digests), dtype='>B'))
-        return numpy.sum(numpy.reshape(bitarray, (-1, 128)), 0)
+        return numpy.sum(numpy.reshape(bitarray, (-1, 256)), 0)
 
     def progress_bar(self, iteration, total, prefix='', suffix='', length=50, fill='█'):
         percent = min(100.0, max(0.0, 100 * (iteration / float(total))))
@@ -81,4 +81,4 @@ class ListSimHash:
 
     def similar(self, x, y):
         hamming_distance = bin(x ^ y).count('1')
-        return 1 - hamming_distance / 128
+        return 1 - hamming_distance / 256

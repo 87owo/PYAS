@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
-        self.pyae_version = "SimHash Engine"
+        self.pyae_version = "SimHash Engine Plus"
         self.pyas_version = "3.0.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -844,12 +844,14 @@ class MainWindow_Controller(QMainWindow):
                 return f"{label}"
             elif file != self.pyas and level > 10:
                 label_2, level_2 = self.pe_scan(file)
+                #print(label_2, level_2, file)
                 if "White" not in label_2 and "Unknown" not in label_2:
                     return f"{label_2}"
                 elif "Unknown" in label_2 and self.json["high_sensitive"]:
                     return f"{label_2}"
             elif file != self.pyas and not level:
                 label_2, level_2 = self.pe_scan(file)
+                #print(label_2, level_2, file)
                 if "White" not in label_2 and "Unknown" not in label_2:
                     return f"{label_2}"
                 elif "Unknown" in label_2 and self.json["high_sensitive"]:

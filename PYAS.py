@@ -915,8 +915,8 @@ class MainWindow_Controller(QMainWindow):
 
     def rule_scan(self, file):
         try:
+            QApplication.processEvents()
             for rules in self.compiled_rules:
-                QApplication.processEvents()
                 if rules.match(file):
                     return True
             return False
@@ -925,8 +925,6 @@ class MainWindow_Controller(QMainWindow):
 
     def proc_scan(self, p):
         try:
-            if isinstance(p, str) and os.path.exists(p):
-                return self.start_scan(file)
             for entry in p.memory_maps():
                 file = entry.path.replace("\\", "/")
                 if ":/Windows" not in file and ":/Program" not in file:

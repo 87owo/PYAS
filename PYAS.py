@@ -2,7 +2,7 @@ import os, gc, sys, time, json, psutil
 import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
-import ast, win32gui, win32api, win32con
+import yara, win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
@@ -62,9 +62,18 @@ class MainWindow_Controller(QMainWindow):
 
     def init_rule_dict(self):
         try:
-            file_path = os.path.join(self.dir, "PYAS_Rules.json")
-            with open(file_path, 'r') as file:
-                self.rules = ast.literal_eval(file.read())
+            self.compiled_rules = []
+            file_path = os.path.join(self.dir, "Rules")
+            for root, dirs, files in os.walk(file_path):
+                for file in files:
+                    try:
+                        file_full_path = os.path.join(root, file)
+                        ftype = str(f".{file.split('.')[-1]}").lower()
+                        if ftype in [".yara", ".yar"]:
+                            rules = yara.compile(file_full_path)
+                            self.compiled_rules.append(rules)
+                    except:
+                        pass
         except Exception as e:
             self.bug_event(e)
 
@@ -848,29 +857,18 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
-            label, level = self.api_scan(file)
-            if file != self.pyas and level > 50:
-                return f"{label}/Cloud.{level}"
-            elif file != self.pyas and level > 10:
+            if file != self.pyas:
+                label, level = self.api_scan(file)
+                if label and info > 50:
+                    return label
                 label, level = self.pe_scan(file)
                 if label and "White" not in label:
                     if "Unknown" not in label and level == 100:
-                        return f"{label}/Pefile.{level}"
+                        return label
                     elif self.json["high_sensitive"]:
-                        return f"{label}/Pefile.{level}"
-                label, level = self.rule_scan(file)
-                if label and level:
-                    return f"{label}/Rules.{level}"
-            elif file != self.pyas and not level:
-                label, level = self.pe_scan(file)
-                if label and "White" not in label:
-                    if "Unknown" not in label and level == 100:
-                        return f"{label}/Pefile.{level}"
-                    elif self.json["high_sensitive"]:
-                        return f"{label}/Pefile.{level}"
-                label, level = self.rule_scan(file)
-                if label and level:
-                    return f"{label}/Rules.{level}"
+                        return label
+                if self.rule_scan(file):
+                    return "Rules"
             return False
         except:
             return False
@@ -917,28 +915,13 @@ class MainWindow_Controller(QMainWindow):
 
     def rule_scan(self, file):
         try:
-            with open(file, 'rb') as f:
-                content = str(f.read())
-            ftype = str(f".{file.split('.')[-1]}").lower()
-            for rule, value in self.rules.items():
+            for rules in self.compiled_rules:
                 QApplication.processEvents()
-                if ftype in value["settings"]["types"]:
-                    for match, matchs in value["matchs"].items():
-                        counts = 0
-                        if isinstance(matchs, tuple):
-                            matchs = list(range(matchs[0], matchs[1]+1))
-                        for string in matchs:
-                            text = value["strings"][string]
-                            if value["settings"]["nocase"]:
-                                content = content.lower()
-                                text = text.lower()
-                            if text in content:
-                                counts += 1
-                        if counts >= value["settings"]["count"]:
-                            return value["abouts"]["label"], rule
-            return False, False
+                if rules.match(file):
+                    return True
+            return False
         except:
-            return False, False
+            return False
 
     def proc_scan(self, p):
         try:

@@ -4,6 +4,7 @@ import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
+from PYAS_Rules import pyasrule_dict
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -841,21 +842,25 @@ class MainWindow_Controller(QMainWindow):
         try:
             label, level = self.api_scan(file)
             if file != self.pyas and level > 50:
-                return f"{label}"
+                return f"{label}/Cloud.{level}"
             elif file != self.pyas and level > 10:
-                label_2, level_2 = self.pe_scan(file)
-                #print(label_2, level_2, file)
-                if "White" not in label_2 and "Unknown" not in label_2:
-                    return f"{label_2}"
-                elif "Unknown" in label_2 and self.json["high_sensitive"]:
-                    return f"{label_2}"
+                label_2, level_2 = self.rule_scan(file)
+                if label_2 and level_2:
+                    return f"{label_2}/Rules.{level_2}"
+                label_3, level_3 = self.pe_scan(file)
+                if "White" not in label_3 and "Unknown" not in label_3:
+                    return f"{label_3}/Pefile.{level_3}"
+                elif "Unknown" in label_3 and self.json["high_sensitive"]:
+                    return f"{label_3}/Pefile.{level_3}"
             elif file != self.pyas and not level:
-                label_2, level_2 = self.pe_scan(file)
-                #print(label_2, level_2, file)
-                if "White" not in label_2 and "Unknown" not in label_2:
-                    return f"{label_2}"
-                elif "Unknown" in label_2 and self.json["high_sensitive"]:
-                    return f"{label_2}"
+                label_2, level_2 = self.rule_scan(file)
+                if label_2 and level_2:
+                    return f"{label_2}/Rules.{level_2}"
+                label_3, level_3 = self.pe_scan(file)
+                if "White" not in label_3 and "Unknown" not in label_3:
+                    return f"{label_3}/Pefile.{level_3}"
+                elif "Unknown" in label_3 and self.json["high_sensitive"]:
+                    return f"{label_3}/Pefile.{level_3}"
             return False
         except:
             return False
@@ -888,7 +893,8 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             QApplication.processEvents()
-            return self.pe.predict(fn)
+            label, level = self.pe.predict(fn)
+            return label, int(level*100)
         except:
             return False, False
 
@@ -898,6 +904,29 @@ class MainWindow_Controller(QMainWindow):
                 return pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress == 0
         except:
             return True
+
+    def rule_scan(self, file):
+        try:
+            ftype = str(f".{file.split('.')[-1]}").lower()
+            with open(file, 'r', encoding="iso-8859-1") as f:
+                content = f.read().lower()
+            for rule, value in pyasrule_dict.items():
+                QApplication.processEvents()
+                if ftype in value["settings"]["types"]:
+                    for match, matchs in value["matchs"].items():
+                        counts = 0
+                        for string in matchs:
+                            text = value["strings"][string]
+                            if value["settings"]["nocase"]:
+                                text = text.lower()
+                            if text in content:
+                                counts += 1
+                        if counts >= value["settings"]["count"]:
+                            label = value["abouts"]["label"]
+                            return label, rule
+            return False, False
+        except:
+            return False, False
 
     def proc_scan(self, p):
         try:

@@ -1,0 +1,189 @@
+{
+    "A": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Riskware",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "physicaldrive0",
+            2: "512",
+            3: "MBR",
+            4: "x55",
+            5: "pyi-runtime-tmpdir"},
+        "settings": {
+            "count": 4,
+            "nocase": True,
+            "types": [".exe", ".bat", ".cmd"]},
+        "matchs": {
+            "match1": (1, 4),
+            "match2": (2, 5)}},
+
+    "B": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Trojan",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "%0|%0",
+            2: "ExclusionPath",
+            3: "cmdkey",
+            4: "eiculwo"},
+        "settings": {
+            "count": 1,
+            "nocase": True,
+            "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
+        "matchs": {
+            "match1": (1, 4)}},
+
+    "C": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Trojan",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "ProcessHacker",
+            2: "MpCmdRun",
+            3: "ConfigSecurityPolicy",
+            4: "Client",
+            5: "procexp",
+            6: "MSASCui",
+            7: "MsMpEng",
+            8: "MpUXSrv",
+            9: "CloseMutex",
+            10: "NisSrv",
+            11: "Regedit",
+            12: "PROCESS_MITIGATION_BINARY_SIGNATURE_POLICY",
+            13: "dwProcessHandle",
+            14: "Anti_Process",
+            15: "MutexControl",
+            16: "MSConfig"},
+        "settings": {
+            "count": 6,
+            "nocase": True,
+            "types": [".exe", ".dll", ".sys"]},
+        "matchs": {
+            "match1": (1, 16)}},
+
+    "D": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Riskware",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "shell\\open",
+            2: "exefile",
+            3: "batfile",
+            4: "comfile",
+            5: "regfile",
+            6: "mscfile",
+            7: "cmdfile",
+            8: "Image File Execution Options",
+            9: "CurrentVersion"},
+        "settings": {
+            "count": 3,
+            "nocase": True,
+            "types": [".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"]},
+        "matchs": {
+            "match1": (1, 9)}},
+
+    "E": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Trojan",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "kill",
+            2: "PYAS",
+            3: "lsass",
+            4: "csrss",
+            5: "smss",
+            6: "taskmgr",
+            7: "svchost"},
+        "settings": {
+            "count": 3,
+            "nocase": True,
+            "types": [".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"]},
+        "matchs": {
+            "match1": (1, 7)}},
+
+    "F": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Riskware",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "NoControlPanel",
+            2: "NoFileMenu",
+            3: "NoFind",
+            4: "NoRealMode",
+            5: "NoRecentDocsMenu",
+            6: "NoSetFolders",
+            7: "NoSetFolderOptions",
+            8: "NoViewOnDrive",
+            9: "NoDesktop",
+            10: "NoAddingComponents",
+            11: "NoLogOff",
+            12: "NoFolderOptions",
+            13: "DisableCMD",
+            14: "NoViewContexMenu",
+            15: "HideClock",
+            16: "Wallpaper",
+            17: "NoStartMenuMorePrograms",
+            18: "NoStartMenuMyGames",
+            19: "NoStartMenuMyMusic",
+            20: "NoStartMenuNetworkPlaces",
+            21: "NoStartMenuPinnedList",
+            22: "NoActiveDesktop",
+            23: "NoSetActiveDesktop",
+            24: "NoActiveDesktopChanges",
+            25: "NoChangeStartMenu",
+            26: "ClearRecentDocsOnExit",
+            27: "NoFavoritesMenu",
+            28: "DisableLockWorkstation",
+            29: "NoSetTaskbar",
+            30: "NoSMHelp",
+            31: "NoTrayContextMenu",
+            32: "NoViewContextMenu",
+            33: "NoWindowsUpdate",
+            34: "NoComponents",
+            35: "NoWinKeys",
+            36: "StartMenuLogOff",
+            37: "NoSimpleNetlDList",
+            38: "NoLowDiskSpaceChecks",
+            39: "Restrict_Run",
+            40: "NoManageMyComputerVerb",
+            41: "DisableTaskMgr",
+            42: "DisableRegistryTools",
+            43: "DisableChangePassword"},
+        "settings": {
+            "count": 2,
+            "nocase": True,
+            "types": [".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"]},
+        "matchs": {
+            "match1": (1, 43)}},
+
+    "G": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Ransom",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "certutil",
+            2: "encode",
+            3: "decode",
+            4: "random"},
+        "settings": {
+            "count": 4,
+            "nocase": True,
+            "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
+        "matchs": {
+            "match1": (1, 4)}},
+
+}

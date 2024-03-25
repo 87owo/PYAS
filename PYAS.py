@@ -2,9 +2,8 @@ import os, gc, sys, time, json, psutil
 import hashlib, pefile, socket, msvcrt
 import xml.etree.ElementTree as xmlet
 import requests, pyperclip, win32file
-import win32gui, win32api, win32con
+import ast, win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
-from PYAS_Rules import pyasrule_dict
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
@@ -26,6 +25,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.setupUi(self)
         self.init_show_pyas()
         self.init_data_base()
+        self.init_rule_dict()
         self.init_read_json()
         self.init_tray_icon()
         self.init_config_boot()
@@ -57,6 +57,14 @@ class MainWindow_Controller(QMainWindow):
             if os.path.exists(file_path):
                 self.pe = ListSimHash()
                 self.pe.load_model(file_path)
+        except Exception as e:
+            self.bug_event(e)
+
+    def init_rule_dict(self):
+        try:
+            file_path = os.path.join(self.dir, "PYAS_Rules.json")
+            with open(file_path, 'r') as file:
+                self.rules = ast.literal_eval(file.read())
         except Exception as e:
             self.bug_event(e)
 
@@ -910,7 +918,7 @@ class MainWindow_Controller(QMainWindow):
             ftype = str(f".{file.split('.')[-1]}").lower()
             with open(file, 'r', encoding="iso-8859-1") as f:
                 content = f.read().lower()
-            for rule, value in pyasrule_dict.items():
+            for rule, value in self.rules.items():
                 QApplication.processEvents()
                 if ftype in value["settings"]["types"]:
                     for match, matchs in value["matchs"].items():
@@ -926,7 +934,8 @@ class MainWindow_Controller(QMainWindow):
                             label = value["abouts"]["label"]
                             return label, rule
             return False, False
-        except:
+        except Exception as e:
+            print(e)
             return False, False
 
     def proc_scan(self, p):

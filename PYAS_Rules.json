@@ -3,7 +3,7 @@
         "abouts": {
             "author": "PYAS Security",
             "version": "1.0.0",
-            "label": "Riskware",
+            "label": "Trojan",
             "description": "Malware pattern"},
         "strings": {
             1: "physicaldrive0",
@@ -185,5 +185,32 @@
             "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
         "matchs": {
             "match1": (1, 4)}},
+
+    "H": {
+        "abouts": {
+            "author": "PYAS Security",
+            "version": "1.0.0",
+            "label": "Trojan",
+            "description": "Malware pattern"},
+        "strings": {
+            1: "bcdedit",
+            2: "current",
+            3: "bootmgr",
+            4: "memdiag",
+            5: "globalsettings",
+            6: "bootloadersettings",
+            7: "ntldr",
+            8: "takeown",
+            9: "%systemdrive%",
+            10: "icacls",
+            11: "recovery",
+            12: "globalsettings",
+            13: "bootloadersettings"},
+        "settings": {
+            "count": 4,
+            "nocase": True,
+            "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
+        "matchs": {
+            "match1": (1, 13)}},
 
 }

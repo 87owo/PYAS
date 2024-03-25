@@ -852,23 +852,25 @@ class MainWindow_Controller(QMainWindow):
             if file != self.pyas and level > 50:
                 return f"{label}/Cloud.{level}"
             elif file != self.pyas and level > 10:
-                label_2, level_2 = self.rule_scan(file)
-                if label_2 and level_2:
-                    return f"{label_2}/Rules.{level_2}"
-                label_3, level_3 = self.pe_scan(file)
-                if "White" not in label_3 and "Unknown" not in label_3:
-                    return f"{label_3}/Pefile.{level_3}"
-                elif "Unknown" in label_3 and self.json["high_sensitive"]:
-                    return f"{label_3}/Pefile.{level_3}"
+                label, level = self.pe_scan(file)
+                if label and "White" not in label:
+                    if "Unknown" not in label:
+                        return f"{label}/Pefile.{level}"
+                    elif self.json["high_sensitive"]:
+                        return f"{label}/Pefile.{level}"
+                label, level = self.rule_scan(file)
+                if label and level:
+                    return f"{label}/Rules.{level}"
             elif file != self.pyas and not level:
-                label_2, level_2 = self.rule_scan(file)
-                if label_2 and level_2:
-                    return f"{label_2}/Rules.{level_2}"
-                label_3, level_3 = self.pe_scan(file)
-                if "White" not in label_3 and "Unknown" not in label_3:
-                    return f"{label_3}/Pefile.{level_3}"
-                elif "Unknown" in label_3 and self.json["high_sensitive"]:
-                    return f"{label_3}/Pefile.{level_3}"
+                label, level = self.pe_scan(file)
+                if label and "White" not in label:
+                    if "Unknown" not in label:
+                        return f"{label}/Pefile.{level}"
+                    elif self.json["high_sensitive"]:
+                        return f"{label}/Pefile.{level}"
+                label, level = self.rule_scan(file)
+                if label and level:
+                    return f"{label}/Rules.{level}"
             return False
         except:
             return False
@@ -915,27 +917,27 @@ class MainWindow_Controller(QMainWindow):
 
     def rule_scan(self, file):
         try:
+            with open(file, 'rb') as f:
+                content = str(f.read())
             ftype = str(f".{file.split('.')[-1]}").lower()
-            with open(file, 'r', encoding="iso-8859-1") as f:
-                content = f.read().lower()
             for rule, value in self.rules.items():
                 QApplication.processEvents()
                 if ftype in value["settings"]["types"]:
                     for match, matchs in value["matchs"].items():
                         counts = 0
-                        start, end = matchs[0], matchs[1]+1
-                        for string in list(range(start, end)):
+                        if isinstance(matchs, tuple):
+                            matchs = list(range(matchs[0], matchs[1]+1))
+                        for string in matchs:
                             text = value["strings"][string]
                             if value["settings"]["nocase"]:
+                                content = content.lower()
                                 text = text.lower()
                             if text in content:
                                 counts += 1
                         if counts >= value["settings"]["count"]:
-                            label = value["abouts"]["label"]
-                            return label, rule
+                            return value["abouts"]["label"], rule
             return False, False
-        except Exception as e:
-            print(e)
+        except:
             return False, False
 
     def proc_scan(self, p):

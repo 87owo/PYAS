@@ -16,8 +16,8 @@ pyasrule_dict = {
             "nocase": True,                      # 不分大寫小寫 True
             "types": [".exe", ".dll", ".sys"]},  # 匹配文件類別 .
         "matchs": {
-            "match1": list(range(1, 5)),         # 局部匹配範圍 1 (1~4)
-            "match2": list(range(2, 6))}},       # 局部匹配範圍 2 (2~5)
+            "match1": (1, 4),                    # 局部匹配範圍 1 (1~4)
+            "match2": (2, 5)}},                  # 局部匹配範圍 2 (2~5)
 
     "B": {
         "abouts": {
@@ -35,7 +35,7 @@ pyasrule_dict = {
             "nocase": True,
             "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
         "matchs": {
-            "match1": list(range(1, 5))}},
+            "match1": (1, 4)}},
 
     "C": {
         "abouts": {
@@ -65,7 +65,7 @@ pyasrule_dict = {
             "nocase": True,
             "types": [".exe", ".dll", ".sys"]},
         "matchs": {
-            "match1": list(range(1, 17))}},
+            "match1": (1, 16)}},
 
     "D": {
         "abouts": {
@@ -88,7 +88,7 @@ pyasrule_dict = {
             "nocase": True,
             "types": [".exe", ".dll", ".sys"]},
         "matchs": {
-            "match1": list(range(1, 10))}},
+            "match1": (1, 9)}},
 
     "E": {
         "abouts": {
@@ -109,7 +109,7 @@ pyasrule_dict = {
             "nocase": True,
             "types": [".exe", ".dll", ".sys"]},
         "matchs": {
-            "match1": list(range(1, 8))}},
+            "match1": (1, 7)}},
 
     "F": {
         "abouts": {
@@ -166,7 +166,7 @@ pyasrule_dict = {
             "nocase": True,
             "types": [".exe", ".dll", ".sys"]},
         "matchs": {
-            "match1": list(range(1, 44))}},
+            "match1": (1, 43)}},
 
     "G": {
         "abouts": {
@@ -184,28 +184,6 @@ pyasrule_dict = {
             "nocase": True,
             "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
         "matchs": {
-            "match1": list(range(1, 5))}},
-
-    "H": {
-        "abouts": {
-            "author": "PYAS Security",
-            "version": "1.0.0",
-            "label": "Trojan",
-            "description": "Malware pattern"},
-        "strings": {
-            1: "%userprofile%",
-            2: "C:\\Windows",
-            3: "%SYSTEMROOT%",
-            4: "%WINDIR%",
-            5: "%SYSTEMDRIVE%",
-            6: "%TEMP%",
-            7: "%TMP%",
-            8: "del"},
-        "settings": {
-            "count": 4,
-            "nocase": True,
-            "types": [".bat", ".cmd", ".ps1", ".js", ".vbs"]},
-        "matchs": {
-            "match1": list(range(1, 9))}},
+            "match1": (1, 4)}},
 
 }

@@ -915,7 +915,8 @@ class MainWindow_Controller(QMainWindow):
                 if ftype in value["settings"]["types"]:
                     for match, matchs in value["matchs"].items():
                         counts = 0
-                        for string in matchs:
+                        start, end = matchs[0], matchs[1]+1
+                        for string in list(range(start, end)):
                             text = value["strings"][string]
                             if value["settings"]["nocase"]:
                                 text = text.lower()

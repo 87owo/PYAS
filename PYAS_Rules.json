@@ -61,7 +61,7 @@
             15: "MutexControl",
             16: "MSConfig"},
         "settings": {
-            "count": 6,
+            "count": 10,
             "nocase": True,
             "types": [".exe", ".dll", ".sys"]},
         "matchs": {
@@ -99,17 +99,14 @@
         "strings": {
             1: "kill",
             2: "PYAS",
-            3: "lsass",
-            4: "csrss",
-            5: "smss",
-            6: "taskmgr",
-            7: "svchost"},
+            3: "taskmgr",
+            4: "explorer"},
         "settings": {
-            "count": 3,
+            "count": 4,
             "nocase": True,
             "types": [".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"]},
         "matchs": {
-            "match1": (1, 7)}},
+            "match1": (1, 4)}},
 
     "F": {
         "abouts": {
@@ -162,7 +159,7 @@
             42: "DisableRegistryTools",
             43: "DisableChangePassword"},
         "settings": {
-            "count": 2,
+            "count": 3,
             "nocase": True,
             "types": [".exe", ".bat", ".cmd", ".ps1", ".js", ".vbs"]},
         "matchs": {

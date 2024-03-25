@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
-        self.pyae_version = "SimHash Engine Plus"
+        self.pyae_version = "Fusion Engine"
         self.pyas_version = "3.0.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
@@ -854,7 +854,7 @@ class MainWindow_Controller(QMainWindow):
             elif file != self.pyas and level > 10:
                 label, level = self.pe_scan(file)
                 if label and "White" not in label:
-                    if "Unknown" not in label:
+                    if "Unknown" not in label and level == 100:
                         return f"{label}/Pefile.{level}"
                     elif self.json["high_sensitive"]:
                         return f"{label}/Pefile.{level}"
@@ -864,7 +864,7 @@ class MainWindow_Controller(QMainWindow):
             elif file != self.pyas and not level:
                 label, level = self.pe_scan(file)
                 if label and "White" not in label:
-                    if "Unknown" not in label:
+                    if "Unknown" not in label and level == 100:
                         return f"{label}/Pefile.{level}"
                     elif self.json["high_sensitive"]:
                         return f"{label}/Pefile.{level}"

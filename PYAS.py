@@ -23,7 +23,6 @@ class MainWindow_Controller(QMainWindow):
         self.pyas_version = "3.0.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.init_show_pyas()
         self.init_data_base()
         self.init_rule_dict()
         self.init_read_json()
@@ -36,6 +35,7 @@ class MainWindow_Controller(QMainWindow):
         self.init_theme_color()
         self.init_control()
         self.init_threads()
+        self.init_startup()
 
     def init_threads(self):
         self.protect_proc_init()
@@ -50,6 +50,19 @@ class MainWindow_Controller(QMainWindow):
         self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.activated.connect(self.init_show_pyas)
         self.tray_icon.show()
+
+    def init_startup(self):
+        try:
+            if len(sys.argv) > 1:
+                param = sys.argv[1]
+                if "h" in param or "hid" in param:
+                    self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
+                else:
+                    self.init_show_pyas()
+            elif len(sys.argv) <= 1:
+                self.init_show_pyas()
+        except Exception as e:
+            self.bug_event(e)
 
     def init_data_base(self):
         try:

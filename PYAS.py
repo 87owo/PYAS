@@ -72,7 +72,8 @@ class MainWindow_Controller(QMainWindow):
                         if ftype in [".yara", ".yar"]:
                             rules = yara.compile(file_full_path)
                             self.compiled_rules.append(rules)
-                    except:
+                    except Exception as e:
+                        print(e)
                         pass
         except Exception as e:
             self.bug_event(e)
@@ -859,7 +860,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             if file != self.pyas:
                 label, level = self.api_scan(file)
-                if label and info > 50:
+                if label and level > 50:
                     return label
                 label, level = self.pe_scan(file)
                 if label and "White" not in label:
@@ -870,7 +871,8 @@ class MainWindow_Controller(QMainWindow):
                 if self.rule_scan(file):
                     return "Rules"
             return False
-        except:
+        except Exception as e:
+            print(e)
             return False
 
     def api_scan(self, file):
@@ -881,7 +883,6 @@ class MainWindow_Controller(QMainWindow):
                 QApplication.processEvents()
                 strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
                 response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=5)
-                QApplication.processEvents()
                 if response.status_code == 200:
                     label = str(xmlet.fromstring(response.text).find('.//malware').text).split('/')[1].split('.')
                     level = int(float(xmlet.fromstring(response.text).find('.//e_level').text))
@@ -915,9 +916,11 @@ class MainWindow_Controller(QMainWindow):
 
     def rule_scan(self, file):
         try:
-            QApplication.processEvents()
+            with open(file, "rb") as f:
+                data = f.read()
             for rules in self.compiled_rules:
-                if rules.match(file):
+                QApplication.processEvents()
+                if rules.match(data=data):
                     return True
             return False
         except:

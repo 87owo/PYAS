@@ -23,6 +23,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas_version = "3.0.8"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.init_startup()
         self.init_data_base()
         self.init_rule_dict()
         self.init_read_json()
@@ -35,7 +36,6 @@ class MainWindow_Controller(QMainWindow):
         self.init_theme_color()
         self.init_control()
         self.init_threads()
-        self.init_startup()
 
     def init_threads(self):
         self.protect_proc_init()
@@ -56,7 +56,7 @@ class MainWindow_Controller(QMainWindow):
             if len(sys.argv) > 1:
                 param = sys.argv[1]
                 if "h" in param or "hid" in param:
-                    self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
+                    pass
                 else:
                     self.init_show_pyas()
             elif len(sys.argv) <= 1:
@@ -85,8 +85,7 @@ class MainWindow_Controller(QMainWindow):
                         if ftype in [".yara", ".yar"]:
                             rules = yara.compile(file_full_path)
                             self.compiled_rules.append(rules)
-                    except Exception as e:
-                        print(e)
+                    except:
                         pass
         except Exception as e:
             self.bug_event(e)
@@ -596,8 +595,8 @@ class MainWindow_Controller(QMainWindow):
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
-        self.show()
         self.pyas_opacity = 0
+        self.show()
         self.timer = QTimer()
         self.timer.timeout.connect(update_opacity)
         self.timer.start(2)
@@ -823,7 +822,7 @@ class MainWindow_Controller(QMainWindow):
     def file_scan(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file and file not in self.whitelist:
+            if file and file not in self.whitelist and file != self.pyas:
                 self.init_scan()
                 self.write_scan(self.start_scan(file),file)
                 self.answer_scan()
@@ -861,31 +860,32 @@ class MainWindow_Controller(QMainWindow):
                     break
                 elif os.path.isdir(file):
                     self.traverse_path(file)
-                elif file not in self.whitelist:
+                elif file not in self.whitelist and file != self.pyas:
                     self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
-                    QApplication.processEvents()
                     self.write_scan(self.start_scan(file),file)
+                    QApplication.processEvents()
                 gc.collect()
             except:
                 pass
 
     def start_scan(self, file):
         try:
-            if file != self.pyas:
-                label, level = self.api_scan(file)
-                if label and level > 50:
-                    return label
+            label, level = self.api_scan(file)
+            if label and level > 50:
+                return label
+            elif not label or level > 10:
                 label, level = self.pe_scan(file)
                 if label and "White" not in label:
-                    if "Unknown" not in label and level == 100:
+                    if level == 100:
                         return label
                     elif self.json["high_sensitive"]:
                         return label
-                if self.rule_scan(file):
+                    elif self.rule_scan(file):
+                        return "Rules"
+                elif self.rule_scan(file):
                     return "Rules"
             return False
-        except Exception as e:
-            print(e)
+        except:
             return False
 
     def api_scan(self, file):
@@ -1308,6 +1308,7 @@ class MainWindow_Controller(QMainWindow):
                 elif ":/Windows" not in file and self.sign_scan(file):
                     self.proc = p
                 self.lock_process(p, False)
+                gc.collect()
         except:
             self.lock_process(p, False)
 

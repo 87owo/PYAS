@@ -79,14 +79,11 @@ class MainWindow_Controller(QMainWindow):
             file_path = os.path.join(self.dir, "Rules")
             for root, dirs, files in os.walk(file_path):
                 for file in files:
-                    try:
-                        file_full_path = os.path.join(root, file)
-                        ftype = str(f".{file.split('.')[-1]}").lower()
-                        if ftype in [".yara", ".yar"]:
-                            rules = yara.compile(file_full_path)
-                            self.compiled_rules.append(rules)
-                    except:
-                        pass
+                    file_full_path = os.path.join(root, file)
+                    ftype = str(f".{file.split('.')[-1]}").lower()
+                    if ftype in [".yara", ".yar"]:
+                        rules = yara.compile(file_full_path)
+                        self.compiled_rules.append(rules)
         except Exception as e:
             self.bug_event(e)
 

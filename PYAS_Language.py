@@ -47,8 +47,8 @@ translate_dict = {
               "增加到":"Add File To ","白名單":"White List ","軟體":"Software ",
               "增加":"Add","移除":"Delete","項目":"Items ","生成":"Create ","稱":"",
               "複製":"Copy ","開啟":"Open ","此":"This ","並":"And ","全盤":"Full ",
-              "已經是":"Already ","數據庫":"Database ","誤報":"False Positive ",
+              "已經在":"Already ","數據庫":"Database ","誤報":"False Positive ",
               "高":"High ","新":"New ","和":"And ","可能會":"Possible ","會":"Can ",
               "日誌":"Log","已":"Has ","彈窗":"Window ","要":"To ","驅動":"Drive ",
               "的":"","顯示":"","個":"","嗎":"","中":"","了":"","行":"","立即":"",
-              "密鑰":"Key ","檢測":"Detect ","製作":"Make","  ":" "}}
+              "密鑰":"Key ","檢測":"Detect ","製作":"Make","運行":"Running","  ":" "}}

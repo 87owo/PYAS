@@ -75,15 +75,18 @@ class MainWindow_Controller(QMainWindow):
 
     def init_rule_dict(self):
         try:
-            self.compiled_rules = []
+            self.compiled_rules = {}
             file_path = os.path.join(self.dir, "Rules")
             for root, dirs, files in os.walk(file_path):
                 for file in files:
-                    file_full_path = os.path.join(root, file)
+                    yara_path = os.path.join(root, file)
                     ftype = str(f".{file.split('.')[-1]}").lower()
                     if ftype in [".yara", ".yar"]:
-                        rules = yara.compile(file_full_path)
-                        self.compiled_rules.append(rules)
+                        rules = yara.compile(yara_path)
+                        self.compiled_rules[yara_path] = rules
+                    elif ftype in [".yc", ".yrc"]:
+                        rules = yara.load(yara_path)
+                        self.compiled_rules[yara_path] = rules
         except Exception as e:
             self.bug_event(e)
 
@@ -928,7 +931,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             with open(file, "rb") as f:
                 data = f.read()
-            for rules in self.compiled_rules:
+            for name, rules in self.compiled_rules.items():
                 QApplication.processEvents()
                 if rules.match(data=data):
                     return True
@@ -1274,6 +1277,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_proc_thread(self):
         self.proc = None
         existing_process = set()
+        psutil.Process(os.getpid()).nice(256)
         for p in psutil.process_iter():
             existing_process.add(p.pid)
         while self.proc_protect:

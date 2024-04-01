@@ -24,6 +24,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_startup()
+        self.init_rule_dict()
         self.init_data_base()
         self.init_read_json()
         self.init_tray_icon()
@@ -69,6 +70,22 @@ class MainWindow_Controller(QMainWindow):
             if os.path.exists(file_path):
                 self.pe = ListSimHash()
                 self.pe.load_model(file_path)
+        except Exception as e:
+            self.bug_event(e)
+
+    def init_rule_dict(self):
+        try:
+            self.compiled_rules = {}
+            file_path = os.path.join(self.dir, "Rules")
+            for root, dirs, files in os.walk(file_path):
+                for file in files:
+                    yara_path = os.path.join(root, file)
+                    ftype = str(f".{file.split('.')[-1]}").lower()
+                    if ftype in [".yara", ".yar"]:
+                        rules = yara.compile(yara_path)
+                    elif ftype in [".yc", ".yrc"]:
+                        rules = yara.load(yara_path)
+                    self.compiled_rules[yara_path] = rules
         except Exception as e:
             self.bug_event(e)
 
@@ -910,6 +927,18 @@ class MainWindow_Controller(QMainWindow):
             return True
 
     def rule_scan(self, file):
+        try:
+            with open(file, "rb") as f:
+                data = f.read()
+            for name, rules in self.compiled_rules.items():
+                QApplication.processEvents()
+                if rules.match(data=data):
+                    return True
+            return False
+        except:
+            return False
+
+    def rule_scan_partition(self, file):
         try:
             with open(file, "rb") as f:
                 data = f.read()

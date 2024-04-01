@@ -1296,7 +1296,6 @@ class MainWindow_Controller(QMainWindow):
     def protect_proc_thread(self):
         self.proc = None
         existing_process = set()
-        psutil.Process(os.getpid()).nice(256)
         for p in psutil.process_iter():
             existing_process.add(p.pid)
         while self.proc_protect:

@@ -1,8 +1,7 @@
-import os, gc, sys, time, json, psutil
-import hashlib, pefile, socket, msvcrt
-import xml.etree.ElementTree as xmlet
-import requests, pyperclip, win32file
-import yara, win32gui, win32api, win32con
+import os, gc, sys, time, json, yara
+import requests, pefile, socket, msvcrt
+import pyperclip, win32file, psutil
+import win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
 from PYAS_Extension import slist, alist
 from PYAS_Language import translate_dict
@@ -20,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.0.8"
+        self.pyas_version = "3.0.9"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_startup()
@@ -322,8 +321,8 @@ class MainWindow_Controller(QMainWindow):
         self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))
         self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高引擎的靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.trans(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.cloud_services_title.setText(self.trans("雲端掃描服務"))
-        self.ui.cloud_services_illustrate.setText(self.trans("啟用此選項可以連接雲端掃描服務"))
+        self.ui.cloud_services_title.setText(self.trans("雲端上報服務"))
+        self.ui.cloud_services_illustrate.setText(self.trans("啟用此選項可以自動上報雲端分析"))
         self.ui.cloud_services_switch_Button.setText(self.trans(self.ui.cloud_services_switch_Button.text()))
         self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
         self.ui.Add_White_list_illustrate.setText(self.trans("此選項可以選擇檔案並增加到白名單"))
@@ -619,6 +618,12 @@ class MainWindow_Controller(QMainWindow):
 
     def closeEvent(self, event):
         if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
+            self.block_window = False
+            self.proc_protect = False
+            self.file_protect = False
+            self.mbr_protect = False
+            self.reg_protect = False
+            self.net_protect = False
             self.virus_scan_break()
             event.accept()
         else:
@@ -657,8 +662,10 @@ class MainWindow_Controller(QMainWindow):
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
+        Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
+        self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About and self.ui.About_widget.isHidden():
@@ -676,6 +683,36 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
+        if Qusetion == Main_Update:
+            self.update_database()
+
+    def update_database(self):
+        try:
+            if self.question_event("您確定要更新數據庫嗎?"):
+                params = {"version": self.pyas_version}
+                file_path = os.path.join(self.dir, "PYAS_Model.json")
+                response = requests.get('http://27.147.30.238:5001/model', params=params)
+                if response.status_code == 200:
+                    with open(file_path, 'wb') as f:
+                        f.write(response.content)
+                    self.init_data_base()
+                    self.init_lang_text()
+                    self.info_event(f"數據庫更新成功: PYAS_Model.json")
+                else:
+                    self.bug_event(response.status_code)
+        except Exception as e:
+            self.bug_event(e)
+
+    def report_file(self, file):
+        try:
+            if self.json["cloud_services"] and os.path.getsize(file) <= 209715200:
+                files = {'file': open(file, 'rb')}
+                response = requests.post('http://27.147.30.238:5001/report', files=files)
+                if response.status_code == 200:
+                    return True
+            return False
+        except:
+            return False
 
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
@@ -869,39 +906,21 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
-            label, level = self.api_scan(file)
-            if label and level > 50:
-                return label
-            elif not label or level > 10:
-                label, level = self.pe_scan(file)
-                if label and "White" not in label:
-                    if "Unknown" not in label and level == 100:
-                        return label
-                    elif self.json["high_sensitive"]:
-                        return label
-                    elif self.rule_scan(file):
-                        return "Rules"
-                elif self.rule_scan(file):
-                    return "Rules"
+            Thread(target=self.report_file, args=(file,)).start()
+            label, level = self.pe_scan(file)
+            if label and "Unknown" in label:
+                if self.json["high_sensitive"]:
+                    return label
+            elif label and "White" not in label:
+                if level and level >= 0.9:
+                    return label
+                elif self.json["high_sensitive"]:
+                    return label
+            elif self.rule_scan(file):
+                return "Rules"
             return False
         except:
             return False
-
-    def api_scan(self, file):
-        try:
-            if self.json["cloud_services"]:
-                with open(file, "rb") as f:
-                    text = str(hashlib.md5(f.read()).hexdigest())
-                QApplication.processEvents()
-                strBody = f'-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="md5s"\r\n\r\n{text}\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="format"\r\n\r\nXML\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="product"\r\n\r\n360zip\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="combo"\r\n\r\n360zip_main\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="v"\r\n\r\n2\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="osver"\r\n\r\n5.1\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="vk"\r\n\r\na03bc211\r\n-------------------------------7d83e2d7a141e\r\nContent-Disposition: form-data; name="mid"\r\n\r\n8a40d9eff408a78fe9ec10a0e7e60f62\r\n-------------------------------7d83e2d7a141e--'
-                response = requests.post('http://qup.f.360.cn/file_health_info.php', data=strBody, timeout=5)
-                if response.status_code == 200:
-                    label = str(xmlet.fromstring(response.text).find('.//malware').text).split('/')[1].split('.')
-                    level = int(float(xmlet.fromstring(response.text).find('.//e_level').text))
-                    return f"{label[0]}", level
-            return False, False
-        except:
-            return False, False
 
     def pe_scan(self, file):
         try:
@@ -934,26 +953,6 @@ class MainWindow_Controller(QMainWindow):
                 QApplication.processEvents()
                 if rules.match(data=data):
                     return True
-            return False
-        except:
-            return False
-
-    def rule_scan_partition(self, file):
-        try:
-            with open(file, "rb") as f:
-                data = f.read()
-            file_path = os.path.join(self.dir, "Rules")
-            for root, dirs, files in os.walk(file_path):
-                for file in files:
-                    QApplication.processEvents()
-                    yara_path = os.path.join(root, file)
-                    ftype = str(f".{file.split('.')[-1]}").lower()
-                    if ftype in [".yara", ".yar"]:
-                        rules = yara.compile(yara_path)
-                    elif ftype in [".yc", ".yrc"]:
-                        rules = yara.load(yara_path)
-                    if rules.match(data=data):
-                        return True
             return False
         except:
             return False

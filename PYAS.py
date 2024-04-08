@@ -898,8 +898,8 @@ class MainWindow_Controller(QMainWindow):
                     self.traverse_path(file)
                 elif file not in self.whitelist and file != self.pyas:
                     self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
-                    self.write_scan(self.start_scan(file),file)
                     QApplication.processEvents()
+                    self.write_scan(self.start_scan(file),file)
                 gc.collect()
             except:
                 pass

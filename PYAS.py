@@ -321,7 +321,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))
         self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高引擎的靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.trans(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.cloud_services_title.setText(self.trans("雲端上報服務"))
+        self.ui.cloud_services_title.setText(self.trans("雲端掃描服務"))
         self.ui.cloud_services_illustrate.setText(self.trans("啟用此選項可以自動上報雲端分析"))
         self.ui.cloud_services_switch_Button.setText(self.trans(self.ui.cloud_services_switch_Button.text()))
         self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
@@ -703,17 +703,6 @@ class MainWindow_Controller(QMainWindow):
         except Exception as e:
             self.bug_event(e)
 
-    def report_file(self, file):
-        try:
-            if self.json["cloud_services"] and os.path.getsize(file) <= 209715200:
-                files = {'file': open(file, 'rb')}
-                response = requests.post('http://27.147.30.238:5001/report', files=files)
-                if response.status_code == 200:
-                    return True
-            return False
-        except:
-            return False
-
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
         if sw_state == self.trans("已開啟"):
@@ -906,18 +895,31 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
-            Thread(target=self.report_file, args=(file,)).start()
             label, level = self.pe_scan(file)
             if label and "Unknown" in label:
-                if self.json["high_sensitive"]:
-                    return label
+                if self.cloud_scan(file):
+                    return "Cloud"
             elif label and "White" not in label:
                 if level and level >= 0.9:
                     return label
-                elif self.json["high_sensitive"]:
-                    return label
-            elif self.rule_scan(file):
-                return "Rules"
+                elif self.cloud_scan(file):
+                    return "Cloud"
+            elif self.json["high_sensitive"]:
+                if self.rule_scan(file):
+                    return "Rules"
+                elif self.cloud_scan(file):
+                    return "Cloud"
+            return False
+        except:
+            return False
+
+    def cloud_scan(self, file):
+        try:
+            if self.json["cloud_services"]:
+                files = {'file': open(file, 'rb')}
+                response = requests.post('http://27.147.30.238:5001/upload', files=files)
+                if response.status_code == 200 and "Virus" in response.text:
+                    return True
             return False
         except:
             return False

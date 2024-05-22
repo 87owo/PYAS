@@ -1,6 +1,6 @@
 import os, gc, sys, time, json, yara
-import requests, pefile, socket, msvcrt
-import pyperclip, win32file, psutil
+import pefile, socket, msvcrt, psutil
+import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
 from PYAS_Extension import slist, alist
@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.0.9"
+        self.pyas_version = "3.1.0"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_startup()
@@ -65,10 +65,16 @@ class MainWindow_Controller(QMainWindow):
 
     def init_data_base(self):
         try:
-            file_path = os.path.join(self.dir, "PYAS_Model.json")
-            if os.path.exists(file_path):
-                self.pe = ListSimHash()
-                self.pe.load_model(file_path)
+            file_path = os.path.join(self.dir, "Model")
+            for root, dirs, files in os.walk(file_path):
+                for file in files:
+                    model_path = os.path.join(root, file)
+                    ftype = str(f".{file.split('.')[-1]}").lower()
+                    if ftype in [".json", ".txt"]:
+                        self.pe = ListSimHash()
+                        self.pe.load_model(model_path)
+                    elif ftype in [".h5", ".pkl"]:
+                        pass # Not Sp Yet !
         except Exception as e:
             self.bug_event(e)
 
@@ -122,30 +128,25 @@ class MainWindow_Controller(QMainWindow):
             if not os.path.exists("C:/ProgramData/PYAS"):
                 os.makedirs("C:/ProgramData/PYAS")
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
-                self.write_config({"high_sensitive":0,"cloud_services":1,
+                self.write_config({"high_sensitive":0,"cloud_services":"http://127.0.0.1/",
                 "language":"en_US","theme_color":"White","theme_custom":""})
             with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
                 self.json = json.load(f)
         except:
-            self.write_config({"high_sensitive":0,"cloud_services":1,
+            self.write_config({"high_sensitive":0,"cloud_services":"http://127.0.0.1/",
             "language":"en_US","theme_color":"White","theme_custom":""})
             with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
                 self.json = json.load(f)
 
     def init_config_json(self):
         self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
-        self.json["cloud_services"] = self.json.get("cloud_services", 1)
+        self.json["cloud_services"] = self.json.get("cloud_services", "http://127.0.0.1/")
         self.json["language"] = self.json.get("language", "en_US")
         self.json["theme_color"] = self.json.get("theme_color", "White")
         self.json["theme_custom"] = self.json.get("theme_custom", "")
         if self.json["high_sensitive"] == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-        if self.json["cloud_services"] == 1:
-            self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
-            self.ui.cloud_services_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(210, 250, 210);}""")
         if self.json["language"] == "zh_TW":
@@ -199,7 +200,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Protection_switch_Button_4.clicked.connect(self.protect_reg_init)
         self.ui.Protection_switch_Button_5.clicked.connect(self.protect_net_init)
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
-        self.ui.cloud_services_switch_Button.clicked.connect(self.change_cloud_service)
+        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_service)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
         self.ui.Language_Traditional_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
@@ -321,9 +322,9 @@ class MainWindow_Controller(QMainWindow):
         self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))
         self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高引擎的靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.trans(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.cloud_services_title.setText(self.trans("雲端掃描服務"))
-        self.ui.cloud_services_illustrate.setText(self.trans("啟用此選項可以自動上報雲端分析"))
-        self.ui.cloud_services_switch_Button.setText(self.trans(self.ui.cloud_services_switch_Button.text()))
+        self.ui.cloud_services_title.setText(self.trans("上報雲端分析"))
+        self.ui.cloud_services_illustrate.setText(self.trans("此選項可以選擇檔案並上報雲端分析"))
+        self.ui.cloud_services_switch_Button.setText(self.trans("選擇"))
         self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
         self.ui.Add_White_list_illustrate.setText(self.trans("此選項可以選擇檔案並增加到白名單"))
         self.ui.Add_White_list_Button.setText(self.trans(self.ui.Add_White_list_Button.text()))
@@ -662,10 +663,10 @@ class MainWindow_Controller(QMainWindow):
     def show_menu(self):
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
-        Main_Update = QAction(self.trans("更新"),self)
+        #Main_Update = QAction(self.trans("更新"),self)
         Main_About = QAction(self.trans("關於"),self)
         self.WindowMenu.addAction(Main_Settings)
-        self.WindowMenu.addAction(Main_Update)
+        #self.WindowMenu.addAction(Main_Update)
         self.WindowMenu.addAction(Main_About)
         Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
         if Qusetion == Main_About and self.ui.About_widget.isHidden():
@@ -683,23 +684,13 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Window_widget.raise_()
             self.change_animation_3(self.ui.Setting_widget,0.5)
             self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
-        if Qusetion == Main_Update:
-            self.update_database()
+        #if Qusetion == Main_Update:
+            #self.update_database()
 
     def update_database(self):
         try:
             if self.question_event("您確定要更新數據庫嗎?"):
-                params = {"version": self.pyas_version}
-                file_path = os.path.join(self.dir, "PYAS_Model.json")
-                response = requests.get('http://27.147.30.238:5001/model', params=params)
-                if response.status_code == 200:
-                    with open(file_path, 'wb') as f:
-                        f.write(response.content)
-                    self.init_data_base()
-                    self.init_lang_text()
-                    self.info_event(f"數據庫更新成功: PYAS_Model.json")
-                else:
-                    self.bug_event(response.status_code)
+                pass
         except Exception as e:
             self.bug_event(e)
 
@@ -719,21 +710,17 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgb(210,250,210);}""")
         self.write_config(self.json)
 
-    def change_cloud_service(self):
-        sw_state = self.ui.cloud_services_switch_Button.text()
-        if sw_state == self.trans("已關閉"):
-            self.json["cloud_services"] = 1
-            self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
-            self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200,250,200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210,250,210);}""")
-        elif sw_state == self.trans("已開啟"):
-            self.json["cloud_services"] = 0
-            self.ui.cloud_services_switch_Button.setText(self.trans("已關閉"))
-            self.ui.cloud_services_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(220,220,220);}""")
-        self.write_config(self.json)
+    def cloud_service(self):
+        try:
+            file = str(QFileDialog.getOpenFileName(self,self.trans("上報雲端分析"),"C:/")[0]).replace("\\", "/")
+            if file and self.question_event("您確定要上報雲端分析嗎?"):
+                response = requests.post(self.json["cloud_services"], files={'file': open(file, 'rb')})
+                if response.status_code == 200:
+                    self.info_event(f"成功上報雲端分析: "+file)
+                else:
+                    self.bug_event(response.status_code)
+        except Exception as e:
+            self.bug_event(e)
 
     def init_scan(self):
         try:
@@ -895,31 +882,19 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
+            ftype = str(f".{file.split('.')[-1]}").lower()
             label, level = self.pe_scan(file)
             if label and "Unknown" in label:
-                if self.cloud_scan(file):
-                    return "Cloud"
+                if self.rule_scan(file):
+                    return "Rules"
             elif label and "White" not in label:
-                if level and level >= 0.9:
+                if self.json["high_sensitive"]:
                     return label
-                elif self.cloud_scan(file):
-                    return "Cloud"
+                elif level and level >= 0.9:
+                    return label
             elif self.json["high_sensitive"]:
                 if self.rule_scan(file):
                     return "Rules"
-                elif self.cloud_scan(file):
-                    return "Cloud"
-            return False
-        except:
-            return False
-
-    def cloud_scan(self, file):
-        try:
-            if self.json["cloud_services"]:
-                files = {'file': open(file, 'rb')}
-                response = requests.post('http://27.147.30.238:5001/upload', files=files)
-                if response.status_code == 200 and "Virus" in response.text:
-                    return True
             return False
         except:
             return False
@@ -935,8 +910,7 @@ class MainWindow_Controller(QMainWindow):
                         except:
                             pass
             QApplication.processEvents()
-            label, level = self.pe.predict(fn)
-            return label, int(level*100)
+            return self.pe.predict(fn)
         except:
             return False, False
 
@@ -1355,18 +1329,28 @@ class MainWindow_Controller(QMainWindow):
 
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
+        self.ransom_counts = 0
         while self.file_protect:
             for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
                 try:
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
-                    if action == 2 and ":/Users" in fpath and "/AppData/" not in fpath:
-                        file = self.proc.exe().replace("\\", "/")
-                        if ":/Program" not in file and ftype in alist:
-                            self.kill_process(self.proc, "勒索行為攔截")
-                    elif action == 3 and ":/Users" in fpath and "/AppData/" not in fpath:
-                        if os.path.getsize(fpath) <= 52428800 and ftype in slist:
-                            if self.start_scan(fpath):
+                    if self.ransom_counts >= 3 and self.proc:
+                        self.ransom_counts = 0
+                        self.kill_process(self.proc, "勒索行為攔截")
+                    elif ":/Windows" in fpath and "/Temp/" not in fpath:
+                        if action == 2 and ftype in alist:
+                            self.ransom_counts += 1
+                        elif action == 4 and ftype in alist:
+                            self.ransom_counts += 1
+                    elif ":/Users" in fpath and "/AppData/" not in fpath:
+                        if action == 2 and ftype in alist:
+                            self.ransom_counts += 1
+                        elif action == 4 and ftype in alist:
+                            self.ransom_counts += 1
+                        elif action == 3 and ftype in slist and os.path.getsize(fpath) <= 52428800:
+                            self.send_notify(self.trans(f"正在掃描: ")+fpath)
+                            if self.sign_scan(file) and self.start_scan(fpath):
                                 os.remove(fpath)
                                 self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
                 except:
@@ -1403,7 +1387,7 @@ class MainWindow_Controller(QMainWindow):
                 time.sleep(0.2)
                 local = socket.gethostbyname(socket.gethostname())
                 for conn in self.proc.connections():
-                    if "/AppData/" not in file and ":/Program" not in file:
+                    if ":/Windows" not in file and ":/Program" not in file:
                         if conn.laddr.ip == local:
                             self.kill_process(self.proc, "網路通訊攔截")
             except:

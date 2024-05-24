@@ -8,7 +8,7 @@ PYAS.py -> PYAS主程式（包括动画、扫描、保护功能等）
 
 PYAS_Engine.py -> 转换资料库（用于相互转换资料库字典和清单）
 
-PYAS_Extension.py -> 档案副档名（包括扫描档案副档名和常用档案副档名）
+PYAS_Extension.py -> 副文件名（包括扫描文件副文件名和常用副文件名）
 
 PYAS_Model.* -> 病毒库（病毒库必须放在同一目录下）
 
@@ -18,7 +18,7 @@ PYAS_Resource.py -> PyQt5资源（状态图片、图示包、按钮图示等）
 
 PYAS_Language.py -> 翻译字典（繁体中文、简体中文、英文）
 
-PYAS_Version.py -> Pyinstaller Info（档案资讯、版本资讯、原名等）
+PYAS_Version.py -> Pyinstaller Info（文件资讯、版本资讯、原名等）
 
 ## 安装要求
 
@@ -35,7 +35,7 @@ PyQt5==5.15.9
 
 ## 文件扫描
 
-取得pefile档案函数导入表进行扫描
+取得pefile文件函数导入表进行扫描
 
 ```
 import pefile
@@ -63,7 +63,7 @@ print(info)
 
 ## 进程监控
 
-显示新进程名称、档案路径、cmd 行、pid
+显示新进程名称、文件路径、cmd 行、pid
 
 ```
 import psutil, time
@@ -90,9 +90,9 @@ def proc_detect():
 proc_detect()
 ```
 
-## 档案监控
+## 文件监控
 
-监控指定路径下的档案变化
+监控指定路径下的文件变化
 
 ```
 import os, win32file, win32con

@@ -36,7 +36,7 @@ PYAS/
 │
 ├── Rules/
 │   ├── Yara_Rules.yar
-│   ├── Complete_Rules.yrc
+│   ├── Compile_Rules.yrc
 │   └── ...
 │
 ├── PYAS.py

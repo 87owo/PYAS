@@ -2,7 +2,7 @@
 
 ![PYAS](https://github.com/87owo/PYAS/assets/85057800/153bcad9-18ab-4c81-bcb6-186434d0ef1b)
 
-## 檔案訊息
+## 檔案資訊
 
 PYAS.py -> PYAS主程式（包括動畫、掃描、保護功能等）
 
@@ -19,6 +19,25 @@ PYAS_Resource.py -> PyQt5資源（狀態圖片、圖示包、按鈕圖示等）
 PYAS_Language.py -> 翻譯字典（繁體中文、簡體中文、英文）
 
 PYAS_Version.py -> Pyinstaller Info（檔案資訊、版本資訊、原名等）
+
+## 目錄資訊
+
+```
+PYAS/
+├── Model/
+│   ├── PYAS_Model.json
+│   ├── PYAS_Model.txt
+│   └── ...
+│
+├── Rules/
+│   ├── Yara_Rules.yar
+│   ├── Compile_Rules.yrc
+│   └── ...
+│
+├── PYAS.py
+├── PYAS_Engine.py
+└── ...
+```
 
 ## 安裝要求
 

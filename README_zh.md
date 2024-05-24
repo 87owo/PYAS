@@ -130,9 +130,11 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 ## 支援的系統
 
 Windows 8.1, 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
+
 其他系統或版本可能會遇到軟體功能故障或程序崩潰
 
 ## Special Thanks
+
 360, Wix, VirusShare, mtkiao129, AV-T Team of LisectGroup
 
 Copyright© 2020~2024 PYAS Security By 87owo

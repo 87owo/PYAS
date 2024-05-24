@@ -2,7 +2,7 @@
 
 ![PYAS](https://github.com/87owo/PYAS/assets/85057800/153bcad9-18ab-4c81-bcb6-186434d0ef1b)
 
-## 文件訊息
+## 檔案訊息
 
 PYAS.py -> PYAS主程式（包括動畫、掃描、保護功能等）
 
@@ -20,7 +20,7 @@ PYAS_Language.py -> 翻譯字典（繁體中文、簡體中文、英文）
 
 PYAS_Version.py -> Pyinstaller Info（檔案資訊、版本資訊、原名等）
 
-## 要求
+## 安裝要求
 
 使用 pip install requirements 來安裝需要的模組
 
@@ -33,7 +33,7 @@ pywin32==306
 PyQt5==5.15.9
 ```
 
-## 文件掃描
+## 檔案掃描
 
 取得pefile檔案函數導入表進行掃描
 
@@ -61,7 +61,7 @@ info = pe_scan("path to file")
 print(info)
 ```
 
-## 進程偵測
+## 進程監控
 
 顯示新進程名稱、檔案路徑、cmd 行、pid
 ```
@@ -89,7 +89,7 @@ def proc_detect():
 proc_detect()
 ```
 
-## 檔案偵測
+## 檔案監控
 
 監控指定路徑下的檔案變化
 ```
@@ -123,17 +123,17 @@ https://pyantivirus.wixsite.com/pyas
 
 https://github.com/87owo/PYAS
 
-## 開源許可證
+## 開源協議
 
 https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
-## 支援的系統
+## 支援系統
 
 Windows 8.1, 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
 
 其他系統或版本可能會遇到軟體功能故障或程序崩潰
 
-## Special Thanks
+## 特別感謝
 
 360, Wix, VirusShare, mtkiao129, AV-T Team of LisectGroup
 

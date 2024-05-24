@@ -12,13 +12,13 @@ PYAS_Extension.py -> 副文件名（包括扫描文件副文件名和常用副�
 
 PYAS_Model.* -> 病毒库（病毒库必须放在同一目录下）
 
-PYAS_Interface.py -> PyQt5 Interface（由QT设计师设计，必须与主程式相符）
+PYAS_Interface.py -> PyQt5界面（由QT设计师设计，必须与主程式相符）
 
 PYAS_Resource.py -> PyQt5资源（状态图片、图示包、按钮图示等）
 
 PYAS_Language.py -> 翻译字典（繁体中文、简体中文、英文）
 
-PYAS_Version.py -> Pyinstaller Info（文件资讯、版本资讯、原名等）
+PYAS_Version.py -> Pyinstaller资讯（文件资讯、版本资讯、原名等）
 
 ## 安装要求
 

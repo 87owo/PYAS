@@ -25,6 +25,25 @@ PYAS_Language.py -> Translate Dict (Traditional Chinese, Simplified Chinese, Eng
 
 PYAS_Version.py -> Pyinstaller Info (file information, version information, original name, etc.)
 
+## Dict Information
+
+```
+PYAS/
+├── Model/
+│   ├── PYAS_Model.json
+│   ├── PYAS_Model.txt
+│   └── ...
+│
+├── Rules/
+│   ├── Yara_Rules.yar
+│   ├── Complete_Rules.yrc
+│   └── ...
+│
+├── PYAS.py
+├── PYAS_Engine.py
+└── ...
+```
+
 ## Requirements
 
 Use pip install requirements to install import module

@@ -4,7 +4,7 @@
 
 ## Readme Language
 
-[繁體中文](https://github.com/zackzheng1121/PYAS/blob/main/README_zh.md)
+[繁體中文](https://github.com/87owo/PYAS/blob/main/README_zh.md)
 
 ## File Information
 
@@ -137,7 +137,7 @@ https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
 ## Support System
 
-Windows 8.1, 10, 11 (64-bit), Ram 1GB, Rom 1GB or higher
+Windows 8.1, 10, 11 (64-bit), Ram 500MB, Rom 200MB or higher
 
 Other systems may experience software malfunctions or crash
 

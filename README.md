@@ -25,7 +25,7 @@ PYAS_Language.py -> Translate Dict (Traditional Chinese, Simplified Chinese, Eng
 
 PYAS_Version.py -> Pyinstaller Info (file information, version information, original name, etc.)
 
-## Dict Information
+## Dir Information
 
 ```
 PYAS/

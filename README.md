@@ -4,7 +4,8 @@
 
 ## Readme Language
 
-[繁體中文](https://github.com/87owo/PYAS/blob/main/README_zh.md)
+[繁體中文](https://github.com/87owo/PYAS/blob/main/README_zh_TW.md) , 
+[简体中文](https://github.com/87owo/PYAS/blob/main/README_zh_CN.md)
 
 ## File Information
 
@@ -142,6 +143,7 @@ Windows 8.1, 10, 11 (64-bit), Ram 500MB, Rom 200MB or higher
 Other systems may experience software malfunctions or crash
 
 ## Special Thanks
+
 360, Wix, VirusShare, mtkiao129, AV-T Team of LisectGroup
 
 Copyright© 2020~2024 PYAS Security By 87owo

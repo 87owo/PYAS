@@ -55,7 +55,7 @@ class ListSimHash:
         percent_string = "{0:.2f}".format(percent)
         filled_length = int(length * iteration // total)
         bar = fill * filled_length + ' ' * (length - filled_length)
-        print(f'\r    {prefix: <10} |{bar}| {percent_string}% {suffix}', end=end_char)
+        print(f'\r{prefix: <15} |{bar}| {percent_string}% {suffix}', end=end_char)
 
     def predict_all(self, query):
         label_similarities = {}

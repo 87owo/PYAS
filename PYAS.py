@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.1.0"
+        self.pyas_version = "3.1.1"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_startup()
@@ -772,7 +772,8 @@ class MainWindow_Controller(QMainWindow):
             for file in self.virus_list:
                 try:
                     if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
-                        self.ui.Virus_Scan_text.setText(self.trans("正在刪除: ")+file)
+                        self.ui.Virus_Scan_title.setText(self.trans("正在刪除"))
+                        self.ui.Virus_Scan_text.setText(file)
                         QApplication.processEvents()
                         self.lock_file(file, False)
                         os.remove(file)
@@ -784,7 +785,8 @@ class MainWindow_Controller(QMainWindow):
             self.virus_list = []
             self.virus_list_ui = []
             self.ui.Virus_Scan_output.clear()
-            self.ui.Virus_Scan_text.setText(self.trans("成功: 刪除成功"))
+            self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
+            self.ui.Virus_Scan_text.setText(self.trans("刪除成功"))
         except Exception as e:
             self.bug_event(e)
 
@@ -804,6 +806,7 @@ class MainWindow_Controller(QMainWindow):
 
     def answer_scan(self):
         try:
+            self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
             if self.virus_list:
                 self.ui.Virus_Scan_Solve_Button.show()
                 self.ui.Virus_Scan_Break_Button.hide()
@@ -823,6 +826,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Virus_Scan_Break_Button.hide()
         self.ui.Virus_Scan_choose_Button.show()
         self.ui.Virus_Scan_text.setText(self.trans("請選擇掃描方式"))
+        self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
 
     def virus_scan_menu(self):
         if self.ui.Virus_Scan_choose_widget.isHidden():
@@ -873,7 +877,8 @@ class MainWindow_Controller(QMainWindow):
                 elif os.path.isdir(file):
                     self.traverse_path(file)
                 elif file not in self.whitelist and file != self.pyas:
-                    self.ui.Virus_Scan_text.setText(self.trans(f"正在掃描: ")+file)
+                    self.ui.Virus_Scan_title.setText(self.trans("正在掃描"))
+                    self.ui.Virus_Scan_text.setText(file)
                     QApplication.processEvents()
                     self.write_scan(self.start_scan(file),file)
                 gc.collect()
@@ -1349,7 +1354,6 @@ class MainWindow_Controller(QMainWindow):
                         elif action == 4 and ftype in alist:
                             self.ransom_counts += 1
                         elif action == 3 and ftype in slist and os.path.getsize(fpath) <= 52428800:
-                            self.send_notify(self.trans(f"正在掃描: ")+fpath)
                             if self.sign_scan(file) and self.start_scan(fpath):
                                 os.remove(fpath)
                                 self.send_notify(self.trans("惡意軟體刪除: ")+fpath)

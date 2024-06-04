@@ -49,11 +49,11 @@ class ListSimHash:
         bitarray = numpy.unpackbits(numpy.frombuffer(b''.join(digests), dtype='>B'))
         return numpy.sum(numpy.reshape(bitarray, (-1, 256)), 0)
 
-    def progress_bar(self, iteration, total, prefix='', suffix='', length=50, fill='█'):
-        percent = min(100.0, max(0.0, 100 * (iteration / float(total))))
+    def progress_bar(self, items, total, prefix='', suffix='', length=50, fill='█'):
+        percent = min(100.0, max(0.0, 100 * (items / float(total))))
         end_char = '\n' if percent >= 100 else '\r'
         percent_string = "{0:.2f}".format(percent)
-        filled_length = int(length * iteration // total)
+        filled_length = int(length * items // total)
         bar = fill * filled_length + ' ' * (length - filled_length)
         print(f'\r{prefix: <15} |{bar}| {percent_string}% {suffix}', end=end_char)
 

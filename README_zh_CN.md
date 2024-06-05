@@ -1,6 +1,6 @@
 # PYAS (Python 杀毒软件)
 
-![PYAS](https://github.com/87owo/PYAS/assets/85057800/153bcad9-18ab-4c81-bcb6-186434d0ef1b)
+![PYAS](https://github.com/87owo/PYAS/assets/85057800/8136aaca-d388-4321-bedb-abc4fcecfa8b)
 
 ## 文件信息
 

@@ -69,9 +69,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             file_path = os.path.join(self.dir, "Driver")
             if os.path.exists(file_path):
-                Popen("sc start PYAS_Reg_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                Popen("sc start PYAS_File_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                Popen("sc start PYAS_Proc_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
         except Exception as e:
             self.bug_event(e)
 
@@ -629,9 +627,7 @@ class MainWindow_Controller(QMainWindow):
 
     def closeEvent(self, event):
         if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
-            Popen("sc stop PYAS_Proc_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-            Popen("sc stop PYAS_File_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-            Popen("sc stop PYAS_Reg_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+            Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
             self.block_window = False
             self.proc_protect = False
             self.file_protect = False

@@ -15,6 +15,8 @@ if '%errorlevel%' NEQ '0' (goto UACPrompt) else (goto gotAdmin)
 :gotAdmin
     if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
 
+sc stop PYAS_Proc_Driver
+sc delete PYAS_Proc_Driver
 bcdedit -debug off
 bcdedit /set testsigning off
 shutdown -r -t 0

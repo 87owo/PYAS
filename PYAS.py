@@ -10,6 +10,7 @@ from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from subprocess import *
 
 class MainWindow_Controller(QMainWindow):
     def __init__(self):
@@ -23,6 +24,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_startup()
+        self.init_sys_drive()
         self.init_rule_dict()
         self.init_data_base()
         self.init_read_json()
@@ -63,6 +65,16 @@ class MainWindow_Controller(QMainWindow):
         except Exception as e:
             self.bug_event(e)
 
+    def init_sys_drive(self):
+        try:
+            file_path = os.path.join(self.dir, "Driver")
+            if os.path.exists(file_path):
+                Popen("sc start PYAS_Reg_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                Popen("sc start PYAS_File_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                Popen("sc start PYAS_Proc_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+        except Exception as e:
+            self.bug_event(e)
+
     def init_data_base(self):
         try:
             file_path = os.path.join(self.dir, "Model")
@@ -73,8 +85,6 @@ class MainWindow_Controller(QMainWindow):
                     if ftype in [".json", ".txt"]:
                         self.pe = ListSimHash()
                         self.pe.load_model(model_path)
-                    elif ftype in [".h5", ".pkl"]:
-                        pass # Not Sp Yet !
         except Exception as e:
             self.bug_event(e)
 
@@ -619,6 +629,9 @@ class MainWindow_Controller(QMainWindow):
 
     def closeEvent(self, event):
         if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
+            Popen("sc stop PYAS_Proc_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+            Popen("sc stop PYAS_File_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+            Popen("sc stop PYAS_Reg_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
             self.block_window = False
             self.proc_protect = False
             self.file_protect = False
@@ -759,9 +772,9 @@ class MainWindow_Controller(QMainWindow):
         try:
             if lock:
                 self.virus_lock[file] = os.open(file, os.O_RDWR)
-                msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, 0)
+                msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, os.path.getsize(file))
             else:
-                msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, 0)
+                msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
                 os.close(self.virus_lock[file])
         except:
             pass

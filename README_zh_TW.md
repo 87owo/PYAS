@@ -24,6 +24,10 @@ PYAS_Version.py -> Pyinstaller Info（檔案資訊、版本資訊、原名等）
 
 ```
 PYAS/
+├── Driver/
+│   ├── PYAS_Driver.sys
+│   └── ...
+│
 ├── Model/
 │   ├── PYAS_Model.json
 │   ├── PYAS_Model.txt

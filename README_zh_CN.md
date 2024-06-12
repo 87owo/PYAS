@@ -92,23 +92,25 @@ print(info)
 import psutil, time
 
 def proc_detect():
-    existing_processes = set()
+    existing_process = set()
     for p in psutil.process_iter():
-        if p.pid not in existing_processes:
-            existing_processes.add(p.pid)
+        existing_process.add(p.pid)
     while True:
         time.sleep(0.1)
+        new_process = set()
         for p in psutil.process_iter():
+            new_process.add(p.pid)
+        for pid in new_process - existing_process:
             try:
-                if p.pid not in existing_processes:
-                    existing_processes.add(p.pid)
-                    name, file, cmd = p.name(), p.exe(), p.cmdline()
-                    print(f"Name: {name}")
-                    print(f"File: {file}")
-                    print(f"Pid: {p.pid}")
-                    print(f"Cmd: {cmd}")
-            except:
-                pass
+                p = psutil.Process(pid)
+                name, file, cmd = p.name(), p.exe(), p.cmdline()
+                print(f"Name: {name}")
+                print(f"File: {file}")
+                print(f"Pid: {p.pid}")
+                print(f"Cmd: {cmd}")
+            except Exception as e:
+                print(f"Error: {e}")
+        existing_process = new_process
 
 proc_detect()
 ```
@@ -151,6 +153,10 @@ https://github.com/87owo/PYAS
 ## 开源协议
 
 https://github.com/87owo/PYAS/blob/main/LICENSE.md
+
+## 驱动程序
+
+https://github.com/0sha0/PYAS_Protection
 
 ## 支援系统
 

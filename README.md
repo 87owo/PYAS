@@ -113,8 +113,8 @@ def proc_detect():
                 print(f"File: {file}")
                 print(f"Pid: {p.pid}")
                 print(f"Cmd: {cmd}")
-            except:
-                pass
+            except Exception as e:
+                print(f"Error: {e}")
         existing_process = new_process
 
 proc_detect()

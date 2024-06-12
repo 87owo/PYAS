@@ -91,23 +91,25 @@ print(info)
 import psutil, time
 
 def proc_detect():
-    existing_processes = set()
+    existing_process = set()
     for p in psutil.process_iter():
-        if p.pid not in existing_processes:
-            existing_processes.add(p.pid)
+        existing_process.add(p.pid)
     while True:
         time.sleep(0.1)
+        new_process = set()
         for p in psutil.process_iter():
+            new_process.add(p.pid)
+        for pid in new_process - existing_process:
             try:
-                if p.pid not in existing_processes:
-                    existing_processes.add(p.pid)
-                    name, file, cmd = p.name(), p.exe(), p.cmdline()
-                    print(f"Name: {name}")
-                    print(f"File: {file}")
-                    print(f"Pid: {p.pid}")
-                    print(f"Cmd: {cmd}")
-            except:
-                pass
+                p = psutil.Process(pid)
+                name, file, cmd = p.name(), p.exe(), p.cmdline()
+                print(f"Name: {name}")
+                print(f"File: {file}")
+                print(f"Pid: {p.pid}")
+                print(f"Cmd: {cmd}")
+            except Exception as e:
+                print(f"Error: {e}")
+        existing_process = new_process
 
 proc_detect()
 ```
@@ -150,6 +152,10 @@ https://github.com/87owo/PYAS
 
 https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
+## 驅動程式
+
+https://github.com/0sha0/PYAS_Protection
+
 ## 支援系統
 
 Windows 8.1, 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
@@ -158,6 +164,6 @@ Windows 8.1, 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
 
 ## 特別感謝
 
-360, Wix, VirusShare, mtkiao129, AV-T Team of LisectGroup
+Wix, 0sha0, mtkiao129, AV-T Team of LisectGroup
 
 Copyright© 2020~2024 PYAS Security By 87owo

@@ -17,8 +17,8 @@ if '%errorlevel%' NEQ '0' (goto UACPrompt) else (goto gotAdmin)
 
 sc stop PYAS_Driver
 sc delete PYAS_Driver
-bcdedit -debug off
 bcdedit /set testsigning off
+bcdedit -debug off
 shutdown -r -t 0
 
 endlocal

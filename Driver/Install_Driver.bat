@@ -25,7 +25,7 @@ powershell.exe -ExecutionPolicy Bypass -Command ^
  $cert = New-SelfSignedCertificate -DnsName PYAS -CertStoreLocation cert:\LocalMachine\My -Type CodeSigning -NotAfter $endDate; ^
  $pwd = ConvertTo-SecureString -String 'PYAS' -Force -AsPlainText; ^
  Export-PfxCertificate -Cert $cert -FilePath '%script_dir%\PYAS.pfx' -Password $pwd;"
-start "" "%script_dir%\signtool.exe" sign /f "%script_dir%\PYAS.pfx" /p PYAS "%script_dir%\PYAS_Driver.sys"
+"%script_dir%\signtool.exe" sign /f "%script_dir%\PYAS.pfx" /p PYAS "%script_dir%\PYAS_Driver.sys"
 sc create PYAS_Driver type= kernel start= demand binPath= "%script_dir%\PYAS_Driver.sys"
 shutdown -r -t 0
 

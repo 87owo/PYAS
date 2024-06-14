@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.1.1"
+        self.pyas_version = "3.1.2"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_startup()
@@ -323,8 +323,8 @@ class MainWindow_Controller(QMainWindow):
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
         self.ui.Core_Made_title.setText(self.trans("核心製作:"))
         self.ui.Core_Made_Name.setText(self.trans("87owo"))
-        self.ui.Testers_title.setText(self.trans("測試人員:"))
-        self.ui.Testers_Name.setText(self.trans("87owo"))
+        self.ui.Testers_title.setText(self.trans("特別感謝:"))
+        self.ui.Testers_Name.setText(self.trans("0sha0"))
         self.ui.PYAS_URL_title.setText(self.trans("官方網站:"))
         self.ui.PYAS_URL.setText(self.trans("<html><head/><body><p><a href=\"https://github.com/87owo/PYAS\"><span style=\" text-decoration: underline; color:#000000;\">https://github.com/87owo/PYAS</span></a></p></body></html>"))
         self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))

@@ -903,15 +903,19 @@ class MainWindow_Controller(QMainWindow):
     def pe_scan(self, file):
         try:
             fn = []
-            with pefile.PE(file) as pe:
+            with pefile.PE(file, fast_load=True) as pe:
+                pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT']])
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     for func in entry.imports:
-                        try:
-                            fn.append(str(func.name, "utf-8"))
-                        except:
-                            pass
-            QApplication.processEvents()
-            return self.pe.predict(fn)
+                        if func.name:
+                            try:
+                                fn.append(str(func.name, "utf-8"))
+                            except:
+                                pass
+            if fn:
+                QApplication.processEvents()
+                return self.pe.predict(fn)
+            return False, False
         except:
             return False, False
 

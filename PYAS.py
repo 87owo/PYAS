@@ -23,7 +23,6 @@ class MainWindow_Controller(QMainWindow):
         self.pyas_version = "3.1.2"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-        self.init_startup()
         self.init_sys_drive()
         self.init_rule_dict()
         self.init_data_base()
@@ -33,10 +32,9 @@ class MainWindow_Controller(QMainWindow):
         self.init_config_json()
         self.init_config_list()
         self.init_config_qtui()
-        self.init_change_lang()
-        self.init_theme_color()
         self.init_control()
         self.init_threads()
+        self.init_startup()
 
     def init_threads(self):
         self.protect_proc_init()
@@ -136,22 +134,21 @@ class MainWindow_Controller(QMainWindow):
             if not os.path.exists("C:/ProgramData/PYAS"):
                 os.makedirs("C:/ProgramData/PYAS")
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
-                self.write_config({"high_sensitive":0,"cloud_services":"http://127.0.0.1/",
-                "language":"en_US","theme_color":"White","theme_custom":""})
+                self.write_config({"language":"en_US","theme_color":"White",
+                "high_sensitive":0,"cloud_services":"http://127.0.0.1/"})
             with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
                 self.json = json.load(f)
         except:
-            self.write_config({"high_sensitive":0,"cloud_services":"http://127.0.0.1/",
-            "language":"en_US","theme_color":"White","theme_custom":""})
+            self.write_config({"language":"en_US","theme_color":"White",
+            "high_sensitive":0,"cloud_services":"http://127.0.0.1/"})
             with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
                 self.json = json.load(f)
 
     def init_config_json(self):
-        self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
-        self.json["cloud_services"] = self.json.get("cloud_services", "http://127.0.0.1/")
         self.json["language"] = self.json.get("language", "en_US")
         self.json["theme_color"] = self.json.get("theme_color", "White")
-        self.json["theme_custom"] = self.json.get("theme_custom", "")
+        self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
+        self.json["cloud_services"] = self.json.get("cloud_services", "http://127.0.0.1/")
         if self.json["high_sensitive"] == 1:
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
@@ -173,7 +170,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Theme_Yellow.setChecked(True)
         elif self.json["theme_color"] == "Blue":
             self.ui.Theme_Blue.setChecked(True)
-        elif self.json["theme_color"] == "Custom":
+        elif os.path.exists(self.json["theme_color"]):
             self.ui.Theme_Customize.setChecked(True)
 
     def init_control(self):
@@ -213,12 +210,12 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Language_Traditional_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_English.clicked.connect(self.init_change_lang)
-        self.ui.Theme_White.clicked.connect(self.change_theme)
-        self.ui.Theme_Customize.clicked.connect(self.change_theme)
-        self.ui.Theme_Green.clicked.connect(self.change_theme)
-        self.ui.Theme_Yellow.clicked.connect(self.change_theme)
-        self.ui.Theme_Blue.clicked.connect(self.change_theme)
-        self.ui.Theme_Red.clicked.connect(self.change_theme)
+        self.ui.Theme_White.clicked.connect(self.init_theme_color)
+        self.ui.Theme_Customize.clicked.connect(self.init_theme_color)
+        self.ui.Theme_Green.clicked.connect(self.init_theme_color)
+        self.ui.Theme_Yellow.clicked.connect(self.init_theme_color)
+        self.ui.Theme_Blue.clicked.connect(self.init_theme_color)
+        self.ui.Theme_Red.clicked.connect(self.init_theme_color)
 
     def init_config_qtui(self):
         self.ui.widget_2.lower()
@@ -352,63 +349,49 @@ class MainWindow_Controller(QMainWindow):
 
     def init_theme_color(self):
         try:
-            if self.json["theme_color"] == "White":
+            if self.ui.Theme_White.isChecked():
+                self.json["theme_color"] = "White"
                 self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
                 self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
                 self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
-            elif self.json["theme_color"] == "Red":
+            elif self.ui.Theme_Red.isChecked():
+                self.json["theme_color"] = "Red"
                 self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
                 self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,230,230);}")
                 self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,220,220);}")
-            elif self.json["theme_color"] == "Yellow":
-                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
-                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,250,230);}")
-                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
-            elif self.json["theme_color"] == "Green":
+            elif self.ui.Theme_Green.isChecked():
+                self.json["theme_color"] = "Green"
                 self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
                 self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,230);}")
                 self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,220);}")
-            elif self.json["theme_color"] == "Blue":
+            elif self.ui.Theme_Blue.isChecked():
+                self.json["theme_color"] = "Blue"
                 self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
                 self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(230,250,250);}")
                 self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(220,250,250);}")
-            elif self.json["theme_color"] == "Custom":
-                with open(os.path.join(self.json["theme_custom"],"Color.ini"), "r") as f:
+            elif self.ui.Theme_Yellow.isChecked():
+                self.json["theme_color"] = "Yellow"
+                self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
+                self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,250,230);}")
+                self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
+            elif self.ui.Theme_Customize.isChecked():
+                if not os.path.exists(os.path.join(self.json["theme_color"],"Color.ini")):
+                    path = str(QFileDialog.getExistingDirectory(self,self.trans("自定主題"),"C:/"))
+                    if path and os.path.exists(os.path.join(path,"Color.ini")):
+                        self.json["theme_color"] = path
+                with open(os.path.join(self.json["theme_color"],"Color.ini"), "r") as f:
                     self.themecolor = [line.strip() for line in f.readlines()]
                 self.ui.Window_widget.setStyleSheet(self.themecolor[0])
                 self.ui.Navigation_Bar.setStyleSheet(self.themecolor[1])
-                file = os.path.join(self.json["theme_custom"],"Check.png")
+                file = os.path.join(self.json["theme_color"],"Check.png")
                 self.ui.State_icon.setPixmap(QPixmap(file))
+            self.write_config(self.json)
         except:
             self.ui.Theme_White.setChecked(True)
+            self.json["theme_color"] = "White"
             self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
             self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(240,240,240);}")
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
-
-    def read_custom_theme(self):
-        try:
-            path = str(QFileDialog.getExistingDirectory(self,self.trans("自定主題"),"C:/"))
-            if os.path.exists(os.path.join(path,"Color.ini")):
-                self.json["theme_custom"] = path
-        except:
-            pass
-
-    def change_theme(self):
-        if self.ui.Theme_White.isChecked():
-            self.json["theme_color"] = "White"
-        elif self.ui.Theme_Red.isChecked():
-            self.json["theme_color"] = "Red"
-        elif self.ui.Theme_Green.isChecked():
-            self.json["theme_color"] = "Green"
-        elif self.ui.Theme_Yellow.isChecked():
-            self.json["theme_color"] = "Yellow"
-        elif self.ui.Theme_Blue.isChecked():
-            self.json["theme_color"] = "Blue"
-        elif self.ui.Theme_Customize.isChecked():
-            self.read_custom_theme()
-            self.json["theme_color"] = "Custom"
-        self.write_config(self.json)
-        self.init_theme_color()
 
     def change_animation(self,widget):
         x, y = 170, widget.pos().y()
@@ -607,6 +590,8 @@ class MainWindow_Controller(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(update_opacity)
         self.timer.start(2)
+        self.init_change_lang()
+        self.init_theme_color()
 
     def init_hide_pyas(self):
         def update_opacity():

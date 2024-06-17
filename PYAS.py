@@ -889,8 +889,10 @@ class MainWindow_Controller(QMainWindow):
             elif label and "White" not in label:
                 if self.json["high_sensitive"]:
                     return label
-                elif level and level >= 0.9:
+                elif level and level >= 1.0:
                     return label
+                elif self.rule_scan(file):
+                    return "Rules"
             elif self.json["high_sensitive"]:
                 if self.rule_scan(file):
                     return "Rules"

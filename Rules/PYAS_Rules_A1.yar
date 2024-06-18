@@ -71,7 +71,7 @@ rule PYAS_Rules_A_3 {
       $s11 = "StyleEditor" ascii
       $s12 = "PatternEditor" ascii
    condition:
-      uint16(0) == 0x5a4d and filesize < 22000KB and
+      uint16(0) == 0x5a4d and filesize < 30000KB and
       $x1 and 8 of them
 }
 
@@ -89,7 +89,7 @@ rule PYAS_Rules_A_4 {
       $s4 = ".exe" wide
       $s5 = ".pdb" wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 3000KB and
+      uint16(0) == 0x5a4d and filesize < 4000KB and
       ($x1 and $x2) and 5 of them
 }
 
@@ -112,7 +112,7 @@ rule PYAS_Rules_A_5 {
       $s10 = "get_CellPhoneColumn" fullword ascii
       $s11 = "postcodeTextBox" fullword wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 2000KB and
+      uint16(0) == 0x5a4d and filesize < 5000KB and
       $x1 and 3 of them
 }
 
@@ -148,8 +148,11 @@ rule PYAS_Rules_A_6 {
       $s20 = "vffefeeffe" fullword ascii
       $s21 = "afeffefefe" ascii
       $s22 = "fefefeffea" ascii
+	  $s23 = "LogicValues1" fullword ascii
+	  $s24 = "by adguard" fullword wide
+	  $s25 = "txt files (*.txt)|*.txt|docs (*.doc)|*.doc|All files (*.*)|*.*" wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 20000KB and
+      uint16(0) == 0x5a4d and filesize < 4000KB and
       1 of ($x*) and 5 of them
 }
 
@@ -175,7 +178,7 @@ rule PYAS_Rules_A_7 {
       $s14 = "o^EX:\"" fullword ascii
       $s15 = "rjF.tNb" fullword ascii
    condition:
-      uint16(0) == 0x5a4d and filesize < 23000KB and
+      uint16(0) == 0x5a4d and filesize < 50000KB and
       6 of them
 }
 
@@ -202,7 +205,7 @@ rule PYAS_Rules_A_8 {
       $s12 = "HKEY_CURRENT_USER\\Software\\" wide nocase
       $s13 = "HKEY_LOCAL_MACHINE\\SOFTWARE\\" wide nocase
    condition:
-      uint16(0) == 0x5a4d and filesize < 1000KB and
+      uint16(0) == 0x5a4d and filesize < 15000KB and
       1 of ($x*) and 5 of them
 }
 
@@ -230,6 +233,8 @@ rule PYAS_Rules_A_10 {
    strings:
       $x1 = "DQuasar.Common" ascii
       $x2 = "PublicKeyToken" ascii
+      $s1 = "GetKeyShareHelloRetryRequest" ascii
+      $s2 = "GetKeyShareServerHello" ascii
       $s3 = "Process already elevated." fullword wide
       $s4 = "get_PotentiallyVulnerablePasswords" ascii
       $s5 = "GetKeyloggerLogsDirectory" ascii
@@ -241,11 +246,9 @@ rule PYAS_Rules_A_10 {
       $s16 = "getBytesProcessed" ascii
       $s17 = "GetPreSharedKeyClientHello" ascii
       $s18 = "GetKeyShareClientHello" ascii
-      $s19 = "GetKeyShareHelloRetryRequest" ascii
-      $s20 = "GetKeyShareServerHello" ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 20000KB and
-      1 of ($x*) and 5 of them
+      ($x1 and $x2) and 6 of them
 }
 
 rule PYAS_Rules_A_11 {
@@ -264,7 +267,7 @@ rule PYAS_Rules_A_11 {
       $s8 = "Plugin.Plugin" fullword wide
       $s9 = "RunAntiAnalysis" fullword ascii
    condition:
-      uint16(0) == 0x5a4d and filesize < 100KB and
+      uint16(0) == 0x5a4d and filesize < 1000KB and
       6 of them
 }
 
@@ -291,7 +294,7 @@ rule PYAS_Rules_A_12 {
       $s14 = "Content-length:" wide
 	  $s15 = "Mozilla/5.0" wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 1000KB and
+      uint16(0) == 0x5a4d and filesize < 30000KB and
       1 of ($x*) and 5 of them
 }
 
@@ -319,7 +322,7 @@ rule PYAS_Rules_A_13 {
       $s19 = "gv8)  -" fullword ascii
       $s20 = "[oBxxnhdy[" fullword ascii
    condition:
-      uint16(0) == 0x5a4d and filesize < 4000KB and
+      uint16(0) == 0x5a4d and filesize < 2000KB and
       6 of them
 }
 
@@ -374,7 +377,7 @@ rule PYAS_Rules_A_15 {
       $s19 = "%localappdata%\\" fullword wide
       $s20 = "NoEngrdVpEngn.exe*" fullword wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 1000KB and
+      uint16(0) == 0x5a4d and filesize < 2000KB and
       6 of them
 }
 
@@ -398,6 +401,110 @@ rule PYAS_Rules_A_16 {
       $s10 = "txtUserID" fullword wide
       $s11 = "Please Enter User ID" fullword wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 2000KB and
+      uint16(0) == 0x5a4d and filesize < 4000KB and
       ($x1 and $x2) and 6 of them
+}
+
+rule PYAS_Rules_A_17 {
+   meta:
+      description = "PYAS_Rules_A_17"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "select * from user" wide nocase
+      $s1 = "ltromatic.ttf" wide
+      $s2 = "password mismatch issue" fullword wide
+      $s3 = "tada.wav" wide
+      $s4 = "GetAllIncome" fullword ascii
+      $s5 = "getIcomeData" fullword ascii
+      $s6 = "execQueryForStoredProcedure" fullword ascii
+      $s7 = "GetAllIncomeValues" fullword ascii
+      $s8 = "GetTotalIncomeSum" fullword ascii
+      $s9 = "getAllUser" fullword ascii
+      $s10 = "The password must include letters and numbers both" fullword wide
+      $s11 = "Passwords not mathced" fullword wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 4000KB and
+      $x1 and 8 of them
+}
+
+rule PYAS_Rules_A_18 {
+   meta:
+      description = "PYAS_Rules_A_18"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "WINDESCRIPTION" fullword wide
+      $s2 = "2#2?2a2{2" fullword ascii
+      $s3 = "CWM_GETCONTROLNAME" fullword wide
+      $s4 = ":%:=:C:L:R:\\:g:" fullword ascii
+      $s5 = ":-:I:T:\\:g:o:{:" fullword ascii
+      $s6 = "C@COM_EVENTOBJ" fullword wide
+      $s7 = "ISTABLE" fullword wide
+      $s8 = "Cstatic" fullword wide
+      $s9 = "HtZHtEHt2" fullword ascii
+      $s10 = "tgHuM95" fullword ascii
+      $s11 = "EEnvironment" fullword wide
+      $s12 = "Invalid characters behind Object assignment!" fullword wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 6000KB and
+      6 of them
+}
+
+rule PYAS_Rules_A_19 {
+   meta:
+      description = "PYAS_Rules_A_19"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "step executed succcessfully" wide
+	  $x2 = "NurseWorkstationDemo" wide
+      $s1 = "get_ObejctOperation" fullword ascii
+      $s2 = "man.png" wide
+      $s3 = "woman.png" fullword wide
+      $s4 = "get_AUTHORITY_ALL" fullword ascii
+      $s5 = "GetDataTableInfo_CommonGood" fullword ascii
+      $s6 = "from CommonGood where user_name=@user_Name" wide
+      $s7 = "PSYCHOLOGY" fullword ascii
+      $s8 = "GYNECOLOGY" fullword ascii
+      $s9 = "Workstation_Library.Common" fullword ascii
+      $s10 = "get_DataColumn1" fullword ascii
+      $s11 = "get_DataColumn1Column" fullword ascii
+      $s12 = "get_DataTable1" fullword ascii
+      $s13 = "get_Status_R" fullword ascii
+      $s14 = "GetAllBedNum" fullword ascii
+      $s15 = "GetDataTableInfo_PatientName" fullword ascii
+      $s16 = "get_Major_Doctor" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 5000KB and
+      ($x1 and $x2) and 8 of them
+}
+
+rule PYAS_Rules_A_20 {
+   meta:
+      description = "PYAS_Rules_A_20"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "Log_Clientes.txt" fullword wide
+      $s2 = "Log_Produtos.txt" fullword wide
+      $s3 = "Log_Vendas.txt" fullword wide
+      $s4 = "SCV - Sistema de Cadastro e Vendas" fullword wide
+      $s5 = "SCV - Novo Cliente" fullword wide
+      $s6 = "SCV - Lista de Clientes" fullword wide
+      $s7 = "SCV - Lista de Produtos" fullword wide
+      $s8 = "SCV - Listar Vendas" fullword wide
+      $s9 = "SCV - Novo Produto" fullword wide
+      $s10 = "SCV - Nova Venda" fullword wide
+      $s11 = "dgvListaClientes_CellContentClick" fullword ascii
+      $s12 = "Comprador" fullword wide
+      $s13 = "LogProdutos" fullword ascii
+      $s14 = "LogVendas" fullword ascii
+      $s15 = "dgvListaProdutos_CellContentClick" fullword ascii
+      $s16 = "LogClientes" fullword ascii
+      $s17 = "Compras" fullword ascii
+      $s18 = "dgvProdutos_CellContentClick" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 5000KB and
+      8 of them
 }

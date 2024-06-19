@@ -20,9 +20,19 @@ rule PYAS_Rules_A_1 {
       $s10 = "openToolStripButton.Image" fullword wide
       $s11 = "printToolStripButton.Image" fullword wide
       $s12 = "printPreviewToolStripButton.Image" fullword wide
+	  $s13 = "Extractor" ascii
+	  $s14 = "Congratulations" fullword ascii
+      $s15 = "Byrnies" fullword wide
+	  $s16 = "showString" fullword ascii
+      $s17 = "AScsrhgtr" fullword ascii
+      $s18 = "ZknciocoiAw" fullword ascii
+      $s19 = "Volute Transitions" fullword wide
+      $s20 = "IOasuoihciujo" fullword ascii
+      $s21 = "labelComp" wide
+	  $s22 = "ErrorImage" wide
    condition:
       uint16(0) == 0x5a4d and filesize < 5000KB and
-      1 of ($x*) and 5 of them
+      1 of ($x*) and 6 of them
 }
 
 rule PYAS_Rules_A_2 {
@@ -129,30 +139,50 @@ rule PYAS_Rules_A_6 {
       $s1 = "feffeeffeef" ascii
       $s2 = "fefefeffefe" ascii
       $s3 = "feffefeeffe" ascii
-      $s4 = "afeffefeeffea" ascii
-      $s5 = "ffeefeffeefa" ascii
-      $s6 = "ffeeffefeef" ascii
-      $s7 = "ffeeffeeffe" ascii
-      $s8 = "ffefeeffefe" ascii
-      $s9 = "feffefefe" ascii
-      $s10 = "feffeefeffea" ascii
-      $s11 = "affeefefeffe" ascii
-      $s12 = "fefefeffefe" ascii
-      $s13 = "feffefeeffe" ascii
-      $s14 = "ffeeffeefef" ascii
-      $s15 = "fefefeffefea" ascii
-      $s16 = "feffefeeffe" ascii
-      $s17 = "afeffefeeffea" ascii
-      $s18 = "ffeefeffeefa" ascii
-      $s19 = "afefefeffefe" ascii
-      $s20 = "vffefeeffe" fullword ascii
-      $s21 = "afeffefefe" ascii
-      $s22 = "fefefeffea" ascii
+      $s4 = "ffeefeffeefa" ascii
+      $s5 = "ffeeffefeef" ascii
+      $s6 = "ffeeffeeffe" ascii
+      $s7 = "ffefeeffefe" ascii
+      $s8 = "feffefefe" ascii
+	  $s9 = "fefefeffea" ascii
+      $s10 = "supercommerce@example.com" fullword wide
+      $s11 = "btnLogin" fullword ascii
+      $s12 = "loginToolStripMenuItem" fullword wide
+      $s13 = "loginToolStripMenuItem_Click" fullword ascii
+      $s14 = "LoginController" fullword ascii
+      $s15 = "Erro: login Mal Sucedido" fullword wide
+      $s16 = "Erro de Login" fullword wide
+	  $s17 = "supermercado.Login.resources" fullword ascii
+      $s18 = "get_Cordinations" fullword ascii
+      $s19 = "get_Utgivnings" fullword ascii
+      $s20 = "The Dark Knight" fullword wide
+      $s21 = "get_Both_Shiled_and_Sword_Hero" fullword ascii
+      $s22 = "get_Empty_handed_Hero" fullword ascii
 	  $s23 = "LogicValues1" fullword ascii
 	  $s24 = "by adguard" fullword wide
-	  $s25 = "txt files (*.txt)|*.txt|docs (*.doc)|*.doc|All files (*.*)|*.*" wide
+	  $s25 = "ErrorImage" wide
+	  $s26 = "thedarkknight.jpg" fullword wide
+      $s27 = "terkomst.jpg" fullword wide
+      $s28 = "rymdimperiet.jpg" fullword wide
+      $s29 = "get_Hero_with_shield" fullword ascii
+      $s30 = "get_PowerOfDistraction" fullword ascii
+      $s31 = "operationPressed" fullword ascii
+      $s32 = "get_RadiusOfAttack" fullword ascii
+      $s33 = "get_FilmNamn" fullword ascii
+      $s34 = "operatorClick" fullword ascii
+      $s35 = "get_Hero_with_sword" fullword ascii
+      $s36 = "CustomImageFormat.txt" wide
+      $s37 = "get_BeatsPerSecond" fullword ascii
+      $s38 = "get_BeatPerSecond" fullword ascii
+      $s39 = "DJ Control" fullword wide
+      $s40 = "add_BeatChanged" fullword ascii
+      $s41 = "_presenterModel" fullword ascii
+      $s42 = "set_BeatsPerSecond" fullword ascii
+      $s43 = "HandleBeat" fullword ascii
+      $s44 = "BeatEventArgs" fullword ascii
+	  $s45 = ".NET Framework 4.6l" fullword ascii
    condition:
-      uint16(0) == 0x5a4d and filesize < 4000KB and
+      uint16(0) == 0x5a4d and filesize < 10000KB and
       1 of ($x*) and 5 of them
 }
 
@@ -486,9 +516,9 @@ rule PYAS_Rules_A_20 {
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
-      $s1 = "Log_Clientes.txt" fullword wide
-      $s2 = "Log_Produtos.txt" fullword wide
-      $s3 = "Log_Vendas.txt" fullword wide
+      $s1 = "Log_Clientes.txt" wide
+      $s2 = "Log_Produtos.txt" wide
+      $s3 = "Log_Vendas.txt" wide
       $s4 = "SCV - Sistema de Cadastro e Vendas" fullword wide
       $s5 = "SCV - Novo Cliente" fullword wide
       $s6 = "SCV - Lista de Clientes" fullword wide
@@ -507,4 +537,246 @@ rule PYAS_Rules_A_20 {
    condition:
       uint16(0) == 0x5a4d and filesize < 5000KB and
       8 of them
+}
+
+rule PYAS_Rules_A_21 {
+   meta:
+      description = "PYAS_Rules_A_21"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "xeno rat client" wide
+      $s2 = "Windows Functionality" wide
+      $s3 = "mutex_string" fullword ascii
+      $s4 = "<getdll>5__2" fullword ascii
+      $s5 = "xeno_rat_client" ascii
+      $s6 = "_EncryptionKey" fullword ascii
+      $s7 = "/query /v /fo csv" fullword wide
+      $s8 = "<hasdll>5__3" fullword ascii
+      $s9 = "<tempXmlFile>5__2" fullword ascii
+      $s10 = "GetIdleTimeAsync" ascii
+      $s11 = "<ExecutionTimeLimit>PT0S</ExecutionTimeLimit>" wide
+      $s12 = "L0MgY2hvaWNlIC9DIFkgL04gL0QgWSAvVCAzICYgRGVsICI=" fullword wide
+      $s13 = "<GetAndSendInfo>d__5" fullword ascii
+      $s14 = "<dllname>5__7" fullword ascii
+      $s15 = "_dllhandler" fullword ascii
+      $s16 = "<DllNodeHandler>d__3" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 500KB and
+      8 of them
+}
+
+rule PYAS_Rules_A_22 {
+   meta:
+      description = "PYAS_Rules_A_22"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "Single.exe" fullword wide
+      $s2 = "Single.pdb" fullword ascii
+      $s3 = "Overchills" fullword wide
+	  $s4 = "Single.g.resources" fullword ascii
+      $s5 = "dYuVXzkLLVWbcxpNkzwMQNycwFrMShzJDdw" fullword ascii
+      $s6 = "ZtrbobDfRVDVSYJDbiTjJYMtnApmznZIIGm" fullword ascii
+      $s7 = "OmmLUOYnOXYPbQacJiJgtIiOzIZqtuzkkZYgGzISElssPeGNll" fullword wide
+      $s8 = "RuJwfBUCLwnFkjrsmBeNtwwSyNBZKewfylZFqqPiXRqujAEskL" fullword wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 2000KB and
+      6 of them
+}
+
+import "pe"
+rule PYAS_Rules_A_23 {
+   meta:
+      description = "PYAS_Rules_A_23"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "ttt.exe" fullword wide
+      $s2 = "-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -Name '" wide
+      $s3 = "Kutc64InaW" fullword ascii
+      $s4 = "Cronos-Crypter" fullword wide
+      $s5 = "<PrivateImplementationDetails>{EEC0C451-6B9A-45A0-A879-90E70D3033F5}" fullword ascii
+      $s6 = "SetProcessSecurityDescriptor" fullword ascii
+      $s7 = "Systemhost" fullword wide
+      $s8 = "decKey" fullword ascii
+      $s9 = "StartupInformation" fullword ascii
+      $s10 = "InstallRegistry" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 500KB and
+      6 of them
+}
+
+import "pe"
+rule PYAS_Rules_A_24 {
+   meta:
+      description = "PYAS_Rules_A_24"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "LcD$`Mi" fullword ascii
+      $s2 = "yBZh11AY&SYS" fullword ascii
+      $s3 = "+HcD$DHcL$DH" fullword ascii
+      $s4 = "D$P9D$@}0" fullword ascii
+      $s5 = "tkHcD$8H" fullword ascii
+      $s6 = "BHcD$D" fullword ascii
+      $s7 = "|$(2t%" fullword ascii
+      $s8 = "D$ 9D$(}z" fullword ascii
+      $s9 = "D$ 9D$$}w" fullword ascii
+      $s10 = "|$02t\"" fullword ascii
+      $s11 = "L$P9H$s" fullword ascii
+      $s12 = "L$P9H$|uH" fullword ascii
+      $s13 = "D$89D$(}," fullword ascii
+      $s14 = " `l;Vig" fullword ascii
+      $s15 = "D$@HcL$\\H" fullword ascii
+      $s16 = "L$p9A<r" fullword ascii
+      $s17 = "D$T9D$D}0" fullword ascii
+      $s18 = "L$\\9H8|" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 1000KB and
+      6 of them
+}
+
+rule PYAS_Rules_A_25 {
+   meta:
+      description = "PYAS_Rules_A_25"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "Storm ddos" ascii nocase
+      $s1 = "StormServer.dll" fullword ascii
+      $s2 = "%SystemRoot%\\System32\\" fullword ascii
+      $s3 = "ServiceDLL" fullword ascii
+      $s4 = "SppHostParameterUniqueGraceTimer" fullword wide
+      $s5 = "SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters" fullword ascii
+      $s6 = "x2IewLL49ZGPwaBBKatfGEtAFT9g327lJCkLLIoJXpM=" fullword wide
+      $s7 = "stubpath" fullword ascii
+      $s8 = "pYm2nwOxGc6z7lSognw0yFDwAvT6vw19fUA6AgZO2X4=" fullword wide
+      $s9 = "pcdWYYb9DmAfsyF2r5F3eZ8d90dxwbNrwv3g3w7zeG4=" fullword wide
+      $s10 = "pwsgLvKPxCIWaZdkJ81sXVaE8Ymalx/SRYktvM2Dh2k=" fullword wide
+      $s11 = "oLq+2/XBPbG84P21eK0nQshRCgrb7+zrQ0qm8iOu75M=" fullword wide
+      $s12 = "pBeoAt+o4LduQNgbijEgrAwSFIGNV9An96aBd5EQdAE=" fullword wide
+      $s13 = "cde4d5c7-2f36-dfac-49ee-b4ef7966706a" fullword wide
+      $s14 = "4a69babc-79ff-d8d0-e21f-1ad764610ba5" fullword wide
+      $s15 = "7e746adc-aded-b4e0-f905-958045b82a91" fullword wide
+      $s16 = "c4ddee78-55b7-8e06-319f-e099efa3c9f5" fullword wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 300KB and
+      $x1 and 5 of them
+}
+
+rule PYAS_Rules_A_26 {
+   meta:
+      description = "PYAS_Rules_A_26"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "<InitializeComponent>b__22_0" fullword ascii
+      $s2 = "get_JpaO" fullword ascii
+      $s3 = "GetPrevName" fullword ascii
+      $s4 = "GetStepByName" fullword ascii
+      $s5 = "_BindTreeView" fullword ascii
+      $s6 = "get__AllSteps" fullword ascii
+      $s7 = "get__CurrentTreeNode" fullword ascii
+      $s8 = "StepNavigationWizard.Properties" fullword ascii
+      $s9 = "System.Reflection.AssemblyA" fullword ascii
+      $s10 = "StepNavigationWizard.Properties.Resources" fullword wide
+      $s11 = "StepNavigationWizard.StepFormBase.resources" fullword ascii
+      $s12 = "StepNavigationWizard.Home.resources" fullword ascii
+      $s13 = "StepNavigationWizard.Properties.Resources.resources" fullword ascii
+      $s14 = "StepNavigationWizard.Helpers" fullword ascii
+      $s15 = "StepNavigationWizard.StepForms" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 4000KB and
+      8 of them
+}
+
+rule PYAS_Rules_A_27 {
+   meta:
+      description = "PYAS_Rules_A_27"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "TrackerUI.Properties" fullword ascii
+      $s2 = "TrackerUI.Properties.Resources" fullword wide
+      $s3 = "get_TeamCompeting" fullword ascii
+      $s4 = "get_EnteredTeams" fullword ascii
+      $s5 = "get_EntryFee" fullword ascii
+      $s6 = "get_PrizeAmount" fullword ascii
+      $s7 = "get_PrizePercentage" fullword ascii
+      $s8 = "get_MatchupRound" fullword ascii
+      $s9 = "get_ParentMatchup" fullword ascii
+      $s10 = "get_TournamentName" fullword ascii
+      $s11 = "get_PriceNumber" fullword ascii
+      $s14 = "<TeamCompeting>k__BackingField" fullword ascii
+      $s15 = "TrackerUI.TournamentViewerForm.resources" fullword ascii
+      $s17 = "set_TeamCompeting" fullword ascii
+      $s18 = "TrackerUI.Properties.Resources.resources" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 4000KB and
+      6 of them
+}
+
+rule PYAS_Rules_A_28 {
+   meta:
+      description = "PYAS_Rules_A_28"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "GNU C11 6.3.0 -mtune=generic -march=i586 -g -g -g -O2 -O2 -O2 -fbuilding-libgcc -fno-stack-protector" fullword ascii
+      $s2 = "GCC: (MinGW.org GCC-6.3.0-1) 6.3.0" fullword ascii
+      $s3 = "___mingw_readdir" fullword ascii
+      $s4 = "___mingw_closedir" fullword ascii
+      $s5 = "___mingw_seekdir" fullword ascii
+      $s6 = "%d is not a prime number." fullword ascii
+      $s7 = "___mingw_rewinddir" fullword ascii
+      $s8 = "__mingw32_init_mainargs" fullword ascii
+      $s9 = "___mingw_telldir" fullword ascii
+      $s10 = "Enter an integer: " fullword ascii
+      $s11 = "___mingw_opendir" fullword ascii
+      $s12 = "/home/keith/" ascii
+      $s13 = "../../../src/gcc-6.3.0/libgcc" ascii
+      $s14 = "___mingw_dirname" fullword ascii
+      $s15 = "_isPrime`" fullword ascii
+      $s16 = "%d is a prime number." fullword ascii
+      $s17 = ".weak.__Jv_RegisterClasses.___EH_FRAME_BEGIN__" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 500KB and
+      6 of them
+}
+
+rule PYAS_Rules_A_29 {
+   meta:
+      description = "PYAS_Rules_A_29"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "* qH('" fullword ascii
+      $s2 = "EYeijVu" fullword ascii
+      $s3 = "zSEoS\\` -~" fullword ascii
+      $s4 = "iumsyue" fullword ascii
+      $s5 = "pqwwwww" fullword ascii
+      $s6 = "bengwfvfw" fullword ascii
+      $s7 = "exoowono" fullword ascii
+      $s8 = "Mzs.Cff=" fullword ascii
+      $s9 = "P7sq.FFH" fullword ascii
+      $s10 = "gSh.UKc" fullword ascii
+      $s11 = "uP$O:\"" fullword ascii
+      $s12 = "0skCOM.b" fullword ascii
+      $s13 = "T.^y8i:\"[" fullword ascii
+      $s14 = "oymL@R>%j-" fullword ascii
+      $s15 = "HOFKWMGQU" fullword ascii
+      $s16 = "Ly(loge" fullword ascii
+      $s17 = "diRcS|" fullword ascii
+      $s18 = "\\%G%*;J#_" fullword ascii
+      $s19 = "$x%Dllx" fullword ascii
+      $s20 = "Lunqnuns" fullword ascii
+      $s21 = "- &DNB" fullword ascii
+      $s22 = "tlpyp49" fullword ascii
+	  $s23 = "xrarreg.key" fullword ascii
+      $s24 = "xblank.aes" fullword ascii
+      $s25 = "S^%ggvWrvfo%gg" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 18000KB and
+      6 of them
 }

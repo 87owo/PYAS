@@ -87,7 +87,6 @@ rule PYAS_Rules_A_3 {
       description = "PYAS_Rules_A_3"
       author = "PYAS Security"
       date = "2024-06-12"
-      hash1 = "0ecf129dfa4e7b5da78c249a38d3e2ca3009aaf2e0203ec779d12aa122904f43"
    strings:
       $x1 = "GrapeCity.ActiveReports.Chart.Win" ascii
       $s1 = "ComponentlessCollectionEditor" ascii
@@ -236,6 +235,13 @@ rule PYAS_Rules_A_7 {
       $s13 = "Z t:\"-" fullword ascii
       $s14 = "o^EX:\"" fullword ascii
       $s15 = "rjF.tNb" fullword ascii
+      $s16 = "pynput.keyboard._dummy)" fullword ascii
+      $s17 = "pynput.keyboard._darwin)" fullword ascii
+      $s18 = "pynput.keyboard)" fullword ascii
+      $s19 = "pynput.keyboard._uinput)" fullword ascii
+      $s20 = "pynput.keyboard._win32)" fullword ascii
+      $s21 = "pynput.keyboard._xorg)" fullword ascii
+      $s22 = "pynput.keyboard._base)" fullword ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 50000KB and
       6 of them
@@ -1287,7 +1293,7 @@ rule PYAS_Rules_A_47 {
       $s7 = "7-Zip.SfxMod" ascii
       $s8 = "Never.bat" ascii
       $s9 = "RunProgram=" ascii
-      $s11 = "c%Alice%%Catch%%Gardens%%Metric%k%Gardens%%Alice%ove%Gardens%Never%Gardens%Never.bat%Gardens%&%Gardens%Never" ascii
+      $s11 = "Alice" ascii
       $s12 = "Oleg Scherbakov" fullword ascii
       $s13 = "SfxVarSystemPlatform" fullword wide
       $s14 = "SfxVarCmdLine1" fullword wide
@@ -1297,7 +1303,94 @@ rule PYAS_Rules_A_47 {
       $s18 = "*.sfx.config.*" fullword ascii
       $s19 = "T:\\HfVdT(l8'" fullword ascii
       $s20 = ";Heading Longest Desperate " fullword ascii
+      $s21 = "Gardens" ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 3000KB and
       1 of ($x*) and 5 of them
+}
+
+rule PYAS_Rules_A_48 {
+   meta:
+      description = "PYAS_Rules_A_48"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "passportRadioButton" wide
+      $x2 = "computerGuess" wide
+      $x3 = "get_Data" ascii
+      $s1 = "panelcolors" fullword wide
+      $s2 = "generateRandomComputerGuess" fullword ascii
+      $s3 = "ConfirmArrowAndResults" fullword ascii
+      $s4 = "FlightBookingApp" fullword ascii
+      $s5 = "Properties" fullword ascii
+      $s6 = "i_ComputerGeneratedColors" fullword ascii
+      $s7 = "NumberOfGuessesForm" ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 4000KB and
+      2 of ($x*) and 6 of them
+}
+
+rule PYAS_Rules_A_49 {
+   meta:
+      description = "PYAS_Rules_A_49"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "Microsoft.Windows.Common-Controls" ascii
+      $x2 = "Unable to get" wide
+      $x3 = "avsupport@autoitscript.com" ascii
+      $x4 = "function call" wide
+      $x5 = "Failed to create the" wide
+      $s1 = "#NoAutoIt3Execute" fullword wide
+      $s2 = "WINDESCRIPTION" fullword wide
+      $s3 = "AutoIt" wide
+      $s4 = "AU3_GetPluginDetails" fullword ascii
+      $s5 = "DSeAssignPrimaryTokenPrivilege" fullword wide
+      $s6 = "@COM_EVENTOBJ" fullword wide
+      $s7 = "Failed to create the Event Object." fullword wide
+      $s8 = "WRPQCSV" fullword ascii
+      $s9 = "%s (%d) : ==> %s:" fullword wide
+      $s10 = "PLUGINOPEN" fullword wide
+      $s11 = "PLUGINCLOSE" fullword wide
+      $s12 = "DMUILANG" fullword wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 5000KB and
+      3 of ($x*) and 5 of them
+}
+
+rule PYAS_Rules_A_50 {
+   meta:
+      description = "PYAS_Rules_A_50"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "Visual Studio" ascii
+      $s2 = ".pdb" ascii
+      $s3 = "D$ c|w{H" fullword ascii
+      $s4 = ">YRich" fullword ascii
+      $s5 = "aes_ms_test_new" ascii
+      $s6 = "songqb" ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 200KB and
+      5 of them
+}
+
+rule PYAS_Rules_A_51 {
+   meta:
+      description = "PYAS_Rules_A_51"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "System.Diagnostics.DiagnosticSource" ascii
+      $x2 = "PublicKeyToken" ascii
+      $s1 = "launcher.exe" fullword wide
+      $s2 = "CleanerNatives.dll" fullword ascii
+      $s3 = "costura" wide
+      $s4 = "MindCleaner.Login.resources" fullword ascii
+      $s5 = "start cmd /C" wide nocase
+      $s6 = "InetCpl.cpl" wide
+      $s7 = "ClearMyTracksByProcess" wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 3000KB and
+      1 of ($x*) and 4 of them
 }

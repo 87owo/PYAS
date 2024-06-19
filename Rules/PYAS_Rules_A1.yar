@@ -405,20 +405,20 @@ rule PYAS_Rules_A_14 {
       $s2 = "cmdvrt32.dll" fullword wide
       $s3 = "accounts.dat" fullword wide
       $s4 = "SxIn.dll" fullword wide
-      $s5 = "Software\\A.V.M.\\Paltalk NG\\common_settings\\core\\users\\creds\\" fullword wide
-      $s6 = "\\\"(hostname|encryptedPassword|encryptedUsername)\":\"(.*?)\"" fullword wide
-      $s7 = "http://ip-api.com/" wide
+      $s5 = "Paltalk NG" wide
+      $s6 = "encrypted" fullword wide
+      $s7 = "ip-api.com" wide
       $s8 = "mRzIs.exe" fullword wide
       $s9 = "SmtpPassword" fullword wide
-      $s10 = "\\Program Files (x86)\\FTP Commander" wide
+      $s10 = "FTP Commander" wide
       $s14 = "privateinternetaccess.com" fullword wide
       $s15 = "paltalk.com" fullword wide
       $s16 = "discord.com" fullword wide
       $s17 = "Sf2.dll" fullword wide
-      $s18 = "https://account.dyn.com/" fullword wide
+      $s18 = "account.dyn.com" fullword wide
    condition:
       uint16(0) == 0x5a4d and filesize < 2000KB and
-      6 of them
+      8 of them
 }
 
 rule PYAS_Rules_A_15 {
@@ -432,22 +432,22 @@ rule PYAS_Rules_A_15 {
       $s3 = "Failed to get size of result." wide
       $s4 = "DownloadAndExecuteUpdate" fullword ascii
       $s5 = "loginusers.vdf" fullword wide
-      $s7 = "SELProcessInfoECT * FRProcessInfoOM Win32_PrProcessInfoocess Where SProcessInfoessionId='" fullword wide
+      $s7 = "ProcessInfo" wide
       $s8 = "get_encrypted_key" fullword ascii
       $s9 = "Tokens.txt" fullword wide
-      $s10 = "AntiDisplayDownvirusProDisplayDownduct|ADisplayDownntiSpyDisplayDownWareProdDisplayDownuct|FirewaDisplayDownllProdDisplayDownuct" wide
+      $s10 = "DisplayDown" wide
       $s11 = "VisualPlus-Debug.log" fullword wide
       $s12 = "Total of RAMExecutablePath" fullword wide
       $s13 = "loginPairs" fullword ascii
       $s15 = "Software\\Valve\\SteamLogin Data" fullword wide
-      $s16 = "SELSystem.Windows.FormsECT * FRSystem.Windows.FormsOM WinSystem.Windows.Forms32_ProcSystem.Windows.Formsessor" fullword wide
-      $s17 = "SELSystem.LinqECT * FRSystem.LinqOM WinSystem.Linq32_VideoCoSystem.Linqntroller" fullword wide
-      $s18 = "SELESystem.ManagementCT * FRSystem.ManagementOM WiSystem.Managementn32_DisSystem.ManagementkDrivSystem.Managemente" fullword wide
+      $s16 = "SELSystem" wide
+      $s17 = "FRSystem" wide
+      $s18 = "WinSystem" wide
       $s19 = "%localappdata%\\" fullword wide
       $s20 = "NoEngrdVpEngn.exe*" fullword wide
    condition:
       uint16(0) == 0x5a4d and filesize < 2000KB and
-      6 of them
+      8 of them
 }
 
 rule PYAS_Rules_A_16 {
@@ -631,19 +631,20 @@ rule PYAS_Rules_A_23 {
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
-      $s1 = "ttt.exe" fullword wide
-      $s2 = "-ItemProperty -Path 'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run' -Name '" wide
+      $s1 = "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run" wide
+      $s2 = "-ItemProperty -Path" wide
       $s3 = "Kutc64InaW" fullword ascii
       $s4 = "Cronos-Crypter" fullword wide
-      $s5 = "<PrivateImplementationDetails>{EEC0C451-6B9A-45A0-A879-90E70D3033F5}" fullword ascii
-      $s6 = "SetProcessSecurityDescriptor" fullword ascii
+      $s5 = "PrivateImplementationDetails" ascii
+      $s6 = "SetProcessSecurityDescriptor" ascii
       $s7 = "Systemhost" fullword wide
       $s8 = "decKey" fullword ascii
       $s9 = "StartupInformation" fullword ascii
       $s10 = "InstallRegistry" fullword ascii
+      $s11 = "EEC0C451-6B9A-45A0-A879-90E70D3033F5" ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 500KB and
-      6 of them
+      7 of them
 }
 
 import "pe"
@@ -762,7 +763,7 @@ rule PYAS_Rules_A_28 {
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
-      $s1 = "GNU C11 6.3.0 -mtune=generic -march=i586 -g -g -g -O2 -O2 -O2 -fbuilding-libgcc -fno-stack-protector" fullword ascii
+      $s1 = "GNU C11 6.3.0" ascii
       $s2 = "GCC: (MinGW.org GCC-6.3.0-1) 6.3.0" fullword ascii
       $s3 = "___mingw_readdir" fullword ascii
       $s4 = "___mingw_closedir" fullword ascii
@@ -779,9 +780,14 @@ rule PYAS_Rules_A_28 {
       $s15 = "_isPrime`" fullword ascii
       $s16 = "%d is a prime number." fullword ascii
       $s17 = ".weak.__Jv_RegisterClasses.___EH_FRAME_BEGIN__" fullword ascii
+      $s18 = "-mtune=generic" ascii
+      $s19 = "-march=i586" ascii
+      $s20 = "-g -g -g -O2 -O2 -O2" ascii
+      $s21 = "-fbuilding-libgcc" ascii
+      $s22 = "-fno-stack-protector" ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 500KB and
-      6 of them
+      8 of them
 }
 
 rule PYAS_Rules_A_29 {
@@ -1103,16 +1109,20 @@ rule PYAS_Rules_A_40 {
       $s8 = "89.49.84.33" fullword wide
       $s9 = "B* fn4E3k" fullword ascii
       $s10 = "\\%|RJJq$OC" fullword ascii
-      $s11 = "durudaxo payuyafelamelokeyir tacadasevow kipazoci kanorowawacasolicalotija" fullword wide
+      $s11 = "jomak" ascii
       $s12 = "LegalCopyrights" fullword wide
       $s13 = "vayusupogisoxewememuvapobahekot" ascii
       $s14 = "yifasupuvuvetaduwa" ascii
       $s15 = "difocusarijigobuco" ascii
       $s16 = "remotoxevuketorigosukiduve" ascii
-      $s17 = "jomak" ascii
+      $s17 = "durudaxo" wide
+      $s18 = "payuyafelamelokeyir" wide
+      $s19 = "tacadasevow" wide
+      $s20 = "kipazoci" wide
+      $s21 = "kanorowawacasolicalotija" wide
    condition:
       uint16(0) == 0x5a4d and filesize < 1500KB and
-      6 of them
+      8 of them
 }
 
 rule PYAS_Rules_A_41 {
@@ -1199,8 +1209,8 @@ rule PYAS_Rules_A_44 {
       $s3 = "Forward.png" fullword wide
       $s4 = "get_GlobalDialog" fullword ascii
       $s5 = "Unable to save file {0} - {1}" fullword wide
-      $s6 = "{0} - MyPhotos {1:#}.{2:#}" fullword wide
-      $s7 = "{0} - MyPhotos MDI {1:#}.{2:#}" fullword wide
+      $s6 = "{0} - MyPhotos" wide
+      $s7 = "get_HasEdits" fullword ascii
       $s8 = "Save.png" fullword wide
       $s9 = "Back.png" fullword wide
       $s10 = "Notes.png" fullword wide
@@ -1213,7 +1223,6 @@ rule PYAS_Rules_A_44 {
       $s17 = "pnlPhoto_DragEnter" fullword ascii
       $s18 = "get_CurrentPhoto" fullword ascii
       $s19 = "get_GlobalMdiParent" fullword ascii
-      $s20 = "get_HasEdits" fullword ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 5000KB and
       8 of them
@@ -1391,6 +1400,31 @@ rule PYAS_Rules_A_51 {
       $s6 = "InetCpl.cpl" wide
       $s7 = "ClearMyTracksByProcess" wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 3000KB and
+      uint16(0) == 0x5a4d and filesize < 4000KB and
       1 of ($x*) and 4 of them
+}
+
+rule PYAS_Rules_A_52 {
+   meta:
+      description = "PYAS_Rules_A_52"
+      author = "PYAS Security"
+      date = "2024-06-13"
+   strings:
+      $s1 = "avghook" wide
+      $s2 = "tab_url from downloads" fullword ascii
+      $s3 = "cmdvrt64.dll" wide
+      $s4 = "passwords.txt" fullword ascii
+      $s5 = "SELECT target_path" fullword ascii
+      $s6 = "recentservers.xml" ascii
+      $s7 = "[Processes]" fullword ascii
+      $s8 = "steam_tokens.txt" ascii
+      $s9 = "information.txt" ascii
+      $s10 = "UseMasterPassword" ascii
+      $s11 = "Opera GX" ascii
+      $s12 = "Opera Crypto" ascii
+      $s13 = "DRIVE_FIXED" ascii
+      $s14 = "DRIVE_REMOVABLE" ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 2000KB and
+      8 of them
 }

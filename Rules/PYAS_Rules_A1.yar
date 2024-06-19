@@ -20,16 +20,16 @@ rule PYAS_Rules_A_1 {
       $s10 = "openToolStripButton.Image" fullword wide
       $s11 = "printToolStripButton.Image" fullword wide
       $s12 = "printPreviewToolStripButton.Image" fullword wide
-	  $s13 = "Extractor" ascii
-	  $s14 = "Congratulations" fullword ascii
+      $s13 = "Extractor" ascii
+      $s14 = "Congratulations" fullword ascii
       $s15 = "Byrnies" fullword wide
-	  $s16 = "showString" fullword ascii
+      $s16 = "showString" fullword ascii
       $s17 = "AScsrhgtr" fullword ascii
       $s18 = "ZknciocoiAw" fullword ascii
       $s19 = "Volute Transitions" fullword wide
       $s20 = "IOasuoihciujo" fullword ascii
       $s21 = "labelComp" wide
-	  $s22 = "ErrorImage" wide
+      $s22 = "ErrorImage" wide
    condition:
       uint16(0) == 0x5a4d and filesize < 5000KB and
       1 of ($x*) and 6 of them
@@ -144,7 +144,7 @@ rule PYAS_Rules_A_6 {
       $s6 = "ffeeffeeffe" ascii
       $s7 = "ffefeeffefe" ascii
       $s8 = "feffefefe" ascii
-	  $s9 = "fefefeffea" ascii
+      $s9 = "fefefeffea" ascii
       $s10 = "supercommerce@example.com" fullword wide
       $s11 = "btnLogin" fullword ascii
       $s12 = "loginToolStripMenuItem" fullword wide
@@ -152,16 +152,16 @@ rule PYAS_Rules_A_6 {
       $s14 = "LoginController" fullword ascii
       $s15 = "Erro: login Mal Sucedido" fullword wide
       $s16 = "Erro de Login" fullword wide
-	  $s17 = "supermercado.Login.resources" fullword ascii
+      $s17 = "supermercado.Login.resources" fullword ascii
       $s18 = "get_Cordinations" fullword ascii
       $s19 = "get_Utgivnings" fullword ascii
       $s20 = "The Dark Knight" fullword wide
       $s21 = "get_Both_Shiled_and_Sword_Hero" fullword ascii
       $s22 = "get_Empty_handed_Hero" fullword ascii
-	  $s23 = "LogicValues1" fullword ascii
-	  $s24 = "by adguard" fullword wide
-	  $s25 = "ErrorImage" wide
-	  $s26 = "thedarkknight.jpg" fullword wide
+      $s23 = "LogicValues1" fullword ascii
+      $s24 = "by adguard" fullword wide
+      $s25 = "ErrorImage" wide
+      $s26 = "thedarkknight.jpg" fullword wide
       $s27 = "terkomst.jpg" fullword wide
       $s28 = "rymdimperiet.jpg" fullword wide
       $s29 = "get_Hero_with_shield" fullword ascii
@@ -180,7 +180,7 @@ rule PYAS_Rules_A_6 {
       $s42 = "set_BeatsPerSecond" fullword ascii
       $s43 = "HandleBeat" fullword ascii
       $s44 = "BeatEventArgs" fullword ascii
-	  $s45 = ".NET Framework 4.6l" fullword ascii
+      $s45 = ".NET Framework 4.6l" fullword ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 10000KB and
       1 of ($x*) and 5 of them
@@ -322,7 +322,7 @@ rule PYAS_Rules_A_12 {
       $s12 = "HostsErr" fullword wide
       $s13 = "OfflineGet" fullword wide
       $s14 = "Content-length:" wide
-	  $s15 = "Mozilla/5.0" wide
+      $s15 = "Mozilla/5.0" wide
    condition:
       uint16(0) == 0x5a4d and filesize < 30000KB and
       1 of ($x*) and 5 of them
@@ -488,7 +488,7 @@ rule PYAS_Rules_A_19 {
       date = "2024-06-12"
    strings:
       $x1 = "step executed succcessfully" wide
-	  $x2 = "NurseWorkstationDemo" wide
+      $x2 = "NurseWorkstationDemo" wide
       $s1 = "get_ObejctOperation" fullword ascii
       $s2 = "man.png" wide
       $s3 = "woman.png" fullword wide
@@ -575,7 +575,7 @@ rule PYAS_Rules_A_22 {
       $s1 = "Single.exe" fullword wide
       $s2 = "Single.pdb" fullword ascii
       $s3 = "Overchills" fullword wide
-	  $s4 = "Single.g.resources" fullword ascii
+      $s4 = "Single.g.resources" fullword ascii
       $s5 = "dYuVXzkLLVWbcxpNkzwMQNycwFrMShzJDdw" fullword ascii
       $s6 = "ZtrbobDfRVDVSYJDbiTjJYMtnApmznZIIGm" fullword ascii
       $s7 = "OmmLUOYnOXYPbQacJiJgtIiOzIZqtuzkkZYgGzISElssPeGNll" fullword wide
@@ -773,7 +773,7 @@ rule PYAS_Rules_A_29 {
       $s20 = "Lunqnuns" fullword ascii
       $s21 = "- &DNB" fullword ascii
       $s22 = "tlpyp49" fullword ascii
-	  $s23 = "xrarreg.key" fullword ascii
+      $s23 = "xrarreg.key" fullword ascii
       $s24 = "xblank.aes" fullword ascii
       $s25 = "S^%ggvWrvfo%gg" fullword ascii
    condition:

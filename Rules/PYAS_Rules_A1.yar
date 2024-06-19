@@ -469,6 +469,8 @@ rule PYAS_Rules_A_16 {
       $s9 = "txtUserPass" fullword wide
       $s10 = "txtUserID" fullword wide
       $s11 = "Please Enter User ID" fullword wide
+      $s12 = "Properties.Resources" ascii
+      $s13 = "Log In Successfully" fullword wide
    condition:
       uint16(0) == 0x5a4d and filesize < 4000KB and
       ($x1 and $x2) and 6 of them
@@ -1427,4 +1429,79 @@ rule PYAS_Rules_A_52 {
    condition:
       uint16(0) == 0x5a4d and filesize < 2000KB and
       8 of them
+}
+
+rule PYAS_Rules_A_53 {
+   meta:
+      description = "PYAS_Rules_A_53"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "schemas.microsoft.com" wide
+      $x2 = "Client Worker Thread" ascii
+      $s1 = "A6BFEA43-501F-456F-A845-983D3AD7B8F0" wide
+      $s2 = "upgrader" wide
+      $s3 = "rtvscan.exe" wide
+      $s4 = "Enable-WindowsOptionalFeature -FeatureName" wide
+      $s5 = "remupd.exe" fullword wide
+      $s6 = "Mcshield.exe" fullword wide
+      $s7 = "mssecess.exe" fullword wide
+      $s8 = "RavMonD.exe" fullword wide
+      $s9 = "KvMonXP.exe" fullword wide
+      $s10 = "baiduSafeTray.exe" fullword wide
+      $s11 = "Qavanijeb.exe" fullword wide
+      $s12 = "%s --> Error: %d, EC: %d" fullword ascii
+      $s13 = "wscript.exe //E:vbscript" wide
+      $s14 = "upgrader_64" wide
+      $s15 = "Process Data Error" fullword wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 1000KB and
+      1 of ($x*) and 6 of them
+}
+
+rule PYAS_Rules_A_54 {
+   meta:
+      description = "PYAS_Rules_A_54"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $x1 = "System.Collections.Generic" ascii
+      $s1 = "JsonFx.Serialization.DataName" ascii
+      $s2 = "JsonFx.Model.ModelToken" ascii
+      $s3 = "JsonFx.Serialization.Token" ascii
+      $s4 = "JsonFx.Serialization.Resolvers.MemberMap" ascii
+      $s5 = "KeyValuePair" ascii
+      $s6 = "IEnumerator" ascii
+      $s7 = "Unable to find a suitable constructor for instantiating the target Type" wide
+      $s8 = "1d0d5de7-1c32-4ecd-bde7-6965263fbc6b" wide
+      $s9 = "PublicKeyToken" wide
+      $s10 = "Selected compression algorithm is not supported" wide
+   condition:
+      uint16(0) == 0x5a4d and filesize < 10000KB and
+      $x1 and 6 of them
+}
+
+rule PYAS_Rules_A_55 {
+   meta:
+      description = "PYAS_Rules_A_55"
+      author = "PYAS Security"
+      date = "2024-06-12"
+   strings:
+      $s1 = "SignalEventHandler" fullword ascii
+      $s2 = "get_CrossTraffic" fullword ascii
+      $s3 = "get_BeforeIntersection" fullword ascii
+      $s4 = "get_InIntersection" fullword ascii
+      $s5 = "get_CloseToIntersection" fullword ascii
+      $s6 = "TrafficSignal.Settings" fullword ascii
+      $s7 = "TrafficSignal.Strategy" fullword ascii
+      $s8 = "TrafficSignal.Serializers" fullword ascii
+      $s9 = "lblComputerName" fullword wide
+      $s10 = "TrafficSignal.Properties.Resources.resources" fullword ascii
+      $s11 = "TrafficSignal.TrafficSignalForm.resources" fullword ascii
+      $s12 = "TrafficSignal.Properties" fullword ascii
+      $s13 = "TrafficSignal.Properties.Resources" fullword wide
+      $s14 = "get_pmYK" fullword ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize < 5000KB and
+      6 of them
 }

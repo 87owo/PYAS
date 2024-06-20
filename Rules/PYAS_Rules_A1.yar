@@ -244,7 +244,7 @@ rule PYAS_Rules_A_7 {
       $s22 = "pynput.keyboard._base)" fullword ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 50000KB and
-      6 of them
+      10 of them
 }
 
 rule PYAS_Rules_A_8 {
@@ -275,7 +275,7 @@ rule PYAS_Rules_A_8 {
       $s17 = "Application.exe" fullword ascii
    condition:
       uint16(0) == 0x5a4d and filesize < 15000KB and
-      1 of ($x*) and 5 of them
+      2 of ($x*) and 6 of them
 }
 
 rule PYAS_Rules_A_9 {
@@ -284,14 +284,23 @@ rule PYAS_Rules_A_9 {
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
-      $s1 = "$GETPASSWORD1:IDOK" fullword ascii
-      $s2 = "$GETPASSWORD1:SIZE" fullword ascii
-      $s3 = "$GETPASSWORD1:IDC_PASSWORDENTER" fullword ascii
-      $s4 = "$GETPASSWORD1:CAPTION" fullword ascii
-      $s5 = "$GETPASSWORD1:IDCANCEL" fullword ascii
+      $s1 = "SignalEventHandler" fullword ascii
+      $s2 = "get_CrossTraffic" fullword ascii
+      $s3 = "get_BeforeIntersection" fullword ascii
+      $s4 = "get_InIntersection" fullword ascii
+      $s5 = "get_CloseToIntersection" fullword ascii
+      $s6 = "TrafficSignal.Settings" fullword ascii
+      $s7 = "TrafficSignal.Strategy" fullword ascii
+      $s8 = "TrafficSignal.Serializers" fullword ascii
+      $s9 = "lblComputerName" fullword wide
+      $s10 = "TrafficSignal.Properties.Resources.resources" fullword ascii
+      $s11 = "TrafficSignal.TrafficSignalForm.resources" fullword ascii
+      $s12 = "TrafficSignal.Properties" fullword ascii
+      $s13 = "TrafficSignal.Properties.Resources" fullword wide
+      $s14 = "get_pmYK" fullword ascii
    condition:
-      uint16(0) == 0x5a4d and filesize < 20000KB and
-      5 of them
+      uint16(0) == 0x5a4d and filesize < 5000KB and
+      6 of them
 }
 
 rule PYAS_Rules_A_10 {
@@ -1375,15 +1384,20 @@ rule PYAS_Rules_A_50 {
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
-      $s1 = "Visual Studio" ascii
-      $s2 = ".pdb" ascii
-      $s3 = "D$ c|w{H" fullword ascii
-      $s4 = ">YRich" fullword ascii
-      $s5 = "aes_ms_test_new" ascii
-      $s6 = "songqb" ascii
+      $x1 = "System.Collections.Generic" ascii
+      $s1 = "JsonFx.Serialization.DataName" ascii
+      $s2 = "JsonFx.Model.ModelToken" ascii
+      $s3 = "JsonFx.Serialization.Token" ascii
+      $s4 = "JsonFx.Serialization.Resolvers.MemberMap" ascii
+      $s5 = "KeyValuePair" ascii
+      $s6 = "IEnumerator" ascii
+      $s7 = "Unable to find a suitable constructor for instantiating the target Type" wide
+      $s8 = "1d0d5de7-1c32-4ecd-bde7-6965263fbc6b" wide
+      $s9 = "PublicKeyToken" wide
+      $s10 = "Selected compression algorithm is not supported" wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 200KB and
-      5 of them
+      uint16(0) == 0x5a4d and filesize < 10000KB and
+      $x1 and 6 of them
 }
 
 rule PYAS_Rules_A_51 {
@@ -1457,51 +1471,4 @@ rule PYAS_Rules_A_53 {
    condition:
       uint16(0) == 0x5a4d and filesize < 1000KB and
       1 of ($x*) and 6 of them
-}
-
-rule PYAS_Rules_A_54 {
-   meta:
-      description = "PYAS_Rules_A_54"
-      author = "PYAS Security"
-      date = "2024-06-12"
-   strings:
-      $x1 = "System.Collections.Generic" ascii
-      $s1 = "JsonFx.Serialization.DataName" ascii
-      $s2 = "JsonFx.Model.ModelToken" ascii
-      $s3 = "JsonFx.Serialization.Token" ascii
-      $s4 = "JsonFx.Serialization.Resolvers.MemberMap" ascii
-      $s5 = "KeyValuePair" ascii
-      $s6 = "IEnumerator" ascii
-      $s7 = "Unable to find a suitable constructor for instantiating the target Type" wide
-      $s8 = "1d0d5de7-1c32-4ecd-bde7-6965263fbc6b" wide
-      $s9 = "PublicKeyToken" wide
-      $s10 = "Selected compression algorithm is not supported" wide
-   condition:
-      uint16(0) == 0x5a4d and filesize < 10000KB and
-      $x1 and 6 of them
-}
-
-rule PYAS_Rules_A_55 {
-   meta:
-      description = "PYAS_Rules_A_55"
-      author = "PYAS Security"
-      date = "2024-06-12"
-   strings:
-      $s1 = "SignalEventHandler" fullword ascii
-      $s2 = "get_CrossTraffic" fullword ascii
-      $s3 = "get_BeforeIntersection" fullword ascii
-      $s4 = "get_InIntersection" fullword ascii
-      $s5 = "get_CloseToIntersection" fullword ascii
-      $s6 = "TrafficSignal.Settings" fullword ascii
-      $s7 = "TrafficSignal.Strategy" fullword ascii
-      $s8 = "TrafficSignal.Serializers" fullword ascii
-      $s9 = "lblComputerName" fullword wide
-      $s10 = "TrafficSignal.Properties.Resources.resources" fullword ascii
-      $s11 = "TrafficSignal.TrafficSignalForm.resources" fullword ascii
-      $s12 = "TrafficSignal.Properties" fullword ascii
-      $s13 = "TrafficSignal.Properties.Resources" fullword wide
-      $s14 = "get_pmYK" fullword ascii
-   condition:
-      uint16(0) == 0x5a4d and filesize < 5000KB and
-      6 of them
 }

@@ -20,7 +20,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.1.2"
+        self.pyas_version = "3.1.3"
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.init_sys_drive()

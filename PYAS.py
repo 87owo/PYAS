@@ -3,177 +3,210 @@ import pefile, socket, msvcrt, psutil
 import requests, pyperclip, win32file
 import win32gui, win32api, win32con
 from PYAS_Engine import ListSimHash
-from PYAS_Extension import slist, alist
+from PYAS_Suffixes import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
+from PYAS_Extension import ExtenRules
 from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from subprocess import *
 
+# experimental version 2024/07 PYAS Security
+
 class MainWindow_Controller(QMainWindow):
     def __init__(self):
+        # init program window
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
+
+        # get self program path
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
+
+        # init self program version
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.1.3"
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-        self.init_sys_drive()
-        self.init_rule_dict()
+        self.pyas_version = "3.1.4"
+
+        # startup ui config
+        self.first_startup = True
+
+        # init program config
         self.init_data_base()
-        self.init_read_json()
         self.init_tray_icon()
-        self.init_config_boot()
-        self.init_config_json()
-        self.init_config_list()
         self.init_config_qtui()
+        self.init_config_read()
+        self.init_config_boot()
         self.init_control()
         self.init_threads()
         self.init_startup()
 
     def init_threads(self):
+        # init protect thread
         self.protect_proc_init()
         self.protect_file_init()
-        self.protect_boot_init()
-        self.protect_reg_init()
+        self.protect_sys_init()
+        self.protect_drv_init()
         self.protect_net_init()
+
+        # init tools thread
         self.block_window_init()
 
     def init_tray_icon(self):
+        # init taskbar tray and icon
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.activated.connect(self.init_show_pyas)
+        self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.show()
 
     def init_startup(self):
         try:
-            if len(sys.argv) > 1:
+            # check startup ui args
+            if len(sys.argv) > 1: 
                 param = sys.argv[1]
-                if "h" in param or "hid" in param:
-                    pass
-                else:
+                if "h" not in param:
                     self.init_show_pyas()
             elif len(sys.argv) <= 1:
                 self.init_show_pyas()
-        except Exception as e:
-            self.bug_event(e)
 
-    def init_sys_drive(self):
-        try:
-            file_path = os.path.join(self.dir, "Driver")
-            if os.path.exists(file_path):
-                Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-        except Exception as e:
-            self.bug_event(e)
+            # startup ui complete
+            self.first_startup = False
+        except:
+            pass
 
     def init_data_base(self):
         try:
-            file_path = os.path.join(self.dir, "Model")
-            for root, dirs, files in os.walk(file_path):
-                for file in files:
-                    model_path = os.path.join(root, file)
-                    ftype = str(f".{file.split('.')[-1]}").lower()
-                    if ftype in [".json", ".txt"]:
-                        self.pe = ListSimHash()
-                        self.pe.load_model(model_path)
-        except Exception as e:
-            self.bug_event(e)
+            # init exten path ./Exten/* (from import)
+            self.exten = ExtenRules()
 
-    def init_rule_dict(self):
-        try:
-            self.compiled_rules = {}
-            file_path = os.path.join(self.dir, "Rules")
-            for root, dirs, files in os.walk(file_path):
+            # init model path ./Model/* (from import)
+            self.model = ListSimHash()
+            data_path = os.path.join(self.dir, "Model") 
+            for root, dirs, files in os.walk(data_path):
                 for file in files:
-                    yara_path = os.path.join(root, file)
+                    file_path = os.path.join(root, file)
+                    ftype = str(f".{file.split('.')[-1]}").lower()
+                    if ftype in [".json",".txt"]:
+                        # SimHash model json file
+                        self.model.load_model(file_path)
+
+            # init yara path ./Rules/* (from import)
+            self.rules = {}
+            data_path = os.path.join(self.dir, "Rules") 
+            for root, dirs, files in os.walk(data_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
                     ftype = str(f".{file.split('.')[-1]}").lower()
                     if ftype in [".yara", ".yar"]:
-                        rules = yara.compile(yara_path)
+                        # not compile yara rules
+                        rules = yara.compile(file_path)
                     elif ftype in [".yc", ".yrc"]:
-                        rules = yara.load(yara_path)
-                    self.compiled_rules[yara_path] = rules
+                        # compiled yara rules
+                        rules = yara.load(file_path)
+                    self.rules[file_path] = rules
         except Exception as e:
             self.bug_event(e)
 
     def init_config_boot(self):
         try:
+            # init read system boot
             with open(r"\\.\PhysicalDrive0", "r+b") as f:
+                # backup system mbr value
                 self.mbr_value = f.read(512)
+
+            # check if mbr is available
             if self.mbr_value[510:512] != b'\x55\xAA':
                 self.mbr_value = False
-        except:
+        except Exception as e:
+            # possible permission denied
             self.mbr_value = False
+            self.bug_event(self.trans(f"引導防護錯誤: ")+str(e))
 
     def write_config(self, config):
         try:
+            # write json configs in ProgramData
             with open("C:/ProgramData/PYAS/PYAS.json", "w") as f:
                 f.write(json.dumps(config, indent=4, ensure_ascii=False))
         except Exception as e:
             self.bug_event(e)
 
-    def init_config_list(self):
+    def init_config_read(self):
         try:
+            # init check exist process
+            self.track_proc = None
+            self.exist_process = set()
+            for p in psutil.process_iter():
+                self.exist_process.add(p.pid)
+
+            # check config path exists
+            if not os.path.exists("C:/ProgramData/PYAS"): 
+                os.makedirs("C:/ProgramData/PYAS")
+
+            # check config file exists
+            if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"): 
+                self.write_config({"language":"en_US","theme_color":"White",
+                "high_sensitive":0,"cloud_services":"None"})
+            try:
+                # read config json data
+                with open("C:/ProgramData/PYAS/PYAS.json", "r") as f: 
+                    self.json = json.load(f)
+            except:
+                self.json = {"language":"en_US","theme_color":"White",
+                "high_sensitive":0,"cloud_services":"None"}
+
+            # default json config
+            self.json["language"] = self.json.get("language", "en_US") 
+            self.json["theme_color"] = self.json.get("theme_color", "White")
+            self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
+            self.json["cloud_services"] = self.json.get("cloud_services", "None")
+
+            # reflash high_sensitive ui text
+            if self.json["high_sensitive"] == 1:
+                self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
+                self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+
+            # reflash language ui setChecked
+            if self.json["language"] == "zh_TW":
+                self.ui.Language_Traditional_Chinese.setChecked(True)
+            elif self.json["language"] == "zh_CN":
+                self.ui.Language_Simplified_Chinese.setChecked(True)
+            elif self.json["language"] == "en_US":
+                self.ui.Language_English.setChecked(True)
+
+            # reflash theme_color ui setChecked
+            if self.json["theme_color"] == "White":
+                self.ui.Theme_White.setChecked(True)
+            elif self.json["theme_color"] == "Red":
+                self.ui.Theme_Red.setChecked(True)
+            elif self.json["theme_color"] == "Green":
+                self.ui.Theme_Green.setChecked(True)
+            elif self.json["theme_color"] == "Yellow":
+                self.ui.Theme_Yellow.setChecked(True)
+            elif self.json["theme_color"] == "Blue":
+                self.ui.Theme_Blue.setChecked(True)
+            elif os.path.exists(self.json["theme_color"]):
+                self.ui.Theme_Customize.setChecked(True)
+
+            # read whitelist lines from ProgramData
             self.whitelist = []
             if os.path.exists("C:/ProgramData/PYAS/Whitelist.ini"):
                 with open("C:/ProgramData/PYAS/Whitelist.ini", "r") as f:
-                    self.whitelist = [line.strip() for line in f.readlines()]
+                    self.whitelist = [l.strip() for l in f.readlines()]
+
+            # read blocklist lines from ProgramData
             self.blocklist = []
             if os.path.exists("C:/ProgramData/PYAS/Blocklist.ini"):
                 with open("C:/ProgramData/PYAS/Blocklist.ini", "r") as f:
                     self.blocklist = [line.strip() for line in f.readlines()]
-        except:
-            pass
-
-    def init_read_json(self):
-        try:
-            if not os.path.exists("C:/ProgramData/PYAS"):
-                os.makedirs("C:/ProgramData/PYAS")
-            if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"):
-                self.write_config({"language":"en_US","theme_color":"White",
-                "high_sensitive":0,"cloud_services":"http://127.0.0.1/"})
-            with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
-                self.json = json.load(f)
-        except:
-            self.write_config({"language":"en_US","theme_color":"White",
-            "high_sensitive":0,"cloud_services":"http://127.0.0.1/"})
-            with open("C:/ProgramData/PYAS/PYAS.json", "r") as f:
-                self.json = json.load(f)
-
-    def init_config_json(self):
-        self.json["language"] = self.json.get("language", "en_US")
-        self.json["theme_color"] = self.json.get("theme_color", "White")
-        self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
-        self.json["cloud_services"] = self.json.get("cloud_services", "http://127.0.0.1/")
-        if self.json["high_sensitive"] == 1:
-            self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
-            self.ui.high_sensitivity_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-        if self.json["language"] == "zh_TW":
-            self.ui.Language_Traditional_Chinese.setChecked(True)
-        elif self.json["language"] == "zh_CN":
-            self.ui.Language_Simplified_Chinese.setChecked(True)
-        elif self.json["language"] == "en_US":
-            self.ui.Language_English.setChecked(True)
-        if self.json["theme_color"] == "White":
-            self.ui.Theme_White.setChecked(True)
-        elif self.json["theme_color"] == "Red":
-            self.ui.Theme_Red.setChecked(True)
-        elif self.json["theme_color"] == "Green":
-            self.ui.Theme_Green.setChecked(True)
-        elif self.json["theme_color"] == "Yellow":
-            self.ui.Theme_Yellow.setChecked(True)
-        elif self.json["theme_color"] == "Blue":
-            self.ui.Theme_Blue.setChecked(True)
-        elif os.path.exists(self.json["theme_color"]):
-            self.ui.Theme_Customize.setChecked(True)
+        except Exception as e:
+            self.bug_event(e)
 
     def init_control(self):
+        # connect main ui and function control
         self.ui.Close_Button.clicked.connect(self.close)
         self.ui.Minimize_Button.clicked.connect(self.showMinimized)
         self.ui.Menu_Button.clicked.connect(self.show_menu)
@@ -181,29 +214,37 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Tools_Button.clicked.connect(self.change_tools_widget)    
         self.ui.Virus_Scan_Button.clicked.connect(self.change_scan_widget)
         self.ui.Protection_Button.clicked.connect(self.change_protect_widget)
+
+        # connect scan ui and function control
         self.ui.Virus_Scan_output.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Virus_Scan_output.customContextMenuRequested.connect(self.Virus_Scan_output_menu)
-        self.ui.System_Process_Manage_Button.clicked.connect(lambda:self.change_tools(self.ui.Process_widget))
-        self.ui.Process_Tools_Back.clicked.connect(lambda:self.back_to_tools(self.ui.Process_widget))
         self.ui.Virus_Scan_Solve_Button.clicked.connect(self.virus_solve)
         self.ui.Virus_Scan_choose_Button.clicked.connect(self.virus_scan_menu)
         self.ui.Virus_Scan_Break_Button.clicked.connect(self.virus_scan_break)
         self.ui.File_Scan_Button.clicked.connect(self.file_scan)
         self.ui.Path_Scan_Button.clicked.connect(self.path_scan)
         self.ui.Disk_Scan_Button.clicked.connect(self.disk_scan)
-        self.ui.About_Back.clicked.connect(self.ui.About_widget.hide)
-        self.ui.Setting_Back.clicked.connect(self.setting_back)
+
+        # connect tools ui and function control
+        self.ui.System_Process_Manage_Button.clicked.connect(lambda:self.change_tools(self.ui.Process_widget))
+        self.ui.Process_Tools_Back.clicked.connect(lambda:self.back_to_tools(self.ui.Process_widget))
         self.ui.Repair_System_Files_Button.clicked.connect(self.repair_system)
         self.ui.Clean_System_Files_Button.clicked.connect(self.clean_system)
         self.ui.Window_Block_Button.clicked.connect(self.get_software_window)
         self.ui.Repair_System_Network_Button.clicked.connect(self.repair_network)
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.process_list_menu)
+        self.ui.About_Back.clicked.connect(self.ui.About_widget.hide)
+        self.ui.Setting_Back.clicked.connect(self.setting_back)
+
+        # connect protect ui and function control
         self.ui.Protection_switch_Button.clicked.connect(self.protect_proc_init)
         self.ui.Protection_switch_Button_2.clicked.connect(self.protect_file_init)
-        self.ui.Protection_switch_Button_3.clicked.connect(self.protect_boot_init)
-        self.ui.Protection_switch_Button_4.clicked.connect(self.protect_reg_init)
+        self.ui.Protection_switch_Button_3.clicked.connect(self.protect_sys_init)
+        self.ui.Protection_switch_Button_4.clicked.connect(self.protect_drv_init)
         self.ui.Protection_switch_Button_5.clicked.connect(self.protect_net_init)
+
+        # connect settings ui and function control
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
         self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_service)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
@@ -218,16 +259,27 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Theme_Red.clicked.connect(self.init_theme_color)
 
     def init_config_qtui(self):
+        # connect ui and variable control
+        self.ui = Ui_MainWindow()
+        self.ui.setupUi(self)
+
+        # init virus scan list
+        self.virus_lock = {}
+        self.virus_list = []
+        self.virus_list_ui = []
+
+        # init process tools list
+        self.Process_quantity = []
+        self.Process_list_all_pid = []
+
+        # connect effect ui and variable
+        self.Process_sim = QStringListModel()
+        self.Process_Timer = QTimer()
+        self.Process_Timer.timeout.connect(self.process_list)
         self.ui.widget_2.lower()
         self.ui.Navigation_Bar.raise_()
         self.ui.Window_widget.raise_()
         self.ui.Virus_Scan_choose_widget.raise_()
-        self.Process_sim = QStringListModel()
-        self.Process_quantity = []
-        self.Process_list_all_pid = []
-        self.Process_Timer = QTimer()
-        self.Process_Timer.timeout.connect(self.process_list)
-        self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
         self.effect_shadow = QGraphicsDropShadowEffect(self)
         self.effect_shadow.setOffset(0,0)
         self.effect_shadow.setBlurRadius(10)
@@ -255,26 +307,33 @@ class MainWindow_Controller(QMainWindow):
         self.ui.State_output.style().polish(self.ui.State_output.verticalScrollBar())
         self.ui.Virus_Scan_output.style().polish(self.ui.Virus_Scan_output.verticalScrollBar())
 
+        # PYAS License_terms
+        self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
+
     def init_change_lang(self):
         try:
-            self.ui.State_output.clear()
+            # change lang function with init or clicked
             if self.ui.Language_Traditional_Chinese.isChecked():
                 self.json["language"] = "zh_TW"
             elif self.ui.Language_Simplified_Chinese.isChecked():
                 self.json["language"] = "zh_CN"
             elif self.ui.Language_English.isChecked():
                 self.json["language"] = "en_US"
+
+            # write lang config and set lang text
             self.write_config(self.json)
             self.init_lang_text()
         except Exception as e:
             self.bug_event(e)
 
     def trans(self, text):
+        # from PYAS_Language import translate_dict
         for k, v in translate_dict.get(self.json["language"], translate_dict).items():
             text = text.replace(str(k), str(v))
         return text
 
     def init_lang_text(self):
+        # original init language "zh_TW"
         self.ui.State_title.setText(self.trans("此裝置已受到防護"))
         self.ui.Window_title.setText(self.trans(f"PYAS Security"))
         self.ui.PYAS_CopyRight.setText(self.trans(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
@@ -298,11 +357,11 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Protection_title_2.setText(self.trans("檔案防護"))
         self.ui.Protection_illustrate_2.setText(self.trans("啟用此選項可以監控檔案變更"))
         self.ui.Protection_switch_Button_2.setText(self.trans(self.ui.Protection_switch_Button_2.text()))
-        self.ui.Protection_title_3.setText(self.trans("引導防護"))
-        self.ui.Protection_illustrate_3.setText(self.trans("啟用此選項可以修復引導分區"))
+        self.ui.Protection_title_3.setText(self.trans("系統防護"))
+        self.ui.Protection_illustrate_3.setText(self.trans("啟用此選項可以修復系統項目"))
         self.ui.Protection_switch_Button_3.setText(self.trans(self.ui.Protection_switch_Button_3.text()))
-        self.ui.Protection_title_4.setText(self.trans("註冊表防護"))
-        self.ui.Protection_illustrate_4.setText(self.trans("啟用此選項可以修復註冊表項目"))
+        self.ui.Protection_title_4.setText(self.trans("驅動防護"))
+        self.ui.Protection_illustrate_4.setText(self.trans("啟用此選項可以增強自身防護"))
         self.ui.Protection_switch_Button_4.setText(self.trans(self.ui.Protection_switch_Button_4.text()))
         self.ui.Protection_title_5.setText(self.trans("網路防護"))
         self.ui.Protection_illustrate_5.setText(self.trans("啟用此選項可以監控網路通訊"))
@@ -327,7 +386,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))
         self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高引擎的靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.trans(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.cloud_services_title.setText(self.trans("上報雲端分析"))
+        self.ui.cloud_services_title.setText(self.trans("雲端上報服務"))
         self.ui.cloud_services_illustrate.setText(self.trans("此選項可以選擇檔案並上報雲端分析"))
         self.ui.cloud_services_switch_Button.setText(self.trans("選擇"))
         self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
@@ -349,6 +408,7 @@ class MainWindow_Controller(QMainWindow):
 
     def init_theme_color(self):
         try:
+            # set theme color (Maybe it can be further optimized?)
             if self.ui.Theme_White.isChecked():
                 self.json["theme_color"] = "White"
                 self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
@@ -375,6 +435,7 @@ class MainWindow_Controller(QMainWindow):
                 self.ui.Window_widget.setStyleSheet("QWidget#Window_widget {background-color:rgb(250,250,230);}")
                 self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
             elif self.ui.Theme_Customize.isChecked():
+                # check customize theme config
                 if not os.path.exists(os.path.join(self.json["theme_color"],"Color.ini")):
                     path = str(QFileDialog.getExistingDirectory(self,self.trans("自定主題"),"C:/"))
                     if path and os.path.exists(os.path.join(path,"Color.ini")):
@@ -385,8 +446,10 @@ class MainWindow_Controller(QMainWindow):
                 self.ui.Navigation_Bar.setStyleSheet(self.themecolor[1])
                 file = os.path.join(self.json["theme_color"],"Check.png")
                 self.ui.State_icon.setPixmap(QPixmap(file))
+            # write theme color config
             self.write_config(self.json)
         except:
+            # set default theme color when error
             self.ui.Theme_White.setChecked(True)
             self.json["theme_color"] = "White"
             self.ui.State_icon.setPixmap(QPixmap(":/icon/Check.png"))
@@ -394,6 +457,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(230,230,230);}")
 
     def change_animation(self,widget):
+        # animation for widget
         x, y = 170, widget.pos().y()
         self.anim = QPropertyAnimation(widget, b"geometry")
         widget.setGeometry(QRect(x - 100,y, 671, 481))
@@ -404,6 +468,7 @@ class MainWindow_Controller(QMainWindow):
         self.anim.start()
 
     def change_animation_2(self,nx,ny):
+        # animation for scroll bar
         x, y = self.ui.label.pos().x(), self.ui.label.pos().y()
         self.anim2 = QPropertyAnimation(self.ui.label, b"geometry")
         if y > ny:
@@ -423,6 +488,7 @@ class MainWindow_Controller(QMainWindow):
         self.anim2.start()
 
     def change_animation_3(self,widget,time):
+        # animation for OpacityEffect
         self.opacity = QGraphicsOpacityEffect()
         self.opacity.setOpacity(0)
         self.opacity.i = self.opacity.opacity()
@@ -433,6 +499,7 @@ class MainWindow_Controller(QMainWindow):
         self.timer.start(2)
 
     def timeout(self):
+        # animation for change opacity
         if self.opacity.i <= 1:
             self.opacity.i += 0.05
             self.opacity.setOpacity(self.opacity.i)
@@ -440,6 +507,7 @@ class MainWindow_Controller(QMainWindow):
             self.timer.stop()
 
     def change_animation_4(self,widget,time,ny,ny2):
+        # animation for virus_scan_menu
         x, y = widget.pos().x(), widget.pos().y()
         self.anim4 = QPropertyAnimation(widget, b"geometry")
         self.anim4.setDuration(time)
@@ -448,6 +516,7 @@ class MainWindow_Controller(QMainWindow):
         self.anim4.start()
 
     def change_animation_5(self,widget,x,y,nx,ny):
+        # animation for show_menu
         self.anim = QPropertyAnimation(widget, b"geometry")
         widget.setGeometry(QRect(x,y - 45, nx,ny))
         self.anim.setKeyValueAt(0.2, QRect(x,y - 30,nx,ny))
@@ -457,6 +526,7 @@ class MainWindow_Controller(QMainWindow):
         self.anim.start()
 
     def change_state_widget(self):
+        # Toggle interface to hide or show elements
         if self.ui.State_widget.isHidden():
             self.change_animation_2(20,50)
             self.change_animation_3(self.ui.State_widget,0.5)
@@ -470,6 +540,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Setting_widget.hide()
 
     def change_scan_widget(self):
+        # Toggle interface to hide or show elements
         if self.ui.Virus_Scan_widget.isHidden():
             self.change_animation_2(20,168)
             self.change_animation_3(self.ui.Virus_Scan_widget,0.5)
@@ -483,6 +554,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Setting_widget.hide()
 
     def change_tools_widget(self):
+        # Toggle interface to hide or show elements
         if self.ui.Tools_widget.isHidden():
             self.change_animation_2(20,285)
             self.change_animation_3(self.ui.Tools_widget,0.5)
@@ -496,6 +568,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Setting_widget.hide()
 
     def change_protect_widget(self):
+        # Toggle interface to hide or show elements
         if self.ui.Protection_widget.isHidden():
             self.change_animation_2(20,405)
             self.change_animation_3(self.ui.Protection_widget,0.5)
@@ -509,6 +582,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Setting_widget.hide()
 
     def change_tools(self,widget):
+        # Toggle interface to hide or show elements
         self.ui.Tools_widget.hide()
         self.ui.Setting_widget.hide()
         self.ui.About_widget.hide()
@@ -521,6 +595,7 @@ class MainWindow_Controller(QMainWindow):
         widget.show()
 
     def back_to_tools(self,widget):
+        # Toggle interface to hide or show elements
         widget.hide()
         if widget == self.ui.Process_widget:
             self.Process_Timer.stop()
@@ -529,12 +604,14 @@ class MainWindow_Controller(QMainWindow):
         self.ui.Tools_widget.show()
 
     def mousePressEvent(self, event):
+        # Drag window opacity
         def update_opacity():
             if self.pyas_opacity > 80 and self.m_flag == True:
                 self.pyas_opacity -= 1
                 self.setWindowOpacity(self.pyas_opacity/100)
             else:
                 self.timer.stop()
+        # Check drag window area
         x, y = event.x(), event.y()
         if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
             self.m_flag = True
@@ -546,6 +623,7 @@ class MainWindow_Controller(QMainWindow):
 
     def mouseMoveEvent(self, QMouseEvent):
         try:
+            # Drag window
             if Qt.LeftButton and self.m_flag:
                 self.move(QMouseEvent.globalPos()-self.m_Position)
                 QApplication.processEvents()
@@ -554,6 +632,7 @@ class MainWindow_Controller(QMainWindow):
             pass
 
     def mouseReleaseEvent(self, QMouseEvent):
+        # restore window opacity
         def update_opacity():
             if self.pyas_opacity < 100 and self.m_flag == False:
                 self.pyas_opacity += 1
@@ -579,6 +658,7 @@ class MainWindow_Controller(QMainWindow):
         pat2.drawRoundedRect(rect, 1, 1)
 
     def init_show_pyas(self):
+        # form init_startup function :)
         def update_opacity():
             if self.pyas_opacity <= 100:
                 self.pyas_opacity += 2
@@ -594,6 +674,7 @@ class MainWindow_Controller(QMainWindow):
         self.init_theme_color()
 
     def init_hide_pyas(self):
+        # hide to tray_icon
         def update_opacity():
             if self.pyas_opacity >= 0:
                 self.pyas_opacity -= 2
@@ -606,19 +687,21 @@ class MainWindow_Controller(QMainWindow):
         self.timer.start(2)
 
     def showMinimized(self):
+        # form init_hide_pyas function
         if self.block_window:
             self.init_hide_pyas()
             self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
 
     def closeEvent(self, event):
+        # quit ui question
         if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
             Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-            self.block_window = False
-            self.proc_protect = False
-            self.file_protect = False
-            self.mbr_protect = False
-            self.reg_protect = False
-            self.net_protect = False
+            self.first_startup = True
+            self.protect_proc_init()
+            self.protect_file_init()
+            self.protect_sys_init()
+            self.protect_drv_init()
+            self.protect_net_init()
             self.virus_scan_break()
             event.accept()
         else:
@@ -626,35 +709,44 @@ class MainWindow_Controller(QMainWindow):
 
     def bug_event(self, text):
         try:
+            # bug event message
             print(f"[Error] > {text}")
-            QMessageBox.critical(self, "Error", str(text), QMessageBox.Ok)
+            if self.first_startup != True:
+                QMessageBox.critical(self, "Error", str(text), QMessageBox.Ok)
         except:
             pass
 
     def info_event(self, text):
         try:
+            # info event message
             print(f"[Info] > {text}")
-            QMessageBox.information(self, "Info", self.trans(str(text)), QMessageBox.Ok)
+            if self.first_startup != True:
+                QMessageBox.information(self, "Info", self.trans(str(text)), QMessageBox.Ok)
         except:
             pass
 
     def question_event(self, text):
         try:
+            # question event message
             print(f"[Quest] > {text}")
-            return QMessageBox.question(self, "Quest", self.trans(str(text)),QMessageBox.Yes|QMessageBox.No) == 16384
+            if self.first_startup != True:
+                return QMessageBox.question(self, "Quest", self.trans(str(text)),QMessageBox.Yes|QMessageBox.No) == 16384
         except:
             return False
 
     def send_notify(self, text):
         try:
+            # send system notification
             now_time = time.strftime('%Y-%m-%d %H:%M:%S')
             print(f"[Notify] > [{now_time}] {text}")
-            self.tray_icon.showMessage(now_time, text, 5000)
-            QMetaObject.invokeMethod(self.ui.State_output, "append", Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))
+            if self.first_startup != True:
+                self.tray_icon.showMessage(now_time, text, 5000)
+                QMetaObject.invokeMethod(self.ui.State_output, "append", Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))
         except:
             pass
 
     def show_menu(self):
+        # menu for settings / about / update
         self.WindowMenu = QMenu()
         Main_Settings = QAction(self.trans("設定"),self)
         #Main_Update = QAction(self.trans("更新"),self)
@@ -683,6 +775,7 @@ class MainWindow_Controller(QMainWindow):
 
     def update_database(self):
         try:
+            # Deprecated functionality :(
             if self.question_event("您確定要更新數據庫嗎?"):
                 pass
         except Exception as e:
@@ -691,12 +784,14 @@ class MainWindow_Controller(QMainWindow):
     def change_sensitive(self):
         sw_state = self.ui.high_sensitivity_switch_Button.text()
         if sw_state == self.trans("已開啟"):
+            # close high sensitive mode
             self.json["high_sensitive"] = 0
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
             QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
             QPushButton:hover{background-color:rgb(220,220,220);}""")
         elif self.question_event("此選項可能會誤報檔案，您確定要開啟嗎?"):
+            # open high sensitive mode
             self.json["high_sensitive"] = 1
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet("""
@@ -706,13 +801,18 @@ class MainWindow_Controller(QMainWindow):
 
     def cloud_service(self):
         try:
-            file = str(QFileDialog.getOpenFileName(self,self.trans("上報雲端分析"),"C:/")[0]).replace("\\", "/")
-            if file and self.question_event("您確定要上報雲端分析嗎?"):
-                response = requests.post(self.json["cloud_services"], files={'file': open(file, 'rb')})
-                if response.status_code == 200:
-                    self.info_event(f"成功上報雲端分析: "+file)
-                else:
-                    self.bug_event(response.status_code)
+            # cloud services config /ProgramData/PYAS.json
+            if self.json["cloud_services"] != "None":
+                # upload file cloud services
+                file = str(QFileDialog.getOpenFileName(self,self.trans("上報雲端分析"),"C:/")[0]).replace("\\", "/")
+                if file and self.question_event("您確定要上報雲端分析嗎?"):
+                    response = requests.post(self.json["cloud_services"], files={'file': open(file, 'rb')})
+                    if response.status_code == 200:
+                        self.info_event(f"成功上報雲端分析: "+file)
+                    else:
+                        self.bug_event(response.status_code)
+            else:
+                self.bug_event(self.trans("未選擇雲端服務網站"))
         except Exception as e:
             self.bug_event(e)
 
@@ -721,10 +821,12 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
             QApplication.processEvents()
             try:
+                # Clear locked files
                 for file in self.virus_list:
                     self.lock_file(file, False)
             except:
                 pass
+            # init scan config
             self.scan_file = True
             self.virus_lock = {}
             self.virus_list = []
@@ -751,10 +853,12 @@ class MainWindow_Controller(QMainWindow):
 
     def lock_file(self, file, lock):
         try:
+            # lock file using msvcrt
             if lock:
                 self.virus_lock[file] = os.open(file, os.O_RDWR)
-                msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBLCK, os.path.getsize(file))
+                msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBRLCK, os.path.getsize(file))
             else:
+                # unlock file
                 msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
                 os.close(self.virus_lock[file])
         except:
@@ -765,6 +869,7 @@ class MainWindow_Controller(QMainWindow):
             self.ui.Virus_Scan_Solve_Button.hide()
             for file in self.virus_list:
                 try:
+                    # delete file
                     if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
                         self.ui.Virus_Scan_title.setText(self.trans("正在刪除"))
                         self.ui.Virus_Scan_text.setText(file)
@@ -775,9 +880,6 @@ class MainWindow_Controller(QMainWindow):
                         self.lock_file(file, False)
                 except:
                     continue
-            self.virus_lock = {}
-            self.virus_list = []
-            self.virus_list_ui = []
             self.ui.Virus_Scan_output.clear()
             self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
             self.ui.Virus_Scan_text.setText(self.trans("刪除成功"))
@@ -834,7 +936,10 @@ class MainWindow_Controller(QMainWindow):
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
             if file and file not in self.whitelist and file != self.pyas:
                 self.init_scan()
-                self.write_scan(self.start_scan(file),file)
+                thread = Thread(target=self.write_scan, args=(self.start_scan(file),file,), daemon=True)
+                thread.start()
+                while thread.is_alive():
+                    QApplication.processEvents()
                 self.answer_scan()
         except Exception as e:
             self.bug_event(e)
@@ -845,7 +950,10 @@ class MainWindow_Controller(QMainWindow):
             path = str(QFileDialog.getExistingDirectory(self,self.trans("病毒掃描"),"C:/"))
             if path:
                 self.init_scan()
-                self.traverse_path(path)
+                thread = Thread(target=self.traverse_path, args=(path,), daemon=True)
+                thread.start()
+                while thread.is_alive():
+                    QApplication.processEvents()
                 self.answer_scan()
         except Exception as e:
             self.bug_event(e)
@@ -856,24 +964,26 @@ class MainWindow_Controller(QMainWindow):
             self.init_scan()
             for d in range(26):
                 if os.path.exists(f"{chr(65+d)}:/"):
-                    self.traverse_path(f"{chr(65+d)}:/")
+                    thread = Thread(target=self.traverse_path, args=(f"{chr(65+d)}:/",), daemon=True)
+                    thread.start()
+                    while thread.is_alive():
+                        QApplication.processEvents()
             self.answer_scan()
         except Exception as e:
             self.bug_event(e)
             self.virus_scan_break()
 
-    def traverse_path(self,path):
-        for fd in os.listdir(path):
+    def traverse_path(self, file_path):
+        for fd in os.listdir(file_path):
             try:
-                file = str(os.path.join(path,fd)).replace("\\", "/")
+                file = str(os.path.join(file_path,fd)).replace("\\", "/")
                 if self.scan_file == False:
                     break
                 elif os.path.isdir(file):
                     self.traverse_path(file)
-                elif file not in self.whitelist and file != self.pyas:
+                elif file != self.pyas and file not in self.whitelist:
                     self.ui.Virus_Scan_title.setText(self.trans("正在掃描"))
                     self.ui.Virus_Scan_text.setText(file)
-                    QApplication.processEvents()
                     self.write_scan(self.start_scan(file),file)
                 gc.collect()
             except:
@@ -881,21 +991,26 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
-            ftype = str(f".{file.split('.')[-1]}").lower()
             label, level = self.pe_scan(file)
-            if label and "Unknown" in label:
+            if label and "Unknown" == label:
                 if self.rule_scan(file):
                     return "Rules"
-            elif label and "White" not in label:
+                elif self.exten.bdc_scan(file):
+                    return "Exten"
+            elif label and "White" != label:
                 if self.json["high_sensitive"]:
                     return label
                 elif level and level >= 1.0:
                     return label
                 elif self.rule_scan(file):
                     return "Rules"
+                elif self.exten.bdc_scan(file):
+                    return "Exten"
             elif self.json["high_sensitive"]:
                 if self.rule_scan(file):
                     return "Rules"
+                elif self.exten.bdc_scan(file):
+                    return "Exten"
             return False
         except:
             return False
@@ -914,7 +1029,7 @@ class MainWindow_Controller(QMainWindow):
                                 pass
             if fn:
                 QApplication.processEvents()
-                return self.pe.predict(fn)
+                return self.model.predict(fn)
             return False, False
         except:
             return False, False
@@ -930,21 +1045,10 @@ class MainWindow_Controller(QMainWindow):
         try:
             with open(file, "rb") as f:
                 data = f.read()
-            for name, rules in self.compiled_rules.items():
+            for name, rules in self.rules.items():
                 QApplication.processEvents()
                 if rules.match(data=data):
                     return True
-            return False
-        except:
-            return False
-
-    def proc_scan(self, p):
-        try:
-            for entry in p.memory_maps():
-                file = entry.path.replace("\\", "/")
-                if ":/Windows" not in file and ":/Program" not in file:
-                    if self.start_scan(file):
-                        return True
             return False
         except:
             return False
@@ -1050,7 +1154,9 @@ class MainWindow_Controller(QMainWindow):
                 for i in Permission:
                     try:
                         win32api.RegDeleteValue(key,i)
-                        self.kill_process(self.proc, "惡意行為攔截")
+                        name = self.track_proc.name()
+                        if "cmd.exe" not in name and "powershell" not in name:
+                            self.kill_process(self.track_proc, "註冊表攔截", True)
                     except:
                         pass
                 win32api.RegCloseKey(key)
@@ -1150,9 +1256,9 @@ class MainWindow_Controller(QMainWindow):
     def repair_network(self):
         try:
             if self.question_event("您確定要修復系統網路嗎?"):
-                os.system("netsh winsock reset")
+                Popen("netsh winsock reset", shell=True, stdout=PIPE, stderr=PIPE).wait()
                 if self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                    os.system("shutdown -r -t 0")
+                    Popen("shutdown -r -t 0", shell=True, stdout=PIPE, stderr=PIPE).wait()
         except Exception as e:
             self.bug_event(e)
 
@@ -1199,117 +1305,177 @@ class MainWindow_Controller(QMainWindow):
             pass
 
     def protect_proc_init(self):
-        if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
-            self.proc_protect = False
-            self.ui.Protection_switch_Button.setText(self.trans("已關閉"))
-            self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
-        else:
-            self.proc_protect = True
-            self.ui.Protection_switch_Button.setText(self.trans("已開啟"))
-            self.ui.Protection_switch_Button.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-            Thread(target=self.protect_proc_thread, daemon=True).start()
+        try:
+            if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
+                self.ui.Protection_switch_Button.setText(self.trans("已關閉"))
+                self.ui.Protection_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(220, 220, 220);}""")
+                self.proc_protect = False
+            else:
+                self.proc_protect = True
+                self.ui.Protection_switch_Button.setText(self.trans("已開啟"))
+                self.ui.Protection_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+                Thread(target=self.protect_proc_thread, daemon=True).start()
+        except Exception as e:
+            self.bug_event(self.trans(f"進程防護開啟失敗: ")+str(e))
 
     def protect_file_init(self):
-        if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
-            self.file_protect = False
-            self.ui.Protection_switch_Button_2.setText(self.trans("已關閉"))
-            self.ui.Protection_switch_Button_2.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
-        else:
-            self.file_protect = True
-            self.ui.Protection_switch_Button_2.setText(self.trans("已開啟"))
-            self.ui.Protection_switch_Button_2.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-            Thread(target=self.protect_file_thread, daemon=True).start()
+        try:
+            if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
+                self.ui.Protection_switch_Button_2.setText(self.trans("已關閉"))
+                self.ui.Protection_switch_Button_2.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(220, 220, 220);}""")
+                self.file_protect = False
+            else:
+                self.file_protect = True
+                self.ui.Protection_switch_Button_2.setText(self.trans("已開啟"))
+                self.ui.Protection_switch_Button_2.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+                Thread(target=self.protect_file_thread, daemon=True).start()
+        except Exception as e:
+            self.bug_event(self.trans(f"檔案防護開啟失敗: ")+str(e))
 
-    def protect_boot_init(self):
-        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
-            self.mbr_protect = False
-            self.ui.Protection_switch_Button_3.setText(self.trans("已關閉"))
-            self.ui.Protection_switch_Button_3.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
-        else:
-            self.mbr_protect = True
-            self.ui.Protection_switch_Button_3.setText(self.trans("已開啟"))
-            self.ui.Protection_switch_Button_3.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-            Thread(target=self.protect_boot_thread, daemon=True).start()
+    def protect_sys_init(self):
+        try:
+            if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
+                self.ui.Protection_switch_Button_3.setText(self.trans("已關閉"))
+                self.ui.Protection_switch_Button_3.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(220, 220, 220);}""")
+                self.sys_protect = False
+            else:
+                self.sys_protect = True
+                self.ui.Protection_switch_Button_3.setText(self.trans("已開啟"))
+                self.ui.Protection_switch_Button_3.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+                Thread(target=self.protect_boot_thread, daemon=True).start()
+                Thread(target=self.protect_reg_thread, daemon=True).start()
+        except Exception as e:
+            self.bug_event(self.trans(f"系統防護開啟失敗: ")+str(e))
 
-    def protect_reg_init(self):
-        if self.ui.Protection_switch_Button_4.text() == self.trans("已開啟"):
-            self.reg_protect = False
-            self.ui.Protection_switch_Button_4.setText(self.trans("已關閉"))
-            self.ui.Protection_switch_Button_4.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
-        else:
-            self.reg_protect = True
-            self.ui.Protection_switch_Button_4.setText(self.trans("已開啟"))
-            self.ui.Protection_switch_Button_4.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-            Thread(target=self.protect_reg_thread, daemon=True).start()
+    def protect_drv_init(self):
+        try:
+            file_path = os.path.join(self.dir, "Driver").replace("\\", "/")
+            if os.path.exists(file_path):
+                if self.ui.Protection_switch_Button_4.text() == self.trans("已開啟"):
+                    result = Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                    if not self.first_startup:
+                        if result == 0 and self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
+                            Popen(f'"{file_path}/Uninstall_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                        elif result == 577 and self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
+                            Popen(f'shutdown -r -t 0', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                        else:
+                            Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                    if result == 1062 or result == 1060:
+                        self.ui.Protection_switch_Button_4.setText(self.trans("已關閉"))
+                        self.ui.Protection_switch_Button_4.setStyleSheet("""
+                        QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+                        QPushButton:hover{background-color:rgb(220, 220, 220);}""")
+                else:
+                    result = Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                    if not self.first_startup:
+                        if result == 1060 and self.question_event("此選項可能會與其他軟體不兼容，您確定要開啟嗎?"):
+                            Popen(f'"{file_path}/Install_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                        elif result == 577 and self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
+                            Popen(f'shutdown -r -t 0', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                        else:
+                            Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                    if result == 0 or result == 1056:
+                        self.ui.Protection_switch_Button_4.setText(self.trans("已開啟"))
+                        self.ui.Protection_switch_Button_4.setStyleSheet("""
+                        QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                        QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+            elif not self.first_startup:
+                self.bug_event(self.trans(f"驅動防護檔案丟失: ")+str(file_path))
+        except Exception as e:
+            self.bug_event(self.trans(f"驅動防護開啟失敗: ")+str(e))
 
     def protect_net_init(self):
-        if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
-            self.net_protect = False
-            self.ui.Protection_switch_Button_5.setText(self.trans("已關閉"))
-            self.ui.Protection_switch_Button_5.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(220, 220, 220);}""")
-        else:
-            self.net_protect = True
-            self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
-            self.ui.Protection_switch_Button_5.setStyleSheet("""
-            QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
-            QPushButton:hover{background-color:rgb(210, 250, 210);}""")
-            Thread(target=self.protect_net_thread, daemon=True).start()
+        try:
+            if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
+                self.ui.Protection_switch_Button_5.setText(self.trans("已關閉"))
+                self.ui.Protection_switch_Button_5.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(230, 230, 230);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(220, 220, 220);}""")
+                self.net_protect = False
+            else:
+                self.net_protect = True
+                self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
+                self.ui.Protection_switch_Button_5.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+                Thread(target=self.protect_net_thread, daemon=True).start()
+        except Exception as e:
+            self.bug_event(self.trans(f"網路防護開啟失敗: ")+str(e))
 
     def protect_proc_thread(self):
-        self.proc = None
-        existing_process = set()
-        for p in psutil.process_iter():
-            existing_process.add(p.pid)
         while self.proc_protect:
             time.sleep(0.01)
             new_process = set()
             for p in psutil.process_iter():
                 new_process.add(p.pid)
-            for pid in new_process - existing_process:
+            for pid in new_process - self.exist_process:
                 try:
                     p = psutil.Process(pid)
+                    self.lock_process(p, True)
                     self.handle_new_process(p)
+                    self.lock_process(p, False)
+                    gc.collect()
                 except:
                     pass
-            existing_process = new_process
+            self.exist_process = new_process
+        if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
+            self.send_notify(self.trans(f"竄改警告: self.proc_protect"))
 
     def handle_new_process(self, p):
         try:
             name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
             if file != self.pyas and file not in self.whitelist:
-                self.lock_process(p, True)
-                if "powershell" in name and self.start_scan(cmd[-1].split("'")[-2]):
-                    self.kill_process(p, "惡意腳本攔截")
-                elif "cmd.exe" in name and self.start_scan(" ".join(cmd[2:])):
-                    self.kill_process(p, "惡意腳本攔截")
-                elif ":/Windows" in file and self.start_scan(cmd[-1]):
-                    self.kill_process(p, "惡意軟體攔截")
-                elif ":/Windows" not in file and self.proc_scan(p):
-                    self.kill_process(p, "惡意軟體攔截")
-                elif ":/Windows" not in file and self.sign_scan(file):
-                    self.proc = p
-                self.lock_process(p, False)
-                gc.collect()
+                if "powershell" in name:
+                    file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
+                    if os.path.exists(file) and self.start_scan(file):
+                        self.kill_process(p, "腳本攔截", False)
+                    elif ":/Windows" not in file and ":/Program" not in file:
+                        self.track_proc = p
+                elif "cmd.exe" in name:
+                    file = str(" ".join(cmd[2:])).replace("\\", "/")
+                    if os.path.exists(file) and self.start_scan(file):
+                        self.kill_process(p, "腳本攔截", False)
+                    elif ":/Windows" not in file and ":/Program" not in file:
+                        self.track_proc = p
+                elif ":/Windows" in file:
+                    file = str(cmd[-1]).replace("\\", "/")
+                    if os.path.exists(file) and self.start_scan(file):
+                        self.kill_process(p, "鏈式攔截", False)
+                elif not self.proc_scan(p):
+                    if ":/Windows" not in file and ":/Program" not in file:
+                        self.track_proc = p
         except:
+            pass
+
+    def proc_scan(self, p):
+        try:
+            if self.start_scan(p.exe()):
+                self.kill_process(p, "進程攔截", False)
+                return True
+            for entry in p.memory_maps():
+                file = str(entry.path).replace("\\", "/")
+                if ":/Windows" not in file and self.start_scan(file):
+                    self.kill_process(p, "加載攔截", False)
+                    return True
             self.lock_process(p, False)
+            time.sleep(0.2)
+            if self.exten.mem_scan(p):
+                self.kill_process(p, "記憶體攔截", True)
+            return False
+        except:
+            return False
 
     def lock_process(self, p, lock):
         try:
@@ -1320,17 +1486,24 @@ class MainWindow_Controller(QMainWindow):
         except:
             pass
 
-    def kill_process(self, p, info):
+    def kill_process(self, p, info, relation=False):
         try:
-            if p.is_running():
-                file = p.exe().replace("\\", "/")
+            file = p.exe().replace("\\", "/")
+            if relation == True:
+                kill_items = []
+                for p2 in psutil.process_iter():
+                    try:
+                        if file == p2.exe().replace("\\", "/"):
+                            p2.kill()
+                    except:
+                        pass
                 self.send_notify(self.trans(f"{info}: ")+file)
-                for child in p.children(recursive=True):
-                    child.kill()
+            elif p.is_running():
                 p.kill()
-            self.proc = None
+                self.send_notify(self.trans(f"{info}: ")+file)
+            self.track_proc = None
         except:
-            pass
+            self.track_proc = None
 
     def protect_file_thread(self):
         hDir = win32file.CreateFile("C:/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
@@ -1340,9 +1513,9 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
-                    if self.ransom_counts >= 3 and self.proc:
+                    if self.ransom_counts >= 3 and self.track_proc:
                         self.ransom_counts = 0
-                        self.kill_process(self.proc, "勒索行為攔截")
+                        self.kill_process(self.track_proc, "勒索攔截", False)
                     elif ":/Windows" in fpath and "/Temp/" not in fpath:
                         if action == 2 and ftype in alist:
                             self.ransom_counts += 1
@@ -1353,29 +1526,32 @@ class MainWindow_Controller(QMainWindow):
                             self.ransom_counts += 1
                         elif action == 4 and ftype in alist:
                             self.ransom_counts += 1
-                        elif action == 3 and ftype in slist and os.path.getsize(fpath) <= 52428800:
-                            if self.sign_scan(file) and self.start_scan(fpath):
-                                os.remove(fpath)
-                                self.send_notify(self.trans("惡意軟體刪除: ")+fpath)
+                        elif action == 3 and ftype in slist and self.start_scan(fpath):
+                            os.remove(fpath)
+                            self.send_notify(self.trans("病毒刪除: ")+fpath)
                 except:
                     pass
+        if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
+            self.send_notify(self.trans(f"竄改警告: self.file_protect"))
 
     def protect_boot_thread(self):
-        while self.mbr_protect and self.mbr_value:
+        while self.sys_protect and self.mbr_value:
             try:
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] != b'\x55\xAA':
-                        self.kill_process(self.proc, "惡意行為攔截")
+                        self.kill_process(self.track_proc, "引導攔截", True)
                     elif f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        self.kill_process(self.proc, "惡意行為攔截")
+                        self.kill_process(self.track_proc, "引導攔截", True)
             except:
-                self.kill_process(self.proc, "惡意行為攔截")
+                self.kill_process(self.track_proc, "引導攔截", True)
+        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
+            self.send_notify(self.trans(f"竄改警告: self.sys_protect (boot)"))
 
     def protect_reg_thread(self):
-        while self.reg_protect:
+        while self.sys_protect:
             try:
                 time.sleep(0.2)
                 self.repair_system_image()
@@ -1384,18 +1560,22 @@ class MainWindow_Controller(QMainWindow):
                 self.repair_system_file_icon()
             except:
                 pass
+        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
+            self.send_notify(self.trans(f"竄改警告: self.sys_protect (reg)"))
 
     def protect_net_thread(self):
         while self.net_protect:
             try:
                 time.sleep(0.2)
                 local = socket.gethostbyname(socket.gethostname())
-                for conn in self.proc.connections():
+                for conn in self.track_proc.connections():
                     if ":/Windows" not in file and ":/Program" not in file:
                         if conn.laddr.ip == local:
-                            self.kill_process(self.proc, "網路通訊攔截")
+                            self.kill_process(self.track_proc, "網路攔截", True)
             except:
                 pass
+        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
+            self.send_notify(self.trans(f"竄改警告: self.net_protect"))
 
 if __name__ == '__main__':
     QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)

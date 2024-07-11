@@ -1366,12 +1366,11 @@ class MainWindow_Controller(QMainWindow):
                 if self.ui.Protection_switch_Button_4.text() == self.trans("已開啟"):
                     result = Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
                     if not self.first_startup:
-                        if result == 0 and self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                            Popen(f'"{file_path}/Uninstall_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
-                        elif result == 577 and self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                            Popen(f'shutdown -r -t 0', shell=True, stdout=PIPE, stderr=PIPE).wait()
-                        else:
-                            Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                        if result == 0 or result == 577:
+                            if self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
+                                Popen(f'"{file_path}/Uninstall_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                            else:
+                                Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
                     if result == 1062 or result == 1060:
                         self.ui.Protection_switch_Button_4.setText(self.trans("已關閉"))
                         self.ui.Protection_switch_Button_4.setStyleSheet("""
@@ -1380,12 +1379,12 @@ class MainWindow_Controller(QMainWindow):
                 else:
                     result = Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
                     if not self.first_startup:
-                        if result == 1060 and self.question_event("此選項可能會與其他軟體不兼容，您確定要開啟嗎?"):
-                            Popen(f'"{file_path}/Install_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
-                        elif result == 577 and self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                            Popen(f'shutdown -r -t 0', shell=True, stdout=PIPE, stderr=PIPE).wait()
-                        else:
-                            Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                        if result == 1060 or result == 3 or result == 577:
+                            if self.question_event("此選項可能會與其他軟體不兼容，您確定要開啟嗎?"):
+                                Popen("sc delete PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
+                                Popen(f'"{file_path}/Install_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                            else:
+                                Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
                     if result == 0 or result == 1056:
                         self.ui.Protection_switch_Button_4.setText(self.trans("已開啟"))
                         self.ui.Protection_switch_Button_4.setStyleSheet("""
@@ -1513,7 +1512,7 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     fpath = str(f"C:/{file}").replace("\\", "/")
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
-                    if self.ransom_counts >= 3 and self.track_proc:
+                    if self.ransom_counts >= 5 and self.track_proc:
                         self.ransom_counts = 0
                         self.kill_process(self.track_proc, "勒索攔截", False)
                     elif ":/Windows" in fpath and "/Temp/" not in fpath:
@@ -1526,9 +1525,9 @@ class MainWindow_Controller(QMainWindow):
                             self.ransom_counts += 1
                         elif action == 4 and ftype in alist:
                             self.ransom_counts += 1
-                        elif action == 3 and ftype in slist and self.start_scan(fpath):
-                            os.remove(fpath)
-                            self.send_notify(self.trans("病毒刪除: ")+fpath)
+                    if action == 3 and ftype in slist and self.start_scan(fpath):
+                        os.remove(fpath)
+                        self.send_notify(self.trans("病毒刪除: ")+fpath)
                 except:
                     pass
         if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
@@ -1574,7 +1573,7 @@ class MainWindow_Controller(QMainWindow):
                             self.kill_process(self.track_proc, "網路攔截", True)
             except:
                 pass
-        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
+        if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
             self.send_notify(self.trans(f"竄改警告: self.net_protect"))
 
 if __name__ == '__main__':

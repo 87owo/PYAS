@@ -911,6 +911,7 @@ class MainWindow_Controller(QMainWindow):
             else:
                 self.virus_scan_break()
                 text = self.trans("當前未發現病毒")
+            self.scan_thread.join()
             self.ui.Virus_Scan_text.setText(text)
             self.send_notify(text)
             gc.collect()
@@ -936,9 +937,9 @@ class MainWindow_Controller(QMainWindow):
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
             if file and file not in self.whitelist and file != self.pyas:
                 self.init_scan()
-                thread = Thread(target=self.write_scan, args=(self.start_scan(file),file,), daemon=True)
-                thread.start()
-                while thread.is_alive():
+                self.scan_thread = Thread(target=self.write_scan, args=(self.start_scan(file),file,), daemon=True)
+                self.scan_thread.start()
+                while self.scan_thread.is_alive():
                     QApplication.processEvents()
                 self.answer_scan()
         except Exception as e:
@@ -950,9 +951,9 @@ class MainWindow_Controller(QMainWindow):
             path = str(QFileDialog.getExistingDirectory(self,self.trans("病毒掃描"),"C:/"))
             if path:
                 self.init_scan()
-                thread = Thread(target=self.traverse_path, args=(path,), daemon=True)
-                thread.start()
-                while thread.is_alive():
+                self.scan_thread = Thread(target=self.traverse_path, args=(path,), daemon=True)
+                self.scan_thread.start()
+                while self.scan_thread.is_alive():
                     QApplication.processEvents()
                 self.answer_scan()
         except Exception as e:
@@ -964,9 +965,9 @@ class MainWindow_Controller(QMainWindow):
             self.init_scan()
             for d in range(26):
                 if os.path.exists(f"{chr(65+d)}:/"):
-                    thread = Thread(target=self.traverse_path, args=(f"{chr(65+d)}:/",), daemon=True)
-                    thread.start()
-                    while thread.is_alive():
+                    self.scan_thread = Thread(target=self.traverse_path, args=(f"{chr(65+d)}:/",), daemon=True)
+                    self.scan_thread.start()
+                    while self.scan_thread.is_alive():
                         QApplication.processEvents()
             self.answer_scan()
         except Exception as e:

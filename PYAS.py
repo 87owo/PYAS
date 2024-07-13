@@ -1470,7 +1470,7 @@ class MainWindow_Controller(QMainWindow):
                     return True
             self.lock_process(p, False)
             time.sleep(0.2)
-            if self.exten.mem_scan(p):
+            if self.exten.pe_sieve(p):
                 self.kill_process(p, "記憶體攔截", True)
             return False
         except:

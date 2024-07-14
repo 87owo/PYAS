@@ -27,5 +27,10 @@ class ExtenRules:
         if self.exten.replace("\\", "/") not in p.exe().replace("\\", "/"):
             cmd = f'"{self.exten}\\pe_sieve\\pe_sieve.exe" /ofilter 2 /pid "{p.pid}"'
             p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True, universal_newlines=True)
-            return 'Scanning detached' in p.communicate()[0]
+            output = p.communicate()[0]
+            for match in re.finditer(r'(\d+)', output):
+                line = output[:match.start()].split('\n')[-1].strip().replace(':', '')
+                if line in ["Implanted shc", "Replaced", "IAT Hooks", "Unreachable files", "Other"]:
+                    if int(match.group(1)) > 0:
+                        return line
         return False

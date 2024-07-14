@@ -1470,9 +1470,11 @@ class MainWindow_Controller(QMainWindow):
                     self.kill_process(p, "加載攔截", False)
                     return True
             self.lock_process(p, False)
-            time.sleep(0.2)
-            if self.exten.pe_sieve(p):
-                self.kill_process(p, "記憶體攔截", True)
+            file = p.exe().replace("\\", "/")
+            if ":/Windows" not in file and ":/Program" not in file:
+                time.sleep(0.2)
+                if self.exten.pe_sieve(p):
+                    self.kill_process(p, "記憶體攔截", True)
             return False
         except:
             return False

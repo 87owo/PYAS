@@ -992,6 +992,7 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
+            ftype = str(f".{file.split('.')[-1]}").lower()
             label, level = self.pe_scan(file)
             if label and "Unknown" == label:
                 if self.rule_scan(file):
@@ -1004,6 +1005,11 @@ class MainWindow_Controller(QMainWindow):
                 elif level and level >= 1.0:
                     return label
                 elif self.rule_scan(file):
+                    return "Rules"
+                elif self.exten.bdc_scan(file):
+                    return "Exten"
+            elif not label and ftype in slist:
+                if self.rule_scan(file):
                     return "Rules"
                 elif self.exten.bdc_scan(file):
                     return "Exten"
@@ -1470,11 +1476,9 @@ class MainWindow_Controller(QMainWindow):
                     self.kill_process(p, "加載攔截", False)
                     return True
             self.lock_process(p, False)
-            file = p.exe().replace("\\", "/")
-            if ":/Windows" not in file and ":/Program" not in file:
-                time.sleep(0.2)
-                if self.exten.pe_sieve(p):
-                    self.kill_process(p, "記憶體攔截", True)
+            time.sleep(0.2)
+            if self.exten.pe_sieve(p):
+                self.kill_process(p, "記憶體攔截", True)
             return False
         except:
             return False

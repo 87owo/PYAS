@@ -30,7 +30,7 @@ class ExtenRules:
             output = p.communicate()[0]
             for match in re.finditer(r'(\d+)', output):
                 line = output[:match.start()].split('\n')[-1].strip().replace(':', '')
-                if line in ["Implanted shc", "Replaced", "IAT Hooks", "Unreachable files", "Other"]:
+                if line in ["Implanted shc", "Replaced", "IAT Hooks", "Other"]:
                     if int(match.group(1)) > 0:
                         return line
         return False

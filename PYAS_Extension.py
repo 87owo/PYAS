@@ -10,7 +10,7 @@ class ExtenRules:
 
     def bdc_scan(self, file):
         if self.exten.replace("\\", "/") not in file.replace("\\", "/"):
-            cmd = f'"{self.exten}\\Bitdefender\\bdc.exe" "{file}"'
+            cmd = f'"{self.exten}\\bitdefender\\bdc.exe" "{file}"'
             p = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True, universal_newlines=True)
             for match in re.finditer(r'(?P<filename>[^\s]+)\s+infected:\s+(?P<virusname>.+)', p.communicate()[0]):
                 return match.groupdict()
@@ -30,7 +30,6 @@ class ExtenRules:
             output = p.communicate()[0]
             for match in re.finditer(r'(\d+)', output):
                 line = output[:match.start()].split('\n')[-1].strip().replace(':', '')
-                if line in ["Implanted shc", "Replaced", "IAT Hooks", "Other"]:
-                    if int(match.group(1)) > 0:
-                        return line
+                if line in ["Implanted shc", "Replaced", "IAT Hooks"] and int(match.group(1)) > 0:
+                    return line
         return False

@@ -13,8 +13,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from subprocess import *
 
-# experimental version 2024/07 PYAS Security
-
 class MainWindow_Controller(QMainWindow):
     def __init__(self):
         # init program window
@@ -28,7 +26,7 @@ class MainWindow_Controller(QMainWindow):
 
         # init self program version
         self.pyae_version = "Fusion Engine"
-        self.pyas_version = "3.1.4"
+        self.pyas_version = "3.1.5"
 
         # startup ui config
         self.first_startup = True
@@ -147,25 +145,32 @@ class MainWindow_Controller(QMainWindow):
             # check config file exists
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"): 
                 self.write_config({"language":"en_US","theme_color":"White",
-                "high_sensitive":0,"cloud_services":"None"})
+                "high_sensitive":0,"extension_kits":1,"cloud_services":"None"})
             try:
                 # read config json data
                 with open("C:/ProgramData/PYAS/PYAS.json", "r") as f: 
                     self.json = json.load(f)
             except:
                 self.json = {"language":"en_US","theme_color":"White",
-                "high_sensitive":0,"cloud_services":"None"}
+                "high_sensitive":0,"extension_kits":1,"cloud_services":"None"}
 
             # default json config
             self.json["language"] = self.json.get("language", "en_US") 
             self.json["theme_color"] = self.json.get("theme_color", "White")
             self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
+            self.json["extension_kits"] = self.json.get("extension_kits", 1)
             self.json["cloud_services"] = self.json.get("cloud_services", "None")
 
             # reflash high_sensitive ui text
             if self.json["high_sensitive"] == 1:
                 self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
                 self.ui.high_sensitivity_switch_Button.setStyleSheet("""
+                QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
+                QPushButton:hover{background-color:rgb(210, 250, 210);}""")
+
+            if self.json["extension_kits"] == 1:
+                self.ui.extension_kit_switch_Button.setText(self.trans("已開啟"))
+                self.ui.extension_kit_switch_Button.setStyleSheet("""
                 QPushButton{border:none;background-color:rgb(200, 250, 200);border-radius: 10px;}
                 QPushButton:hover{background-color:rgb(210, 250, 210);}""")
 
@@ -246,7 +251,7 @@ class MainWindow_Controller(QMainWindow):
 
         # connect settings ui and function control
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
-        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_service)
+        self.ui.extension_kit_switch_Button.clicked.connect(self.extension_kit)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
         self.ui.Language_Traditional_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
@@ -384,11 +389,11 @@ class MainWindow_Controller(QMainWindow):
         self.ui.PYAS_URL_title.setText(self.trans("官方網站:"))
         self.ui.PYAS_URL.setText(self.trans("<html><head/><body><p><a href=\"https://github.com/87owo/PYAS\"><span style=\" text-decoration: underline; color:#000000;\">https://github.com/87owo/PYAS</span></a></p></body></html>"))
         self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))
-        self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高引擎的靈敏度"))
+        self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高掃描引擎靈敏度"))
         self.ui.high_sensitivity_switch_Button.setText(self.trans(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.cloud_services_title.setText(self.trans("雲端上報服務"))
-        self.ui.cloud_services_illustrate.setText(self.trans("此選項可以選擇檔案並上報雲端分析"))
-        self.ui.cloud_services_switch_Button.setText(self.trans("選擇"))
+        self.ui.extension_kit_title.setText(self.trans("擴展掃描引擎"))
+        self.ui.extension_kit_illustrate.setText(self.trans("啟用此選項可以使用第三方擴展套件"))
+        self.ui.extension_kit_switch_Button.setText(self.trans(self.ui.extension_kit_switch_Button.text()))
         self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
         self.ui.Add_White_list_illustrate.setText(self.trans("此選項可以選擇檔案並增加到白名單"))
         self.ui.Add_White_list_Button.setText(self.trans(self.ui.Add_White_list_Button.text()))
@@ -799,6 +804,24 @@ class MainWindow_Controller(QMainWindow):
             QPushButton:hover{background-color:rgb(210,250,210);}""")
         self.write_config(self.json)
 
+    def extension_kit(self):
+        sw_state = self.ui.extension_kit_switch_Button.text()
+        if sw_state == self.trans("已開啟"):
+            # close extension kit mode
+            self.json["extension_kits"] = 0
+            self.ui.extension_kit_switch_Button.setText(self.trans("已關閉"))
+            self.ui.extension_kit_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgb(230,230,230);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(220,220,220);}""")
+        else:
+            # open extension kit mode
+            self.json["extension_kits"] = 1
+            self.ui.extension_kit_switch_Button.setText(self.trans("已開啟"))
+            self.ui.extension_kit_switch_Button.setStyleSheet("""
+            QPushButton{border:none;background-color:rgb(200,250,200);border-radius: 10px;}
+            QPushButton:hover{background-color:rgb(210,250,210);}""")
+        self.write_config(self.json)
+
     def cloud_service(self):
         try:
             # cloud services config /ProgramData/PYAS.json
@@ -997,8 +1020,6 @@ class MainWindow_Controller(QMainWindow):
             if label and "Unknown" == label:
                 if self.rule_scan(file):
                     return "Rules"
-                elif self.exten.bdc_scan(file):
-                    return "Exten"
             elif label and "White" != label:
                 if self.json["high_sensitive"]:
                     return label
@@ -1006,17 +1027,11 @@ class MainWindow_Controller(QMainWindow):
                     return label
                 elif self.rule_scan(file):
                     return "Rules"
-                elif self.exten.bdc_scan(file):
-                    return "Exten"
             elif not label and ftype in slist:
                 if self.rule_scan(file):
                     return "Rules"
-                elif self.exten.bdc_scan(file):
-                    return "Exten"
-            elif self.json["high_sensitive"]:
-                if self.rule_scan(file):
-                    return "Rules"
-                elif self.exten.bdc_scan(file):
+            if self.json["extension_kits"]:
+                if self.exten.bdc_scan(file):
                     return "Exten"
             return False
         except:
@@ -1375,7 +1390,7 @@ class MainWindow_Controller(QMainWindow):
                     if not self.first_startup:
                         if result == 0 or result == 577:
                             if self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                                Popen(f'"{file_path}/Uninstall_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                                Popen(f'"{file_path}/Uninstall_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE)
                             else:
                                 Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
                     if result == 1062 or result == 1060:
@@ -1389,7 +1404,7 @@ class MainWindow_Controller(QMainWindow):
                         if result == 1060 or result == 3 or result == 577:
                             if self.question_event("此選項可能會與其他軟體不兼容，您確定要開啟嗎?"):
                                 Popen("sc delete PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                                Popen(f'"{file_path}/Install_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE).wait()
+                                Popen(f'"{file_path}/Install_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE)
                             else:
                                 Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
                     if result == 0 or result == 1056:
@@ -1475,10 +1490,10 @@ class MainWindow_Controller(QMainWindow):
                 if ":/Windows" not in file and self.start_scan(file):
                     self.kill_process(p, "加載攔截", False)
                     return True
-            self.lock_process(p, False)
-            time.sleep(0.2)
-            if self.exten.pe_sieve(p):
-                self.kill_process(p, "記憶體攔截", True)
+            if self.json["extension_kits"]:
+                self.lock_process(p, False)
+                if self.exten.pe_sieve(p):
+                    self.kill_process(p, "記憶體攔截", True)
             return False
         except:
             return False

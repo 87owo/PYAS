@@ -24,7 +24,7 @@ translate_dict = {
               "許可條款":"License Terms ","惡意":"Malicious","可疑":"Suspicious",
               "啟用":"Enable ","禁用":"Disable ","正在初始化中":"Initializing ",
               "正在掃描":"Scanning ","正在刪除":"Deleting ","最小化到":"Minimize To ",
-              "確定要":"Sure Want To ","靈敏度":"Sensitivity ","更新":"Update ",
+              "確定要":"Sure Want To ","引擎靈敏度":"Sensitivity ","更新":"Update ",
               "白色主題":"White","黃色主題":"Yellow","紅色主題":"Red","語言":"Language ",
               "藍色主題":"Blue","綠色主題":"Green","自定主題":"Custom","最新":"Latest ",
               "特別感謝":"Contributors ","版本資訊":"Information","通訊":"Connect ",
@@ -53,7 +53,7 @@ translate_dict = {
               "日誌":"Log","已":"Has ","彈窗":"Window ","要":"To ","驅動":"Driver ",
               "的":"","顯示":"","個":"","嗎":"","中":"","了":"","行":"","立即":"",
               "密鑰":"Key ","檢測":"Detect ","製作":"Maker ","運行":"Running",
-              "擴展套件":"Extension Kit ","自動":"Auto ","上報":"Report ","與":"With ",
+              "擴展":"Extension ","套件":"Kit ","自動":"Auto ","上報":"Report ","與":"With ",
               "分析":"Analysis ","自身":"Self ","其他":"Other ","配置":"Config ",
               "丟失":"Lost ","網站":"Website ","不兼容":"Not Compatible ","追蹤":"Tracking ",
-              "竄改":"Tamper ","  ":" "}}
+              "竄改":"Tamper ","靈敏度":"Sensitivity ","第三方":"Other ","  ":" "}}

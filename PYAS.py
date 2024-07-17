@@ -23,6 +23,8 @@ class MainWindow_Controller(QMainWindow):
         # get self program path
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
+        exdir = os.path.join(self.dir, "Exten")
+        self.exdir = exdir.replace("\\", "/")
 
         # init self program version
         self.pyae_version = "Fusion Engine"
@@ -1178,7 +1180,7 @@ class MainWindow_Controller(QMainWindow):
                         win32api.RegDeleteValue(key,i)
                         name = self.track_proc.name()
                         if "cmd.exe" not in name and "powershell" not in name:
-                            self.kill_process(self.track_proc, "註冊表攔截", True)
+                            self.kill_process("註冊表攔截", *self.track_proc)
                     except:
                         pass
                 win32api.RegCloseKey(key)
@@ -1457,43 +1459,41 @@ class MainWindow_Controller(QMainWindow):
     def handle_new_process(self, p):
         try:
             name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-            if file != self.pyas and file not in self.whitelist:
+            if file != self.pyas and self.exdir not in file and file not in self.whitelist:
                 if "powershell" in name:
                     file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
                     if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process(p, "腳本攔截", False)
-                    elif ":/Windows" not in file and ":/Program" not in file:
-                        self.track_proc = p
+                        self.kill_process("腳本攔截", name, file, cmd)
+                    elif os.path.exists(file) and ":/Windows" not in file:
+                        self.track_proc = name, file, cmd
                 elif "cmd.exe" in name:
                     file = str(" ".join(cmd[2:])).replace("\\", "/")
                     if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process(p, "腳本攔截", False)
-                    elif ":/Windows" not in file and ":/Program" not in file:
-                        self.track_proc = p
+                        self.kill_process("腳本攔截", name, file, cmd)
+                    elif os.path.exists(file) and ":/Windows" not in file:
+                        self.track_proc = name, file, cmd
                 elif ":/Windows" in file:
                     file = str(cmd[-1]).replace("\\", "/")
                     if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process(p, "鏈式攔截", False)
-                elif not self.proc_scan(p):
-                    if ":/Windows" not in file and ":/Program" not in file:
-                        self.track_proc = p
+                        self.kill_process("鏈式攔截", name, file, cmd)
+                elif ":/Windows" not in file:
+                    if os.path.exists(file) and self.start_scan(file):
+                        self.kill_process("進程攔截", name, file, cmd)
+                    elif self.json["extension_kits"] and self.exten.pe_sieve(p):
+                        self.kill_process("記憶體攔截", name, file, cmd)
+                    elif ":/Program" not in file and not self.load_scan(p):
+                        self.track_proc = name, file, cmd
         except:
             pass
 
-    def proc_scan(self, p):
+    def load_scan(self, p):
         try:
-            if self.start_scan(p.exe()):
-                self.kill_process(p, "進程攔截", False)
-                return True
+            name, cmd = p.name(), p.cmdline()
             for entry in p.memory_maps():
                 file = str(entry.path).replace("\\", "/")
                 if ":/Windows" not in file and self.start_scan(file):
-                    self.kill_process(p, "加載攔截", False)
+                    self.kill_process("加載攔截", name, file, cmd)
                     return True
-            if self.json["extension_kits"]:
-                self.lock_process(p, False)
-                if self.exten.pe_sieve(p):
-                    self.kill_process(p, "記憶體攔截", True)
             return False
         except:
             return False
@@ -1507,23 +1507,31 @@ class MainWindow_Controller(QMainWindow):
         except:
             pass
 
-    def kill_process(self, p, info, relation=False):
+    def kill_process(self, info, name, target, cmd):
         try:
-            file = p.exe().replace("\\", "/")
-            if relation == True:
-                kill_items = []
-                for p2 in psutil.process_iter():
-                    try:
-                        if file == p2.exe().replace("\\", "/"):
-                            p2.kill()
-                    except:
-                        pass
-                self.send_notify(self.trans(f"{info}: ")+file)
-            elif p.is_running():
-                p.kill()
-                self.send_notify(self.trans(f"{info}: ")+file)
+            if "powershell" in name:
+                target = str(cmd[-1].split("'")[-2])
+            elif "cmd.exe" in name:
+                target = str(" ".join(cmd[2:]))
+            elif ":/Windows" in target:
+                target = str(cmd[-1])
+            for p in psutil.process_iter():
+                try:
+                    name, file, cmd = p.name(), p.exe(), p.cmdline()
+                    if "powershell" in name:
+                        file = str(cmd[-1].split("'")[-2])
+                    elif "cmd.exe" in name:
+                        file = str(" ".join(cmd[2:]))
+                    elif ":/Windows" in file:
+                        file = str(cmd[-1])
+                    if target.replace("\\", "/") == file.replace("\\", "/"):
+                        p.kill()
+                except:
+                    pass
+            self.send_notify(self.trans(f"{info}: ")+target.replace("/", "\\"))
             self.track_proc = None
-        except:
+        except Exception as e:
+            print(e)
             self.track_proc = None
 
     def protect_file_thread(self):
@@ -1536,7 +1544,7 @@ class MainWindow_Controller(QMainWindow):
                     ftype = str(f".{fpath.split('.')[-1]}").lower()
                     if self.ransom_counts >= 5 and self.track_proc:
                         self.ransom_counts = 0
-                        self.kill_process(self.track_proc, "勒索攔截", False)
+                        self.kill_process("勒索攔截", *self.track_proc)
                     elif ":/Windows" in fpath and "/Temp/" not in fpath:
                         if action == 2 and ftype in alist:
                             self.ransom_counts += 1
@@ -1561,13 +1569,13 @@ class MainWindow_Controller(QMainWindow):
                 time.sleep(0.2)
                 with open(r"\\.\PhysicalDrive0", "r+b") as f:
                     if self.mbr_value[510:512] != b'\x55\xAA':
-                        self.kill_process(self.track_proc, "引導攔截", True)
+                        self.kill_process("引導攔截", *self.track_proc)
                     elif f.read(512) != self.mbr_value:
                         f.seek(0)
                         f.write(self.mbr_value)
-                        self.kill_process(self.track_proc, "引導攔截", True)
+                        self.kill_process("引導攔截", *self.track_proc)
             except:
-                self.kill_process(self.track_proc, "引導攔截", True)
+                self.kill_process("引導攔截", *self.track_proc)
         if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
             self.send_notify(self.trans(f"竄改警告: self.sys_protect (boot)"))
 
@@ -1592,7 +1600,7 @@ class MainWindow_Controller(QMainWindow):
                 for conn in self.track_proc.connections():
                     if ":/Windows" not in file and ":/Program" not in file:
                         if conn.laddr.ip == local:
-                            self.kill_process(self.track_proc, "網路攔截", True)
+                            self.kill_process("網路攔截", *self.track_proc)
             except:
                 pass
         if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):

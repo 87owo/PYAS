@@ -4,10 +4,9 @@
 
 ## Readme Language
 
-[繁體中文](https://github.com/87owo/PYAS/blob/main/README_zh_TW.md) : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
+[繁體中文] : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
 
-
-[简体中文](https://github.com/87owo/PYAS/blob/main/README_zh_CN.md) : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md
+[简体中文] : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md
 
 ## File Information
 
@@ -57,11 +56,11 @@ PyQt5==5.15.9
 
 ## Extension Kit
 
-[bitdefender](https://github.com/87owo/bdc/tree/main/bitdefender) : https://github.com/87owo/bdc/tree/main/bitdefender
+[bitdefender] : https://github.com/87owo/bdc/tree/main/bitdefender
 
-[hollows hunter](https://github.com/hasherezade/hollows_hunter/releases) : https://github.com/hasherezade/hollows_hunter/releases
+[pe sieve] : https://github.com/hasherezade/pe-sieve/releases
 
-[pe sieve](https://github.com/hasherezade/pe-sieve/releases) : https://github.com/hasherezade/pe-sieve/releases
+[hollows hunter] : https://github.com/hasherezade/hollows_hunter/releases
 
 ## Official Website
 

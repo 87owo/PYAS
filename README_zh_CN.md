@@ -2,50 +2,7 @@
 
 ![PYAS](https://github.com/87owo/PYAS/assets/85057800/8136aaca-d388-4321-bedb-abc4fcecfa8b)
 
-## 文件信息
-
-PYAS.py -> PYAS主程式（包括动画、扫描、保护功能等）
-
-PYAS_Engine.py -> 转换资料库（用于相互转换资料库字典和清单）
-
-PYAS_Extension.py -> 副文件名（包括扫描文件副文件名和常用副文件名）
-
-PYAS_Model.* -> 病毒库（病毒库必须放在同一目录下）
-
-PYAS_Interface.py -> PyQt5界面（由QT设计师设计，必须与主程式相符）
-
-PYAS_Resource.py -> PyQt5资源（状态图片、图示包、按钮图示等）
-
-PYAS_Language.py -> 翻译字典（繁体中文、简体中文、英文）
-
-PYAS_Version.py -> Pyinstaller资讯（文件资讯、版本资讯、原名等）
-
-## 目录信息
-
-```
-PYAS/
-├── Driver/
-│   ├── PYAS_Driver.sys
-│   └── ...
-│
-├── Model/
-│   ├── PYAS_Model.json
-│   ├── PYAS_Model.txt
-│   └── ...
-│
-├── Rules/
-│   ├── Yara_Rules.yar
-│   ├── Compile_Rules.yrc
-│   └── ...
-│
-├── PYAS.py
-├── PYAS_Engine.py
-└── ...
-```
-
 ## 安装要求
-
-使用 pip install requirements 来安装需要的模组
 
 ```
 psutil==5.9.5
@@ -56,92 +13,37 @@ pywin32==306
 PyQt5==5.15.9
 ```
 
-## 文件扫描
-
-取得pefile文件函数导入表进行扫描
+## 文件信息
 
 ```
-import pefile
-
-def pe_scan(file):
-    try:
-        fn = []
-        with pefile.PE(file) as pe:
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for func in entry.imports:
-                    try:
-                        fn.append(str(func.name, "utf-8"))
-                    except:
-                        pass
-            if fn in known_malicious_list:
-                return "Virus"
-            return "Safe"
-        return "Unknown"
-    except Exception as e:
-        return f"Error: {e}"
-
-info = pe_scan("path to file")
-print(info)
-```
-
-## 进程监控
-
-显示新进程名称、文件路径、cmd 行、pid
-
-```
-import psutil, time
-
-def proc_detect():
-    existing_process = set()
-    for p in psutil.process_iter():
-        existing_process.add(p.pid)
-    while True:
-        time.sleep(0.1)
-        new_process = set()
-        for p in psutil.process_iter():
-            new_process.add(p.pid)
-        for pid in new_process - existing_process:
-            try:
-                p = psutil.Process(pid)
-                name, file, cmd = p.name(), p.exe(), p.cmdline()
-                print(f"Name: {name}")
-                print(f"File: {file}")
-                print(f"Pid: {p.pid}")
-                print(f"Cmd: {cmd}")
-            except Exception as e:
-                print(f"Error: {e}")
-        existing_process = new_process
-
-proc_detect()
-```
-
-## 文件监控
-
-监控指定路径下的文件变化
-
-```
-import os, win32file, win32con
-
-def file_detect(path):
-    hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
-    while True:
-        for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
-            try:
-                fpath = os.path.join(path, file)
-                if action == 1:
-                    print(f"File Create: {fpath}")
-                elif action == 2:
-                    print(f"File Delete: {fpath}")
-                elif action == 3:
-                    print(f"File Modify: {fpath}")
-                elif action == 4:
-                    print(f"File Rename: {fpath}")
-                elif action == 5:
-                    print(f"File Rename: {fpath}")
-            except:
-                pass
-
-file_detect("path")
+PYAS/
+├── Driver/
+│   ├── PYAS_Driver.sys -------> 驱动程序 (0sha0 为 pyas 提供的自我保护驱动程序)
+│   └── ...
+│
+├── Exten/
+│   ├── bitdefender/ ----------> 扩展套件 (bitdefender windows 控制台扫描引擎)
+│   ├── pe_sieve/ -------------> 扩展套件 (pe sieve windows 控制台内存引擎)
+│   └── ...
+│
+├── Model/
+│   ├── PYAS_Model.json -------> 病毒数据库 (数据库必须位于指定目录中)
+│   └── ...
+│
+├── Rules/
+│   ├── Yara_Rules.yar ---------> Yara 规则 (纯文本格式的 yara 规则)
+│   ├── Yara_Rules.yrc ---------> 编译规则 (编译格式的 yara 规则)
+│   └── ...
+│
+├── PYAS.* ---------------------> PYAS主程序（包含动画、扫描、保护等功能...）
+├── PYAS_Engine.py -------------> 转换数据库（用于转换剖面图和预报数据）
+├── PYAS_Suffixes.py -----------> 文件后缀（包含扫描文件后缀和常用后缀）
+├── PYAS_Extension.py ----------> 扩展工具包（其他开发者开发的扩展扫描器）
+├── PYAS_Interface.py ----------> PyQt5界面（使用QT设计器，需与主程序搭配使用）
+├── PYAS_Resource.py -----------> PyQt5资源（状态图片、图标包、按钮图标...）
+├── PYAS_Language.py -----------> 翻译词典（繁体中文、简体中文、英文）
+├── PYAS_Version.py ------------> 安裝信息（文件信息、版本信息、原名，...）
+└── ...
 ```
 
 ## 官方网页

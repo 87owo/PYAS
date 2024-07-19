@@ -13,7 +13,9 @@ PYAS.py -> Main PYAS Program (including animation, scanning, protection function
 
 PYAS_Engine.py -> Conversion Database (used to convert database dict and list to and from each other)
 
-PYAS_Extension.py -> File Extension (including scanned file extensions and common file extensions)
+PYAS_Suffixes.py -> File Suffixes (including scanned file suffixes and common file suffixes)
+
+PYAS_Extension.py -> Extension Kit (Extension scanners developed by other developers)
 
 PYAS_Model.* -> Virus Database (the virus database must be placed in the same directory)
 
@@ -31,6 +33,11 @@ PYAS_Version.py -> Pyinstaller Info (file information, version information, orig
 PYAS/
 ├── Driver/
 │   ├── PYAS_Driver.sys
+│   └── ...
+│
+├── Exten/
+│   ├── bitdefender/...
+│   ├── pe_sieve/...
 │   └── ...
 │
 ├── Model/
@@ -61,93 +68,13 @@ pywin32==306
 PyQt5==5.15.9
 ```
 
-## Pefile Scanning
+## Extension Kit
 
-Get the pefile file function import table for scanning
+https://github.com/hasherezade/hollows_hunter/releases
 
-```
-import pefile
+https://github.com/hasherezade/pe-sieve/releases
 
-def pe_scan(file):
-    try:
-        fn = []
-        with pefile.PE(file) as pe:
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                for func in entry.imports:
-                    try:
-                        fn.append(str(func.name, "utf-8"))
-                    except:
-                        pass
-            if fn in known_malicious_list:
-                return "Virus"
-            return "Safe"
-        return "Unknown"
-    except Exception as e:
-        return f"Error: {e}"
-
-info = pe_scan("path to file")
-print(info)
-```
-
-## Process Detect
-
-Show the new process name, file path, cmd line, pid
-
-```
-import psutil, time
-
-def proc_detect():
-    existing_process = set()
-    for p in psutil.process_iter():
-        existing_process.add(p.pid)
-    while True:
-        time.sleep(0.1)
-        new_process = set()
-        for p in psutil.process_iter():
-            new_process.add(p.pid)
-        for pid in new_process - existing_process:
-            try:
-                p = psutil.Process(pid)
-                name, file, cmd = p.name(), p.exe(), p.cmdline()
-                print(f"Name: {name}")
-                print(f"File: {file}")
-                print(f"Pid: {p.pid}")
-                print(f"Cmd: {cmd}")
-            except Exception as e:
-                print(f"Error: {e}")
-        existing_process = new_process
-
-proc_detect()
-```
-
-## File Detect
-
-Monitor file changes under the specified path
-
-```
-import os, win32file, win32con
-
-def file_detect(path):
-    hDir = win32file.CreateFile(path,win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
-    while True:
-        for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
-            try:
-                fpath = os.path.join(path, file)
-                if action == 1:
-                    print(f"File Create: {fpath}")
-                elif action == 2:
-                    print(f"File Delete: {fpath}")
-                elif action == 3:
-                    print(f"File Modify: {fpath}")
-                elif action == 4:
-                    print(f"File Rename: {fpath}")
-                elif action == 5:
-                    print(f"File Rename: {fpath}")
-            except:
-                pass
-
-file_detect("path")
-```
+https://github.com/87owo/bdc/tree/main/bitdefender
 
 ## Official Website
 

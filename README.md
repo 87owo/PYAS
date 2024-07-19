@@ -4,9 +4,22 @@
 
 ## Readme Language
 
-[繁體中文] : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
+繁體中文 : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
 
-[简体中文] : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md
+简体中文 : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md
+
+## Requirements
+
+Use pip install requirements to install import module
+
+```
+psutil==5.9.5
+pefile==2023.2.7
+requests==2.31.0
+pyperclip==1.8.2
+pywin32==306
+PyQt5==5.15.9
+```
 
 ## File Information
 
@@ -41,26 +54,9 @@ PYAS/
 └── ...
 ```
 
-## Requirements
-
-Use pip install requirements to install import module
-
-```
-psutil==5.9.5
-pefile==2023.2.7
-requests==2.31.0
-pyperclip==1.8.2
-pywin32==306
-PyQt5==5.15.9
-```
-
 ## Extension Kit
 
-[bitdefender] : https://github.com/87owo/bdc/tree/main/bitdefender
-
-[pe sieve] : https://github.com/hasherezade/pe-sieve/releases
-
-[hollows hunter] : https://github.com/hasherezade/hollows_hunter/releases
+https://github.com/87owo/PYAS/blob/main/Exten/Download_Link.txt
 
 ## Official Website
 

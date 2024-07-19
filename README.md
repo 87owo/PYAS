@@ -9,26 +9,6 @@
 
 ## File Information
 
-PYAS.py -> Main PYAS Program (including animation, scanning, protection functions, etc.)
-
-PYAS_Engine.py -> Conversion Database (used to convert database dict and list to and from each other)
-
-PYAS_Suffixes.py -> File Suffixes (including scanned file suffixes and common file suffixes)
-
-PYAS_Extension.py -> Extension Kit (Extension scanners developed by other developers)
-
-PYAS_Model.* -> Virus Database (the virus database must be placed in the same directory)
-
-PYAS_Interface.py -> PyQt5 Interface (designed by QT designer, must be matched with the main program)
-
-PYAS_Resource.py -> PyQt5 Resource (status pictures, icon packages, button icons, etc.)
-
-PYAS_Language.py -> Translate Dict (Traditional Chinese, Simplified Chinese, English)
-
-PYAS_Version.py -> Pyinstaller Info (file information, version information, original name, etc.)
-
-## Dir Information
-
 ```
 PYAS/
 ├── Driver/

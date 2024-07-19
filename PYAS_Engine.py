@@ -1,5 +1,4 @@
 import time, json, hashlib, numpy
-from collections import Counter
 
 class ListSimHash:
     def __init__(self):
@@ -19,24 +18,25 @@ class ListSimHash:
     def get_model(self, label):
         return self.model[label]
 
-    def train_model(self, label, data):
+    def train_model(self, label, data, batch_size=10000):
         start = time.time()
         print(f"Convert {label}")
         if label not in self.model:
             self.model[label] = []
         for i, x in enumerate(data, 1):
-            self.model[label].append(self.build_text(x))
+            build_text = self.build_text(x, batch_size)
+            self.model[label].append(build_text)
             used = "{0:.2f}".format(time.time()-start)
             prefix, suffix = f'{i}/{len(data)}:', f'{used}s'
             self.progress_bar(i, len(data), prefix, suffix)
 
-    def build_text(self, content):
+    def build_text(self, content, batch_size):
         sums, batch, count = [], [], 0
-        features = dict(Counter(sorted(content)))
-        for f, w in features.items():
-            count += w
-            batch.append(hashlib.sha256(json.dumps(f).encode('utf-8')).digest() * w)
-            if len(batch) >= 10000:
+        for index, f in enumerate(content):
+            count += 1
+            hashes = hashlib.sha256(f.encode('utf-8'))
+            batch.append(hashes.digest())
+            if len(batch) >= batch_size:
                 sums.append(self.sum_hashes(batch))
                 batch = []
         if batch:
@@ -57,9 +57,9 @@ class ListSimHash:
         bar = fill * filled_length + ' ' * (length - filled_length)
         print(f'\r{prefix: <15} |{bar}| {percent_string}% {suffix}', end=end_char)
 
-    def predict_all(self, query):
+    def predict_all(self, query, batch_size=10000):
         label_similarities = {}
-        query_hash = self.build_text(query)
+        query_hash = self.build_text(query, batch_size)
         for label in self.model:
             max_similarity = 0
             for data_point in self.model[label]:
@@ -69,9 +69,9 @@ class ListSimHash:
             label_similarities[label] = max_similarity
         return label_similarities
 
-    def predict(self, query):
+    def predict(self, query, batch_size=10000):
         max_similarity, max_label = 0, None
-        query_hash = self.build_text(query)
+        query_hash = self.build_text(query, batch_size)
         for label in self.model:
             for data_point in self.model[label]:
                 similarity = self.similar(data_point, query_hash)

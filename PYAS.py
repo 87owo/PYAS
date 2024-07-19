@@ -1446,7 +1446,6 @@ class MainWindow_Controller(QMainWindow):
             for pid in new_process - self.exist_process:
                 try:
                     p = psutil.Process(pid)
-                    self.lock_process(p, True)
                     self.handle_new_process(p)
                     self.lock_process(p, False)
                     gc.collect()
@@ -1460,78 +1459,73 @@ class MainWindow_Controller(QMainWindow):
         try:
             name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
             if file != self.pyas and self.exdir not in file and file not in self.whitelist:
+                self.lock_process(p, True)
                 if "powershell" in name:
-                    file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
-                    if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process("腳本攔截", name, file, cmd)
-                    elif os.path.exists(file) and ":/Windows" not in file:
-                        self.track_proc = name, file, cmd
+                    target = str(cmd[-1].split("'")[-2]).replace("\\", "/")
+                    if os.path.exists(target) and self.start_scan(target):
+                        self.kill_process("腳本攔截", p, target, False)
+                    elif os.path.exists(target) and ":/Windows" not in target:
+                        self.track_proc = p, target, True
                 elif "cmd.exe" in name:
-                    file = str(" ".join(cmd[2:])).replace("\\", "/")
-                    if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process("腳本攔截", name, file, cmd)
-                    elif os.path.exists(file) and ":/Windows" not in file:
-                        self.track_proc = name, file, cmd
+                    target = str(" ".join(cmd[2:])).replace("\\", "/")
+                    if os.path.exists(target) and self.start_scan(target):
+                        self.kill_process("腳本攔截", p, target, False)
+                    elif os.path.exists(target) and ":/Windows" not in target:
+                        self.track_proc = p, target, True
                 elif ":/Windows" in file:
-                    file = str(cmd[-1]).replace("\\", "/")
-                    if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process("鏈式攔截", name, file, cmd)
+                    target = str(cmd[-1]).replace("\\", "/")
+                    if os.path.exists(target) and self.start_scan(target):
+                        self.kill_process("鏈式攔截", p, target, False)
                 elif ":/Windows" not in file:
                     if os.path.exists(file) and self.start_scan(file):
-                        self.kill_process("進程攔截", name, file, cmd)
+                        self.kill_process("進程攔截", p, file, False)
                     elif self.json["extension_kits"] and self.exten.pe_sieve(p):
-                        self.kill_process("記憶體攔截", name, file, cmd)
+                        self.kill_process("記憶體攔截", p, file, False)
                     elif ":/Program" not in file and not self.load_scan(p):
-                        self.track_proc = name, file, cmd
+                        self.track_proc = p, file, True
+            self.lock_process(p, False)
         except:
-            pass
+            self.lock_process(p, False)
 
     def load_scan(self, p):
         try:
-            name, cmd = p.name(), p.cmdline()
             for entry in p.memory_maps():
-                file = str(entry.path).replace("\\", "/")
-                if ":/Windows" not in file and self.start_scan(file):
-                    self.kill_process("加載攔截", name, file, cmd)
+                target = str(entry.path).replace("\\", "/")
+                if ":/Windows" not in target and self.start_scan(target):
+                    self.kill_process("加載攔截", p, target, False)
                     return True
             return False
         except:
             return False
 
     def lock_process(self, p, lock):
-        try:
-            if lock:
-                p.suspend()
-            else:
-                p.resume()
-        except:
-            pass
+        if lock:
+            p.suspend()
+        else:
+            p.resume()
 
-    def kill_process(self, info, name, target, cmd):
+    def kill_process(self, info, p, target, relation=False):
         try:
-            if "powershell" in name:
-                target = str(cmd[-1].split("'")[-2])
-            elif "cmd.exe" in name:
-                target = str(" ".join(cmd[2:]))
-            elif ":/Windows" in target:
-                target = str(cmd[-1])
-            for p in psutil.process_iter():
-                try:
-                    name, file, cmd = p.name(), p.exe(), p.cmdline()
-                    if "powershell" in name:
-                        file = str(cmd[-1].split("'")[-2])
-                    elif "cmd.exe" in name:
-                        file = str(" ".join(cmd[2:]))
-                    elif ":/Windows" in file:
-                        file = str(cmd[-1])
-                    if target.replace("\\", "/") == file.replace("\\", "/"):
-                        p.kill()
-                except:
-                    pass
-            self.send_notify(self.trans(f"{info}: ")+target.replace("/", "\\"))
+            target = target.replace("/", "\\")
+            if relation == False:
+                p.kill()
+            elif relation == True:
+                for p in psutil.process_iter():
+                    try:
+                        name, file, cmd = p.name(), p.exe(), p.cmdline()
+                        if "powershell" in name:
+                            file = str(cmd[-1].split("'")[-2])
+                        elif "cmd.exe" in name:
+                            file = str(" ".join(cmd[2:]))
+                        elif ":/Windows" in file:
+                            file = str(cmd[-1])
+                        if target == file.replace("\\", "/"):
+                            p.kill()
+                    except:
+                        pass
+            self.send_notify(self.trans(f"{info}: ")+target)
             self.track_proc = None
-        except Exception as e:
-            print(e)
+        except:
             self.track_proc = None
 
     def protect_file_thread(self):

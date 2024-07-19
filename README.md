@@ -32,26 +32,31 @@ PYAS_Version.py -> Pyinstaller Info (file information, version information, orig
 ```
 PYAS/
 ├── Driver/
-│   ├── PYAS_Driver.sys
+│   ├── PYAS_Driver.sys -------> Extension Kit (self protection driver for pyas by 0sha0)
 │   └── ...
 │
 ├── Exten/
-│   ├── bitdefender/...
-│   ├── pe_sieve/...
+│   ├── bitdefender/ ----------> Extension Kit (bitdefender windows console scan engine)
+│   ├── pe_sieve/ -------------> Extension Kit (pe sieve windows console scan engine)
 │   └── ...
 │
 ├── Model/
-│   ├── PYAS_Model.json
-│   ├── PYAS_Model.txt
+│   ├── PYAS_Model.json -------> Virus Database (the virus database must be placed in the specified directory)
 │   └── ...
 │
 ├── Rules/
-│   ├── Yara_Rules.yar
-│   ├── Compile_Rules.yrc
+│   ├── Yara_Rules.yar ---------> Yara Rules (yara rules in plain text format)
+│   ├── Yara_Rules.yrc ---------> Compile Rules (yara rules in compiled format)
 │   └── ...
 │
-├── PYAS.py
-├── PYAS_Engine.py
+├── PYAS.* ---------------------> Main PYAS Program (including animation, scan, protect functions, ...)
+├── PYAS_Engine.py -------------> Conversion Database (used to transform profiles and forecast data)
+├── PYAS_Suffixes.py -----------> File Suffixes (including scanned file suffixes and common suffixes)
+├── PYAS_Extension.py ----------> Extension Kit (extension scanners developed by other developers)
+├── PYAS_Interface.py ----------> PyQt5 Interface (use QT designer, must be matched with the main program)
+├── PYAS_Resource.py -----------> PyQt5 Resource (status pictures, icon packages, button icons, ...)
+├── PYAS_Language.py -----------> Translate Dict (Traditional Chinese, Simplified Chinese, English)
+├── PYAS_Version.py ------------> Pyinstaller (file information, version information, original name, ...)
 └── ...
 ```
 

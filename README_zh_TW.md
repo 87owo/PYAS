@@ -4,8 +4,6 @@
 
 ## 安裝要求
 
-使用 pip install requirements 來安裝需要的模組
-
 ```
 psutil==5.9.5
 pefile==2023.2.7

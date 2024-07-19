@@ -37,11 +37,11 @@ PYAS/
 │
 ├── Exten/
 │   ├── bitdefender/ ----------> Extension Kit (bitdefender windows console scan engine)
-│   ├── pe_sieve/ -------------> Extension Kit (pe sieve windows console scan engine)
+│   ├── pe_sieve/ -------------> Extension Kit (pe sieve windows console memory engine)
 │   └── ...
 │
 ├── Model/
-│   ├── PYAS_Model.json -------> Virus Database (the virus database must be placed in the specified directory)
+│   ├── PYAS_Model.json -------> Virus Database (the database must be in the specified dir)
 │   └── ...
 │
 ├── Rules/

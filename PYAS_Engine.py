@@ -31,18 +31,19 @@ class ListSimHash:
             self.progress_bar(i, len(data), prefix, suffix)
 
     def build_text(self, content, batch_size):
-        sums, batch, count = [], [], 0
-        for index, f in enumerate(content):
-            count += 1
-            hashes = hashlib.sha256(f.encode('utf-8'))
+        sums, batch, count = [], [], {}
+        for index, char in enumerate(content):
+            count[char] = count.setdefault(char, 0) + 1
+            combined_input = f"{count[char]}_{char}"
+            hashes = hashlib.sha256(combined_input.encode('utf-8'))
             batch.append(hashes.digest())
             if len(batch) >= batch_size:
                 sums.append(self.sum_hashes(batch))
                 batch = []
         if batch:
             sums.append(self.sum_hashes(batch))
-        combined_sums = numpy.sum(sums, 0)
-        v = numpy.packbits(combined_sums > count / 2).tobytes()
+        combined_sums = numpy.sum(sums, 0) > len(content) / 2
+        v = numpy.packbits(combined_sums).tobytes()
         return int.from_bytes(v, 'big')
 
     def sum_hashes(self, digests):

@@ -147,20 +147,20 @@ class MainWindow_Controller(QMainWindow):
             # check config file exists
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"): 
                 self.write_config({"language":"en_US","theme_color":"White",
-                "high_sensitive":0,"extension_kits":1,"cloud_services":"None"})
+                "high_sensitive":0,"extension_kits":0,"cloud_services":"None"})
             try:
                 # read config json data
                 with open("C:/ProgramData/PYAS/PYAS.json", "r") as f: 
                     self.json = json.load(f)
             except:
                 self.json = {"language":"en_US","theme_color":"White",
-                "high_sensitive":0,"extension_kits":1,"cloud_services":"None"}
+                "high_sensitive":0,"extension_kits":0,"cloud_services":"None"}
 
             # default json config
             self.json["language"] = self.json.get("language", "en_US") 
             self.json["theme_color"] = self.json.get("theme_color", "White")
             self.json["high_sensitive"] = self.json.get("high_sensitive", 0)
-            self.json["extension_kits"] = self.json.get("extension_kits", 1)
+            self.json["extension_kits"] = self.json.get("extension_kits", 0)
             self.json["cloud_services"] = self.json.get("cloud_services", "None")
 
             # reflash high_sensitive ui text

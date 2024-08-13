@@ -21,8 +21,7 @@ while a > 0:
 
 print("不玩了^-^")
 
-import xl
-import random
+
 
 
 

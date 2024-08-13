@@ -24,10 +24,5 @@ print("不玩了^-^")
 import xl
 import random
 
-xl.shark(9)
-lucky = random.randint(1, 9)
-for i in range(9):
-    if xl.click() == lucky:
-        xl.gameover('shark')
-        print("你输了！！！！！！！！")
+
 

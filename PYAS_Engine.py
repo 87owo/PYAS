@@ -1,85 +1,98 @@
-import time, json, hashlib, numpy
+import os, io, sys, time, json, yara
+import numpy, onnxruntime
+from PIL import Image#, ImageShow
 
-class ListSimHash:
+class YRScan:
     def __init__(self):
-        self.model = {}
+        self.rules = {}
+        self.network = []
 
-    def save_model(self, file_name):
-        with open(file_name, 'w') as f:
-            json.dump(self.model, f)
-        print(f"\nModel Is Saved In {file_name}")
+    def load_rules(self, file_path):
+        ftype = str(f".{file_path.split('.')[-1]}").lower()
+        if ftype in [".yara", ".yar"]:
+            self.rules[file_path] = yara.compile(file_path)
+        elif ftype in [".yc", ".yrc"]:
+            self.rules[file_path] = yara.load(file_path)
+        elif ftype in [".ip", ".ips"]:
+            with open(file_path, "r") as f:
+                self.network += [l.strip() for l in f.readlines()]
 
-    def load_model(self, model_data):
-        if isinstance(model_data, str):
-            with open(model_data, 'r') as f:
-                model_data = json.load(f)
-        self.model = model_data
+    def yr_scan(self, file_path):
+        try:
+            if isinstance(file_path, str):
+                with open(file_path, "rb") as f:
+                    file_path = f.read()
+            for name, rules in self.rules.items():
+                if rules.match(data=file_path):
+                    return True
+            return False
+        except:
+            return False
 
-    def get_model(self, label):
-        return self.model[label]
+class DLScan:
+    def __init__(self):
+        self.models = {}
+        self.detect = []
+        self.values = 100
 
-    def train_model(self, label, data, batch_size=10000):
-        start = time.time()
-        print(f"Convert {label}")
-        if label not in self.model:
-            self.model[label] = []
-        for i, x in enumerate(data, 1):
-            build_text = self.build_text(x, batch_size)
-            self.model[label].append(build_text)
-            used = "{0:.2f}".format(time.time()-start)
-            prefix, suffix = f'{i}/{len(data)}:', f'{used}s'
-            self.progress_bar(i, len(data), prefix, suffix)
+    def load_model(self, file_path):
+        ftype = str(f".{file_path.split('.')[-1]}").lower()
+        if ftype in [".json", ".txt"]:
+            self.class_names = json.load(open(file_path, 'r'))
+        self.values = self.class_names['Values']
+        self.detect = self.class_names['Detect']
+        available_providers = onnxruntime.get_available_providers()
+        preferred_providers = [
+            'CUDAExecutionProvider', 'ROCmExecutionProvider',
+            'OpenVINOExecutionProvider', 'DirectMLExecutionProvider',
+            'AzureExecutionProvider', 'CPUExecutionProvider']
+        providers = [p for p in preferred_providers if p in available_providers]
+        for model in self.class_names['Models']:
+            try:
+                model_path = os.path.join(os.path.dirname(file_path), model)
+                try:
+                    self.models[model] = onnxruntime.InferenceSession(model_path, providers=providers)
+                except Exception as e:
+                    providers = ['CPUExecutionProvider']
+                    self.models[model] = onnxruntime.InferenceSession(model_path, providers=providers)
+            except:
+                pass
 
-    def build_text(self, content, batch_size):
-        sums, batch, count = [], [], {}
-        for index, char in enumerate(content):
-            count[char] = count.setdefault(char, 0) + 1
-            combined_input = f"{count[char]}_{char}"
-            hashes = hashlib.sha256(combined_input.encode('utf-8'))
-            batch.append(hashes.digest())
-            if len(batch) >= batch_size:
-                sums.append(self.sum_hashes(batch))
-                batch = []
-        if batch:
-            sums.append(self.sum_hashes(batch))
-        combined_sums = numpy.sum(sums, 0) > len(content) / 2
-        v = numpy.packbits(combined_sums).tobytes()
-        return int.from_bytes(v, 'big')
+    def dl_scan(self, file_path):
+        try:
+            if isinstance(file_path, str):
+                ftype = str(f".{file_path.split('.')[-1]}").lower()
+                if ftype in self.class_names['Suffix']:
+                    with open(file_path, 'rb') as f:
+                        file_path = f.read()
+                else:
+                    return False, False
+            target_size, sim = tuple(self.class_names['Pixels']), {}
+            image = self.preprocess_image(file_path, target_size)
+            image_array = numpy.array(image).astype('float32') / 255.0
+            image_expand = numpy.expand_dims(image_array, axis=0)
+            for model_name, model in self.models.items():
+                input_name = model.get_inputs()[0].name
+                pre_answer = model.run(None, {input_name: image_expand})[0][0]
+                number = numpy.argmax(pre_answer)
+                label = self.class_names['Labels'][number].replace("\n", "")
+                sim[label] = sim.setdefault(label, 0) + pre_answer[number]
+            for local_label, sim_sum in sim.items():
+                if sim[local_label] > len(self.models) / 2:
+                    local_level = sim_sum / len(self.models)
+            if ftype in str(f".{local_label.split('/')[-1].split('-')[0]}").lower(): #
+                return local_label, local_level * 100
+            return False, False
+        except Exception as e:
+            print(f"Error during scan: {e}")
+            return False, False
 
-    def sum_hashes(self, digests):
-        bitarray = numpy.unpackbits(numpy.frombuffer(b''.join(digests), dtype='>B'))
-        return numpy.sum(numpy.reshape(bitarray, (-1, 256)), 0)
-
-    def progress_bar(self, items, total, prefix='', suffix='', length=50, fill='█'):
-        percent = min(100.0, max(0.0, 100 * (items / float(total))))
-        end_char = '\n' if percent >= 100 else '\r'
-        percent_string = "{0:.2f}".format(percent)
-        filled_length = int(length * items // total)
-        bar = fill * filled_length + ' ' * (length - filled_length)
-        print(f'\r{prefix: <15} |{bar}| {percent_string}% {suffix}', end=end_char)
-
-    def predict_all(self, query, batch_size=10000):
-        label_similarities = {}
-        query_hash = self.build_text(query, batch_size)
-        for label in self.model:
-            max_similarity = 0
-            for data_point in self.model[label]:
-                similarity = self.similar(data_point, query_hash)
-                if similarity > max_similarity:
-                    max_similarity = similarity
-            label_similarities[label] = max_similarity
-        return label_similarities
-
-    def predict(self, query, batch_size=10000):
-        max_similarity, max_label = 0, None
-        query_hash = self.build_text(query, batch_size)
-        for label in self.model:
-            for data_point in self.model[label]:
-                similarity = self.similar(data_point, query_hash)
-                if similarity > max_similarity:
-                    max_similarity, max_label = similarity, label
-        return max_label, max_similarity
-
-    def similar(self, x, y):
-        hamming_distance = bin(x ^ y).count('1')
-        return 1 - hamming_distance / 256
+    def preprocess_image(self, file_data, target_size): # New
+        file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
+        data_count = len(file_data)
+        wah = int(numpy.ceil(numpy.sqrt((data_count + 2) // 3)))
+        image_array = numpy.zeros((wah * wah * 3,), dtype=numpy.uint8)
+        image_array[:data_count] = file_data
+        image_array = image_array.reshape((wah, wah, 3))
+        image = Image.fromarray(image_array) #ImageShow.show(image)
+        return image.resize(target_size, Image.Resampling.LANCZOS)

@@ -21,11 +21,6 @@ PYAS/
 │   ├── PYAS_Driver.sys -------> 驱动程序 (0sha0 为 pyas 提供的自我保护驱动程序)
 │   └── ...
 │
-├── Exten/
-│   ├── bitdefender/ ----------> 扩展套件 (bitdefender windows 控制台扫描引擎)
-│   ├── pe_sieve/ -------------> 扩展套件 (pe sieve windows 控制台内存引擎)
-│   └── ...
-│
 ├── Model/
 │   ├── PYAS_Model.json -------> 病毒数据库 (数据库必须位于指定目录中)
 │   └── ...
@@ -42,7 +37,7 @@ PYAS/
 ├── PYAS_Interface.py ----------> PyQt5界面（使用QT设计器，需与主程序搭配使用）
 ├── PYAS_Resource.py -----------> PyQt5资源（状态图片、图标包、按钮图标...）
 ├── PYAS_Language.py -----------> 翻译词典（繁体中文、简体中文、英文）
-├── PYAS_Version.py ------------> 安裝信息（文件信息、版本信息、原名，...）
+├── PYAS_Version.py ------------> 安裝信息（文件信息、版本信息、原名...）
 └── ...
 ```
 

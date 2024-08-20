@@ -21,11 +21,6 @@ PYAS/
 │   ├── PYAS_Driver.sys -------> 驅動程式 (0sha0 為 pyas 提供的自我保護驅動程式)
 │   └── ...
 │
-├── Exten/
-│   ├── bitdefender/ ----------> 擴充套件 (bitdefender windows 控制台掃描引擎)
-│   ├── pe_sieve/ -------------> 擴充套件 (pe sieve windows 控制台記憶體引擎)
-│   └── ...
-│
 ├── Model/
 │   ├── PYAS_Model.json -------> 病毒資料庫 (資料庫必須位於指定目錄)
 │   └── ...

@@ -1,6 +1,6 @@
 # PYAS (Python Antivirus Software)
 
-![PYAS](https://github.com/87owo/PYAS/assets/85057800/8136aaca-d388-4321-bedb-abc4fcecfa8b)
+![PYAS](https://github.com/user-attachments/assets/39c273b9-c467-480a-a8b3-31714a6df3ef)
 
 ## Readme Language
 

@@ -27,11 +27,6 @@ PYAS/
 │   ├── PYAS_Driver.sys -------> Extension Kit (self protection driver for pyas by 0sha0)
 │   └── ...
 │
-├── Exten/
-│   ├── bitdefender/ ----------> Extension Kit (bitdefender windows console scan engine)
-│   ├── pe_sieve/ -------------> Extension Kit (pe sieve windows console memory engine)
-│   └── ...
-│
 ├── Model/
 │   ├── PYAS_Model.json -------> Virus Database (the database must be in the specified dir)
 │   └── ...

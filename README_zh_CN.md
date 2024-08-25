@@ -47,13 +47,17 @@ https://pyantivirus.wixsite.com/pyas
 
 https://github.com/87owo/PYAS
 
-## 开源协议
+## 微软运行库
 
-https://github.com/87owo/PYAS/blob/main/LICENSE.md
+https://github.com/87owo/Microsoft_Runtime/releases
 
 ## 驱动程序
 
 https://github.com/0sha0/PYAS_Protection
+
+## 开源协议
+
+https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
 ## 支援系统
 

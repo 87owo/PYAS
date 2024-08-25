@@ -36,7 +36,7 @@ PYAS/
 │   ├── Yara_Rules.yrc ---------> Compile Rules (yara rules in compiled format)
 │   └── ...
 │
-├── PYAS.* ---------------------> Main PYAS Program (including animation, scan, protect functions, ...)
+├── PYAS.py ---------------------> Main PYAS Program (including animation, scan, protect functions, ...)
 ├── PYAS_Engine.py -------------> Conversion Database (used to transform profiles and forecast data)
 ├── PYAS_Suffixes.py -----------> File Suffixes (including scanned file suffixes and common suffixes)
 ├── PYAS_Extension.py ----------> Extension Kit (extension scanners developed by other developers)

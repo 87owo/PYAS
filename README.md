@@ -24,7 +24,7 @@ PyQt5==5.15.9
 ```
 PYAS/
 ├── Driver/
-│   ├── PYAS_Driver.sys -------> Extension Kit (self protection driver for pyas by 0sha0)
+│   ├── PYAS_Driver.sys -------> Driver Protect (self protection driver for pyas by 0sha0)
 │   └── ...
 │
 ├── Model/

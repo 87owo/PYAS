@@ -39,7 +39,6 @@ PYAS/
 ├── PYAS.py ---------------------> Main PYAS Program (including animation, scan, protect functions, ...)
 ├── PYAS_Engine.py -------------> Conversion Database (used to transform profiles and forecast data)
 ├── PYAS_Suffixes.py -----------> File Suffixes (including scanned file suffixes and common suffixes)
-├── PYAS_Extension.py ----------> Extension Kit (extension scanners developed by other developers)
 ├── PYAS_Interface.py ----------> PyQt5 Interface (use QT designer, must be matched with the main program)
 ├── PYAS_Resource.py -----------> PyQt5 Resource (status pictures, icon packages, button icons, ...)
 ├── PYAS_Language.py -----------> Translate Dict (Traditional Chinese, Simplified Chinese, English)

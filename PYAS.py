@@ -1,5 +1,5 @@
 import os, gc, sys, time, json, psutil
-import msvcrt, ctypes, pyperclip, win32file
+import ctypes, msvcrt, pyperclip, win32file
 import win32gui, win32api, win32con
 from PYAS_Engine import YRScan, DLScan
 from PYAS_Suffixes import slist, alist
@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.1.6"
+        self.pyas_version = "3.1.7"
         self.first_startup = True
         self.init_data_base()
         self.init_tray_icon()
@@ -926,12 +926,12 @@ class MainWindow_Controller(QMainWindow):
             label, level = self.model.dl_scan(file)
             if label and label in self.model.detect:
                 if self.json["high_sensitive"]:
-                    return "Virus/Deep-Learning"
+                    return label
                 elif level >= self.model.values:
-                    return "Virus/Deep-Learning"
+                    return label
             if self.json["extension_kits"]:
                 if self.rules.yr_scan(file):
-                    return "Virus/Yara-Detected"
+                    return "Virus/Rules"
             return False
         except:
             return False
@@ -1358,11 +1358,7 @@ class MainWindow_Controller(QMainWindow):
                 if ctypes.windll.kernel32.ReadProcessMemory(m, ctypes.c_void_p(base_addr),
                     buffer, memory_range.rss, ctypes.byref(ctypes.c_size_t(0))):
                     file = str(memory_range.path).replace("\\", "/")
-                    memory_bytes.setdefault(file, bytearray()).extend(buffer.raw)
-            for file, data in memory_bytes.items():
-                ftype = str(f".{file.split('.')[-1]}").lower()
-                if ":/Windows" not in file and file not in self.whitelist:
-                    if self.start_scan(file) or self.start_scan(bytes(data)):
+                    if ":/Windows" not in file and self.start_scan(buffer.raw):
                         return True
             ctypes.windll.kernel32.CloseHandle(m)
             return False
@@ -1420,10 +1416,11 @@ class MainWindow_Controller(QMainWindow):
                             self.ransom_counts += 1
                         elif action == 4 and ftype in alist:
                             self.ransom_counts += 1
-                    if action == 3 and ftype in slist and self.start_scan(fpath):
-                        self.ransom_counts = 0
-                        os.remove(fpath)
-                        self.send_notify(self.trans("病毒刪除: ")+fpath, True)
+                    if ":/Windows" not in fpath and ftype in slist:
+                        if action == 3 and self.start_scan(fpath):
+                            self.ransom_counts = 0
+                            os.remove(fpath)
+                            self.send_notify(self.trans("病毒刪除: ")+fpath, True)
                 except:
                     pass
         if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):

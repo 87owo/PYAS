@@ -1,6 +1,6 @@
 import os, io, sys, time, json, yara
 import numpy, onnxruntime
-from PIL import Image#, ImageShow
+from PIL import Image, ImageShow
 
 class YRScan:
     def __init__(self):
@@ -43,9 +43,9 @@ class DLScan:
         self.detect = self.class_names['Detect']
         available_providers = onnxruntime.get_available_providers()
         preferred_providers = [
-            'CUDAExecutionProvider', 'ROCmExecutionProvider',
-            'OpenVINOExecutionProvider', 'DirectMLExecutionProvider',
-            'AzureExecutionProvider', 'CPUExecutionProvider']
+        'CUDAExecutionProvider', 'ROCmExecutionProvider',
+        'OpenVINOExecutionProvider', 'DirectMLExecutionProvider',
+        'AzureExecutionProvider', 'CPUExecutionProvider']
         providers = [p for p in preferred_providers if p in available_providers]
         for model in self.class_names['Models']:
             try:
@@ -80,11 +80,9 @@ class DLScan:
             for local_label, sim_sum in sim.items():
                 if sim[local_label] > len(self.models) / 2:
                     local_level = sim_sum / len(self.models)
-            if ftype in str(f".{local_label.split('/')[-1].split('-')[0]}").lower(): #
-                return local_label, local_level * 100
+                    return local_label, local_level * 100
             return False, False
-        except Exception as e:
-            print(f"Error during scan: {e}")
+        except:
             return False, False
 
     def preprocess_image(self, file_data, target_size): # New

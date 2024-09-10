@@ -1,11 +1,9 @@
 {
-    "Suffix": [".exe", ".dll", ".sys", ".bat", ".cmd", ".ps1", ".vbs"], 
-
     "Labels": ["White/Pefile", "White/Script", "Virus/Pefile", "Virus/Script"], 
 
     "Detect": ["Virus/Pefile", "Virus/Script"],  
 
-    "Models": ["PYAS_Model_A1.onnx", "PYAS_Model_A2.onnx", "PYAS_Model_A3.onnx"], 
+    "Models": ["PYAS_Model_A1.onnx"], 
 
     "Pixels": [300, 300], 
 

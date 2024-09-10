@@ -1,6 +1,6 @@
 import os, gc, sys, time, json, psutil
-import ctypes, msvcrt, pyperclip, win32file
-import win32gui, win32api, win32con
+import ctypes, struct, msvcrt, pyperclip
+import win32gui, win32api, win32con, win32file
 from PYAS_Engine import YRScan, DLScan
 from PYAS_Suffixes import slist, alist
 from PYAS_Language import translate_dict
@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.1.7"
+        self.pyas_version = "3.1.8"
         self.first_startup = True
         self.init_data_base()
         self.init_tray_icon()
@@ -1299,7 +1299,7 @@ class MainWindow_Controller(QMainWindow):
 
     def protect_proc_thread(self):
         while self.proc_protect:
-            time.sleep(0.01)
+            time.sleep(0.1)
             new_process = set()
             for p in psutil.process_iter():
                 new_process.add(p.pid)
@@ -1330,6 +1330,8 @@ class MainWindow_Controller(QMainWindow):
                     self.kill_process("病毒攔截", p, file, False)
                 elif self.load_scan(p):
                     self.kill_process("加載攔截", p, file, False)
+                elif self.memory_scan(p):
+                    self.kill_process("記憶體攔截", p, file, False)
                 elif ":/Windows" not in file and ":/Program" not in file:
                     if os.path.exists(file):
                         self.track_proc = p, file, True
@@ -1338,7 +1340,7 @@ class MainWindow_Controller(QMainWindow):
 
     def load_scan(self, p):
         try:
-            for entry in p.memory_maps():
+            for entry in p.memory_maps(grouped=True):
                 file = str(entry.path).replace("\\", "/")
                 if ":/Windows" not in file and file not in self.whitelist:
                     ftype = str(f".{file.split('.')[-1]}").lower()
@@ -1348,19 +1350,53 @@ class MainWindow_Controller(QMainWindow):
         except:
             return False
 
+    def get_executable_section(self, process_handle, base_address):
+        dos_header = ctypes.create_string_buffer(64)
+        ctypes.windll.kernel32.ReadProcessMemory(process_handle,
+        ctypes.c_void_p(base_address), dos_header, 64, None)
+        nt_headers_offset = struct.unpack("<I", dos_header[0x3C:0x3C + 4])[0]
+        nt_headers = ctypes.create_string_buffer(248)
+        ctypes.windll.kernel32.ReadProcessMemory(process_handle,
+        ctypes.c_void_p(base_address + nt_headers_offset), nt_headers, 248, None)
+        number_of_sections = struct.unpack("<H", nt_headers[6:8])[0]
+        optional_header_size = struct.unpack("<H", nt_headers[20:22])[0]
+        section_headers_offset = nt_headers_offset + 24 + optional_header_size
+        for i in range(number_of_sections):
+            section_header = ctypes.create_string_buffer(40)
+            section_address = base_address + section_headers_offset + i * 40
+            ctypes.windll.kernel32.ReadProcessMemory(process_handle,
+            ctypes.c_void_p(section_address), section_header, 40, None)
+            section_name = section_header[:8].rstrip(b'\x00').decode()
+            virtual_address = struct.unpack("<I", section_header[12:16])[0]
+            virtual_size = struct.unpack("<I", section_header[8:12])[0]
+            characteristics = struct.unpack("<I", section_header[36:40])[0]
+            if (characteristics & 0x20000000 and characteristics & 0x40000000 and
+                virtual_size > 0):
+                return base_address + virtual_address, virtual_size
+        return None, 0
+
+    def get_module_base(self, p):
+        try:
+            for entry in p.memory_maps(grouped=False):
+                file = str(entry.path).replace("\\", "/")
+                ftype = str(f".{file.split('.')[-1]}").lower()
+                if ftype in [".exe"] and file not in self.whitelist:
+                    return int(entry.addr, 16)
+            return False
+        except:
+            return False
+
     def memory_scan(self, p):
         try:
-            memory_bytes = {}
-            m = ctypes.windll.kernel32.OpenProcess(0x1F0FFF, False, p.pid)
-            for memory_range in p.memory_maps(grouped=False):
-                base_addr = int(memory_range.addr, 16)
-                buffer = ctypes.create_string_buffer(memory_range.rss)
-                if ctypes.windll.kernel32.ReadProcessMemory(m, ctypes.c_void_p(base_addr),
-                    buffer, memory_range.rss, ctypes.byref(ctypes.c_size_t(0))):
-                    file = str(memory_range.path).replace("\\", "/")
-                    if ":/Windows" not in file and self.start_scan(buffer.raw):
-                        return True
-            ctypes.windll.kernel32.CloseHandle(m)
+            base_address = self.get_module_base(p)
+            process_handle = ctypes.windll.kernel32.OpenProcess(0x1F0FFF, False, p.pid)
+            text_addr, text_size = self.get_executable_section(process_handle, base_address)
+            buffer = ctypes.create_string_buffer(text_size)
+            if ctypes.windll.kernel32.ReadProcessMemory(process_handle,
+            ctypes.c_void_p(text_addr), buffer, text_size, ctypes.byref(ctypes.c_size_t(0))):
+                if self.start_scan(buffer.raw):
+                    return True
+            ctypes.windll.kernel32.CloseHandle(process_handle)
             return False
         except:
             return False

@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.1.8"
+        self.pyas_version = "3.1.9"
         self.first_startup = True
         self.init_data_base()
         self.init_tray_icon()
@@ -1333,7 +1333,8 @@ class MainWindow_Controller(QMainWindow):
                 elif self.memory_scan(p):
                     self.kill_process("記憶體攔截", p, file, False)
                 elif ":/Windows" not in file and ":/Program" not in file:
-                    if os.path.exists(file):
+                    ftype = str(f".{file.split('.')[-1]}").lower()
+                    if os.path.exists(file) and ftype in slist:
                         self.track_proc = p, file, True
         except:
             pass

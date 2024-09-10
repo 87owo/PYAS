@@ -8,14 +8,17 @@ class YRScan:
         self.network = []
 
     def load_rules(self, file_path):
-        ftype = str(f".{file_path.split('.')[-1]}").lower()
-        if ftype in [".yara", ".yar"]:
-            self.rules[file_path] = yara.compile(file_path)
-        elif ftype in [".yc", ".yrc"]:
-            self.rules[file_path] = yara.load(file_path)
-        elif ftype in [".ip", ".ips"]:
-            with open(file_path, "r") as f:
-                self.network += [l.strip() for l in f.readlines()]
+        try:
+            ftype = str(f".{file_path.split('.')[-1]}").lower()
+            if ftype in [".yara", ".yar"]:
+                self.rules[file_path] = yara.compile(file_path)
+            elif ftype in [".yc", ".yrc"]:
+                self.rules[file_path] = yara.load(file_path)
+            elif ftype in [".ip", ".ips"]:
+                with open(file_path, "r") as f:
+                    self.network += [l.strip() for l in f.readlines()]
+        except:
+            pass
 
     def yr_scan(self, file_path):
         try:
@@ -41,33 +44,19 @@ class DLScan:
             if ftype in [".json", ".txt"]:
                 with open(file_path, 'r') as f:
                     self.class_names = json.load(f)
+            elif ftype in [".onnx"]:
+                self.models[file_path] = onnxruntime.InferenceSession(file_path)
             self.values = self.class_names['Values']
             self.detect = self.class_names['Detect']
-            available_providers = onnxruntime.get_available_providers()
-            preferred_providers = [
-            'CUDAExecutionProvider', 'ROCmExecutionProvider',
-            'OpenVINOExecutionProvider', 'DirectMLExecutionProvider',
-            'AzureExecutionProvider', 'CPUExecutionProvider']
-            providers = [p for p in preferred_providers if p in available_providers]
-            for model in self.class_names['Models']:
-                model_path = os.path.join(os.path.dirname(file_path), model)
-                try:
-                    self.models[model] = onnxruntime.InferenceSession(
-                    model_path, providers=providers)
-                except Exception as e:
-                    self.models[model] = onnxruntime.InferenceSession(
-                    model_path, providers=['CPUExecutionProvider'])
-        except Exception as e:
+        except:
             pass
 
     def dl_scan(self, file_path):
         try:
             if isinstance(file_path, str):
-                file_data = self.check_file_type(file_path)
-            else:
-                file_data = file_path
+                file_path = self.check_file_type(file_path)
             target_size, sim = tuple(self.class_names['Pixels']), {}
-            image = self.preprocess_image(file_data, target_size)
+            image = self.preprocess_image(file_path, target_size)
             image_array = numpy.array(image).astype('float32') / 255.0
             image_expand = numpy.expand_dims(image_array, axis=0)
             for model_name, model in self.models.items():
@@ -81,24 +70,24 @@ class DLScan:
                     local_level = sim_sum / len(self.models)
                     return local_label, local_level * 100
             return False, False
-        except Exception as e:
+        except:
             return False, False
 
     def check_file_type(self, file_path):
         try:
             ftype = str(f".{file_path.split('.')[-1]}").lower()
-            if ftype in [".exe", ".dll", ".sys", ".com"]:
+            if ftype in [".exe", ".dll", ".sys"]:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
-                        if (section.Characteristics & pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_EXECUTE'] and
-                        section.Characteristics & pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_READ'] and
+                        if (section.Characteristics & pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_READ'] and
+                        section.Characteristics & pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_EXECUTE'] and
                         section.SizeOfRawData > 0 and section.Name.decode().strip('\x00').lower() in [".text"]):
                             return section.get_data()
-            elif ftype in [".bat", ".cmd", ".vbs", ".ps1"]:
+            elif ftype in [".bat", ".vbs", ".ps1"]:
                 with open(file_path, 'rb') as f:
                     return f.read()
-            return False
-        except Exception as e:
+            return matching_data if matching_data else False
+        except:
             return False
 
     def preprocess_image(self, file_data, target_size):

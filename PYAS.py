@@ -928,9 +928,8 @@ class MainWindow_Controller(QMainWindow):
                 return label
             elif label and level >= self.model.values:
                 return label
-            label, level = self.rules.yr_scan(file)
-            if label and self.json["extension_kits"]:
-                return label
+            if self.json["extension_kits"]:
+                return self.rules.yr_scan(file)[0]
             return False
         except:
             return False

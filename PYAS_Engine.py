@@ -26,11 +26,12 @@ class YRScan:
                 with open(file_path, "rb") as f:
                     file_path = f.read()
             for name, rules in self.rules.items():
-                if rules.match(data=file_path):
-                    return True
-            return False
+                matchs_rules = rules.match(data=file_path)
+                if matchs_rules:
+                    return "Virus/Rules", matchs_rules
+            return False, False
         except:
-            return False
+            return False, False
 
 class DLScan:
     def __init__(self):
@@ -51,12 +52,10 @@ class DLScan:
         except:
             pass
 
-    def dl_scan(self, file_path):
+    def predict(self, file_data):
         try:
-            if isinstance(file_path, str):
-                file_path = self.check_file_type(file_path)
             target_size, sim = tuple(self.class_names['Pixels']), {}
-            image = self.preprocess_image(file_path, target_size)
+            image = self.preprocess_image(file_data, target_size)
             image_array = numpy.array(image).astype('float32') / 255.0
             image_expand = numpy.expand_dims(image_array, axis=0)
             for model_name, model in self.models.items():
@@ -73,22 +72,36 @@ class DLScan:
         except:
             return False, False
 
-    def check_file_type(self, file_path):
+    def check_shell(self, name):
         try:
-            ftype = str(f".{file_path.split('.')[-1]}").lower()
-            if ftype in [".exe", ".dll", ".sys"]:
-                with pefile.PE(file_path, fast_load=True) as pe:
-                    for section in pe.sections:
-                        if (section.Characteristics & pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_READ'] and
-                        section.Characteristics & pefile.SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_EXECUTE'] and
-                        section.SizeOfRawData > 0 and section.Name.decode().strip('\x00').lower() in [".text"]):
-                            return section.get_data()
-            elif ftype in [".bat", ".vbs", ".ps1"]:
-                with open(file_path, 'rb') as f:
-                    return f.read()
-            return matching_data if matching_data else False
+            section_name = name.lower()
+            for shell in ["upx", "vmp", "be", "orpc", "pack", "crypt"]:
+                if shell in section_name:
+                    return True
+            return False
         except:
             return False
+
+    def dl_scan(self, file_path):
+        try:
+            match_data = []
+            ftype = str(f".{file_path.split('.')[-1]}").lower()
+            if ftype in [".exe", ".dll", ".sys", ".com", ".scr"]:
+                with pefile.PE(file_path, fast_load=True) as pe:
+                    for section in pe.sections:
+                        section_name = section.Name.decode().strip('\x00')
+                        if section_name.lower() in [".text"]:
+                            match_data.append(section.get_data())
+            elif ftype in [".bat", ".vbs", ".ps1", ".js", ".cmd"]:
+                with open(file_path, 'rb') as file:
+                    match_data.append(file.read())
+            for file_data in match_data:
+                label, level = self.predict(file_data)
+                if label and label in self.detect:
+                    return label, level
+            return False, False
+        except:
+            return False, False
 
     def preprocess_image(self, file_data, target_size):
         file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)

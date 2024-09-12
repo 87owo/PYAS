@@ -86,13 +86,13 @@ class DLScan:
         try:
             match_data = []
             ftype = str(f".{file_path.split('.')[-1]}").lower()
-            if ftype in [".exe", ".dll", ".sys", ".com", ".scr"]:
+            if ftype in [".exe", ".dll", ".sys"]:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
                         section_name = section.Name.decode().strip('\x00')
                         if section_name.lower() in [".text"]:
                             match_data.append(section.get_data())
-            elif ftype in [".bat", ".vbs", ".ps1", ".js", ".cmd"]:
+            elif ftype in [".bat", ".vbs", ".ps1"]:
                 with open(file_path, 'rb') as file:
                     match_data.append(file.read())
             for file_data in match_data:

@@ -3,8 +3,6 @@
 
     "Detect": ["Virus/Pefile", "Virus/Script"],  
 
-    "Models": ["PYAS_Model_A1.onnx"], 
-
     "Pixels": [300, 300], 
 
     "Values": 95

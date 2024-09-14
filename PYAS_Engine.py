@@ -38,6 +38,14 @@ class DLScan:
         self.models = {}
         self.detect = []
         self.values = 100
+        self.shells = ['!o', '/4', '0a@', '?g_encry', '_test', 'ace', 'asmstub', 'b1_',
+        'base', 'be', 'bss', 'clr_uef', 'code', 'crthunk', 'cseg', 'cursors', 'data',
+        'engine', 'enigma', 'errata', 'extjmp', 'fio', 'fothk', 'global_i', 'hexpthk',
+        'h~;', 'icapsec', 'il2cpp', 'imageres', 'init', 'lzmadec', 'malloc_h', 'miniex',
+        'mpress', 'mssmixer', 'ndr64', 'nep', 'no_bbt', 'nsys_wr', 'orpc', 'packer',
+        'pad', 'tvm', 'page', 'pgae', 'poolmi', 'proxy', 'retpol', 'rt', 'rwexec', 'xtls',
+        'rygs', 's:@', 'sanontcp', 'secur', 'segm', 'tls', 'tracesup', 'transit', 'trs_age',
+        'u7m', 'uedbg', 'upx', 'viahw', 'vmp', 'wow64svc', 'wpp_sf', 'yg', 'zk']
 
     def load_model(self, file_path):
         try:
@@ -72,29 +80,22 @@ class DLScan:
         except:
             return False, False
 
-    def check_shell(self, name):
-        try:
-            section_name = name.lower()
-            for shell in ["upx", "vmp", "be", "orpc", "pack", "crypt"]:
-                if shell in section_name:
-                    return True
-            return False
-        except:
-            return False
-
     def dl_scan(self, file_path):
         try:
-            match_data = []
+            if isinstance(file_path, bytes):
+                label, level = self.predict(file_path)
+                if label and label in self.detect:
+                    return label, level
             ftype = str(f".{file_path.split('.')[-1]}").lower()
             if ftype in [".exe", ".dll", ".sys"]:
                 with pefile.PE(file_path, fast_load=True) as pe:
-                    for section in pe.sections:
-                        section_name = section.Name.decode().strip('\x00')
-                        if section_name.lower() in [".text"]:
-                            match_data.append(section.get_data())
+                    match_data = [section.get_data() for section in pe.sections
+                    if section.Characteristics & 0x20000000 and not
+                    any(shell in section.Name.decode().strip('\x00').lower()
+                    for shell in self.shells)]
             elif ftype in [".bat", ".vbs", ".ps1"]:
                 with open(file_path, 'rb') as file:
-                    match_data.append(file.read())
+                    match_data = [file.read()]
             for file_data in match_data:
                 label, level = self.predict(file_data)
                 if label and label in self.detect:

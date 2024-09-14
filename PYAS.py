@@ -1328,7 +1328,7 @@ class MainWindow_Controller(QMainWindow):
                     self.kill_process("病毒攔截", p, file, False)
                 elif self.load_scan(p):
                     self.kill_process("加載攔截", p, file, False)
-                if self.memory_scan(p):
+                elif self.memory_scan(p):
                     self.kill_process("記憶體攔截", p, file, False)
                 elif ":/Windows" not in file and ":/Program" not in file:
                     ftype = str(f".{file.split('.')[-1]}").lower()

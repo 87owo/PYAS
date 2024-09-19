@@ -3,7 +3,7 @@
 
     "Detect": ["Virus/Pefile", "Virus/Script"],  
 
-    "Pixels": [300, 300], 
+    "Pixels": [224, 224], 
 
     "Values": 95
 }

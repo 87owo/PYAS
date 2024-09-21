@@ -38,13 +38,13 @@ class DLScan:
         self.models = {}
         self.detect = []
         self.values = 100
-        self.shells = ['!o', '/4', '0a@', '?g_encry', '_test', 'ace', 'asmstub', 'b1_',
-        'base', 'be', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'extjmp',
+        self.shells = ['!o', '/4', '0a@', '?g_encry', '_test', 'ace', 'yg', 'obr', 'b1_',
+        'base', 'bss', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'extjmp',
         'fio', 'fothk', 'hexpthk', 'h~;', 'icapsec', 'il2cpp', 'imageres', 'lzmadec',
-        'malloc_h', 'miniex', 'mpress', 'mssmixer', 'ndr64', 'nep', 'no_bbt', 'zk',
-        'nsys_wr', 'orpc', 'packer', 'pad', 'tvm', 'pgae', 'poolmi', 'proxy', 'yg',
-        'retpol', 'rt', 'rwexec', 'u7m', 'rygs', 's:@', 'sanontcp', 'secur', 'segm',
-        'tracesup', 'transit', 'upx', 'uedbg', 'viahw', 'vmp', 'wow64svc', 'wpp_sf']
+        'malloc_h', 'miniex', 'mpress', 'mssmixer', 'ndr64', 'nep', 'no_bbt', 'wpp_sf',
+        'nsys_wr', 'orpc', 'packer', 'pad', 'tvm', 'pgae', 'poolmi', 'proxy', 'segm',
+        'retpol', 'rt', 'rwexec', 'u7m', 'rygs', 's:@', 'sanontcp', 'secur', 'asmstub',
+        'tracesup', 'transit', 'upx', 'uedbg', 'viahw', 'vmp', 'wow64svc', 'be', 'zk']
 
     def load_model(self, file_path):
         try:

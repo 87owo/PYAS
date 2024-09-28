@@ -37,14 +37,16 @@ class DLScan:
     def __init__(self):
         self.models = {}
         self.detect = []
-        self.values = 100
-        self.shells = ['!o', '/4', '0a@', '?g_encry', '_test', 'ace', 'yg', 'obr', 'b1_',
-        'base', 'bss', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'extjmp',
-        'fio', 'fothk', 'hexpthk', 'h~;', 'icapsec', 'il2cpp', 'imageres', 'lzmadec',
-        'malloc_h', 'miniex', 'mpress', 'mssmixer', 'ndr64', 'nep', 'no_bbt', 'wpp_sf',
-        'nsys_wr', 'orpc', 'packer', 'pad', 'tvm', 'pgae', 'poolmi', 'proxy', 'segm',
-        'retpol', 'rt', 'rwexec', 'u7m', 'rygs', 's:@', 'sanontcp', 'secur', 'asmstub',
-        'tracesup', 'transit', 'upx', 'uedbg', 'viahw', 'vmp', 'wow64svc', 'be', 'zk']
+        self.values = 0
+        self.shells = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '!o',
+        'cry', 'test', 'ace', 'yg', 'obr', 'tvm', 'dec', 'enc', 'b1_', 'base',
+        'bss', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'protect',
+        'nep', 'no_bbt', 'wpp_sf', 'retpol', 'rt', 'rwexec', 'rygs', 'poolmi',
+        's:@', 'pgae', 'proxy', 'wisevec', 'segm', 'transit', 'vmp', 'extjmp',
+        'upx', 'tracesup', 'res', 'lzma', 'malloc_h', 'miniex', 'ndr64', 'be',
+        'mssmixer', 'wow', 'press', 'fio', 'pad', 'hexpthk', 'h~;', 'icapsec',
+        'sanontcp', 'secur', 'asmstub', 'nsys_wr', 'orpc', 'pack', 'wow64svc',
+        'uedbg', 'viahw', 'data', 'zk', 'fothk', 'qihoo']
 
     def load_model(self, file_path):
         try:
@@ -59,7 +61,7 @@ class DLScan:
         except:
             pass
 
-    def predict(self, file_data):
+    def dl_scan(self, file_data):
         try:
             target_size, sim = tuple(self.class_names['Pixels']), {}
             image = self.preprocess_image(file_data, target_size)
@@ -79,29 +81,23 @@ class DLScan:
         except:
             return False, False
 
-    def dl_scan(self, file_path):
+    def get_type(self, file_path):
         try:
-            if isinstance(file_path, bytes):
-                label, level = self.predict(file_path)
-                if label and label in self.detect:
-                    return label, level
+            match_data = {}
             ftype = str(f".{file_path.split('.')[-1]}").lower()
             if ftype in [".exe", ".dll", ".sys", ".scr", ".com"]:
                 with pefile.PE(file_path, fast_load=True) as pe:
-                    match_data = [section.get_data() for section in pe.sections
-                    if section.Characteristics & 0x20000000 and not
-                    any(shell in section.Name.decode().strip('\x00').lower()
-                    for shell in self.shells)]
+                    for section in pe.sections:
+                        section_name = section.Name.decode().strip('\x00')
+                        if (section.Characteristics & 0x00000020 and not
+                        any(shell in section_name.lower() for shell in self.shells)):
+                            match_data[section_name] = section.get_data()
             elif ftype in [".bat", ".vbs", ".ps1", ".cmd", ".js"]:
                 with open(file_path, 'rb') as file:
-                    match_data = [file.read()]
-            for file_data in match_data:
-                label, level = self.predict(file_data)
-                if label and label in self.detect:
-                    return label, level
-            return False, False
+                    match_data[ftype] = file.read()
+            return match_data
         except:
-            return False, False
+            return {}
 
     def preprocess_image(self, file_data, target_size):
         file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)

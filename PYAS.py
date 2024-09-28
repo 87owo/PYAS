@@ -19,7 +19,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.0"
+        self.pyas_version = "3.2.1"
         self.first_startup = True
         self.init_data_base()
         self.init_tray_icon()
@@ -646,7 +646,8 @@ class MainWindow_Controller(QMainWindow):
             # question event message
             print(f"[Quest] > {text}")
             if self.first_startup != True:
-                return QMessageBox.question(self, "Quest", self.trans(str(text)),QMessageBox.Yes|QMessageBox.No) == 16384
+                return QMessageBox.question(self, "Quest",
+                self.trans(str(text)),QMessageBox.Yes|QMessageBox.No) == 16384
         except:
             return False
 
@@ -655,7 +656,8 @@ class MainWindow_Controller(QMainWindow):
             # send system notification
             now_time = time.strftime('%Y-%m-%d %H:%M:%S')
             print(f"[Notify] > [{now_time}] {text}")
-            QMetaObject.invokeMethod(self.ui.State_output, "append", Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))
+            QMetaObject.invokeMethod(self.ui.State_output, "append",
+            Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))
             if self.first_startup == False and notify_bar == True:
                 self.tray_icon.showMessage(now_time, text, 5000)
         except:
@@ -819,7 +821,6 @@ class MainWindow_Controller(QMainWindow):
                 item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
                 item.setCheckState(Qt.Checked)
                 self.ui.Virus_Scan_output.addItem(item)
-                self.send_notify(self.trans(f"發現病毒: ")+file, False)
         except:
             pass
 
@@ -864,7 +865,8 @@ class MainWindow_Controller(QMainWindow):
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
             if file and file not in self.whitelist and file != self.pyas:
                 self.init_scan()
-                self.scan_thread = Thread(target=self.write_scan, args=(self.start_scan(file),file,), daemon=True)
+                self.scan_thread = Thread(target=self.write_scan,
+                args=(self.start_scan(file),file,), daemon=True)
                 self.scan_thread.start()
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
@@ -921,13 +923,17 @@ class MainWindow_Controller(QMainWindow):
 
     def start_scan(self, file):
         try:
-            if os.path.exists(file):
-                self.send_notify(self.trans(f"正在掃描: ")+file, False)
-            label, level = self.model.dl_scan(file)
-            if label and self.json["high_sensitive"]:
-                return label
-            elif label and level >= self.model.values:
-                return label
+            if isinstance(file, dict):
+                match_data = file
+            elif os.path.exists(file):
+                match_data = self.model.get_type(file)
+            for ftype, data in match_data.items():
+                label, level = self.model.dl_scan(data)
+                if label and label in self.model.detect:
+                    if self.json["high_sensitive"]:
+                        return label
+                    elif level >= self.model.values:
+                        return label
             if self.json["extension_kits"]:
                 return self.rules.yr_scan(file)[0]
             return False
@@ -1362,6 +1368,7 @@ class MainWindow_Controller(QMainWindow):
 
     def memory_scan(self, p):
         try:
+            match_data = {}
             base_address = self.get_module_base(p)
             process_handle = ctypes.windll.kernel32.OpenProcess(0x1F0FFF, False, p.pid)
             dos_header = ctypes.create_string_buffer(64)
@@ -1386,11 +1393,12 @@ class MainWindow_Controller(QMainWindow):
                 text_address = base_address + virtual_address
                 buffer = ctypes.create_string_buffer(virtual_size)
                 if ctypes.windll.kernel32.ReadProcessMemory(process_handle, ctypes.c_void_p(text_address),
-                buffer, virtual_size, ctypes.byref(ctypes.c_size_t(0))) and characteristics & 0x20000000:
+                buffer, virtual_size, ctypes.byref(ctypes.c_size_t(0))) and characteristics & 0x00000020:
                     if not any(shell in section_name.lower() for shell in self.model.shells):
-                        if self.start_scan(buffer.raw):
-                            return True
+                        match_data[section_name] = buffer.raw
             ctypes.windll.kernel32.CloseHandle(process_handle)
+            if self.start_scan(match_data):
+                return True
             return False
         except:
             return False

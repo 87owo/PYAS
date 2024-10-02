@@ -88,7 +88,7 @@ class DLScan:
             if ftype in [".exe", ".dll", ".sys", ".scr", ".com"]:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
-                        section_name = section.Name.decode().strip('\x00')
+                        section_name = section.Name.decode('latin1').strip('\x00')
                         if (section.Characteristics & 0x00000020 and not
                         any(shell in section_name.lower() for shell in self.shells)):
                             match_data[section_name] = section.get_data()

@@ -11,12 +11,16 @@
 ## Requirements
 
 ```
-psutil==5.9.5
-pefile==2023.2.7
-requests==2.31.0
-pyperclip==1.8.2
-pywin32==306
-PyQt5==5.15.9
+pip install psutil==5.9.5
+pip install pefile==2023.2.7
+pip install requests==2.31.0
+pip install pyperclip==1.8.2
+pip install pywin32==306
+pip install PyQt5==5.15.9
+pip install yara-python==4.5.1
+pip install numpy==2.1.1
+pip install onnxruntime==1.18.1
+pip install pillow==10.4.0
 ```
 
 ## File Information

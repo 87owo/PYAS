@@ -1369,14 +1369,14 @@ class MainWindow_Controller(QMainWindow):
     def memory_scan(self, p):
         try:
             match_data = {}
+            kernel32 = ctypes.windll.kernel32
             base_address = self.get_module_base(p)
-            process_handle = ctypes.windll.kernel32.OpenProcess(0x1F0FFF, False, p.pid)
+            process_handle = kernel32.OpenProcess(0x1F0FFF, False, p.pid)
             dos_header = ctypes.create_string_buffer(64)
-            ctypes.windll.kernel32.ReadProcessMemory(process_handle,
-            ctypes.c_void_p(base_address), dos_header, 64, None)
+            kernel32.ReadProcessMemory(process_handle, ctypes.c_void_p(base_address), dos_header, 64, None)
             nt_headers_offset = struct.unpack("<I", dos_header[0x3C:0x3C + 4])[0]
             nt_headers = ctypes.create_string_buffer(248)
-            ctypes.windll.kernel32.ReadProcessMemory(process_handle,
+            kernel32.ReadProcessMemory(process_handle,
             ctypes.c_void_p(base_address + nt_headers_offset), nt_headers, 248, None)
             number_of_sections = struct.unpack("<H", nt_headers[6:8])[0]
             optional_header_size = struct.unpack("<H", nt_headers[20:22])[0]
@@ -1384,19 +1384,19 @@ class MainWindow_Controller(QMainWindow):
             for i in range(number_of_sections):
                 section_header = ctypes.create_string_buffer(40)
                 section_address = base_address + section_headers_offset + i * 40
-                ctypes.windll.kernel32.ReadProcessMemory(process_handle,
+                kernel32.ReadProcessMemory(process_handle,
                 ctypes.c_void_p(section_address), section_header, 40, None)
-                section_name = section_header[:8].rstrip(b'\x00').decode()
-                virtual_address = struct.unpack("<I", section_header[12:16])[0]
+                section_name = section_header[:8].rstrip(b'\x00').decode('latin1')
                 virtual_size = struct.unpack("<I", section_header[8:12])[0]
+                virtual_address = struct.unpack("<I", section_header[12:16])[0]
                 characteristics = struct.unpack("<I", section_header[36:40])[0]
                 text_address = base_address + virtual_address
                 buffer = ctypes.create_string_buffer(virtual_size)
-                if ctypes.windll.kernel32.ReadProcessMemory(process_handle, ctypes.c_void_p(text_address),
-                buffer, virtual_size, ctypes.byref(ctypes.c_size_t(0))) and characteristics & 0x00000020:
+                if kernel32.ReadProcessMemory(process_handle, ctypes.c_void_p(text_address), buffer,
+                    virtual_size, ctypes.byref(ctypes.c_size_t(0))) and characteristics & 0x00000020:
                     if not any(shell in section_name.lower() for shell in self.model.shells):
                         match_data[section_name] = buffer.raw
-            ctypes.windll.kernel32.CloseHandle(process_handle)
+            kernel32.CloseHandle(process_handle)
             if self.start_scan(match_data):
                 return True
             return False

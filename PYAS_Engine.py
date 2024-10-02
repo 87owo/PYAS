@@ -36,8 +36,6 @@ class YRScan:
 class DLScan:
     def __init__(self):
         self.models = {}
-        self.detect = []
-        self.values = 0
         self.shells = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '!o',
         'cry', 'test', 'ace', 'yg', 'obr', 'tvm', 'dec', 'enc', 'b1_', 'base',
         'bss', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'protect',
@@ -56,14 +54,16 @@ class DLScan:
                     self.class_names = json.load(f)
             elif ftype in [".onnx"]:
                 self.models[file_path] = onnxruntime.InferenceSession(file_path)
-            self.values = self.class_names['Values']
+            self.labels = self.class_names['Labels']
             self.detect = self.class_names['Detect']
-        except:
+            self.pixels = self.class_names['Pixels']
+            self.values = self.class_names['Values']
+        except Exception as e:
             pass
 
     def dl_scan(self, file_data):
         try:
-            target_size, sim = tuple(self.class_names['Pixels']), {}
+            target_size, sim = tuple(self.pixels), {}
             image = self.preprocess_image(file_data, target_size)
             image_array = numpy.array(image).astype('float32') / 255.0
             image_expand = numpy.expand_dims(image_array, axis=0)
@@ -71,14 +71,15 @@ class DLScan:
                 input_name = model.get_inputs()[0].name
                 pre_answer = model.run(None, {input_name: image_expand})[0][0]
                 number = numpy.argmax(pre_answer)
-                label = self.class_names['Labels'][number].replace("\n", "")
+                label = self.labels[number].replace("\n", "")
                 sim[label] = sim.setdefault(label, 0) + pre_answer[number]
             for local_label, sim_sum in sim.items():
                 if sim_sum > len(self.models) / 2:
                     local_level = sim_sum / len(self.models)
+                    print(local_label, local_level * 100)
                     return local_label, local_level * 100
             return False, False
-        except:
+        except Exception as e:
             return False, False
 
     def get_type(self, file_path):
@@ -88,7 +89,7 @@ class DLScan:
             if ftype in [".exe", ".dll", ".sys", ".scr", ".com"]:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
-                        section_name = section.Name.decode('latin1').strip('\x00')
+                        section_name = section.Name.rstrip(b'\x00').decode('latin1')
                         if (section.Characteristics & 0x00000020 and not
                         any(shell in section_name.lower() for shell in self.shells)):
                             match_data[section_name] = section.get_data()

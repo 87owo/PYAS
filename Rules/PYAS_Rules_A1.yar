@@ -1,8 +1,8 @@
 import "pe"
 
-rule PYAS_Rules_A_1 {
+rule A1_1 {
    meta:
-      description = "PYAS_Rules_A_1"
+      description = "1"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -57,9 +57,9 @@ rule PYAS_Rules_A_1 {
       1 of ($x*) and 8 of them
 }
 
-rule PYAS_Rules_A_2 {
+rule A1_2 {
    meta:
-      description = "PYAS_Rules_A_2"
+      description = "2"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -82,9 +82,9 @@ rule PYAS_Rules_A_2 {
       8 of them
 }
 
-rule PYAS_Rules_A_3 {
+rule A1_3 {
    meta:
-      description = "PYAS_Rules_A_3"
+      description = "3"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -106,7 +106,7 @@ rule PYAS_Rules_A_3 {
       $x1 and 8 of them
 }
 
-rule PYAS_Rules_A_4 {
+rule A1_4 {
    meta:
       description = "PYAS_Rules_A4"
       author = "PYAS Security"
@@ -124,9 +124,9 @@ rule PYAS_Rules_A_4 {
       ($x1 and $x2) and 5 of them
 }
 
-rule PYAS_Rules_A_5 {
+rule A1_5 {
    meta:
-      description = "PYAS_Rules_A_5"
+      description = "5"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -147,9 +147,9 @@ rule PYAS_Rules_A_5 {
       $x1 and 3 of them
 }
 
-rule PYAS_Rules_A_6 {
+rule A1_6 {
    meta:
-      description = "PYAS_Rules_A_6"
+      description = "6"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -214,9 +214,9 @@ rule PYAS_Rules_A_6 {
       1 of ($x*) and 5 of them
 }
 
-rule PYAS_Rules_A_7 {
+rule A1_7 {
    meta:
-      description = "PYAS_Rules_A_462"
+      description = "7"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -247,9 +247,9 @@ rule PYAS_Rules_A_7 {
       10 of them
 }
 
-rule PYAS_Rules_A_8 {
+rule A1_8 {
    meta:
-      description = "PYAS_Rules_A_8"
+      description = "8"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -278,9 +278,9 @@ rule PYAS_Rules_A_8 {
       2 of ($x*) and 6 of them
 }
 
-rule PYAS_Rules_A_9 {
+rule A1_9 {
    meta:
-      description = "PYAS_Rules_A_9"
+      description = "9"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -303,9 +303,9 @@ rule PYAS_Rules_A_9 {
       6 of them
 }
 
-rule PYAS_Rules_A_10 {
+rule A1_10 {
    meta:
-      description = "PYAS_Rules_A_10"
+      description = "10"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -329,9 +329,9 @@ rule PYAS_Rules_A_10 {
       ($x1 and $x2) and 6 of them
 }
 
-rule PYAS_Rules_A_11 {
+rule A1_11 {
    meta:
-      description = "PYAS_Rules_A_11"
+      description = "11"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -349,9 +349,9 @@ rule PYAS_Rules_A_11 {
       6 of them
 }
 
-rule PYAS_Rules_A_12 {
+rule A1_12 {
    meta:
-      description = "PYAS_Rules_A_12"
+      description = "12"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -376,9 +376,9 @@ rule PYAS_Rules_A_12 {
       1 of ($x*) and 5 of them
 }
 
-rule PYAS_Rules_A_13 {
+rule A1_13 {
    meta:
-      description = "PYAS_Rules_A_13"
+      description = "13"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -404,9 +404,9 @@ rule PYAS_Rules_A_13 {
       6 of them
 }
 
-rule PYAS_Rules_A_14 {
+rule A1_14 {
    meta:
-      description = "PYAS_Rules_A_14"
+      description = "14"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -430,9 +430,9 @@ rule PYAS_Rules_A_14 {
       8 of them
 }
 
-rule PYAS_Rules_A_15 {
+rule A1_15 {
    meta:
-      description = "PYAS_Rules_A_15"
+      description = "15"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -459,9 +459,9 @@ rule PYAS_Rules_A_15 {
       8 of them
 }
 
-rule PYAS_Rules_A_16 {
+rule A1_16 {
    meta:
-      description = "PYAS_Rules_A_16"
+      description = "16"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -485,9 +485,9 @@ rule PYAS_Rules_A_16 {
       ($x1 and $x2) and 6 of them
 }
 
-rule PYAS_Rules_A_17 {
+rule A1_17 {
    meta:
-      description = "PYAS_Rules_A_17"
+      description = "17"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -508,9 +508,9 @@ rule PYAS_Rules_A_17 {
       $x1 and 8 of them
 }
 
-rule PYAS_Rules_A_18 {
+rule A1_18 {
    meta:
-      description = "PYAS_Rules_A_18"
+      description = "18"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -531,9 +531,9 @@ rule PYAS_Rules_A_18 {
       6 of them
 }
 
-rule PYAS_Rules_A_19 {
+rule A1_19 {
    meta:
-      description = "PYAS_Rules_A_19"
+      description = "19"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -560,9 +560,9 @@ rule PYAS_Rules_A_19 {
       ($x1 and $x2) and 8 of them
 }
 
-rule PYAS_Rules_A_20 {
+rule A1_20 {
    meta:
-      description = "PYAS_Rules_A_20"
+      description = "20"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -589,9 +589,9 @@ rule PYAS_Rules_A_20 {
       8 of them
 }
 
-rule PYAS_Rules_A_21 {
+rule A1_21 {
    meta:
-      description = "PYAS_Rules_A_21"
+      description = "21"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -616,9 +616,9 @@ rule PYAS_Rules_A_21 {
       8 of them
 }
 
-rule PYAS_Rules_A_22 {
+rule A1_22 {
    meta:
-      description = "PYAS_Rules_A_22"
+      description = "22"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -635,10 +635,9 @@ rule PYAS_Rules_A_22 {
       6 of them
 }
 
-import "pe"
-rule PYAS_Rules_A_23 {
+rule A1_23 {
    meta:
-      description = "PYAS_Rules_A_23"
+      description = "23"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -658,10 +657,9 @@ rule PYAS_Rules_A_23 {
       7 of them
 }
 
-import "pe"
-rule PYAS_Rules_A_24 {
+rule A1_24 {
    meta:
-      description = "PYAS_Rules_A_24"
+      description = "24"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -688,9 +686,9 @@ rule PYAS_Rules_A_24 {
       6 of them
 }
 
-rule PYAS_Rules_A_25 {
+rule A1_25 {
    meta:
-      description = "PYAS_Rules_A_25"
+      description = "25"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -716,9 +714,9 @@ rule PYAS_Rules_A_25 {
       $x1 and 5 of them
 }
 
-rule PYAS_Rules_A_26 {
+rule A1_26 {
    meta:
-      description = "PYAS_Rules_A_26"
+      description = "26"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -742,9 +740,9 @@ rule PYAS_Rules_A_26 {
       8 of them
 }
 
-rule PYAS_Rules_A_27 {
+rule A1_27 {
    meta:
-      description = "PYAS_Rules_A_27"
+      description = "27"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -768,9 +766,9 @@ rule PYAS_Rules_A_27 {
       6 of them
 }
 
-rule PYAS_Rules_A_28 {
+rule A1_28 {
    meta:
-      description = "PYAS_Rules_A_28"
+      description = "28"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -801,9 +799,9 @@ rule PYAS_Rules_A_28 {
       8 of them
 }
 
-rule PYAS_Rules_A_29 {
+rule A1_29 {
    meta:
-      description = "PYAS_Rules_A_29"
+      description = "29"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -837,9 +835,9 @@ rule PYAS_Rules_A_29 {
       6 of them
 }
 
-rule PYAS_Rules_A_30 {
+rule A1_30 {
    meta:
-      description = "PYAS_Rules_A_30"
+      description = "30"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -858,9 +856,9 @@ rule PYAS_Rules_A_30 {
       6 of them
 }
 
-rule PYAS_Rules_A_31 {
+rule A1_31 {
    meta:
-      description = "PYAS_Rules_A_31"
+      description = "31"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -878,9 +876,9 @@ rule PYAS_Rules_A_31 {
       6 of them
 }
 
-rule PYAS_Rules_A_32 {
+rule A1_32 {
    meta:
-      description = "PYAS_Rules_A_32"
+      description = "32"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -909,9 +907,9 @@ rule PYAS_Rules_A_32 {
       $x1 and 8 of them
 }
 
-rule PYAS_Rules_A_33 {
+rule A1_33 {
    meta:
-      description = "PYAS_Rules_A_33"
+      description = "33"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -937,9 +935,9 @@ rule PYAS_Rules_A_33 {
       $x1 and 8 of them
 }
 
-rule PYAS_Rules_A_34 {
+rule A1_34 {
    meta:
-      description = "PYAS_Rules_A_30"
+      description = "34"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -965,9 +963,9 @@ rule PYAS_Rules_A_34 {
       8 of them
 }
 
-rule PYAS_Rules_A_35 {
+rule A1_35 {
    meta:
-      description = "PYAS_Rules_A_35"
+      description = "35"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -996,9 +994,9 @@ rule PYAS_Rules_A_35 {
       6 of them
 }
 
-rule PYAS_Rules_A_36 {
+rule A1_36 {
    meta:
-      description = "PYAS_Rules_A_36"
+      description = "36"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1023,9 +1021,9 @@ rule PYAS_Rules_A_36 {
       6 of them
 }
 
-rule PYAS_Rules_A_37 {
+rule A1_37 {
    meta:
-      description = "PYAS_Rules_A_37"
+      description = "37"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1053,9 +1051,9 @@ rule PYAS_Rules_A_37 {
       6 of them
 }
 
-rule PYAS_Rules_A_38 {
+rule A1_38 {
    meta:
-      description = "PYAS_Rules_A_38"
+      description = "38"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1083,9 +1081,9 @@ rule PYAS_Rules_A_38 {
       6 of them
 }
 
-rule PYAS_Rules_A_39 {
+rule A1_39 {
    meta:
-      description = "PYAS_Rules_A_39"
+      description = "39"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1104,9 +1102,9 @@ rule PYAS_Rules_A_39 {
       6 of them
 }
 
-rule PYAS_Rules_A_40 {
+rule A1_40 {
    meta:
-      description = "PYAS_Rules_A_40"
+      description = "40"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1136,9 +1134,9 @@ rule PYAS_Rules_A_40 {
       8 of them
 }
 
-rule PYAS_Rules_A_41 {
+rule A1_41 {
    meta:
-      description = "PYAS_Rules_A_41"
+      description = "41"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1160,9 +1158,9 @@ rule PYAS_Rules_A_41 {
       6 of them
 }
 
-rule PYAS_Rules_A_42 {
+rule A1_42 {
    meta:
-      description = "PYAS_Rules_A_42"
+      description = "42"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1182,9 +1180,9 @@ rule PYAS_Rules_A_42 {
       6 of them
 }
 
-rule PYAS_Rules_A_43 {
+rule A1_43 {
    meta:
-      description = "PYAS_Rules_A_43"
+      description = "43"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1209,9 +1207,9 @@ rule PYAS_Rules_A_43 {
       8 of them
 }
 
-rule PYAS_Rules_A_44 {
+rule A1_44 {
    meta:
-      description = "PYAS_Rules_A_44"
+      description = "44"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1239,9 +1237,9 @@ rule PYAS_Rules_A_44 {
       8 of them
 }
 
-rule PYAS_Rules_A_45 {
+rule A1_45 {
    meta:
-      description = "PYAS_Rules_A_45"
+      description = "45"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1268,9 +1266,9 @@ rule PYAS_Rules_A_45 {
       8 of them
 }
 
-rule PYAS_Rules_A_46 {
+rule A1_46 {
    meta:
-      description = "PYAS_Rules_A_46"
+      description = "46"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1298,9 +1296,9 @@ rule PYAS_Rules_A_46 {
       $x1 and 8 of them
 }
 
-rule PYAS_Rules_A_47 {
+rule A1_47 {
    meta:
-      description = "PYAS_Rules_A_47"
+      description = "47"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1329,9 +1327,9 @@ rule PYAS_Rules_A_47 {
       1 of ($x*) and 5 of them
 }
 
-rule PYAS_Rules_A_48 {
+rule A1_48 {
    meta:
-      description = "PYAS_Rules_A_48"
+      description = "48"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1350,9 +1348,9 @@ rule PYAS_Rules_A_48 {
       2 of ($x*) and 6 of them
 }
 
-rule PYAS_Rules_A_49 {
+rule A1_49 {
    meta:
-      description = "PYAS_Rules_A_49"
+      description = "49"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1378,9 +1376,9 @@ rule PYAS_Rules_A_49 {
       3 of ($x*) and 5 of them
 }
 
-rule PYAS_Rules_A_50 {
+rule A1_50 {
    meta:
-      description = "PYAS_Rules_A_50"
+      description = "50"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1400,9 +1398,9 @@ rule PYAS_Rules_A_50 {
       $x1 and 6 of them
 }
 
-rule PYAS_Rules_A_51 {
+rule A1_51 {
    meta:
-      description = "PYAS_Rules_A_51"
+      description = "51"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
@@ -1420,9 +1418,9 @@ rule PYAS_Rules_A_51 {
       1 of ($x*) and 4 of them
 }
 
-rule PYAS_Rules_A_52 {
+rule A1_52 {
    meta:
-      description = "PYAS_Rules_A_52"
+      description = "52"
       author = "PYAS Security"
       date = "2024-06-13"
    strings:
@@ -1445,9 +1443,9 @@ rule PYAS_Rules_A_52 {
       8 of them
 }
 
-rule PYAS_Rules_A_53 {
+rule A1_53 {
    meta:
-      description = "PYAS_Rules_A_53"
+      description = "53"
       author = "PYAS Security"
       date = "2024-06-12"
    strings:

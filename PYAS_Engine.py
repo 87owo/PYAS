@@ -1,4 +1,4 @@
-import os, io, sys, time, json, yara
+import os, sys, time, json, yara
 import numpy, pefile, onnxruntime
 from PIL import Image, ImageShow
 
@@ -17,8 +17,8 @@ class YRScan:
             elif ftype in [".ip", ".ips"]:
                 with open(file_path, "r") as f:
                     self.network += [l.strip() for l in f.readlines()]
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     def yr_scan(self, file_path):
         try:
@@ -28,9 +28,11 @@ class YRScan:
             for name, rules in self.rules.items():
                 matchs_rules = rules.match(data=file_path)
                 if matchs_rules:
-                    return "Virus/Rules", matchs_rules
+                    level = str(matchs_rules[0]).split("_")[1]
+                    return "Virus/Rules", level
             return False, False
-        except:
+        except Exception as e:
+            print(e)
             return False, False
 
 class DLScan:
@@ -61,26 +63,36 @@ class DLScan:
         except Exception as e:
             pass
 
-    def dl_scan(self, file_data):
+    def dl_scan(self, section_data):
         try:
-            target_size, sim = tuple(self.pixels), {}
-            image = self.preprocess_image(file_data, target_size)
-            image_array = numpy.array(image).astype('float32') / 255.0
-            image_expand = numpy.expand_dims(image_array, axis=0)
-            for model_name, model in self.models.items():
-                input_name = model.get_inputs()[0].name
-                pre_answer = model.run(None, {input_name: image_expand})[0][0]
-                number = numpy.argmax(pre_answer)
-                label = self.labels[number].replace("\n", "")
-                sim[label] = sim.setdefault(label, 0) + pre_answer[number]
-            for local_label, sim_sum in sim.items():
-                if sim_sum > len(self.models) / 2:
-                    local_level = sim_sum / len(self.models)
-                    print(local_label, local_level * 100)
-                    return local_label, local_level * 100
-            return False, False
+            target_size, batch_size = tuple(self.pixels), 10
+            label_similarities = {label: [] for label in self.labels}
+            image_data = list(self.preprocess_image(section_data, target_size))
+            for i in range(0, len(image_data), batch_size):
+                batch = image_data[i:i + batch_size]
+                image_expand = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in batch], axis=0)
+                image_expand = image_expand.reshape((len(batch), target_size[0], target_size[1], 1))
+                for model_name, model in self.models.items():
+                    input_name = model.get_inputs()[0].name
+                    pre_answers = model.run(None, {input_name: image_expand})[0]
+                    for j in range(len(batch)):
+                        for k, score in enumerate(pre_answers[j]):
+                            label_similarities[self.labels[k].strip()].append(score)
+            label_percentage = {label: (sum(similarities) / len(image_data)) * 100 
+            for label, similarities in label_similarities.items()}
+            label, level = max(label_percentage.items(), key=lambda x: x[1])
+            return label, int(level)
         except Exception as e:
             return False, False
+
+    def preprocess_image(self, file_data, target_size):
+        total_pixels = target_size[0] * target_size[1]
+        file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
+        num_images = int(numpy.ceil(len(file_data) / total_pixels))
+        reshaped_data = numpy.zeros((num_images, total_pixels), dtype=numpy.uint8)
+        reshaped_data.flat[:len(file_data)] = file_data
+        for image_array in reshaped_data:
+            yield Image.fromarray(image_array.reshape(target_size), 'L')
 
     def get_type(self, file_path):
         try:
@@ -99,13 +111,3 @@ class DLScan:
             return match_data
         except:
             return {}
-
-    def preprocess_image(self, file_data, target_size):
-        file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
-        data_count = len(file_data)
-        wah = int(numpy.ceil(numpy.sqrt((data_count + 2) // 3)))
-        image_array = numpy.zeros((wah * wah * 3,), dtype=numpy.uint8)
-        image_array[:data_count] = file_data
-        image_array = image_array.reshape((wah, wah, 3))
-        image = Image.fromarray(image_array)
-        return image.resize(target_size, Image.Resampling.LANCZOS)

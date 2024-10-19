@@ -1,15 +1,48 @@
-import os, gc, sys, time, json, psutil
-import ctypes, struct, msvcrt, pyperclip
-import win32gui, win32api, win32con, win32file
+import os, gc, sys, time, json
+import ctypes, ctypes.wintypes
+import struct, msvcrt, pyperclip
 from PYAS_Engine import YRScan, DLScan
 from PYAS_Suffixes import slist, alist
 from PYAS_Language import translate_dict
 from PYAS_Interface import Ui_MainWindow
-from threading import Thread
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from subprocess import *
+from threading import *
+
+class PROCESSENTRY32(ctypes.Structure):
+    _fields_ = [
+        ("dwSize", ctypes.wintypes.DWORD),
+        ("cntUsage", ctypes.wintypes.DWORD),
+        ("th32ProcessID", ctypes.wintypes.DWORD),
+        ("th32DefaultHeapID", ctypes.wintypes.LPVOID),
+        ("th32ModuleID", ctypes.wintypes.DWORD),
+        ("cntThreads", ctypes.wintypes.DWORD),
+        ("th32ParentProcessID", ctypes.wintypes.DWORD),
+        ("dwFlags", ctypes.wintypes.DWORD),
+        ("szExeFile", ctypes.wintypes.CHAR * 260)]
+
+class MIB_TCPROW_OWNER_PID(ctypes.Structure):
+    _fields_ = [
+        ("dwState", ctypes.wintypes.DWORD),
+        ("dwLocalAddr", ctypes.wintypes.DWORD),
+        ("dwLocalPort", ctypes.wintypes.DWORD),
+        ("dwRemoteAddr", ctypes.wintypes.DWORD),
+        ("dwRemotePort", ctypes.wintypes.DWORD),
+        ("dwOwningPid", ctypes.wintypes.DWORD)]
+
+class MIB_TCPTABLE_OWNER_PID(ctypes.Structure):
+    _fields_ = [
+        ("dwNumEntries", ctypes.wintypes.DWORD),
+        ("table", MIB_TCPROW_OWNER_PID * 1)]
+
+class FILE_NOTIFY_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ("NextEntryOffset", ctypes.wintypes.DWORD),
+        ("Action", ctypes.wintypes.DWORD),
+        ("FileNameLength", ctypes.wintypes.DWORD),
+        ("FileName", ctypes.wintypes.WCHAR * 1024)]
 
 class MainWindow_Controller(QMainWindow):
     def __init__(self):
@@ -19,16 +52,25 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.1"
+        self.pyas_version = "3.2.3"
         self.first_startup = True
-        self.init_data_base()
         self.init_tray_icon()
+        self.init_data_base()
+        self.init_system_code()
+        self.init_define_func()
         self.init_config_qtui()
         self.init_config_read()
         self.init_config_boot()
         self.init_control()
         self.init_threads()
         self.init_startup()
+
+    def init_system_code(self):
+        try:
+            self.enc = sys.getfilesystemencoding()
+            self.ene = sys.getfilesystemencodeerrors()
+        except Exception as e:
+            self.ene = "replace"
 
     def init_threads(self):
         self.protect_proc_init()
@@ -37,12 +79,23 @@ class MainWindow_Controller(QMainWindow):
         self.protect_drv_init()
         self.protect_net_init()
         self.block_window_init()
+        self.gc_collect_init()
 
     def init_tray_icon(self):
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.activated.connect(self.init_show_pyas)
         self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.pyas)))
         self.tray_icon.show()
+
+    def init_define_func(self):
+        try:
+            self.ntdll = ctypes.WinDLL('ntdll', use_last_error=True)
+            self.psapi = ctypes.WinDLL('Psapi', use_last_error=True)
+            self.kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            self.advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
+            self.iphlpapi = ctypes.WinDLL('iphlpapi', use_last_error=True)
+        except Exception as e:
+            pass
 
     def init_startup(self):
         try:
@@ -93,9 +146,7 @@ class MainWindow_Controller(QMainWindow):
     def init_config_read(self):
         try:
             self.track_proc = None
-            self.exist_process = set()
-            for p in psutil.process_iter():
-                self.exist_process.add(p.pid)
+            self.exist_process = self.get_process_list()
             if not os.path.exists("C:/ProgramData/PYAS"): 
                 os.makedirs("C:/ProgramData/PYAS")
             if not os.path.exists("C:/ProgramData/PYAS/PYAS.json"): 
@@ -201,7 +252,7 @@ class MainWindow_Controller(QMainWindow):
         self.virus_lock = {}
         self.virus_list = []
         self.virus_list_ui = []
-        self.Process_quantity = []
+        self.Process_quantity = 0
         self.Process_list_all_pid = []
         self.Process_sim = QStringListModel()
         self.Process_Timer = QTimer()
@@ -613,6 +664,7 @@ class MainWindow_Controller(QMainWindow):
         if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
             Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
             self.first_startup = True
+            self.gc_collect = False
             self.protect_proc_init()
             self.protect_file_init()
             self.protect_sys_init()
@@ -840,7 +892,6 @@ class MainWindow_Controller(QMainWindow):
             QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
             Qt.QueuedConnection, Q_ARG(str, text))
             self.send_notify(text)
-            gc.collect()
         except Exception as e:
             self.bug_event(e)
 
@@ -892,9 +943,9 @@ class MainWindow_Controller(QMainWindow):
     def disk_scan(self):
         try:
             self.init_scan()
-            for d in range(26):
-                if os.path.exists(f"{chr(65+d)}:/"):
-                    self.scan_thread = Thread(target=self.traverse_path, args=(f"{chr(65+d)}:/",), daemon=True)
+            for l in range(65, 91):
+                if os.path.exists(f"{chr(l)}:/"):
+                    self.scan_thread = Thread(target=self.traverse_path, args=(f"{chr(l)}:/",), daemon=True)
                     self.scan_thread.start()
                     while self.scan_thread.is_alive():
                         QApplication.processEvents()
@@ -917,7 +968,6 @@ class MainWindow_Controller(QMainWindow):
                     QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
                     Qt.QueuedConnection, Q_ARG(str, file))
                     self.write_scan(self.start_scan(file),file)
-                gc.collect()
             except:
                 pass
 
@@ -927,15 +977,17 @@ class MainWindow_Controller(QMainWindow):
                 match_data = file
             elif os.path.exists(file):
                 match_data = self.model.get_type(file)
-            for ftype, data in match_data.items():
+            for section, data in match_data.items():
                 label, level = self.model.dl_scan(data)
                 if label and label in self.model.detect:
                     if self.json["high_sensitive"]:
-                        return label
+                        return f"{label}.{level}"
                     elif level >= self.model.values:
-                        return label
+                        return f"{label}.{level}"
             if self.json["extension_kits"]:
-                return self.rules.yr_scan(file)[0]
+                label, level = self.rules.yr_scan(file)
+                if label and isinstance(level, str):
+                    return f"{label}.{level}"
             return False
         except:
             return False
@@ -952,111 +1004,120 @@ class MainWindow_Controller(QMainWindow):
         except Exception as e:
             self.bug_event(e)
 
-    def repair_system_file_icon(self):
+    def open_registry_key(self, hkey, subkey, access=0xF003F):
+        key_handle = ctypes.wintypes.HANDLE()
+        result = self.advapi32.RegOpenKeyExW(hkey, subkey, 0, access, ctypes.byref(key_handle))
+        return key_handle
+
+    def set_registry_value(self, hkey, subkey, value_name, value_type, value):
+        key_handle = self.open_registry_key(hkey, subkey)
+        self.advapi32.RegSetValueExW(key_handle, value_name, 0,
+        value_type, ctypes.create_unicode_buffer(value), len(value) * 2)
+        self.advapi32.RegCloseKey(key_handle)
+
+    def delete_registry_value(self, key_handle, value_name):
         try:
-            key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, 'exefile', 0, win32con.KEY_ALL_ACCESS)
-            win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
+            result = self.advapi32.RegDeleteValueW(key_handle, value_name)
+            if result == 0 and self.track_proc:
+                self.kill_process("註冊表攔截", *self.track_proc)
+        except Exception as e:
+            pass
+
+    def delete_registry_key(self, hkey, subkey):
+        try:
+            result = self.advapi32.RegDeleteKeyW(hkey, subkey)
+            if result == 0 and self.track_proc:
+                self.kill_process("註冊表攔截", *self.track_proc)
+        except Exception as e:
+            pass
+
+    def create_registry_keys(self, keys):
+        for hkey, subkey in keys:
+            key_handle = ctypes.wintypes.HANDLE()
+            self.advapi32.RegCreateKeyExW(hkey, subkey, 0, None, 0, 0xF003F, None, ctypes.byref(key_handle), None)
+
+    def repair_system_restrict(self):
+        try:
+            permissions = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
+            "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun",
+            "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD",
+            "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "Restrict_Run", 
+            "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents",
+            "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu",
+            "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", 
+            "NoManageMyComputerVerb", "NoWindowsUpdate", "ClearRecentDocsOnExit", "NoStartMenuNetworkPlaces"]
+            keys_to_create = [(0x80000001, r"Software\Policies\Microsoft\MMC"),
+            (0x80000001, r"Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}"),
+            (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+            (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+            (0x80000001, r"SOFTWARE\Policies\Microsoft\Windows\System"),
+            (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+            (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+            (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop"),
+            (0x80000002, r"SOFTWARE\Policies\Microsoft\Windows\System")]
+            self.create_registry_keys(keys_to_create)
+            for hkey, subkey in keys_to_create:
+                try:
+                    key_handle = self.open_registry_key(hkey, subkey)
+                    for perm in permissions:
+                        self.delete_registry_value(key_handle, perm)
+                    self.advapi32.RegCloseKey(key_handle)
+                except:
+                    pass
         except:
             pass
+
+    def repair_system_file_icon(self):
         try:
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\Classes\exefile', 0, win32con.KEY_ALL_ACCESS)
-            win32api.RegSetValue(key, 'DefaultIcon', win32con.REG_SZ, '%1')
-        except:
+            self.set_registry_value(0x80000000, 'exefile', 'DefaultIcon', 1, '%1')
+        except Exception as e:
+            pass
+        try:
+            self.set_registry_value(0x80000002, r'SOFTWARE\Classes\exefile', 'DefaultIcon', 1, '%1')
+        except Exception as e:
             pass
 
     def repair_system_image(self):
         try:
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options',0,win32con.KEY_ALL_ACCESS | win32con.WRITE_OWNER)
-            count = win32api.RegQueryInfoKey(key)[0]
-            while count >= 0:
+            key_handle = self.open_registry_key(0x80000002,
+            r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options', 0xF003F)
+            count = ctypes.wintypes.DWORD()
+            self.advapi32.RegQueryInfoKeyW(key_handle, None, None, None,
+            ctypes.byref(count), None, None, None, None, None, None, None)
+            for i in range(count.value, -1, -1):
                 try:
-                    subKeyName = win32api.RegEnumKey(key, count)
-                    win32api.RegDeleteKey(key, subKeyName)
-                except:
+                    subkey_name = ctypes.create_unicode_buffer(256)
+                    self.advapi32.RegEnumKeyW(key_handle, i, subkey_name, 256)
+                    self.delete_registry_key(key_handle, subkey_name.value)
+                except Exception as e:
                     pass
-                count = count - 1
-        except:
+        except Exception as e:
             pass
 
     def repair_system_file_type(self):
         try:
-            data = [('.exe', 'exefile'),('exefile', 'Application')]
-            key = win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE, r'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)
+            data = [('.exe', 'exefile'), ('exefile', 'Application')]
+            key_handle = self.open_registry_key(0x80000002, r'SOFTWARE\Classes', 0xF003F)
             for ext, value in data:
-                win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
-            win32api.RegCloseKey(key)
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, r'SOFTWARE\Classes', 0, win32con.KEY_ALL_ACCESS)
+                self.set_registry_value(0x80000002, ext, '', 1, value)
+            self.advapi32.RegCloseKey(key_handle)
+            key_handle = self.open_registry_key(0x80000001, r'SOFTWARE\Classes', 0xF003F)
             for ext, value in data:
-                try:
-                    win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
-                    keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" %*')
-                    win32api.RegCloseKey(keyopen)
-                except:
-                    pass
-            win32api.RegCloseKey(key)
-            key = win32api.RegOpenKey(win32con.HKEY_CURRENT_USER, r'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FileExts', 0, win32con.KEY_ALL_ACCESS)
-            win32api.RegSetValue(key, '.exe', win32con.REG_SZ, '')
-            win32api.RegCloseKey(key)
-            key = win32api.RegOpenKey(win32con.HKEY_CLASSES_ROOT, None, 0, win32con.KEY_ALL_ACCESS)
-            for ext, value in data:
-                try:
-                    win32api.RegSetValue(key, ext, win32con.REG_SZ, value)
-                    keyopen = win32api.RegOpenKey(key, ext + r'\shell\open', 0, win32con.KEY_ALL_ACCESS)
-                    win32api.RegSetValue(keyopen, 'command', win32con.REG_SZ, '"%1" %*')
-                    win32api.RegCloseKey(keyopen)
-                except:
-                    pass
-            win32api.RegCloseKey(key)
-        except:
-            pass
-
-    def repair_system_restrict(self):
-        try:
-            Permission = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
-            "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun","DisableCMD",
-            "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic" "NoStartMenuNetworkPlaces",
-            "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu", "ClearRecentDocsOnExit",
-            "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoWindowsUpdate",
-            "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "NoManageMyComputerVerb",
-            "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents", "Restrict_Run"]
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"Explorer")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"System")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies",0,win32con.KEY_ALL_ACCESS),"ActiveDesktop")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"SOFTWARE\Policies\Microsoft\Windows",0,win32con.KEY_ALL_ACCESS),"System")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Policies\Microsoft\Windows",0,win32con.KEY_ALL_ACCESS),"System")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"Software\Policies\Microsoft",0,win32con.KEY_ALL_ACCESS),"MMC")
-            win32api.RegCreateKey(win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"Software\Policies\Microsoft\MMC",0,win32con.KEY_ALL_ACCESS),"{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}")
-            keys = [win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"SOFTWARE\Policies\Microsoft\Windows\System",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_LOCAL_MACHINE,r"SOFTWARE\Policies\Microsoft\Windows\System",0,win32con.KEY_ALL_ACCESS),
-            win32api.RegOpenKey(win32con.HKEY_CURRENT_USER,r"Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}",0,win32con.KEY_ALL_ACCESS)]
-            for key in keys:
-                for i in Permission:
-                    try:
-                        win32api.RegDeleteValue(key,i)
-                        name = self.track_proc.name()
-                        if "cmd.exe" not in name and "powershell" not in name:
-                            self.kill_process("註冊表攔截", *self.track_proc)
-                    except:
-                        pass
-                win32api.RegCloseKey(key)
-        except:
+                self.set_registry_value(0x80000001, ext, '', 1, value)
+                self.set_registry_value(0x80000001, ext + r'\shell\open\command', '', 1, '"%1" %*')
+            self.advapi32.RegCloseKey(key_handle)
+        except Exception as e:
             pass
 
     def repair_system_wallpaper(self):
         try:
-            key = win32api.RegOpenKeyEx(win32con.HKEY_CURRENT_USER, r"Control Panel\Desktop", 0, win32con.KEY_SET_VALUE)
-            win32api.RegSetValueEx(key, "Wallpaper", 0, win32con.REG_SZ, 'C:/Windows/web/wallpaper/windows/img0.jpg')
-            win32api.RegCloseKey(key)
-            win32gui.SystemParametersInfo(win32con.SPI_SETDESKWALLPAPER, 'C:/Windows/web/wallpaper/windows/img0.jpg', win32con.SPIF_SENDCHANGE)
-        except:
+            key_handle = self.open_registry_key(0x80000001, r"Control Panel\Desktop", 0xF003F)
+            self.advapi32.RegSetValueExW(key_handle, "Wallpaper", 0, 1,
+            ctypes.create_unicode_buffer('C:/Windows/web/wallpaper/windows/img0.jpg'),
+            len('C:/Windows/web/wallpaper/windows/img0.jpg') * 2)
+            self.advapi32.RegCloseKey(key_handle)
+            ctypes.windll.user32.SystemParametersInfoW(20, 0, 'C:/Windows/web/wallpaper/windows/img0.jpg', 2)
+        except Exception as e:
             pass
 
     def clean_system(self):
@@ -1109,7 +1170,7 @@ class MainWindow_Controller(QMainWindow):
             if self.question_event("請選擇要攔截的軟體彈窗"):
                 while not self.block_window:
                     QApplication.processEvents()
-                    window_name = str(win32gui.GetWindowText(win32gui.GetForegroundWindow()))
+                    window_name = self.get_foreground_window_title()
                     if window_name not in ["","PYAS",self.trans("警告")]:
                         if window_name not in self.blocklist:
                             if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
@@ -1126,19 +1187,34 @@ class MainWindow_Controller(QMainWindow):
                         self.block_window = True
             self.block_window_init()
         except Exception as e:
-            self.bug_event(e)
+            pass#self.bug_event(e)
 
     def block_window_init(self):
         self.block_window = True
         Thread(target=self.block_software_window, daemon=True).start()
+
+    def get_foreground_window_title(self):
+        hWnd = ctypes.windll.user32.GetForegroundWindow()
+        length = ctypes.windll.user32.GetWindowTextLengthW(hWnd)
+        title = ctypes.create_unicode_buffer(length + 1)
+        ctypes.windll.user32.GetWindowTextW(hWnd, title, length + 1)
+        return str(title.value)
+
+    def find_window_by_name(self, window_name):
+        return ctypes.windll.user32.FindWindowW(None, ctypes.create_unicode_buffer(window_name))
+
+    def post_close_message(self, hWnd):
+        ctypes.windll.user32.PostMessageW(hWnd, 274, 61536, 0)
 
     def block_software_window(self):
         while self.block_window:
             try:
                 time.sleep(0.2)
                 for window_name in self.blocklist:
-                    win32gui.PostMessage(win32gui.FindWindow(None, window_name), 274, 61536, 0)
-            except:
+                    hWnd = self.find_window_by_name(window_name)
+                    if hWnd != 0:  # 如果找到窗口
+                        self.post_close_message(hWnd)
+            except Exception as e:
                 pass
 
     def repair_network(self):
@@ -1157,38 +1233,41 @@ class MainWindow_Controller(QMainWindow):
     def process_list(self):
         try:
             self.Process_list_app = []
-            self.Process_list_app_pid = []
-            for p in psutil.process_iter():
-                try:
-                    self.Process_list_app.append(f"{p.name()} ({p.pid}) > {p.exe()}")
-                    self.Process_list_app_pid.append(p.pid)
-                    QApplication.processEvents()
-                except:
-                    pass
-            self.Process_list_all_pid = self.Process_list_app_pid
-            if len(self.Process_list_app_pid) != self.Process_quantity:
-                self.Process_quantity = len(self.Process_list_app_pid)
+            for pid in self.get_process_list():
+                QApplication.processEvents()
+                h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+                exe_name = self.get_process_file(h_process).replace('\\', '/')
+                if exe_name:
+                    self.Process_list_app.append((pid, f"[{pid}] > {exe_name}"))
+            self.Process_list_app.sort(key=lambda x: x[0])
+            self.Process_list_all_pid = [pid for pid, _ in self.Process_list_app]
+            if len(self.Process_list_all_pid) != self.Process_quantity:
+                self.Process_quantity = len(self.Process_list_all_pid)
                 self.ui.Process_Total_View.setText(str(self.Process_quantity))
-                self.Process_sim.setStringList(self.Process_list_app)
+                process_display = [name for _, name in self.Process_list_app]
+                self.Process_sim.setStringList(process_display)
                 self.ui.Process_list.setModel(self.Process_sim)
         except Exception as e:
             self.bug_event(e)
 
-    def process_list_menu(self,pos):
+    def process_list_menu(self, pos):
         try:
             for i in self.ui.Process_list.selectedIndexes():
-                self.pid = self.Process_list_all_pid[i.row()]
+                selected_pid = self.Process_list_all_pid[i.row()]
             self.Process_popMenu = QMenu()
-            self.kill_Process = QAction(self.trans("結束進程"),self)
+            self.kill_Process = QAction(self.trans("結束進程"), self)
             self.Process_popMenu.addAction(self.kill_Process)
             if self.Process_popMenu.exec_(self.ui.Process_list.mapToGlobal(pos)) == self.kill_Process:
-                for p in psutil.process_iter():
-                    if p.pid == self.pid:
-                        file = p.exe().replace("\\", "/")
-                        if file == self.pyas:
-                            self.close()
-                        else:
-                            p.kill()
+                try:
+                    hProcess = self.kernel32.OpenProcess(0x1F0FFF, False, selected_pid)
+                    file_path = self.get_process_file(hProcess).replace('\\', '/')
+                    if file_path == self.pyas:
+                        self.close()
+                    else:
+                        self.kernel32.TerminateProcess(hProcess, 0)
+                    self.kernel32.CloseHandle(hProcess)
+                except:
+                    pass
         except:
             pass
 
@@ -1301,166 +1380,122 @@ class MainWindow_Controller(QMainWindow):
         except Exception as e:
             self.bug_event(self.trans(f"網路防護開啟失敗: ")+str(e))
 
-    def protect_proc_thread(self):
-        while self.proc_protect:
-            time.sleep(0.01)
-            new_process = set()
-            for p in psutil.process_iter():
-                new_process.add(p.pid)
-            for pid in new_process - self.exist_process:
-                try:
-                    p = psutil.Process(pid)
-                    self.lock_process(p, True)
-                    self.handle_new_process(p)
-                    self.lock_process(p, False)
-                    gc.collect()
-                except:
-                    pass
-            self.exist_process = new_process
-        if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
-            self.send_notify(self.trans(f"竄改警告: self.proc_protect"), False)
-
-    def handle_new_process(self, p):
+    def gc_collect_init(self):
         try:
-            name, file, cmd = p.name(), p.exe().replace("\\", "/"), p.cmdline()
-            if file != self.pyas and file not in self.whitelist:
-                if "powershell" in name:
-                    file = str(cmd[-1].split("'")[-2]).replace("\\", "/")
-                elif "cmd.exe" in name:
-                    file = str(" ".join(cmd[2:])).replace("\\", "/")
-                elif ":/Windows" in file:
-                    file = str(cmd[-1]).replace("\\", "/")
-                if self.start_scan(file):
-                    self.kill_process("病毒攔截", p, file, False)
-                elif self.load_scan(p):
-                    self.kill_process("加載攔截", p, file, False)
-                elif self.memory_scan(p):
-                    self.kill_process("記憶體攔截", p, file, False)
-                elif ":/Windows" not in file and ":/Program" not in file:
-                    ftype = str(f".{file.split('.')[-1]}").lower()
-                    if os.path.exists(file) and ftype in slist:
-                        self.track_proc = p, file, True
+            self.gc_collect = True
+            Thread(target=self.gc_collect_thread, daemon=True).start()
         except:
             pass
 
-    def load_scan(self, p):
+    def gc_collect_thread(self):
+        while self.gc_collect:
+            try:
+                time.sleep(0.2)
+                collected = gc.collect()
+            except:
+                pass
+
+    def protect_proc_thread(self):
+        while self.proc_protect:
+            try:
+                time.sleep(0.1)
+                new_process = self.get_process_list()
+                for pid in new_process - self.exist_process:
+                    self.handle_new_process(pid)
+                self.exist_process = new_process
+            except:
+                pass
+
+    def get_process_list(self):
         try:
-            for entry in p.memory_maps(grouped=True):
-                file = str(entry.path).replace("\\", "/")
-                if ":/Windows" not in file and file not in self.whitelist:
-                    ftype = str(f".{file.split('.')[-1]}").lower()
-                    if ftype not in [".exe"] and self.start_scan(file):
-                        return True
-            return False
+            exist_process, pe32 = set(), PROCESSENTRY32()
+            pe32.dwSize = ctypes.sizeof(PROCESSENTRY32)
+            hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+            if self.kernel32.Process32First(hSnapshot, ctypes.byref(pe32)):
+                while self.kernel32.Process32Next(hSnapshot, ctypes.byref(pe32)):
+                    exist_process.add(pe32.th32ProcessID)
+            self.kernel32.CloseHandle(hSnapshot)
+            return exist_process
         except:
-            return False
+            return None
 
-    def get_module_base(self, p):
+    def handle_new_process(self, pid):
         try:
-            for entry in p.memory_maps(grouped=False):
-                file = str(entry.path).replace("\\", "/")
-                ftype = str(f".{file.split('.')[-1]}").lower()
-                if ftype in [".exe"] and file not in self.whitelist:
-                    return int(entry.addr, 16)
-            return False
+            h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            file = self.get_process_file(h_process).replace("\\", "/")
+            if file != self.pyas and file not in self.whitelist:
+                self.lock_process(h_process, True)
+                if self.start_scan(file):
+                    self.kill_process("病毒攔截", h_process, file)
+                elif ":/Windows" not in file and os.path.exists(file):
+                    self.track_proc = (h_process, file)
+            self.lock_process(h_process, False)
         except:
-            return False
+            self.lock_process(h_process, False)
 
-    def memory_scan(self, p):
+    def kill_process(self, info, h_process, file):
         try:
-            match_data = {}
-            kernel32 = ctypes.windll.kernel32
-            base_address = self.get_module_base(p)
-            process_handle = kernel32.OpenProcess(0x1F0FFF, False, p.pid)
-            dos_header = ctypes.create_string_buffer(64)
-            kernel32.ReadProcessMemory(process_handle, ctypes.c_void_p(base_address), dos_header, 64, None)
-            nt_headers_offset = struct.unpack("<I", dos_header[0x3C:0x3C + 4])[0]
-            nt_headers = ctypes.create_string_buffer(248)
-            kernel32.ReadProcessMemory(process_handle,
-            ctypes.c_void_p(base_address + nt_headers_offset), nt_headers, 248, None)
-            number_of_sections = struct.unpack("<H", nt_headers[6:8])[0]
-            optional_header_size = struct.unpack("<H", nt_headers[20:22])[0]
-            section_headers_offset = nt_headers_offset + 24 + optional_header_size
-            for i in range(number_of_sections):
-                section_header = ctypes.create_string_buffer(40)
-                section_address = base_address + section_headers_offset + i * 40
-                kernel32.ReadProcessMemory(process_handle,
-                ctypes.c_void_p(section_address), section_header, 40, None)
-                section_name = section_header[:8].rstrip(b'\x00').decode('latin1')
-                virtual_size = struct.unpack("<I", section_header[8:12])[0]
-                virtual_address = struct.unpack("<I", section_header[12:16])[0]
-                characteristics = struct.unpack("<I", section_header[36:40])[0]
-                text_address = base_address + virtual_address
-                buffer = ctypes.create_string_buffer(virtual_size)
-                if kernel32.ReadProcessMemory(process_handle, ctypes.c_void_p(text_address), buffer,
-                    virtual_size, ctypes.byref(ctypes.c_size_t(0))) and characteristics & 0x00000020:
-                    if not any(shell in section_name.lower() for shell in self.model.shells):
-                        match_data[section_name] = buffer.raw
-            kernel32.CloseHandle(process_handle)
-            if self.start_scan(match_data):
-                return True
-            return False
-        except:
-            return False
-
-    def lock_process(self, p, lock):
-        if lock:
-            p.suspend()
-        else:
-            p.resume()
-
-    def kill_process(self, info, p, target, relation):
-        try:
-            target = target.replace("\\", "/")
-            if relation == False:
-                p.kill()
-            elif relation == True:
-                for p in psutil.process_iter():
-                    try:
-                        name, file, cmd = p.name(), p.exe(), p.cmdline()
-                        if "powershell" in name:
-                            file = str(cmd[-1].split("'")[-2])
-                        elif "cmd.exe" in name:
-                            file = str(" ".join(cmd[2:]))
-                        elif ":/Windows" in file.replace("\\", "/"):
-                            file = str(cmd[-1])
-                        if target == file.replace("\\", "/"):
-                            p.kill()
-                    except:
-                        pass
-            self.send_notify(self.trans(f"{info}: ")+target, True)
+            self.kernel32.TerminateProcess(h_process, 0)
+            self.kernel32.CloseHandle(h_process)
+            self.send_notify(self.trans(f"{info}: ")+file, True)
             self.track_proc = None
         except:
-            self.track_proc = None
+            pass
+
+    def lock_process(self, h_process, lock):
+        try:
+            if lock:
+                self.ntdll.NtSuspendProcess(h_process)
+            else:
+                self.ntdll.NtResumeProcess(h_process)
+        except:
+            pass
+
+    def get_process_file(self, h_process):
+        exe_path = ctypes.create_unicode_buffer(260)
+        self.psapi.GetProcessImageFileNameW(h_process, exe_path, ctypes.sizeof(exe_path) // 2)
+        full_path = exe_path.value
+        drives = [f"{chr(l)}:\\" for l in range(65, 91) if os.path.exists(f"{chr(l)}:\\")]
+        for drive in drives:
+            drive_letter = drive[0] + ":"
+            device_path = ctypes.create_unicode_buffer(260)
+            self.kernel32.QueryDosDeviceW(drive_letter, device_path, 260)
+            if full_path.startswith(device_path.value):
+                full_path = full_path.replace(device_path.value, drive, 1)
+                return full_path.replace("\\\\", "\\")
+        return full_path
 
     def protect_file_thread(self):
-        hDir = win32file.CreateFile("C:/",win32con.GENERIC_READ,win32con.FILE_SHARE_READ|win32con.FILE_SHARE_WRITE|win32con.FILE_SHARE_DELETE,None,win32con.OPEN_EXISTING,win32con.FILE_FLAG_BACKUP_SEMANTICS,None)
         self.ransom_counts = 0
+        hDir = self.kernel32.CreateFileW("C:\\", 0x80000000, 0x00000001 | 0x00000002 | 0x00000004, None, 3, 0x02000000, None)
+        buffer = ctypes.create_string_buffer(2060)
         while self.file_protect:
-            for action, file in win32file.ReadDirectoryChangesW(hDir,10485760,True,win32con.FILE_NOTIFY_CHANGE_FILE_NAME|win32con.FILE_NOTIFY_CHANGE_DIR_NAME|win32con.FILE_NOTIFY_CHANGE_ATTRIBUTES|win32con.FILE_NOTIFY_CHANGE_SIZE|win32con.FILE_NOTIFY_CHANGE_LAST_WRITE|win32con.FILE_NOTIFY_CHANGE_SECURITY,None,None):
-                try:
-                    fpath = str(f"C:/{file}").replace("\\", "/")
-                    ftype = str(f".{fpath.split('.')[-1]}").lower()
+            try:
+                bytesReturned = ctypes.wintypes.DWORD()
+                if self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True,
+                    0x00000001 | 0x00000002 | 0x00000004 | 0x00000008 | 0x00000010 | 0x00000100,
+                    ctypes.byref(bytesReturned), None, None):
+                    notify_info = FILE_NOTIFY_INFORMATION.from_buffer_copy(buffer[0:])
+                    raw_filename = notify_info.FileName[:notify_info.FileNameLength // 2]
+                    fpath = f"C:/{raw_filename}".replace("\\", "/")
+                    ftype = f".{fpath.split('.')[-1]}".lower()
                     if self.ransom_counts >= 5 and self.track_proc:
                         self.ransom_counts = 0
                         self.kill_process("勒索攔截", *self.track_proc)
                     elif ":/Windows" in fpath and "/Temp/" not in fpath:
-                        if action == 2 and ftype in alist:
-                            self.ransom_counts += 1
-                        elif action == 4 and ftype in alist:
+                        if notify_info.Action in [2, 4] and ftype in alist:
                             self.ransom_counts += 1
                     elif ":/Users" in fpath and "/AppData/" not in fpath:
-                        if action == 2 and ftype in alist:
-                            self.ransom_counts += 1
-                        elif action == 4 and ftype in alist:
+                        if notify_info.Action in [2, 4] and ftype in alist:
                             self.ransom_counts += 1
                     if ":/Windows" not in fpath and ftype in slist:
-                        if action == 3 and self.start_scan(fpath):
+                        if notify_info.Action == 3 and self.start_scan(fpath):
                             self.ransom_counts = 0
                             os.remove(fpath)
-                            self.send_notify(self.trans("病毒刪除: ")+fpath, True)
-                except:
-                    pass
+                            self.send_notify(self.trans("病毒刪除: ") + fpath, True)
+            except:
+                pass
+        self.kernel32.CloseHandle(hDir)
         if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
             self.send_notify(self.trans(f"竄改警告: self.file_protect"), False)
 
@@ -1493,15 +1528,29 @@ class MainWindow_Controller(QMainWindow):
         if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
             self.send_notify(self.trans(f"竄改警告: self.sys_protect (reg)"), False)
 
+    def get_tcp_connections(self):
+        size = ctypes.wintypes.DWORD()
+        self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), False, 2, 0, 0)
+        tcp_table = MIB_TCPTABLE_OWNER_PID()
+        tcp_table_size = size.value
+        tcp_table_pointer = ctypes.cast(ctypes.create_string_buffer(tcp_table_size), ctypes.POINTER(MIB_TCPTABLE_OWNER_PID))
+        tcp_table_pointer.contents.dwNumEntries = 0
+        if self.iphlpapi.GetExtendedTcpTable(tcp_table_pointer, ctypes.byref(size), False, 2, 0, 0) == 0:
+            tcp_entries = tcp_table_pointer.contents.table[:tcp_table_pointer.contents.dwNumEntries]
+            return tcp_entries
+        return []
+
     def protect_net_thread(self):
         while self.net_protect:
             try:
                 time.sleep(0.2)
-                for conn in self.track_proc[0].connections(kind='inet'):
-                    if conn.raddr.ip in self.rules.network:
+                for conn in self.get_tcp_connections():
+                    local_ip = f"{conn.dwLocalAddr & 0xFF}.{(conn.dwLocalAddr >> 8) & 0xFF}.{(conn.dwLocalAddr >> 16) & 0xFF}.{(conn.dwLocalAddr >> 24) & 0xFF}"
+                    remote_ip = f"{conn.dwRemoteAddr & 0xFF}.{(conn.dwRemoteAddr >> 8) & 0xFF}.{(conn.dwRemoteAddr >> 16) & 0xFF}.{(conn.dwRemoteAddr >> 24) & 0xFF}"
+                    if remote_ip in self.rules.network:
                         self.kill_process("網路攔截", *self.track_proc)
-            except:
-                pass
+            except Exception as e:
+                pass#print(e)
         if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
             self.send_notify(self.trans(f"竄改警告: self.net_protect"), False)
 

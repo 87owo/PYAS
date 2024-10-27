@@ -1,6 +1,5 @@
 import os, sys, time, json, yara
 import numpy, pefile, onnxruntime
-from PIL import Image, ImageShow
 
 class YRScan:
     def __init__(self):
@@ -28,11 +27,11 @@ class YRScan:
             for name, rules in self.rules.items():
                 matchs_rules = rules.match(data=file_path)
                 if matchs_rules:
-                    level = str(matchs_rules[0]).split("_")[1]
-                    return "Virus/Rules", level
+                    label = str(matchs_rules[0]).split("_")[0]
+                    level = str(matchs_rules[0]).split("_")[-1]
+                    return f"Rules/{label}", level
             return False, False
         except Exception as e:
-            print(e)
             return False, False
 
 class DLScan:
@@ -46,7 +45,7 @@ class DLScan:
         'upx', 'tracesup', 'res', 'lzma', 'malloc_h', 'miniex', 'ndr64', 'be',
         'mssmixer', 'wow', 'press', 'fio', 'pad', 'hexpthk', 'h~;', 'icapsec',
         'sanontcp', 'secur', 'asmstub', 'nsys_wr', 'orpc', 'pack', 'wow64svc',
-        'uedbg', 'viahw', 'data', 'zk', 'fothk', 'qihoo']
+        'uedbg', 'viahw', 'data', 'zk', 'fothk', 'qihoo']#"""
 
     def load_model(self, file_path):
         try:
@@ -60,12 +59,13 @@ class DLScan:
             self.detect = self.class_names['Detect']
             self.pixels = self.class_names['Pixels']
             self.values = self.class_names['Values']
+            self.suffix = self.class_names['Suffix']
         except Exception as e:
             pass
 
     def dl_scan(self, section_data):
         try:
-            target_size, batch_size = tuple(self.pixels), 10
+            target_size, batch_size = tuple(self.pixels), 1
             label_similarities = {label: [] for label in self.labels}
             image_data = list(self.preprocess_image(section_data, target_size))
             for i in range(0, len(image_data), batch_size):
@@ -92,22 +92,22 @@ class DLScan:
         reshaped_data = numpy.zeros((num_images, total_pixels), dtype=numpy.uint8)
         reshaped_data.flat[:len(file_data)] = file_data
         for image_array in reshaped_data:
-            yield Image.fromarray(image_array.reshape(target_size), 'L')
+            yield image_array.reshape(target_size)
 
     def get_type(self, file_path):
-        try:
-            match_data = {}
-            ftype = str(f".{file_path.split('.')[-1]}").lower()
-            if ftype in [".exe", ".dll", ".sys", ".scr", ".com"]:
+        match_data = {}
+        ftype = str(f".{file_path.split('.')[-1]}").lower()
+        if ftype in self.suffix:
+            try:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
                         section_name = section.Name.rstrip(b'\x00').decode('latin1')
                         if (section.Characteristics & 0x00000020 and not
                         any(shell in section_name.lower() for shell in self.shells)):
                             match_data[section_name] = section.get_data()
-            elif ftype in [".bat", ".vbs", ".ps1", ".cmd", ".js"]:
-                with open(file_path, 'rb') as file:
-                    match_data[ftype] = file.read()
-            return match_data
-        except:
-            return {}
+            except:
+                if ftype in [".bat", ".cmd", ".ps1", ".vbs", ".wsf", ".html", ".js", 
+                    ".txt", ".htm", ".hta", ".php", ".css", ".xml", ".json", ".wasm"]:
+                    with open(file_path, 'rb') as file:
+                        match_data[ftype] = file.read()
+        return match_data

@@ -52,7 +52,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.3"
+        self.pyas_version = "3.2.4"
         self.first_startup = True
         self.init_tray_icon()
         self.init_data_base()

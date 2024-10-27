@@ -1,9 +1,11 @@
 {
-    "Labels": ["White/Pefile", "White/Script", "Virus/Pefile", "Virus/Script"], 
+    "Suffix": [".com", ".exe", ".dll", ".sys", ".scr", ".cpl", ".drv", ".mui", ".ocx"], 
 
-    "Detect": ["Virus/Pefile", "Virus/Script"],  
+    "Labels": ["Pefile/White", "Pefile/General"], 
+
+    "Detect": ["Pefile/General"],  
 
     "Pixels": [224, 224], 
 
-    "Values": 80
+    "Values": 70
 }

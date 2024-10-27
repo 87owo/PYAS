@@ -1,6 +1,6 @@
 import "pe"
 
-rule A1_1 {
+rule General_1 {
    meta:
       description = "1"
       author = "PYAS Security"
@@ -57,7 +57,7 @@ rule A1_1 {
       1 of ($x*) and 8 of them
 }
 
-rule A1_2 {
+rule General_2 {
    meta:
       description = "2"
       author = "PYAS Security"
@@ -82,7 +82,7 @@ rule A1_2 {
       8 of them
 }
 
-rule A1_3 {
+rule General_3 {
    meta:
       description = "3"
       author = "PYAS Security"
@@ -106,7 +106,7 @@ rule A1_3 {
       $x1 and 8 of them
 }
 
-rule A1_4 {
+rule General_4 {
    meta:
       description = "PYAS_Rules_A4"
       author = "PYAS Security"
@@ -124,7 +124,7 @@ rule A1_4 {
       ($x1 and $x2) and 5 of them
 }
 
-rule A1_5 {
+rule General_5 {
    meta:
       description = "5"
       author = "PYAS Security"
@@ -147,7 +147,7 @@ rule A1_5 {
       $x1 and 3 of them
 }
 
-rule A1_6 {
+rule General_6 {
    meta:
       description = "6"
       author = "PYAS Security"
@@ -214,7 +214,7 @@ rule A1_6 {
       1 of ($x*) and 5 of them
 }
 
-rule A1_7 {
+rule General_7 {
    meta:
       description = "7"
       author = "PYAS Security"
@@ -247,7 +247,7 @@ rule A1_7 {
       10 of them
 }
 
-rule A1_8 {
+rule General_8 {
    meta:
       description = "8"
       author = "PYAS Security"
@@ -278,7 +278,7 @@ rule A1_8 {
       2 of ($x*) and 6 of them
 }
 
-rule A1_9 {
+rule General_9 {
    meta:
       description = "9"
       author = "PYAS Security"
@@ -303,7 +303,7 @@ rule A1_9 {
       6 of them
 }
 
-rule A1_10 {
+rule General_10 {
    meta:
       description = "10"
       author = "PYAS Security"
@@ -329,7 +329,7 @@ rule A1_10 {
       ($x1 and $x2) and 6 of them
 }
 
-rule A1_11 {
+rule General_11 {
    meta:
       description = "11"
       author = "PYAS Security"
@@ -349,7 +349,7 @@ rule A1_11 {
       6 of them
 }
 
-rule A1_12 {
+rule General_12 {
    meta:
       description = "12"
       author = "PYAS Security"
@@ -376,7 +376,7 @@ rule A1_12 {
       1 of ($x*) and 5 of them
 }
 
-rule A1_13 {
+rule General_13 {
    meta:
       description = "13"
       author = "PYAS Security"
@@ -404,7 +404,7 @@ rule A1_13 {
       6 of them
 }
 
-rule A1_14 {
+rule General_14 {
    meta:
       description = "14"
       author = "PYAS Security"
@@ -430,7 +430,7 @@ rule A1_14 {
       8 of them
 }
 
-rule A1_15 {
+rule General_15 {
    meta:
       description = "15"
       author = "PYAS Security"
@@ -459,7 +459,7 @@ rule A1_15 {
       8 of them
 }
 
-rule A1_16 {
+rule General_16 {
    meta:
       description = "16"
       author = "PYAS Security"
@@ -485,7 +485,7 @@ rule A1_16 {
       ($x1 and $x2) and 6 of them
 }
 
-rule A1_17 {
+rule General_17 {
    meta:
       description = "17"
       author = "PYAS Security"
@@ -508,7 +508,7 @@ rule A1_17 {
       $x1 and 8 of them
 }
 
-rule A1_18 {
+rule General_18 {
    meta:
       description = "18"
       author = "PYAS Security"
@@ -531,7 +531,7 @@ rule A1_18 {
       6 of them
 }
 
-rule A1_19 {
+rule General_19 {
    meta:
       description = "19"
       author = "PYAS Security"
@@ -560,7 +560,7 @@ rule A1_19 {
       ($x1 and $x2) and 8 of them
 }
 
-rule A1_20 {
+rule General_20 {
    meta:
       description = "20"
       author = "PYAS Security"
@@ -589,7 +589,7 @@ rule A1_20 {
       8 of them
 }
 
-rule A1_21 {
+rule General_21 {
    meta:
       description = "21"
       author = "PYAS Security"
@@ -616,7 +616,7 @@ rule A1_21 {
       8 of them
 }
 
-rule A1_22 {
+rule General_22 {
    meta:
       description = "22"
       author = "PYAS Security"
@@ -635,7 +635,7 @@ rule A1_22 {
       6 of them
 }
 
-rule A1_23 {
+rule General_23 {
    meta:
       description = "23"
       author = "PYAS Security"
@@ -657,7 +657,7 @@ rule A1_23 {
       7 of them
 }
 
-rule A1_24 {
+rule General_24 {
    meta:
       description = "24"
       author = "PYAS Security"
@@ -686,7 +686,7 @@ rule A1_24 {
       6 of them
 }
 
-rule A1_25 {
+rule General_25 {
    meta:
       description = "25"
       author = "PYAS Security"
@@ -714,7 +714,7 @@ rule A1_25 {
       $x1 and 5 of them
 }
 
-rule A1_26 {
+rule General_26 {
    meta:
       description = "26"
       author = "PYAS Security"
@@ -740,7 +740,7 @@ rule A1_26 {
       8 of them
 }
 
-rule A1_27 {
+rule General_27 {
    meta:
       description = "27"
       author = "PYAS Security"
@@ -766,7 +766,7 @@ rule A1_27 {
       6 of them
 }
 
-rule A1_28 {
+rule General_28 {
    meta:
       description = "28"
       author = "PYAS Security"
@@ -799,7 +799,7 @@ rule A1_28 {
       8 of them
 }
 
-rule A1_29 {
+rule General_29 {
    meta:
       description = "29"
       author = "PYAS Security"
@@ -835,7 +835,7 @@ rule A1_29 {
       6 of them
 }
 
-rule A1_30 {
+rule General_30 {
    meta:
       description = "30"
       author = "PYAS Security"
@@ -856,7 +856,7 @@ rule A1_30 {
       6 of them
 }
 
-rule A1_31 {
+rule General_31 {
    meta:
       description = "31"
       author = "PYAS Security"
@@ -876,7 +876,7 @@ rule A1_31 {
       6 of them
 }
 
-rule A1_32 {
+rule General_32 {
    meta:
       description = "32"
       author = "PYAS Security"
@@ -907,7 +907,7 @@ rule A1_32 {
       $x1 and 8 of them
 }
 
-rule A1_33 {
+rule General_33 {
    meta:
       description = "33"
       author = "PYAS Security"
@@ -935,7 +935,7 @@ rule A1_33 {
       $x1 and 8 of them
 }
 
-rule A1_34 {
+rule General_34 {
    meta:
       description = "34"
       author = "PYAS Security"
@@ -963,7 +963,7 @@ rule A1_34 {
       8 of them
 }
 
-rule A1_35 {
+rule General_35 {
    meta:
       description = "35"
       author = "PYAS Security"
@@ -994,7 +994,7 @@ rule A1_35 {
       6 of them
 }
 
-rule A1_36 {
+rule General_36 {
    meta:
       description = "36"
       author = "PYAS Security"
@@ -1021,7 +1021,7 @@ rule A1_36 {
       6 of them
 }
 
-rule A1_37 {
+rule General_37 {
    meta:
       description = "37"
       author = "PYAS Security"
@@ -1051,7 +1051,7 @@ rule A1_37 {
       6 of them
 }
 
-rule A1_38 {
+rule General_38 {
    meta:
       description = "38"
       author = "PYAS Security"
@@ -1081,7 +1081,7 @@ rule A1_38 {
       6 of them
 }
 
-rule A1_39 {
+rule General_39 {
    meta:
       description = "39"
       author = "PYAS Security"
@@ -1102,7 +1102,7 @@ rule A1_39 {
       6 of them
 }
 
-rule A1_40 {
+rule General_40 {
    meta:
       description = "40"
       author = "PYAS Security"
@@ -1134,7 +1134,7 @@ rule A1_40 {
       8 of them
 }
 
-rule A1_41 {
+rule General_41 {
    meta:
       description = "41"
       author = "PYAS Security"
@@ -1158,7 +1158,7 @@ rule A1_41 {
       6 of them
 }
 
-rule A1_42 {
+rule General_42 {
    meta:
       description = "42"
       author = "PYAS Security"
@@ -1180,7 +1180,7 @@ rule A1_42 {
       6 of them
 }
 
-rule A1_43 {
+rule General_43 {
    meta:
       description = "43"
       author = "PYAS Security"
@@ -1207,7 +1207,7 @@ rule A1_43 {
       8 of them
 }
 
-rule A1_44 {
+rule General_44 {
    meta:
       description = "44"
       author = "PYAS Security"
@@ -1237,7 +1237,7 @@ rule A1_44 {
       8 of them
 }
 
-rule A1_45 {
+rule General_45 {
    meta:
       description = "45"
       author = "PYAS Security"
@@ -1266,7 +1266,7 @@ rule A1_45 {
       8 of them
 }
 
-rule A1_46 {
+rule General_46 {
    meta:
       description = "46"
       author = "PYAS Security"
@@ -1296,7 +1296,7 @@ rule A1_46 {
       $x1 and 8 of them
 }
 
-rule A1_47 {
+rule General_47 {
    meta:
       description = "47"
       author = "PYAS Security"
@@ -1327,7 +1327,7 @@ rule A1_47 {
       1 of ($x*) and 5 of them
 }
 
-rule A1_48 {
+rule General_48 {
    meta:
       description = "48"
       author = "PYAS Security"
@@ -1348,7 +1348,7 @@ rule A1_48 {
       2 of ($x*) and 6 of them
 }
 
-rule A1_49 {
+rule General_49 {
    meta:
       description = "49"
       author = "PYAS Security"
@@ -1376,7 +1376,7 @@ rule A1_49 {
       3 of ($x*) and 5 of them
 }
 
-rule A1_50 {
+rule General_50 {
    meta:
       description = "50"
       author = "PYAS Security"
@@ -1398,7 +1398,7 @@ rule A1_50 {
       $x1 and 6 of them
 }
 
-rule A1_51 {
+rule General_51 {
    meta:
       description = "51"
       author = "PYAS Security"
@@ -1418,7 +1418,7 @@ rule A1_51 {
       1 of ($x*) and 4 of them
 }
 
-rule A1_52 {
+rule General_52 {
    meta:
       description = "52"
       author = "PYAS Security"
@@ -1443,7 +1443,7 @@ rule A1_52 {
       8 of them
 }
 
-rule A1_53 {
+rule General_53 {
    meta:
       description = "53"
       author = "PYAS Security"

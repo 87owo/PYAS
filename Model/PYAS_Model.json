@@ -1,11 +1,12 @@
 {
-    "Suffix": [".com", ".exe", ".dll", ".sys", ".scr", ".cpl", ".drv", ".mui", ".ocx"], 
+    "Suffix": [".com", ".exe", ".dll", ".sys", ".scr",
+               ".bat", ".cmd", ".ps1", ".vbs", ".wsf"], 
 
-    "Labels": ["Pefile/White", "Pefile/General"], 
+    "Labels": ["Pefile/White", "Script/White", "Pefile/General", "Script/General"], 
 
-    "Detect": ["Pefile/General"],  
+    "Detect": ["Pefile/General", "Script/General"],  
 
     "Pixels": [224, 224], 
 
-    "Values": 70
+    "Values": 85
 }

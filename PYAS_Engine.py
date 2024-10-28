@@ -1,5 +1,6 @@
 import os, sys, time, json, yara
 import numpy, pefile, onnxruntime
+from PIL import Image
 
 class YRScan:
     def __init__(self):
@@ -63,22 +64,18 @@ class DLScan:
         except Exception as e:
             pass
 
-    def dl_scan(self, section_data):
+    def dl_scan(self, file_data):
         try:
-            target_size, batch_size = tuple(self.pixels), 1
             label_similarities = {label: [] for label in self.labels}
-            image_data = list(self.preprocess_image(section_data, target_size))
-            for i in range(0, len(image_data), batch_size):
-                batch = image_data[i:i + batch_size]
-                image_expand = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in batch], axis=0)
-                image_expand = image_expand.reshape((len(batch), target_size[0], target_size[1], 1))
-                for model_name, model in self.models.items():
-                    input_name = model.get_inputs()[0].name
-                    pre_answers = model.run(None, {input_name: image_expand})[0]
-                    for j in range(len(batch)):
-                        for k, score in enumerate(pre_answers[j]):
-                            label_similarities[self.labels[k].strip()].append(score)
-            label_percentage = {label: (sum(similarities) / len(image_data)) * 100 
+            image_data = self.preprocess_image(file_data, tuple(self.pixels))
+            image_array = numpy.asarray(image_data).astype('float32') / 255.0
+            image_expand = numpy.expand_dims(image_array, axis=(0, -1))
+            for model_name, model in self.models.items():
+                input_name = model.get_inputs()[0].name
+                pre_answers = model.run(None, {input_name: image_expand})[0][0]
+                for k, score in enumerate(pre_answers):
+                    label_similarities[self.labels[k].strip()].append(score)
+            label_percentage = {label: (sum(similarities) / len(image_expand)) * 100
             for label, similarities in label_similarities.items()}
             label, level = max(label_percentage.items(), key=lambda x: x[1])
             return label, int(level)
@@ -86,13 +83,12 @@ class DLScan:
             return False, False
 
     def preprocess_image(self, file_data, target_size):
-        total_pixels = target_size[0] * target_size[1]
+        wah = int(numpy.ceil(numpy.sqrt(len(file_data))))
         file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
-        num_images = int(numpy.ceil(len(file_data) / total_pixels))
-        reshaped_data = numpy.zeros((num_images, total_pixels), dtype=numpy.uint8)
-        reshaped_data.flat[:len(file_data)] = file_data
-        for image_array in reshaped_data:
-            yield image_array.reshape(target_size)
+        image_array = numpy.zeros((wah * wah,), dtype=numpy.uint8)
+        image_array[:len(file_data)] = file_data
+        image = Image.fromarray(image_array.reshape((wah, wah)), 'L')
+        return image.resize(target_size, Image.Resampling.NEAREST)
 
     def get_type(self, file_path):
         match_data = {}

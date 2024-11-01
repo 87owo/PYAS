@@ -75,7 +75,7 @@ class DLScan:
                 pre_answers = model.run(None, {input_name: image_expand})[0][0]
                 for k, score in enumerate(pre_answers):
                     label_similarities[self.labels[k].strip()].append(score)
-            label_percentage = {label: (sum(similarities) / len(image_expand)) * 100
+            label_percentage = {label: (sum(similarities) / len(self.models)) * 100
             for label, similarities in label_similarities.items()}
             label, level = max(label_percentage.items(), key=lambda x: x[1])
             return label, int(level)

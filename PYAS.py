@@ -91,6 +91,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             self.ntdll = ctypes.WinDLL('ntdll', use_last_error=True)
             self.psapi = ctypes.WinDLL('Psapi', use_last_error=True)
+            self.user32 = ctypes.WinDLL('user32', use_last_error=True)
             self.kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
             self.advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
             self.iphlpapi = ctypes.WinDLL('iphlpapi', use_last_error=True)
@@ -1006,81 +1007,62 @@ class MainWindow_Controller(QMainWindow):
 
     def open_registry_key(self, hkey, subkey, access=0xF003F):
         key_handle = ctypes.wintypes.HANDLE()
-        result = self.advapi32.RegOpenKeyExW(hkey, subkey, 0, access, ctypes.byref(key_handle))
-        return key_handle
-
-    def set_registry_value(self, hkey, subkey, value_name, value_type, value):
-        key_handle = self.open_registry_key(hkey, subkey)
-        self.advapi32.RegSetValueExW(key_handle, value_name, 0,
-        value_type, ctypes.create_unicode_buffer(value), len(value) * 2)
-        self.advapi32.RegCloseKey(key_handle)
-
-    def delete_registry_value(self, key_handle, value_name):
-        try:
-            result = self.advapi32.RegDeleteValueW(key_handle, value_name)
-            if result == 0 and self.track_proc:
-                self.kill_process("註冊表攔截", *self.track_proc)
-        except Exception as e:
-            pass
+        if self.advapi32.RegOpenKeyExW(hkey, subkey, 0, access, ctypes.byref(key_handle)) == 0:
+            return key_handle
+        return None
 
     def delete_registry_key(self, hkey, subkey):
-        try:
-            result = self.advapi32.RegDeleteKeyW(hkey, subkey)
-            if result == 0 and self.track_proc:
-                self.kill_process("註冊表攔截", *self.track_proc)
-        except Exception as e:
-            pass
+        if self.advapi32.RegDeleteKeyW(hkey, subkey) == 0 and self.track_proc:
+            self.kill_process("註冊表攔截", *self.track_proc)
 
-    def create_registry_keys(self, keys):
-        for hkey, subkey in keys:
-            key_handle = ctypes.wintypes.HANDLE()
+    def create_registry_keys(self, hkey, subkey):
+        key_handle = self.open_registry_key(hkey, subkey)
+        if key_handle:
             self.advapi32.RegCreateKeyExW(hkey, subkey, 0, None, 0, 0xF003F, None, ctypes.byref(key_handle), None)
+        self.advapi32.RegCloseKey(key_handle)
+
+    def set_registry_value(self, hkey, subkey, value_name, value_data):
+        key_handle = self.open_registry_key(hkey, subkey)
+        if key_handle:
+            self.advapi32.RegSetValueExW(key_handle, value_name, 0, 1, value_data, (len(value_data) + 1) * 2)
+        self.advapi32.RegCloseKey(key_handle)
+
+    def delete_registry_value(self, hkey, subkey, value_name):
+        key_handle = self.open_registry_key(hkey, subkey)
+        if key_handle and self.advapi32.RegDeleteValueW(key_handle, value_name) == 0 and self.track_proc:
+            self.kill_process("註冊表攔截", *self.track_proc)
+        self.advapi32.RegCloseKey(key_handle)
 
     def repair_system_restrict(self):
-        try:
-            permissions = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
-            "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun",
-            "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD",
-            "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "Restrict_Run", 
-            "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents",
-            "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu",
-            "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", 
-            "NoManageMyComputerVerb", "NoWindowsUpdate", "ClearRecentDocsOnExit", "NoStartMenuNetworkPlaces"]
-            keys_to_create = [(0x80000001, r"Software\Policies\Microsoft\MMC"),
-            (0x80000001, r"Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}"),
-            (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-            (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-            (0x80000001, r"SOFTWARE\Policies\Microsoft\Windows\System"),
-            (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-            (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-            (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop"),
-            (0x80000002, r"SOFTWARE\Policies\Microsoft\Windows\System")]
-            self.create_registry_keys(keys_to_create)
-            for hkey, subkey in keys_to_create:
-                try:
-                    key_handle = self.open_registry_key(hkey, subkey)
-                    for perm in permissions:
-                        self.delete_registry_value(key_handle, perm)
-                    self.advapi32.RegCloseKey(key_handle)
-                except:
-                    pass
-        except:
-            pass
-
-    def repair_system_file_icon(self):
-        try:
-            self.set_registry_value(0x80000000, 'exefile', 'DefaultIcon', 1, '%1')
-        except Exception as e:
-            pass
-        try:
-            self.set_registry_value(0x80000002, r'SOFTWARE\Classes\exefile', 'DefaultIcon', 1, '%1')
-        except Exception as e:
-            pass
+        permissions = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
+        "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun",
+        "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD",
+        "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "Restrict_Run", 
+        "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents",
+        "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu",
+        "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", 
+        "NoManageMyComputerVerb", "NoWindowsUpdate", "ClearRecentDocsOnExit", "NoStartMenuNetworkPlaces"]
+        keys_to_create = [(0x80000001, r"Software\Policies\Microsoft\MMC"),
+        (0x80000001, r"Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}"),
+        (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+        (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+        (0x80000001, r"SOFTWARE\Policies\Microsoft\Windows\System"),
+        (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+        (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+        (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop"),
+        (0x80000002, r"SOFTWARE\Policies\Microsoft\Windows\System")]
+        for hkey, subkey in keys_to_create:
+            try:
+                self.create_registry_keys(hkey, subkey)
+                for value_name in permissions:
+                    self.delete_registry_value(hkey, subkey, value_name)
+            except:
+                print(e)
 
     def repair_system_image(self):
         try:
-            key_handle = self.open_registry_key(0x80000002,
-            r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options', 0xF003F)
+            image_file = r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
+            key_handle = self.open_registry_key(0x80000002, image_file, 0xF003F)
             count = ctypes.wintypes.DWORD()
             self.advapi32.RegQueryInfoKeyW(key_handle, None, None, None,
             ctypes.byref(count), None, None, None, None, None, None, None)
@@ -1090,35 +1072,33 @@ class MainWindow_Controller(QMainWindow):
                     self.advapi32.RegEnumKeyW(key_handle, i, subkey_name, 256)
                     self.delete_registry_key(key_handle, subkey_name.value)
                 except Exception as e:
-                    pass
+                    print(e)
         except Exception as e:
+            pass
+
+    def repair_system_file_icon(self):
+        try:
+            self.set_registry_value(0x80000000, 'exefile', 'DefaultIcon', '%1')
+            self.set_registry_value(0x80000002, r'SOFTWARE\Classes\exefile', 'DefaultIcon', '%1')
+        except:
             pass
 
     def repair_system_file_type(self):
-        try:
-            data = [('.exe', 'exefile'), ('exefile', 'Application')]
-            key_handle = self.open_registry_key(0x80000002, r'SOFTWARE\Classes', 0xF003F)
-            for ext, value in data:
-                self.set_registry_value(0x80000002, ext, '', 1, value)
-            self.advapi32.RegCloseKey(key_handle)
-            key_handle = self.open_registry_key(0x80000001, r'SOFTWARE\Classes', 0xF003F)
-            for ext, value in data:
-                self.set_registry_value(0x80000001, ext, '', 1, value)
-                self.set_registry_value(0x80000001, ext + r'\shell\open\command', '', 1, '"%1" %*')
-            self.advapi32.RegCloseKey(key_handle)
-        except Exception as e:
-            pass
+        for hkey in [0x80000002, 0x80000001, 0x80000000]:
+            for ext, value in [('.exe', 'exefile'), ('exefile', 'Application')]:
+                try:
+                    self.set_registry_value(hkey, r'SOFTWARE\Classes', ext, value)
+                    self.set_registry_value(hkey, f'{ext}\\shell\\open\\command', '', '"%1" %*')
+                except:
+                    pass
 
     def repair_system_wallpaper(self):
         try:
-            key_handle = self.open_registry_key(0x80000001, r"Control Panel\Desktop", 0xF003F)
-            self.advapi32.RegSetValueExW(key_handle, "Wallpaper", 0, 1,
-            ctypes.create_unicode_buffer('C:/Windows/web/wallpaper/windows/img0.jpg'),
-            len('C:/Windows/web/wallpaper/windows/img0.jpg') * 2)
-            self.advapi32.RegCloseKey(key_handle)
-            ctypes.windll.user32.SystemParametersInfoW(20, 0, 'C:/Windows/web/wallpaper/windows/img0.jpg', 2)
+            wallpaper = "C:/Windows/web/wallpaper/windows/img0.jpg"
+            self.set_registry_value(0x80000001, "Wallpaper", ctypes.create_unicode_buffer(wallpaper), wallpaper)
+            self.user32.SystemParametersInfoW(20, 0, wallpaper, 2)
         except Exception as e:
-            pass
+            print(e)
 
     def clean_system(self):
         try:
@@ -1194,17 +1174,17 @@ class MainWindow_Controller(QMainWindow):
         Thread(target=self.block_software_window, daemon=True).start()
 
     def get_foreground_window_title(self):
-        hWnd = ctypes.windll.user32.GetForegroundWindow()
-        length = ctypes.windll.user32.GetWindowTextLengthW(hWnd)
+        hWnd = self.user32.GetForegroundWindow()
+        length = self.user32.GetWindowTextLengthW(hWnd)
         title = ctypes.create_unicode_buffer(length + 1)
-        ctypes.windll.user32.GetWindowTextW(hWnd, title, length + 1)
+        self.user32.GetWindowTextW(hWnd, title, length + 1)
         return str(title.value)
 
     def find_window_by_name(self, window_name):
-        return ctypes.windll.user32.FindWindowW(None, ctypes.create_unicode_buffer(window_name))
+        return self.user32.FindWindowW(None, ctypes.create_unicode_buffer(window_name))
 
     def post_close_message(self, hWnd):
-        ctypes.windll.user32.PostMessageW(hWnd, 274, 61536, 0)
+        self.user32.PostMessageW(hWnd, 274, 61536, 0)
 
     def block_software_window(self):
         while self.block_window:

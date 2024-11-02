@@ -1192,7 +1192,7 @@ class MainWindow_Controller(QMainWindow):
                 time.sleep(0.2)
                 for window_name in self.blocklist:
                     hWnd = self.find_window_by_name(window_name)
-                    if hWnd != 0:  # 如果找到窗口
+                    if hWnd != 0:
                         self.post_close_message(hWnd)
             except Exception as e:
                 pass
@@ -1405,9 +1405,9 @@ class MainWindow_Controller(QMainWindow):
             file = self.get_process_file(h_process).replace("\\", "/")
             if file != self.pyas and file not in self.whitelist:
                 self.lock_process(h_process, True)
-                if self.start_scan(file):
+                if os.path.exists(file) and self.start_scan(file):
                     self.kill_process("病毒攔截", h_process, file)
-                elif ":/Windows" not in file and os.path.exists(file):
+                elif ":/Windows" not in file and ":/Program" not in file:
                     self.track_proc = (h_process, file)
             self.lock_process(h_process, False)
         except:

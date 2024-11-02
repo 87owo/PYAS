@@ -915,7 +915,7 @@ class MainWindow_Controller(QMainWindow):
     def file_scan(self):
         try:
             file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file and file not in self.whitelist and file != self.pyas:
+            if file and file not in self.whitelist:
                 self.init_scan()
                 self.scan_thread = Thread(target=self.write_scan,
                 args=(self.start_scan(file),file,), daemon=True)
@@ -963,7 +963,7 @@ class MainWindow_Controller(QMainWindow):
                     break
                 elif os.path.isdir(file):
                     self.traverse_path(file)
-                elif file != self.pyas and file not in self.whitelist:
+                elif file not in self.whitelist:
                     QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
                     Qt.QueuedConnection, Q_ARG(str, self.trans("正在掃描")))
                     QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
@@ -1403,9 +1403,9 @@ class MainWindow_Controller(QMainWindow):
         try:
             h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             file = self.get_process_file(h_process).replace("\\", "/")
-            if file != self.pyas and file not in self.whitelist:
+            if os.path.exists(file) and file not in self.whitelist:
                 self.lock_process(h_process, True)
-                if os.path.exists(file) and self.start_scan(file):
+                if self.start_scan(file):
                     self.kill_process("病毒攔截", h_process, file)
                 elif ":/Windows" not in file and ":/Program" not in file:
                     self.track_proc = (h_process, file)

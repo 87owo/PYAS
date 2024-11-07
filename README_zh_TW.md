@@ -5,11 +5,8 @@
 ## 安裝要求
 
 ```
-pip install psutil==5.9.5
 pip install pefile==2023.2.7
-pip install requests==2.31.0
 pip install pyperclip==1.8.2
-pip install pywin32==306
 pip install PyQt5==5.15.9
 pip install yara-python==4.5.1
 pip install numpy==2.1.1
@@ -21,26 +18,22 @@ pip install pillow==10.4.0
 
 ```
 PYAS/
-├── Driver/
-│   ├── PYAS_Driver.sys -------> 驅動程式 (0sha0 為 pyas 提供的自我保護驅動程式)
+├── Driver/ (驅動防護和微軟運行庫)
 │   └── ...
 │
-├── Model/
-│   ├── PYAS_Model.json -------> 病毒資料庫 (資料庫必須位於指定目錄)
+├── Engine/ (深度學習和規則數據庫)
 │   └── ...
 │
-├── Rules/
-│   ├── Yara_Rules.yar ---------> Yara 規則 (純文字格式的 yara 規則)
-│   ├── Yara_Rules.yrc ---------> 編譯規則 (編譯格式的 yara 規則)
+├── Exten/ (擴展功能與系統修復工具)
 │   └── ...
 │
-├── PYAS.py ---------------------> PYAS主程式（包含動畫、掃描、保護等功能...）
-├── PYAS_Engine.py -------------> 轉換資料庫（用於轉換剖面圖和預報資料）
-├── PYAS_Suffixes.py -----------> 文件後綴（包含掃描文件後綴和常用後綴）
-├── PYAS_Interface.py ----------> PyQt5介面（使用QT設計器，需與主程式搭配使用）
-├── PYAS_Resource.py -----------> PyQt5資源（狀態圖片、圖示包、按鈕圖示...）
-├── PYAS_Language.py -----------> 翻譯字典（繁體中文、簡體中文、英文）
-├── PYAS_Version.py ------------> 安裝資訊（檔案資訊、版本資訊、原名...）
+├── PYAS.py (PYAS主程序含介面交互與防護功能)
+├── PYAS_Engine.py (深度學習預測和規則掃描器)
+├── PYAS_Suffixes.py (獲取掃描或事件檔案的副檔名)
+├── PYAS_Interface.py (搭配主程序的Qt設計介面)
+├── PYAS_Resource.py (狀態圖片圖標和按鈕圖片)
+├── PYAS_Language.py (繁體中文和簡體中文和英文翻譯)
+├── PYAS_Version.py (檔案版本和訊息名稱和打包檔名)
 └── ...
 ```
 

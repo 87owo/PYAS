@@ -63,6 +63,6 @@ Windows 8.1, 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
 
 ## 特別感謝
 
-Wix, 0sha0, mtkiao129, AV-T Team of LisectGroup
+Wix, mtkiao129, 0sha0, AV-T Team of LisectGroup
 
 Copyright© 2020~2024 PYAS Security By 87owo

@@ -5,11 +5,8 @@
 ## 安装要求
 
 ```
-pip install psutil==5.9.5
 pip install pefile==2023.2.7
-pip install requests==2.31.0
 pip install pyperclip==1.8.2
-pip install pywin32==306
 pip install PyQt5==5.15.9
 pip install yara-python==4.5.1
 pip install numpy==2.1.1
@@ -21,26 +18,22 @@ pip install pillow==10.4.0
 
 ```
 PYAS/
-├── Driver/
-│   ├── PYAS_Driver.sys -------> 驱动程序 (0sha0 为 pyas 提供的自我保护驱动程序)
+├── Driver/ (驱动保护和微软运行库)
 │   └── ...
 │
-├── Model/
-│   ├── PYAS_Model.json -------> 病毒数据库 (数据库必须位于指定目录中)
+├── Engine/ (深度学习和规则数据库)
 │   └── ...
 │
-├── Rules/
-│   ├── Yara_Rules.yar ---------> Yara 规则 (纯文本格式的 yara 规则)
-│   ├── Yara_Rules.yrc ---------> 编译规则 (编译格式的 yara 规则)
+├── Exten/ (扩展功能与系统修复工具)
 │   └── ...
 │
-├── PYAS.py ---------------------> PYAS主程序（包含动画、扫描、保护等功能...）
-├── PYAS_Engine.py -------------> 转换数据库（用于转换剖面图和预报数据）
-├── PYAS_Suffixes.py -----------> 文件后缀（包含扫描文件后缀和常用后缀）
-├── PYAS_Interface.py ----------> PyQt5界面（使用QT设计器，需与主程序搭配使用）
-├── PYAS_Resource.py -----------> PyQt5资源（状态图片、图标包、按钮图标...）
-├── PYAS_Language.py -----------> 翻译词典（繁体中文、简体中文、英文）
-├── PYAS_Version.py ------------> 安裝信息（文件信息、版本信息、原名...）
+├── PYAS.py (PYAS主程序含界面交互与保护功能)
+├── PYAS_Engine.py (深度学习预测和规则扫描器)
+├── PYAS_Suffixes.py (获取扫描或事件文件的后缀)
+├── PYAS_Interface.py (搭配主程序的Qt设计介面)
+├── PYAS_Resource.py (状态图片和图标和按钮图片)
+├── PYAS_Language.py (繁体中文和简体中文和英文翻译)
+├── PYAS_Version.py (版本和讯息名称和打包文件名)
 └── ...
 ```
 
@@ -70,6 +63,6 @@ Windows 8.1, 10, 11 (64-bit), 内存 500MB, 存储 200MB 或更高
 
 ## 特别感谢
 
-360, Wix, VirusShare, mtkiao129, AV-T Team of LisectGroup
+Wix, mtkiao129, 0sha0, AV-T Team of LisectGroup
 
 Copyright© 2020~2024 PYAS Security By 87owo

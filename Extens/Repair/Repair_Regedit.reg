@@ -1,0 +1,117 @@
+Windows Registry Editor Version 5.00
+
+; Repair system restrictions
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\MMC]
+; NoControlPanel
+"NoControlPanel"=dword:00000000
+; NoDrives
+"NoDrives"=dword:00000000
+; NoFileMenu
+"NoFileMenu"=dword:00000000
+; NoFind
+"NoFind"=dword:00000000
+; NoRealMode
+"NoRealMode"=dword:00000000
+; NoRecentDocsMenu
+"NoRecentDocsMenu"=dword:00000000
+; NoSetFolders
+"NoSetFolders"=dword:00000000
+; NoSetFolderOptions
+"NoSetFolderOptions"=dword:00000000
+; NoViewOnDrive
+"NoViewOnDrive"=dword:00000000
+; NoClose
+"NoClose"=dword:00000000
+; NoRun
+"NoRun"=dword:00000000
+; NoDesktop
+"NoDesktop"=dword:00000000
+; NoLogOff
+"NoLogOff"=dword:00000000
+; NoFolderOptions
+"NoFolderOptions"=dword:00000000
+; RestrictRun
+"RestrictRun"=dword:00000000
+; NoViewContextMenu
+"NoViewContexMenu"=dword:00000000
+; HideClock
+"HideClock"=dword:00000000
+; NoStartMenuMorePrograms
+"NoStartMenuMorePrograms"=dword:00000000
+; NoStartMenuMyGames
+"NoStartMenuMyGames"=dword:00000000
+; NoStartMenuMyMusic
+"NoStartMenuMyMusic"=dword:00000000
+; DisableCMD
+"DisableCMD"=dword:00000000
+; NoWinKeys
+"NoWinKeys"=dword:00000000
+; StartMenuLogOff
+"StartMenuLogOff"=dword:00000000
+; NoSimpleNetlDList
+"NoSimpleNetlDList"=dword:00000000
+; NoLowDiskSpaceChecks
+"NoLowDiskSpaceChecks"=dword:00000000
+; DisableLockWorkstation
+"DisableLockWorkstation"=dword:00000000
+; Restrict_Run
+"Restrict_Run"=dword:00000000
+; DisableTaskMgr
+"DisableTaskMgr"=dword:00000000
+; DisableRegistryTools
+"DisableRegistryTools"=dword:00000000
+; DisableChangePassword
+"DisableChangePassword"=dword:00000000
+; Wallpaper
+"Wallpaper"=dword:00000000
+; NoComponents
+"NoComponents"=dword:00000000
+; NoAddingComponents
+"NoAddingComponents"=dword:00000000
+; NoStartMenuPinnedList
+"NoStartMenuPinnedList"=dword:00000000
+; NoActiveDesktop
+"NoActiveDesktop"=dword:00000000
+; NoSetActiveDesktop
+"NoSetActiveDesktop"=dword:00000000
+; NoActiveDesktopChanges
+"NoActiveDesktopChanges"=dword:00000000
+; NoChangeStartMenu
+"NoChangeStartMenu"=dword:00000000
+; NoFavoritesMenu
+"NoFavoritesMenu"=dword:00000000
+; NoRecentDocsHistory
+"NoRecentDocsHistory"=dword:00000000
+; NoSetTaskbar
+"NoSetTaskbar"=dword:00000000
+; NoSMHelp
+"NoSMHelp"=dword:00000000
+; NoTrayContextMenu
+"NoTrayContextMenu"=dword:00000000
+; NoViewContextMenu
+"NoViewContextMenu"=dword:00000000
+; NoManageMyComputerVerb
+"NoManageMyComputerVerb"=dword:00000000
+; NoWindowsUpdate
+"NoWindowsUpdate"=dword:00000000
+; ClearRecentDocsOnExit
+"ClearRecentDocsOnExit"=dword:00000000
+; NoStartMenuNetworkPlaces
+"NoStartMenuNetworkPlaces"=dword:00000000
+
+; Repair Image File Execution Options
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options]
+; (Delete all subkeys here if necessary)
+
+; Repair executable file icon
+[HKEY_CLASSES_ROOT\exefile\DefaultIcon]
+@="%1"
+[HKEY_LOCAL_MACHINE\SOFTWARE\Classes\exefile\DefaultIcon]
+@="%1"
+
+; Repair executable file type
+[HKEY_CLASSES_ROOT\.exe]
+@="exefile"
+[HKEY_CLASSES_ROOT\exefile\shell\open\command]
+@="\"%1\" %*"
+

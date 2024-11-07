@@ -113,13 +113,13 @@ class MainWindow_Controller(QMainWindow):
     def init_data_base(self):
         try:
             self.model = DLScan()
-            data_path = os.path.join(self.dir, "Model")
+            data_path = os.path.join(self.dir, "Engine/Model")
             for root, dirs, files in os.walk(data_path):
                 for file in files:
                     file_path = os.path.join(root, file)
                     self.model.load_model(file_path)
             self.rules = YRScan()
-            data_path = os.path.join(self.dir, "Rules") 
+            data_path = os.path.join(self.dir, "Engine/Rules") 
             for root, dirs, files in os.walk(data_path):
                 for file in files:
                     file_path = os.path.join(root, file)
@@ -410,7 +410,7 @@ class MainWindow_Controller(QMainWindow):
                 self.ui.Navigation_Bar.setStyleSheet("QWidget#Navigation_Bar {background-color:rgb(250,250,220);}")
             elif self.ui.Theme_Customize.isChecked():
                 if not os.path.exists(os.path.join(self.json["theme_color"],"Color.ini")):
-                    path = str(QFileDialog.getExistingDirectory(self,self.trans("自定主題"),"C:/"))
+                    path = str(QFileDialog.getExistingDirectory(self,self.trans("自定主題"),""))
                     if path and os.path.exists(os.path.join(path,"Color.ini")):
                         self.json["theme_color"] = path
                 with open(os.path.join(self.json["theme_color"],"Color.ini"), "r") as f:
@@ -914,8 +914,8 @@ class MainWindow_Controller(QMainWindow):
 
     def file_scan(self):
         try:
-            file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"C:/")[0])
-            if file and file not in self.whitelist:
+            file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"")[0])
+            if file and not self.check_whitelist(file):
                 self.init_scan()
                 self.scan_thread = Thread(target=self.write_scan,
                 args=(self.start_scan(file),file,), daemon=True)
@@ -929,8 +929,8 @@ class MainWindow_Controller(QMainWindow):
 
     def path_scan(self):
         try:
-            path = str(QFileDialog.getExistingDirectory(self,self.trans("病毒掃描"),"C:/"))
-            if path:
+            path = str(QFileDialog.getExistingDirectory(self,self.trans("病毒掃描"),""))
+            if path and not self.check_whitelist(path):
                 self.init_scan()
                 self.scan_thread = Thread(target=self.traverse_path, args=(path,), daemon=True)
                 self.scan_thread.start()
@@ -963,7 +963,7 @@ class MainWindow_Controller(QMainWindow):
                     break
                 elif os.path.isdir(file):
                     self.traverse_path(file)
-                elif file not in self.whitelist:
+                elif not self.check_whitelist(file):
                     QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
                     Qt.QueuedConnection, Q_ARG(str, self.trans("正在掃描")))
                     QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
@@ -1128,7 +1128,7 @@ class MainWindow_Controller(QMainWindow):
 
     def add_white_list(self):
         try:
-            file = str(QFileDialog.getOpenFileName(self,self.trans("增加到白名單"),"C:/")[0]).replace("\\", "/")
+            file = str(QFileDialog.getExistingDirectory(self,self.trans("增加到白名單"),"")).replace("\\", "/")
             if file and file not in self.whitelist:
                 if self.question_event("您確定要增加到白名單嗎?"):
                     self.whitelist.append(file)
@@ -1308,7 +1308,7 @@ class MainWindow_Controller(QMainWindow):
 
     def protect_drv_init(self):
         try:
-            file_path = os.path.join(self.dir, "Driver").replace("\\", "/")
+            file_path = os.path.join(self.dir, "Driver/Protect").replace("\\", "/")
             if os.path.exists(file_path):
                 if self.ui.Protection_switch_Button_4.text() == self.trans("已開啟"):
                     result = Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
@@ -1403,7 +1403,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             file = self.get_process_file(h_process).replace("\\", "/")
-            if os.path.exists(file) and file not in self.whitelist:
+            if os.path.exists(file) and not self.check_whitelist(file):
                 self.lock_process(h_process, True)
                 if self.start_scan(file):
                     self.kill_process("病毒攔截", h_process, file)
@@ -1412,6 +1412,13 @@ class MainWindow_Controller(QMainWindow):
             self.lock_process(h_process, False)
         except:
             self.lock_process(h_process, False)
+
+    def check_whitelist(self, file):
+        path = os.path.dirname(file)
+        for whitefile in self.whitelist:
+            if whitefile in path:
+                return True
+        return False
 
     def kill_process(self, info, h_process, file):
         try:

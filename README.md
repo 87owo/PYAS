@@ -11,11 +11,8 @@
 ## Requirements
 
 ```
-pip install psutil==5.9.5
 pip install pefile==2023.2.7
-pip install requests==2.31.0
 pip install pyperclip==1.8.2
-pip install pywin32==306
 pip install PyQt5==5.15.9
 pip install yara-python==4.5.1
 pip install numpy==2.1.1
@@ -27,26 +24,22 @@ pip install pillow==10.4.0
 
 ```
 PYAS/
-├── Driver/
-│   ├── PYAS_Driver.sys -------> Driver Protect (self protection driver for pyas by 0sha0)
+├── Driver/ (Protect driver and Microsoft runtime)
 │   └── ...
 │
-├── Model/
-│   ├── PYAS_Model.json -------> Virus Database (the database must be in the specified dir)
+├── Engine/ (Deep learn model and Yara database)
 │   └── ...
 │
-├── Rules/
-│   ├── Yara_Rules.yar ---------> Yara Rules (yara rules in plain text format)
-│   ├── Yara_Rules.yrc ---------> Compile Rules (yara rules in compiled format)
+├── Exten/ (Exten tools and System repair tools)
 │   └── ...
 │
-├── PYAS.py ---------------------> Main PYAS Program (including animation, scan, protect functions, ...)
-├── PYAS_Engine.py -------------> Conversion Database (used to transform profiles and forecast data)
-├── PYAS_Suffixes.py -----------> File Suffixes (including scanned file suffixes and common suffixes)
-├── PYAS_Interface.py ----------> PyQt5 Interface (use QT designer, must be matched with the main program)
-├── PYAS_Resource.py -----------> PyQt5 Resource (status pictures, icon packages, button icons, ...)
-├── PYAS_Language.py -----------> Translate Dict (Traditional Chinese, Simplified Chinese, English)
-├── PYAS_Version.py ------------> Pyinstaller (file information, version information, original name, ...)
+├── PYAS.py (Main PYAS program with qtui interaction and protect function)
+├── PYAS_Engine.py (Deep learning predict and yara rules file scanner)
+├── PYAS_Suffixes.py (including scan file suffixes and common suffixes)
+├── PYAS_Interface.py (Qt designer ui, must be matched with the main program)
+├── PYAS_Resource.py (status pictures, icon packages, and button icons)
+├── PYAS_Language.py (Traditional Chinese, Simplified Chinese and English)
+├── PYAS_Version.py (file information, version information, original name)
 └── ...
 ```
 

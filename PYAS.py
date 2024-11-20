@@ -52,7 +52,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas = sys.argv[0].replace("\\", "/")
         self.dir = os.path.dirname(self.pyas)
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.5"
+        self.pyas_version = "3.2.6"
         self.first_startup = True
         self.init_tray_icon()
         self.init_data_base()
@@ -922,7 +922,7 @@ class MainWindow_Controller(QMainWindow):
                 self.scan_thread.start()
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
-                self.answer_scan()
+            self.answer_scan()
         except Exception as e:
             self.bug_event(e)
             self.virus_scan_break()
@@ -936,7 +936,7 @@ class MainWindow_Controller(QMainWindow):
                 self.scan_thread.start()
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
-                self.answer_scan()
+            self.answer_scan()
         except Exception as e:
             self.bug_event(e)
             self.virus_scan_break()
@@ -1465,7 +1465,7 @@ class MainWindow_Controller(QMainWindow):
                     notify_info = FILE_NOTIFY_INFORMATION.from_buffer_copy(buffer[0:])
                     raw_filename = notify_info.FileName[:notify_info.FileNameLength // 2]
                     fpath = f"C:/{raw_filename}".replace("\\", "/")
-                    ftype = f".{fpath.split('.')[-1]}".lower()
+                    ftype = os.path.splitext(fpath)[-1].lower()
                     if self.ransom_counts >= 5 and self.track_proc:
                         self.ransom_counts = 0
                         self.kill_process("勒索攔截", *self.track_proc)

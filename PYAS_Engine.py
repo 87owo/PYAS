@@ -9,7 +9,7 @@ class YRScan:
 
     def load_rules(self, file_path):
         try:
-            ftype = str(f".{file_path.split('.')[-1]}").lower()
+            ftype = os.path.splitext(file_path)[-1].lower()
             if ftype in [".yara", ".yar"]:
                 self.rules[file_path] = yara.compile(file_path)
             elif ftype in [".yc", ".yrc"]:
@@ -50,7 +50,7 @@ class DLScan:
 
     def load_model(self, file_path):
         try:
-            ftype = str(f".{file_path.split('.')[-1]}").lower()
+            ftype = os.path.splitext(file_path)[-1].lower()
             if ftype in [".json", ".txt"]:
                 with open(file_path, 'r') as f:
                     self.class_names = json.load(f)
@@ -92,7 +92,7 @@ class DLScan:
 
     def get_type(self, file_path):
         match_data = {}
-        ftype = str(f".{file_path.split('.')[-1]}").lower()
+        ftype = os.path.splitext(file_path)[-1].lower()
         if ftype in self.suffix:
             try:
                 with pefile.PE(file_path, fast_load=True) as pe:

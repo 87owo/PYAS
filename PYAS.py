@@ -889,7 +889,6 @@ class MainWindow_Controller(QMainWindow):
             else:
                 self.virus_scan_break()
                 text = self.trans("當前未發現病毒")
-            self.scan_thread.join()
             QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
             Qt.QueuedConnection, Q_ARG(str, text))
             self.send_notify(text)
@@ -922,6 +921,7 @@ class MainWindow_Controller(QMainWindow):
                 self.scan_thread.start()
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
+                self.scan_thread.join()
             self.answer_scan()
         except Exception as e:
             self.bug_event(e)
@@ -936,6 +936,7 @@ class MainWindow_Controller(QMainWindow):
                 self.scan_thread.start()
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
+                self.scan_thread.join()
             self.answer_scan()
         except Exception as e:
             self.bug_event(e)
@@ -950,6 +951,7 @@ class MainWindow_Controller(QMainWindow):
                     self.scan_thread.start()
                     while self.scan_thread.is_alive():
                         QApplication.processEvents()
+                    self.scan_thread.join()
             self.answer_scan()
         except Exception as e:
             self.bug_event(e)

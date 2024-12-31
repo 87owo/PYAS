@@ -65,4 +65,4 @@ Windows 8.1, 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
 
 Wix, mtkiao129, 0sha0, AV-T Team of LisectGroup
 
-Copyright© 2020~2024 PYAS Security By 87owo
+Copyright© 2020~2025 PYAS Security By 87owo

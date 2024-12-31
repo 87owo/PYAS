@@ -71,4 +71,4 @@ Other systems may experience software malfunctions or crash
 
 Wix, mtkiao129, 0sha0, AV-T Team of LisectGroup
 
-Copyright© 2020~2024 PYAS Security By 87owo
+Copyright© 2020~2025 PYAS Security By 87owo

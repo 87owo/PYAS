@@ -54,6 +54,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.init_config_read() # 初始化配置
         self.init_config_wdll() # 初始化系統
         self.init_config_boot() # 初始化引導
+        self.init_config_proc() # 初始化進程
         self.init_config_data() # 初始化引擎
         self.init_config_icon() # 初始化圖標
         self.init_config_qtui() # 初始化介面
@@ -154,7 +155,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         except Exception as e:
             print(e)
 
-    def init_config_boot(self): # 初始化引導
+    def init_config_proc(self): # 初始化引導
         try:
             self.exist_process = self.get_process_list()
         except Exception as e:
@@ -1525,10 +1526,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                         self.ransom_counts = 0
                         self.kill_process("勒索攔截", *self.track_proc)
                     elif ":/Windows" in fpath and "/Temp/" not in fpath:
-                        if notify_info.Action in [2, 4] and ftype in alist:
+                        if notify_info.Action in [2, 4] and ftype in file_types:
                             self.ransom_counts += 1
                     elif ":/Users" in fpath and "/AppData/" not in fpath:
-                        if notify_info.Action in [2, 4] and ftype in alist:
+                        if notify_info.Action in [2, 4] and ftype in file_types:
                             self.ransom_counts += 1
                     if ":/Windows" not in fpath and ":/Program" not in fpath:
                         if notify_info.Action == 3 and self.start_scan(fpath):
@@ -1536,7 +1537,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                             os.remove(fpath)
                             self.send_notify(self.trans("病毒刪除: ") + fpath, True)
             except:
-                pass
+                print(e)
         self.kernel32.CloseHandle(hDir)
         if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
             if not self.first_startup:

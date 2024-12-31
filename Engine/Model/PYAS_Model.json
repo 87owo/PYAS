@@ -1,6 +1,5 @@
 {
-    "Suffix": [".com", ".exe", ".dll", ".sys", ".scr",
-               ".bat", ".cmd", ".ps1", ".vbs", ".wsf"], 
+    "Suffix": [".com", ".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".wsf"], 
 
     "Labels": ["Pefile/White", "Script/White", "Pefile/General", "Script/General"], 
 

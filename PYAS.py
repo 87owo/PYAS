@@ -67,7 +67,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def init_config_vars(self): # 初始化變數
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.6"
+        self.pyas_version = "3.2.7"
         self.mbr_value = None
         self.track_proc = None
         self.first_startup = 1
@@ -1123,8 +1123,8 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             else:
                 msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
                 os.close(self.virus_lock[file])
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     def virus_solve(self): # 清理病毒
         try:
@@ -1265,10 +1265,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def start_scan(self, file): # 調用掃描引擎
         try:
-            if isinstance(file, dict):
-                match_data = file
-            elif os.path.exists(file):
-                match_data = self.model.get_type(file)
+            match_data = self.model.get_type(file)
             for section, data in match_data.items():
                 label, level = self.model.dl_scan(data)
                 if label and label in self.model.detect:

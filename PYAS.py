@@ -305,7 +305,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
         self.ui.Virus_Scan_text.setText(self.trans("請選擇掃描方式"))
         self.ui.Virus_Scan_choose_Button.setText(self.trans("病毒掃描"))
-        self.ui.Virus_Scan_choose_Button.setStyleSheet(self.theme["button_on"])
         self.ui.File_Scan_Button.setText(self.trans("檔案掃描"))
         self.ui.Path_Scan_Button.setText(self.trans("路徑掃描"))
         self.ui.Disk_Scan_Button.setText(self.trans("全盤掃描"))
@@ -331,15 +330,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.State_log.setText(self.trans("日誌:"))
         self.ui.More_Tools_Back_Button.setText(self.trans("工具>"))
         self.ui.System_Process_Manage_Button.setText(self.trans("系統進程管理"))
-        self.ui.System_Process_Manage_Button.setStyleSheet(self.theme["button_off"])
         self.ui.Repair_System_Files_Button.setText(self.trans("系統檔案修復"))
-        self.ui.Repair_System_Files_Button.setStyleSheet(self.theme["button_off"])
         self.ui.Clean_System_Files_Button.setText(self.trans("系統垃圾清理"))
-        self.ui.Clean_System_Files_Button.setStyleSheet(self.theme["button_off"])
         self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
-        self.ui.Window_Block_Button.setStyleSheet(self.theme["button_off"])
         self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
-        self.ui.Repair_System_Network_Button.setStyleSheet(self.theme["button_off"])
         self.ui.About_Back.setText(self.trans("返回"))
         self.ui.PYAS_Version.setText(self.trans(f"PYAS Security V{self.pyas_version} ({self.pyae_version})"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
@@ -372,7 +366,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Language_title.setText(self.trans("顯示語言"))
         self.ui.Language_illustrate.setText(self.trans("請選擇語言"))
         self.ui.License_terms_title.setText(self.trans("許可條款:"))
-        self.ui.Virus_Scan_choose_widget.setStyleSheet(self.theme["button_off"])
 
     def init_config_color(self):
         self.config_theme = {

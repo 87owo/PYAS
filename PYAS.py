@@ -1,6 +1,6 @@
 import os, gc, sys, time, json
 import ctypes, ctypes.wintypes
-import msvcrt, pyperclip
+import requests, msvcrt, pyperclip
 from PYAS_Engine import YRScan, DLScan
 from PYAS_Suffixes import file_types
 from PYAS_Language import translate_dict
@@ -67,7 +67,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def init_config_vars(self): # 初始化變數
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.7"
+        self.pyas_version = "3.2.8"
         self.mbr_value = None
         self.track_proc = None
         self.first_startup = 1
@@ -566,6 +566,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 Thread(target=self.protect_proc_thread, daemon=True).start()
                 self.ui.Protection_switch_Button.setText(self.trans("已開啟"))
                 self.ui.Protection_switch_Button.setStyleSheet(self.theme["button_on"])
+            self.init_config_write(self.config_json)
         except Exception as e:
             print(e)
 
@@ -580,6 +581,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 Thread(target=self.protect_file_thread, daemon=True).start()
                 self.ui.Protection_switch_Button_2.setText(self.trans("已開啟"))
                 self.ui.Protection_switch_Button_2.setStyleSheet(self.theme["button_on"])
+            self.init_config_write(self.config_json)
         except Exception as e:
             print(e)
 
@@ -595,6 +597,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 Thread(target=self.protect_reg_thread, daemon=True).start()
                 self.ui.Protection_switch_Button_3.setText(self.trans("已開啟"))
                 self.ui.Protection_switch_Button_3.setStyleSheet(self.theme["button_on"])
+            self.init_config_write(self.config_json)
         except Exception as e:
             print(e)
 
@@ -639,6 +642,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 Thread(target=self.protect_net_thread, daemon=True).start()
                 self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
                 self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_on"])
+            self.init_config_write(self.config_json)
         except Exception as e:
             print(e)
 
@@ -651,6 +655,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.config_json["sensitivity"] = 1
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
             self.ui.high_sensitivity_switch_Button.setStyleSheet(self.theme["button_on"])
+        self.init_config_write(self.config_json)
 
     def extension_kit(self): # 初始化擴展引擎
         if self.ui.extension_kit_switch_Button.text() == self.trans("已開啟"):
@@ -661,6 +666,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.config_json["extend_mode"] = 1
             self.ui.extension_kit_switch_Button.setText(self.trans("已開啟"))
             self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_on"])
+        self.init_config_write(self.config_json)
 
     def gc_collect_init(self): # 初始化程式回收
         try:

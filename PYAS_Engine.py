@@ -111,11 +111,10 @@ class DLScan:
                         section_name = section.Name.rstrip(b'\x00').decode('latin1')
                         if (section.Characteristics & 0x00000020 and not
                         any(shell in section_name.lower() for shell in self.shells)):
-                            print(type(section.get_data()))
                             match_data[section_name] = section.get_data()
             except:
-                if ftype in [".bat", ".cmd", ".ps1", ".vbs", ".wsf", ".html", ".js", 
-                    ".txt", ".htm", ".hta", ".php", ".css", ".xml", ".json", ".wasm"]:
+                if ftype in [".bat", ".cmd", ".ps1", ".vbs", ".wsf", ".html", 
+                ".js", ".txt", ".htm", ".hta", ".php", ".css", ".xml", ".json"]:
                     with open(file_path, 'rb') as file:
                         match_data[ftype] = file.read()
         return match_data

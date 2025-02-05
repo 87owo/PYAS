@@ -38,6 +38,10 @@ class YRScan:
 class DLScan:
     def __init__(self):
         self.models = {}
+        self.valid_interpolations = {"none": Image.Resampling.NEAREST,
+        "box": Image.Resampling.BOX, "bilinear": Image.Resampling.BILINEAR,
+        "hamming": Image.Resampling.HAMMING, "bicubic": Image.Resampling.BICUBIC,
+        "lanczos": Image.Resampling.LANCZOS, "nearest": Image.Resampling.NEAREST}
         self.shells = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '!o',
         'cry', 'test', 'ace', 'yg', 'obr', 'tvm', 'dec', 'enc', 'b1_', 'base',
         'bss', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'protect',
@@ -58,8 +62,8 @@ class DLScan:
                 self.models[file_path] = onnxruntime.InferenceSession(file_path)
             self.labels = self.class_names['Labels']
             self.detect = self.class_names['Detect']
-            self.pixels = self.class_names['Pixels']
             self.values = self.class_names['Values']
+            self.resize = self.class_names['Resize']
             self.suffix = self.class_names['Suffix']
         except Exception as e:
             pass
@@ -67,7 +71,7 @@ class DLScan:
     def dl_scan(self, file_data):
         try:
             label_similarities = {label: [] for label in self.labels}
-            image_data = self.preprocess_image(file_data, tuple(self.pixels))
+            image_data = self.preprocess_image(file_data, tuple(self.resize))
             image_array = numpy.asarray(image_data).astype('float32') / 255.0
             image_expand = numpy.expand_dims(image_array, axis=(0, -1))
             for model_name, model in self.models.items():
@@ -83,12 +87,19 @@ class DLScan:
             return False, False
 
     def preprocess_image(self, file_data, target_size):
+        width, height, channels, interpolation = target_size
         wah = int(numpy.ceil(numpy.sqrt(len(file_data))))
         file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
         image_array = numpy.zeros((wah * wah,), dtype=numpy.uint8)
         image_array[:len(file_data)] = file_data
-        image = Image.fromarray(image_array.reshape((wah, wah)), 'L')
-        return image.resize(target_size, Image.Resampling.NEAREST)
+        if channels == 1:
+            image = Image.fromarray(image_array.reshape((wah, wah)), 'L')
+        elif channels == 3:
+            image = Image.fromarray(image_array.reshape((wah, wah)), 'RGB')
+        if width == 0 and height == 0:
+            return image
+        interpolations = self.valid_interpolations[interpolation.lower()]
+        return image.resize((width, height), interpolations)
 
     def get_type(self, file_path):
         match_data = {}
@@ -100,6 +111,7 @@ class DLScan:
                         section_name = section.Name.rstrip(b'\x00').decode('latin1')
                         if (section.Characteristics & 0x00000020 and not
                         any(shell in section_name.lower() for shell in self.shells)):
+                            print(type(section.get_data()))
                             match_data[section_name] = section.get_data()
             except:
                 if ftype in [".bat", ".cmd", ".ps1", ".vbs", ".wsf", ".html", ".js", 

@@ -5,7 +5,7 @@
 
     "Detect": ["Pefile/General", "Script/General"],  
 
-    "Pixels": [224, 224], 
+    "Resize": [224, 224, 1, "nearest"], 
 
     "Values": 90
 }

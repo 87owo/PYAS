@@ -88,6 +88,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         "file_protect": 1, # "0" (Close), "1" (Open)
         "sys_protect": 1,  # "0" (Close), "1" (Open)
         "net_protect": 1,  # "0" (Close), "1" (Open)
+        "cus_protect": 0,  # "0" (Close), "1" (Open)
         "sensitivity": 0,  # "0" (Medium), "1" (High)
         "extend_mode": 0,  # "0" (False), "1" (True)
         "white_lists": [],
@@ -228,6 +229,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Tools_Button.clicked.connect(self.change_tools_widget)    
         self.ui.Virus_Scan_Button.clicked.connect(self.change_scan_widget)
         self.ui.Protection_Button.clicked.connect(self.change_protect_widget)
+        self.ui.Setting_Button.clicked.connect(self.change_setting_widget)
         self.ui.Virus_Scan_output.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Virus_Scan_output.customContextMenuRequested.connect(self.Virus_Scan_output_menu)
         self.ui.Virus_Scan_Solve_Button.clicked.connect(self.virus_solve)
@@ -237,23 +239,24 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Path_Scan_Button.clicked.connect(self.path_scan)
         self.ui.Disk_Scan_Button.clicked.connect(self.disk_scan)
         self.ui.System_Process_Manage_Button.clicked.connect(lambda:self.change_tools(self.ui.Process_widget))
-        self.ui.Process_Tools_Back.clicked.connect(lambda:self.back_to_tools(self.ui.Process_widget))
         self.ui.Repair_System_Files_Button.clicked.connect(self.repair_system)
         self.ui.Clean_System_Files_Button.clicked.connect(self.clean_system)
-        self.ui.Window_Block_Button.clicked.connect(self.get_software_window)
+        self.ui.Window_Block_Button.clicked.connect(self.add_software_window)
+        self.ui.Window_Block_Button_2.clicked.connect(self.remove_software_window)
         self.ui.Repair_System_Network_Button.clicked.connect(self.repair_network)
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.process_list_menu)
-        self.ui.About_Back.clicked.connect(self.ui.About_widget.hide)
-        self.ui.Setting_Back.clicked.connect(self.setting_back)
         self.ui.Protection_switch_Button.clicked.connect(self.protect_proc_init)
         self.ui.Protection_switch_Button_2.clicked.connect(self.protect_file_init)
         self.ui.Protection_switch_Button_3.clicked.connect(self.protect_sys_init)
         self.ui.Protection_switch_Button_4.clicked.connect(self.protect_drv_init)
         self.ui.Protection_switch_Button_5.clicked.connect(self.protect_net_init)
+        self.ui.Protection_switch_Button_8.clicked.connect(self.protect_cus_init)
         self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
         self.ui.extension_kit_switch_Button.clicked.connect(self.extension_kit)
+        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_services)
         self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
+        self.ui.Add_White_list_Button_3.clicked.connect(self.remove_white_list)
         self.ui.Language_Traditional_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
         self.ui.Language_English.clicked.connect(self.init_change_lang)
@@ -298,10 +301,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.State_title.setText(self.trans("此裝置已受到防護"))
         self.ui.Window_title.setText(self.trans(f"PYAS Security"))
         self.ui.PYAS_CopyRight.setText(self.trans(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
-        self.ui.State_Button.setText(self.trans(" 狀態"))
-        self.ui.Virus_Scan_Button.setText(self.trans(" 掃描"))
-        self.ui.Tools_Button.setText(self.trans(" 工具"))
-        self.ui.Protection_Button.setText(self.trans(" 防護"))
         self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
         self.ui.Virus_Scan_text.setText(self.trans("請選擇掃描方式"))
         self.ui.Virus_Scan_choose_Button.setText(self.trans("病毒掃描"))
@@ -310,7 +309,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Disk_Scan_Button.setText(self.trans("全盤掃描"))
         self.ui.Virus_Scan_Solve_Button.setText(self.trans("立即刪除"))
         self.ui.Virus_Scan_Break_Button.setText(self.trans("停止掃描"))
-        self.ui.Process_Tools_Back.setText(self.trans("返回"))
         self.ui.Process_Total_title.setText(self.trans("進程總數:"))
         self.ui.Protection_title.setText(self.trans("進程防護"))
         self.ui.Protection_illustrate.setText(self.trans("啟用此選項可以攔截進程病毒"))
@@ -327,14 +325,26 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Protection_title_5.setText(self.trans("網路防護"))
         self.ui.Protection_illustrate_5.setText(self.trans("啟用此選項可以監控網路通訊"))
         self.ui.Protection_switch_Button_5.setText(self.trans(self.ui.Protection_switch_Button_5.text()))
+        self.ui.Protection_title_8.setText(self.trans("自訂防護"))
+        self.ui.Protection_illustrate_8.setText(self.trans("啟用此選項可以選擇自訂防護"))
+        self.ui.Protection_switch_Button_8.setText(self.trans(self.ui.Protection_switch_Button_8.text()))
         self.ui.State_log.setText(self.trans("日誌:"))
-        self.ui.More_Tools_Back_Button.setText(self.trans("工具>"))
-        self.ui.System_Process_Manage_Button.setText(self.trans("系統進程管理"))
-        self.ui.Repair_System_Files_Button.setText(self.trans("系統檔案修復"))
-        self.ui.Clean_System_Files_Button.setText(self.trans("系統垃圾清理"))
-        self.ui.Window_Block_Button.setText(self.trans("軟體彈窗攔截"))
-        self.ui.Repair_System_Network_Button.setText(self.trans("系統網路修復"))
-        self.ui.About_Back.setText(self.trans("返回"))
+        self.ui.System_Process_Manage_title.setText(self.trans("進程管理"))
+        self.ui.System_Process_Manage_illustrate.setText(self.trans("此選項可以實時查看系統進程"))
+        self.ui.System_Process_Manage_Button.setText(self.trans("選擇"))
+        self.ui.Clean_System_Files_title.setText(self.trans("垃圾清理"))
+        self.ui.Clean_System_Files_illustrate.setText(self.trans("此選項可以清理暫存檔案"))
+        self.ui.Clean_System_Files_Button.setText(self.trans("選擇"))
+        self.ui.Repair_System_Files_title.setText(self.trans("系統修復"))
+        self.ui.Repair_System_Files_illustrate.setText(self.trans("此選項可以修復系統註冊表"))
+        self.ui.Repair_System_Files_Button.setText(self.trans("選擇"))
+        self.ui.Repair_System_Network_title.setText(self.trans("網路修復"))
+        self.ui.Repair_System_Network_illustrate.setText(self.trans("此選項可以重置系統網路連接"))
+        self.ui.Repair_System_Network_Button.setText(self.trans("選擇"))
+        self.ui.Window_Block_title.setText(self.trans("彈窗攔截"))
+        self.ui.Window_Block_illustrate.setText(self.trans("此選項可以選擇指定窗口並攔截"))
+        self.ui.Window_Block_Button.setText(self.trans("增加"))
+        self.ui.Window_Block_Button_2.setText(self.trans("移除"))
         self.ui.PYAS_Version.setText(self.trans(f"PYAS Security V{self.pyas_version} ({self.pyae_version})"))
         self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
         self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
@@ -350,19 +360,21 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.extension_kit_title.setText(self.trans("擴展掃描引擎"))
         self.ui.extension_kit_illustrate.setText(self.trans("啟用此選項可以使用第三方擴展套件"))
         self.ui.extension_kit_switch_Button.setText(self.trans(self.ui.extension_kit_switch_Button.text()))
+        self.ui.cloud_services_title.setText(self.trans("雲端掃描服務"))
+        self.ui.cloud_services_illustrate.setText(self.trans("啟用此選項可以連接雲端掃描服務"))
+        self.ui.cloud_services_switch_Button.setText(self.trans(self.ui.cloud_services_switch_Button.text()))
         self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
         self.ui.Add_White_list_illustrate.setText(self.trans("此選項可以選擇檔案並增加到白名單"))
-        self.ui.Add_White_list_Button.setText(self.trans(self.ui.Add_White_list_Button.text()))
-        self.ui.Add_White_list_Button.setText(self.trans("選擇"))
+        self.ui.Add_White_list_Button.setText(self.trans("增加"))
+        self.ui.Add_White_list_Button_3.setText(self.trans("移除"))
         self.ui.Theme_title.setText(self.trans("顯色主題"))
         self.ui.Theme_illustrate.setText(self.trans("請選擇主題"))
-        self.ui.Theme_Customize.setText(self.trans("自定主題"))
+        self.ui.Theme_Customize.setText(self.trans("自訂主題"))
         self.ui.Theme_White.setText(self.trans("白色主題"))
         self.ui.Theme_Yellow.setText(self.trans("黃色主題"))
         self.ui.Theme_Red.setText(self.trans("紅色主題"))
         self.ui.Theme_Green.setText(self.trans("綠色主題"))
         self.ui.Theme_Blue.setText(self.trans("藍色主題"))
-        self.ui.Setting_Back.setText(self.trans("返回"))
         self.ui.Language_title.setText(self.trans("顯示語言"))
         self.ui.Language_illustrate.setText(self.trans("請選擇語言"))
         self.ui.License_terms_title.setText(self.trans("許可條款:"))
@@ -466,7 +478,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.ui.State_icon.setPixmap(QPixmap(self.theme["icon"]))
             else:
                 if not os.path.exists(os.path.join(self.config_json["theme_color"], "Color.json")):
-                    path = str(QFileDialog.getExistingDirectory(self, self.trans("自定主題"), ""))
+                    path = str(QFileDialog.getExistingDirectory(self, self.trans("自訂主題"), ""))
                     if path and os.path.exists(os.path.join(path, "Color.json")):
                         self.config_json["theme_color"] = path
                 with open(os.path.join(self.config_json["theme_color"], "Color.json"), "r") as f: 
@@ -485,10 +497,12 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.widget_2.setStyleSheet(self.theme["widget_style"])
             self.ui.Virus_Scan_choose_Button.setStyleSheet(self.theme["button_on"])
             self.ui.Add_White_list_Button.setStyleSheet(self.theme["button_off"])
+            self.ui.Add_White_list_Button_3.setStyleSheet(self.theme["button_off"])
             self.ui.System_Process_Manage_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Repair_System_Files_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Clean_System_Files_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Window_Block_Button.setStyleSheet(self.theme["button_off"])
+            self.ui.Window_Block_Button_2.setStyleSheet(self.theme["button_off"])
             self.ui.Repair_System_Network_Button.setStyleSheet(self.theme["button_off"])
             if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
                 self.ui.Protection_switch_Button.setStyleSheet(self.theme["button_on"])
@@ -510,6 +524,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_on"])
             else:
                 self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_off"])
+            if self.ui.Protection_switch_Button_8.text() == self.trans("已開啟"):
+                self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_on"])
+            else:
+                self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_off"])
             if self.ui.high_sensitivity_switch_Button.text() == self.trans("已開啟"):
                 self.ui.high_sensitivity_switch_Button.setStyleSheet(self.theme["button_on"])
             else:
@@ -518,6 +536,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_on"])
             else:
                 self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_off"])
+            if self.ui.cloud_services_switch_Button.text() == self.trans("已開啟"):
+                self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_on"])
+            else:
+                self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_off"])
         except Exception as e:
             print(e)
             self.config_json["theme_color"] = "White"
@@ -545,6 +567,8 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.protect_sys_init()
             if self.config_json["net_protect"] == 1:
                 self.protect_net_init()
+            #if self.config_json["cus_protect"] == 1:
+                #self.protect_cus_init()
             if self.config_json["sensitivity"] == 1:
                 self.change_sensitive()
             if self.config_json["extend_mode"] == 1:
@@ -646,6 +670,18 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         except Exception as e:
             print(e)
 
+    def protect_cus_init(self): # 初始化自訂防護
+        self.info_event("此功能不支持使用")
+        #if self.ui.Protection_switch_Button_8.text() == self.trans("已開啟"):
+            #self.ui.Protection_switch_Button_8.setText(self.trans("已關閉"))
+            #self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_off"])
+            #self.config_json["cus_protect"] = 0
+        #else:
+            #self.config_json["cus_protect"] = 1
+            #self.ui.Protection_switch_Button_8.setText(self.trans("已開啟"))
+            #self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_on"])
+        #self.init_config_write(self.config_json)
+
     def change_sensitive(self): # 初始化靈敏度
         if self.ui.high_sensitivity_switch_Button.text() == self.trans("已開啟"):
             self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
@@ -667,6 +703,18 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.extension_kit_switch_Button.setText(self.trans("已開啟"))
             self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_on"])
         self.init_config_write(self.config_json)
+
+    def cloud_services(self): # 初始化雲端掃描
+        self.info_event("此功能不支持使用")
+        #if self.ui.cloud_services_switch_Button.text() == self.trans("已開啟"):
+            #self.ui.cloud_services_switch_Button.setText(self.trans("已關閉"))
+            #self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_off"])
+            #self.config_json["service_url"] = 0
+        #else:
+            #self.config_json["service_url"] = 1
+            #self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
+            #self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_on"])
+        #self.init_config_write(self.config_json)
 
     def gc_collect_init(self): # 初始化程式回收
         try:
@@ -693,35 +741,56 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
     def add_white_list(self): # 添加白名單
         try:
             file = str(QFileDialog.getExistingDirectory(self,self.trans("增加到白名單"),"")).replace("\\", "/")
-            if file and file not in self.config_json["white_lists"]:
-                if self.question_event("您確定要增加到白名單嗎?"):
+            if file and self.question_event("您確定要增加到白名單嗎?"):
+                if file not in self.config_json["white_lists"]:
                     self.config_json["white_lists"].append(file)
-                    self.info_event(f"成功增加到白名單: "+file)
-            elif file and self.question_event("您確定要取消增加到白名單嗎?"):
-                self.config_json["white_lists"].remove(file)
-                self.info_event(f"成功取消增加到白名單: "+file)
-            self.init_config_write(self.config_json)
+                self.info_event(f"成功增加到白名單: "+file)
+                self.init_config_write(self.config_json)
         except Exception as e:
             print(e)
 
-    def get_software_window(self): # 添加彈窗攔截
+    def remove_white_list(self):
         try:
-            self.block_window = 0
+            file = str(QFileDialog.getExistingDirectory(self,self.trans("移除白名單"),"")).replace("\\", "/")
+            if file and self.question_event("您確定要移除白名單嗎?"):
+                if file in self.config_json["white_lists"]:
+                    self.config_json["white_lists"].remove(file)
+                self.info_event(f"成功移除白名單: "+file)
+                self.init_config_write(self.config_json)
+        except Exception as e:
+            print(e)
+
+    def add_software_window(self): # 添加彈窗攔截
+        try:
             if self.question_event("請選擇要攔截的軟體彈窗"):
-                while not self.block_window:
+                while True:
                     QApplication.processEvents()
                     window_name = self.get_foreground_window_title()
-                    if window_name not in ["","PYAS",self.trans("警告")]:
+                    if window_name in ["", "PYAS", self.trans("警告")]:
+                        continue
+                    if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
                         if window_name not in self.config_json["block_lists"]:
-                            if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
-                                self.config_json["block_lists"].append(window_name)
-                                self.info_event(f"成功增加到彈窗攔截: "+window_name)
-                        elif self.question_event(f"您確定要取消攔截 {window_name} 嗎?"):
-                            self.config_json["block_lists"].remove(window_name)
-                            self.info_event(f"成功取消彈窗攔截: "+window_name)
-                        self.block_window = 1
+                            self.config_json["block_lists"].append(window_name)
+                        self.info_event(f"成功增加到彈窗攔截: {window_name}")
+                        break
                 self.init_config_write(self.config_json)
-            self.block_window_init()
+        except Exception as e:
+            print(e)
+
+    def remove_software_window(self):
+        try:
+            if self.question_event("請選擇要取消攔截的軟體彈窗"):
+                while True:
+                    QApplication.processEvents()
+                    window_name = self.get_foreground_window_title()
+                    if window_name in ["", "PYAS", self.trans("警告")]:
+                        continue
+                    if self.question_event(f"您確定要取消攔截 {window_name} 嗎?"):
+                        if window_name in self.config_json["block_lists"]:
+                            self.config_json["block_lists"].remove(window_name)
+                        self.info_event(f"成功取消彈窗攔截: {window_name}")
+                        break
+                self.init_config_write(self.config_json)
         except Exception as e:
             print(e)
 
@@ -789,29 +858,26 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             event.ignore()
 
     def show_menu(self): # 功能選單
-        self.WindowMenu = QMenu()
-        Main_Settings = QAction(self.trans("設定"),self)
+        #self.WindowMenu = QMenu()
+        #Main_Settings = QAction(self.trans("設定"),self)
         #Main_Update = QAction(self.trans("更新"),self)
-        Main_About = QAction(self.trans("關於"),self)
-        self.WindowMenu.addAction(Main_Settings)
+        #Main_About = QAction(self.trans("關於"),self)
+        #self.WindowMenu.addAction(Main_Settings)
         #self.WindowMenu.addAction(Main_Update)
-        self.WindowMenu.addAction(Main_About)
-        Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
-        if Qusetion == Main_About and self.ui.About_widget.isHidden():
+        #self.WindowMenu.addAction(Main_About)
+        #Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
+        #if Qusetion == Main_About and self.ui.About_widget.isHidden():
+        if self.ui.About_widget.isHidden():
+            self.ui.State_widget.hide()
+            self.ui.Virus_Scan_widget.hide()
+            self.ui.Tools_widget.hide()
+            self.ui.Protection_widget.hide()
+            self.ui.Process_widget.hide()
             self.ui.About_widget.show()
-            self.ui.About_widget.raise_()
-            self.ui.Navigation_Bar.raise_()
-            self.ui.Window_widget.raise_()
+            self.ui.Setting_widget.hide()
+            self.Process_Timer.stop()
             self.change_animation_3(self.ui.About_widget,0.5)
-            self.change_animation_5(self.ui.About_widget,170,50,671,481)
-            self.setting_back()
-        if Qusetion == Main_Settings and self.ui.Setting_widget.isHidden():
-            self.ui.Setting_widget.show()
-            self.ui.About_widget.hide()
-            self.ui.Setting_widget.raise_()
-            self.ui.Window_widget.raise_()
-            self.change_animation_3(self.ui.Setting_widget,0.5)
-            self.change_animation_5(self.ui.Setting_widget,10,50,831,481)
+            self.change_animation_5(self.ui.About_widget,80,50,761,481)
         #if Qusetion == Main_Update:
             #self.update_database()
 
@@ -824,33 +890,14 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             print(e)
 
     def change_animation(self,widget): # 畫面動畫
-        x, y = 170, widget.pos().y()
+        x, y = 80, widget.pos().y()
         self.anim = QPropertyAnimation(widget, b"geometry")
-        widget.setGeometry(QRect(x - 100,y, 671, 481))
-        self.anim.setKeyValueAt(0.2, QRect(x - 60,y,671,481))
-        self.anim.setKeyValueAt(0.4, QRect(x - 10,y,671,481))
-        self.anim.setKeyValueAt(0.7, QRect(x - 3,y,671,481))
-        self.anim.setKeyValueAt(1, QRect(x,y,671,481))
+        widget.setGeometry(QRect(x - 60,y, 761, 481))
+        self.anim.setKeyValueAt(0.2, QRect(x - 30,y,761,481))
+        self.anim.setKeyValueAt(0.3, QRect(x - 10,y,761,481))
+        self.anim.setKeyValueAt(0.4, QRect(x - 5,y,761,481))
+        self.anim.setKeyValueAt(1, QRect(x,y,761,481))
         self.anim.start()
-
-    def change_animation_2(self,nx,ny):
-        x, y = self.ui.label.pos().x(), self.ui.label.pos().y()
-        self.anim2 = QPropertyAnimation(self.ui.label, b"geometry")
-        if y > ny:
-            self.anim2.setKeyValueAt(0.4, QRect(nx,ny + 25, 5, 35))
-            self.anim2.setKeyValueAt(0.5, QRect(nx,ny + 12, 5, 34))
-            self.anim2.setKeyValueAt(0.7, QRect(nx,ny + 6, 5, 33))
-            self.anim2.setKeyValueAt(0.8, QRect(nx,ny + 4, 5, 32))
-            self.anim2.setKeyValueAt(0.9, QRect(nx,ny + 2, 5, 31))
-            self.anim2.setKeyValueAt(1, QRect(nx,ny, 5, 30))
-        else:
-            self.anim2.setKeyValueAt(0.4, QRect(nx,ny - 25, 5, 35))
-            self.anim2.setKeyValueAt(0.5, QRect(nx,ny - 12, 5, 34))
-            self.anim2.setKeyValueAt(0.7, QRect(nx,ny - 6, 5, 33))
-            self.anim2.setKeyValueAt(0.8, QRect(nx,ny - 4, 5, 32))
-            self.anim2.setKeyValueAt(0.9, QRect(nx,ny - 2, 5, 31))
-            self.anim2.setKeyValueAt(1, QRect(nx,ny, 5, 30))
-        self.anim2.start()
 
     def change_animation_3(self,widget,time):
         self.opacity = QGraphicsOpacityEffect()
@@ -873,22 +920,34 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         x, y = widget.pos().x(), widget.pos().y()
         self.anim4 = QPropertyAnimation(widget, b"geometry")
         self.anim4.setDuration(time)
-        self.anim4.setStartValue(QRect(x, y, 131, ny))
-        self.anim4.setEndValue(QRect(x, y, 131, ny2))
+        self.anim4.setStartValue(QRect(x, y, 111, ny))
+        self.anim4.setEndValue(QRect(x, y, 111, ny2))
         self.anim4.start()
 
     def change_animation_5(self,widget,x,y,nx,ny): # 設置動畫
         self.anim = QPropertyAnimation(widget, b"geometry")
         widget.setGeometry(QRect(x,y - 45, nx,ny))
         self.anim.setKeyValueAt(0.2, QRect(x,y - 30,nx,ny))
-        self.anim.setKeyValueAt(0.4, QRect(x,y - 10,nx,ny))
-        self.anim.setKeyValueAt(0.7, QRect(x,y - 3,nx,ny))
+        self.anim.setKeyValueAt(0.3, QRect(x,y - 10,nx,ny))
+        self.anim.setKeyValueAt(0.4, QRect(x,y - 5,nx,ny))
         self.anim.setKeyValueAt(1, QRect(x,y,nx,ny))
         self.anim.start()
 
+    def change_setting_widget(self): # 狀態動畫
+        if self.ui.Setting_widget.isHidden():
+            self.change_animation_3(self.ui.Setting_widget,0.5)
+            self.change_animation(self.ui.Setting_widget)
+            self.ui.State_widget.hide()
+            self.ui.Virus_Scan_widget.hide()
+            self.ui.Tools_widget.hide()
+            self.ui.Protection_widget.hide()
+            self.ui.Process_widget.hide()
+            self.ui.About_widget.hide()
+            self.ui.Setting_widget.show()
+            self.Process_Timer.stop()
+
     def change_state_widget(self): # 狀態動畫
         if self.ui.State_widget.isHidden():
-            self.change_animation_2(20,50)
             self.change_animation_3(self.ui.State_widget,0.5)
             self.change_animation(self.ui.State_widget)
             self.ui.State_widget.show()
@@ -898,10 +957,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.Process_widget.hide()
             self.ui.About_widget.hide()
             self.ui.Setting_widget.hide()
+            self.Process_Timer.stop()
 
     def change_scan_widget(self): # 掃描動畫
         if self.ui.Virus_Scan_widget.isHidden():
-            self.change_animation_2(20,168)
             self.change_animation_3(self.ui.Virus_Scan_widget,0.5)
             self.change_animation(self.ui.Virus_Scan_widget)
             self.ui.State_widget.hide()
@@ -911,10 +970,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.Process_widget.hide()
             self.ui.About_widget.hide()
             self.ui.Setting_widget.hide()
+            self.Process_Timer.stop()
 
     def change_tools_widget(self): # 工具動畫
         if self.ui.Tools_widget.isHidden():
-            self.change_animation_2(20,285)
             self.change_animation_3(self.ui.Tools_widget,0.5)
             self.change_animation(self.ui.Tools_widget)
             self.ui.State_widget.hide()
@@ -924,10 +983,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.Process_widget.hide()
             self.ui.About_widget.hide()
             self.ui.Setting_widget.hide()
+            self.Process_Timer.stop()
 
     def change_protect_widget(self): # 防護動畫
         if self.ui.Protection_widget.isHidden():
-            self.change_animation_2(20,405)
             self.change_animation_3(self.ui.Protection_widget,0.5)
             self.change_animation(self.ui.Protection_widget)
             self.ui.State_widget.hide()
@@ -937,30 +996,18 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.Process_widget.hide()
             self.ui.About_widget.hide()
             self.ui.Setting_widget.hide()
+            self.Process_Timer.stop()
 
     def change_tools(self,widget): # 切換工具
+        self.Process_Timer.stop()
         self.ui.Tools_widget.hide()
         self.ui.Setting_widget.hide()
         self.ui.About_widget.hide()
         if widget == self.ui.Process_widget:
             self.Process_Timer.start(0)
-        elif widget == self.ui.System_Info_widget:
-            self.System_Info_update()
         self.change_animation_3(widget,0.5)
         self.change_animation(widget)
         widget.show()
-
-    def back_to_tools(self,widget): # 返回工具首頁
-        widget.hide()
-        if widget == self.ui.Process_widget:
-            self.Process_Timer.stop()
-        self.change_animation_3(self.ui.Tools_widget,0.5)
-        self.change_animation(self.ui.Tools_widget)
-        self.ui.Tools_widget.show()
-
-    def setting_back(self): # 返回主頁
-        self.ui.Navigation_Bar.show()
-        self.ui.Setting_widget.hide()
 
     def mousePressEvent(self, event): # 滑鼠按下動畫
         def update_opacity():
@@ -1210,7 +1257,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
                 self.scan_thread.join()
-            self.answer_scan()
+                self.answer_scan()
         except Exception as e:
             print(e)
             self.virus_scan_break()
@@ -1225,7 +1272,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
                 self.scan_thread.join()
-            self.answer_scan()
+                self.answer_scan()
         except Exception as e:
             print(e)
             self.virus_scan_break()
@@ -1304,7 +1351,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def delete_registry_value(self, hkey, subkey, value_name): # 刪除註冊表值
         key_handle = self.open_registry_key(hkey, subkey)
-        if key_handle and self.advapi32.RegDeleteValueW(key_handle, value_name) == 0 and self.track_proc:
+        if self.advapi32.RegDeleteValueW(key_handle, value_name) == 0 and self.track_proc:
             self.kill_process("註冊表攔截", *self.track_proc)
         self.advapi32.RegCloseKey(key_handle)
 

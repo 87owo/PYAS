@@ -766,12 +766,11 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 while True:
                     QApplication.processEvents()
                     window_name = self.get_foreground_window_title()
-                    if window_name in ["", "PYAS", self.trans("警告")]:
-                        continue
-                    if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
-                        if window_name not in self.config_json["block_lists"]:
-                            self.config_json["block_lists"].append(window_name)
-                        self.info_event(f"成功增加到彈窗攔截: {window_name}")
+                    if window_name not in ["", "PYAS", self.trans("警告")]:
+                        if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
+                            if window_name not in self.config_json["block_lists"]:
+                                self.config_json["block_lists"].append(window_name)
+                            self.info_event(f"成功增加到彈窗攔截: {window_name}")
                         break
                 self.init_config_write(self.config_json)
         except Exception as e:
@@ -783,12 +782,11 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 while True:
                     QApplication.processEvents()
                     window_name = self.get_foreground_window_title()
-                    if window_name in ["", "PYAS", self.trans("警告")]:
-                        continue
-                    if self.question_event(f"您確定要取消攔截 {window_name} 嗎?"):
-                        if window_name in self.config_json["block_lists"]:
-                            self.config_json["block_lists"].remove(window_name)
-                        self.info_event(f"成功取消彈窗攔截: {window_name}")
+                    if window_name not in ["", "PYAS", self.trans("警告")]:
+                        if self.question_event(f"您確定要取消攔截 {window_name} 嗎?"):
+                            if window_name in self.config_json["block_lists"]:
+                                self.config_json["block_lists"].remove(window_name)
+                            self.info_event(f"成功取消彈窗攔截: {window_name}")
                         break
                 self.init_config_write(self.config_json)
         except Exception as e:

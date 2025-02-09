@@ -762,6 +762,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def add_software_window(self): # 添加彈窗攔截
         try:
+            self.block_window = 0
             if self.question_event("請選擇要攔截的軟體彈窗"):
                 while True:
                     QApplication.processEvents()
@@ -773,11 +774,13 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                             self.info_event(f"成功增加到彈窗攔截: {window_name}")
                         break
                 self.init_config_write(self.config_json)
+            self.block_window_init()
         except Exception as e:
             print(e)
 
     def remove_software_window(self):
         try:
+            self.block_window = 0
             if self.question_event("請選擇要取消攔截的軟體彈窗"):
                 while True:
                     QApplication.processEvents()
@@ -789,6 +792,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                             self.info_event(f"成功取消彈窗攔截: {window_name}")
                         break
                 self.init_config_write(self.config_json)
+            self.block_window_init()
         except Exception as e:
             print(e)
 

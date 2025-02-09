@@ -42,7 +42,7 @@ translate_dict = {
               "網路":"Network ","變更":"Change ","總數":"Total","結束":"End ",
               "選項":"Options ","監控":"Monitor ","連接":"Connect ","可以":"To ",
               "進程":"Process ","攔截":"Block ","引導":"Boot ","刪除":"Delete ",
-              "分區":"Partition ","設定":"Settings","關於":"About","模式":"Mode ",
+              "分區":"Partition ","設定":"Setting ","關於":"About","模式":"Mode ",
               "提高":"Improve ","安全":"Security ","顯色":"Color ","主題":"Themes ",
               "風險":"Risk ","介面":"GUI ","核心":"Core ","服務":"Services ",
               "管理":"Manage","所有":"All ","您":"You ","取消":"Cancel ","未":"Not ",

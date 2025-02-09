@@ -49,6 +49,9 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         super(MainWindow_Controller, self).__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
+        self.init_config_pyas() # 初始化程式
+
+    def init_config_pyas(self):
         self.init_config_vars() # 初始化變數
         self.init_config_path() # 初始化路徑
         self.init_config_read() # 初始化配置
@@ -79,9 +82,9 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.virus_list_ui = []
         self.Process_quantity = 0
         self.Process_list_all_pid = []
-        self.config_json = {
+        self.default_json = {
         "language_ui": "en_US",  # "en_US", "zh_TW", "zh_CN"
-        "theme_color": "White",  # "Solid color" or "Theme path"
+        "theme_color": "White",  # "Solid color" or "./Theme/Path"
         "product_key": "None",   # "None" or "XXXXX-X..."
         "service_url": "None",   # "None" or "http://..."
         "proc_protect": 1, # "0" (Close), "1" (Open)
@@ -93,6 +96,9 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         "extend_mode": 0,  # "0" (False), "1" (True)
         "white_lists": [],
         "block_lists": []}
+        self.pass_windows = [
+        {'': ''}, {'PYAS': 'Qt5152QWindowIcon'},
+        {'': 'Shell_TrayWnd'}, {'': 'WorkerW'}]
 
     def init_config_path(self): # 初始化路徑
         try:
@@ -106,8 +112,28 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         except Exception as e:
             print(e)
 
+    def reset_options(self): # 重置所有設定
+        if self.question_event("您確定要重置所有設定嗎?"):
+            self.clean_function()
+            print(self.config_json["proc_protect"])
+            self.config_json = self.default_json
+            self.init_config_write(self.config_json)
+            self.init_config_pyas()
+
+    def clean_function(self): # 清理運行函數
+        self.first_startup = 1
+        self.block_window = 0
+        self.config_json["proc_protect"] = 0
+        self.config_json["file_protect"] = 0
+        self.config_json["sys_protect"] = 0
+        self.config_json["net_protect"] = 0
+        self.virus_scan_break()
+        self.protect_drv_init()
+        self.gc_collect = 0
+
     def init_config_read(self): # 初始化配置
         try:
+            self.config_json = {}
             if not os.path.exists(self.path_conf): 
                 os.makedirs(self.path_conf)
             if not os.path.exists(self.file_conf):
@@ -219,7 +245,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.About_widget.hide()
         self.ui.State_output.style().polish(self.ui.State_output.verticalScrollBar())
         self.ui.Virus_Scan_output.style().polish(self.ui.Virus_Scan_output.verticalScrollBar())
-        self.ui.License_terms.setText('''Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
+        self.ui.License_terms.setText('''MIT License\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
 
     def init_config_conn(self): # 初始化交互
         self.ui.Close_Button.clicked.connect(self.close)
@@ -244,6 +270,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Window_Block_Button.clicked.connect(self.add_software_window)
         self.ui.Window_Block_Button_2.clicked.connect(self.remove_software_window)
         self.ui.Repair_System_Network_Button.clicked.connect(self.repair_network)
+        self.ui.Reset_Options_Button.clicked.connect(self.reset_options)
         self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.ui.Process_list.customContextMenuRequested.connect(self.process_list_menu)
         self.ui.Protection_switch_Button.clicked.connect(self.protect_proc_init)
@@ -341,6 +368,9 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.ui.Repair_System_Network_title.setText(self.trans("網路修復"))
         self.ui.Repair_System_Network_illustrate.setText(self.trans("此選項可以重置系統網路連接"))
         self.ui.Repair_System_Network_Button.setText(self.trans("選擇"))
+        self.ui.Reset_Options_title.setText(self.trans("重置選項"))
+        self.ui.Reset_Options_illustrate.setText(self.trans("此選項可以重置所有設定選項"))
+        self.ui.Reset_Options_Button.setText(self.trans("選擇"))
         self.ui.Window_Block_title.setText(self.trans("彈窗攔截"))
         self.ui.Window_Block_illustrate.setText(self.trans("此選項可以選擇指定窗口並攔截"))
         self.ui.Window_Block_Button.setText(self.trans("增加"))
@@ -501,6 +531,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.System_Process_Manage_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Repair_System_Files_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Clean_System_Files_Button.setStyleSheet(self.theme["button_off"])
+            self.ui.Reset_Options_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Window_Block_Button.setStyleSheet(self.theme["button_off"])
             self.ui.Window_Block_Button_2.setStyleSheet(self.theme["button_off"])
             self.ui.Repair_System_Network_Button.setStyleSheet(self.theme["button_off"])
@@ -766,12 +797,13 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             if self.question_event("請選擇要攔截的軟體彈窗"):
                 while True:
                     QApplication.processEvents()
-                    window_name = self.get_foreground_window_title()
-                    if window_name not in ["", "PYAS", self.trans("警告")]:
-                        if self.question_event(f"您確定要攔截 {window_name} 嗎?"):
-                            if window_name not in self.config_json["block_lists"]:
-                                self.config_json["block_lists"].append(window_name)
-                            self.info_event(f"成功增加到彈窗攔截: {window_name}")
+                    hWnd = self.user32.GetForegroundWindow()
+                    window_info = self.get_window_info(hWnd)
+                    if window_info not in self.pass_windows:
+                        if self.question_event(f"您確定要攔截 {window_info} 嗎?"):
+                            if window_info not in self.config_json["block_lists"]:
+                                self.config_json["block_lists"].append(window_info)
+                            self.info_event(f"成功增加到彈窗攔截: {window_info}")
                         break
                 self.init_config_write(self.config_json)
             self.block_window_init()
@@ -784,33 +816,52 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             if self.question_event("請選擇要取消攔截的軟體彈窗"):
                 while True:
                     QApplication.processEvents()
-                    window_name = self.get_foreground_window_title()
-                    if window_name not in ["", "PYAS", self.trans("警告")]:
-                        if self.question_event(f"您確定要取消攔截 {window_name} 嗎?"):
-                            if window_name in self.config_json["block_lists"]:
-                                self.config_json["block_lists"].remove(window_name)
-                            self.info_event(f"成功取消彈窗攔截: {window_name}")
+                    hWnd = self.user32.GetForegroundWindow()
+                    window_info = self.get_window_info(hWnd)
+                    if window_info not in self.pass_windows:
+                        if self.question_event(f"您確定要取消攔截 {window_info} 嗎?"):
+                            if window_info in self.config_json["block_lists"]:
+                                self.config_json["block_lists"].remove(window_info)
+                            self.info_event(f"成功取消彈窗攔截: {window_info}")
                         break
                 self.init_config_write(self.config_json)
             self.block_window_init()
         except Exception as e:
             print(e)
 
-    def get_foreground_window_title(self): # 取得窗口標題
-        hWnd = self.user32.GetForegroundWindow()
+    def get_window_info(self, hWnd): # 取得窗口資訊
         length = self.user32.GetWindowTextLengthW(hWnd)
         title = ctypes.create_unicode_buffer(length + 1)
         self.user32.GetWindowTextW(hWnd, title, length + 1)
-        return str(title.value)
+        window_title = str(title.value)
+        class_name = ctypes.create_unicode_buffer(256)
+        self.user32.GetClassNameW(hWnd, class_name, 256)
+        class_name = str(class_name.value)
+        return {window_title: class_name}
 
-    def block_software_window(self): # 彈窗攔截線程
+    def enum_windows_callback(self, hWnd, lParam):
+        self.hwnd_list.append(hWnd)
+        return True
+
+    def get_all_windows(self):
+        self.hwnd_list = []
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+        self.user32.EnumWindows(WNDENUMPROC(self.enum_windows_callback), 0)
+        return self.hwnd_list
+
+    def block_software_window(self):  # 彈窗攔截線程
         while self.block_window:
             try:
                 time.sleep(0.2)
-                for window_name in self.config_json["block_lists"]:
-                    hWnd = self.user32.FindWindowW(None, ctypes.create_unicode_buffer(window_name))
-                    if hWnd != 0:
-                        self.user32.PostMessageW(hWnd, 274, 61536, 0)
+                if not self.config_json["block_lists"]:
+                    continue
+                for hWnd in self.get_all_windows():
+                    window_info = self.get_window_info(hWnd)
+                    if window_info in self.config_json["block_lists"]:
+                        self.user32.SendMessageW(hWnd, 0x0010, 0xF060, 0) # WM_CLOSE, SC_CLOSE
+                        self.user32.SendMessageW(hWnd, 0x0002, 0xF060, 0) # WM_DESTROY, SC_CLOSE
+                        self.user32.SendMessageW(hWnd, 0x0012, 0xF060, 0) # WM_QUIT, SC_CLOSE
+                        self.user32.SendMessageW(hWnd, 0x0112, 0xF060, 0) # WM_SYSCOMMAND, SC_CLOSE
             except Exception as e:
                 print(e)
 
@@ -844,17 +895,16 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.init_config_hide()
             #self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
 
+    def nativeEvent(self, eventType, message):
+        msg = ctypes.wintypes.MSG.from_address(int(message))
+        if msg.message in [0x0010, 0x0002, 0x0012, 0x0112, 0x0212]:
+            return True, 0
+        return super(MainWindow_Controller, self).nativeEvent(eventType, message)
+
     def closeEvent(self, event): # 退出程序
         if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
             self.init_config_write(self.config_json)
-            self.first_startup = 1
-            self.config_json["proc_protect"] = 0
-            self.config_json["file_protect"] = 0
-            self.config_json["sys_protect"] = 0
-            self.config_json["net_protect"] = 0
-            self.virus_scan_break()
-            self.protect_drv_init()
-            self.gc_collect = 0
+            self.clean_function()
             event.accept()
         else:
             event.ignore()

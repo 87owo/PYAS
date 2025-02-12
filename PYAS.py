@@ -70,7 +70,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def init_config_vars(self): # 初始化變數
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.8"
+        self.pyas_version = "3.2.9"
         self.mbr_value = None
         self.track_proc = None
         self.first_startup = 1
@@ -195,6 +195,9 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 for file in files:
                     file_path = os.path.join(root, file)
                     self.model.load_model(file_path)
+        except Exception as e:
+            print(e)
+        try:
             self.rules = YRScan()
             for root, dirs, files in os.walk(self.path_rules):
                 for file in files:
@@ -1145,9 +1148,9 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             for pid in self.get_process_list():
                 QApplication.processEvents()
                 h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-                exe_name = self.get_process_file(h_process).replace('\\', '/')
-                if exe_name:
-                    Process_list_app.append((pid, f"[{pid}] > {exe_name}"))
+                file = self.get_process_file(h_process).replace("\\", "/")
+                if file:
+                    Process_list_app.append((pid, f"[{pid}] > {file}"))
             Process_list_app.sort(key=lambda x: x[0])
             self.Process_list_all_pid = [pid for pid, _ in Process_list_app]
             if len(self.Process_list_all_pid) != self.Process_quantity:
@@ -1371,13 +1374,16 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                         return f"{label}.{level}"
                     elif level >= self.model.values:
                         return f"{label}.{level}"
+        except:
+            pass
+        try:
             if self.config_json["extend_mode"]:
                 label, level = self.rules.yr_scan(file)
                 if label and isinstance(level, str):
                     return f"{label}.{level}"
-            return False
         except:
-            return False
+            pass
+        return False
 
     def repair_system(self): # 修復系統
         try:
@@ -1674,27 +1680,36 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.send_notify(self.trans(f"竄改警告: self.sys_protect (reg)"), False)
                 self.kill_process("竄改攔截", *self.track_proc)
 
-    def get_tcp_connections(self): # 獲取連接
+    def get_tcp_connections(self):
         size = ctypes.wintypes.DWORD()
-        self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), False, 2, 0, 0)
-        tcp_table = MIB_TCPTABLE_OWNER_PID()
-        tcp_table_size = size.value
-        tcp_table_pointer = ctypes.cast(ctypes.create_string_buffer(tcp_table_size), ctypes.POINTER(MIB_TCPTABLE_OWNER_PID))
-        tcp_table_pointer.contents.dwNumEntries = 0
-        if self.iphlpapi.GetExtendedTcpTable(tcp_table_pointer, ctypes.byref(size), False, 2, 0, 0) == 0:
-            tcp_entries = tcp_table_pointer.contents.table[:tcp_table_pointer.contents.dwNumEntries]
-            return tcp_entries
-        return []
+        ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
+        if ret != 122:
+            raise ctypes.WinError(ret)
+        buf = ctypes.create_string_buffer(size.value)
+        ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
+        if ret != 0:
+            raise ctypes.WinError(ret)
+        num_entries = ctypes.cast(buf, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
+        connections = []
+        row_size = ctypes.sizeof(MIB_TCPROW_OWNER_PID)
+        offset = ctypes.sizeof(ctypes.wintypes.DWORD)
+        for i in range(num_entries):
+            entry_address = ctypes.addressof(buf) + offset + i * row_size
+            conn = ctypes.cast(entry_address, ctypes.POINTER(MIB_TCPROW_OWNER_PID)).contents
+            local_ip = f"{conn.dwLocalAddr & 0xFF}.{(conn.dwLocalAddr >> 8) & 0xFF}.{(conn.dwLocalAddr >> 16) & 0xFF}.{(conn.dwLocalAddr >> 24) & 0xFF}"
+            remote_ip = f"{conn.dwRemoteAddr & 0xFF}.{(conn.dwRemoteAddr >> 8) & 0xFF}.{(conn.dwRemoteAddr >> 16) & 0xFF}.{(conn.dwRemoteAddr >> 24) & 0xFF}"
+            connections.append({"pid": conn.dwOwningPid, "local_ip": local_ip, "remote_ip": remote_ip, "state": conn.dwState})
+        return connections
 
     def protect_net_thread(self): # 網路防護
         while self.config_json["net_protect"]:
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 for conn in self.get_tcp_connections():
-                    local_ip = f"{conn.dwLocalAddr & 0xFF}.{(conn.dwLocalAddr >> 8) & 0xFF}.{(conn.dwLocalAddr >> 16) & 0xFF}.{(conn.dwLocalAddr >> 24) & 0xFF}"
-                    remote_ip = f"{conn.dwRemoteAddr & 0xFF}.{(conn.dwRemoteAddr >> 8) & 0xFF}.{(conn.dwRemoteAddr >> 16) & 0xFF}.{(conn.dwRemoteAddr >> 24) & 0xFF}"
-                    if remote_ip in self.rules.network:
-                        self.kill_process("網路攔截", *self.track_proc)
+                    if conn['remote_ip'] in self.rules.network:
+                        h_process = self.kernel32.OpenProcess(0x1F0FFF, False, conn['pid'])
+                        file = self.get_process_file(h_process).replace("\\", "/")
+                        self.kill_process("網路攔截", (h_process, file))
             except Exception as e:
                 print(e)
         if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):

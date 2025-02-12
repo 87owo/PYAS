@@ -772,31 +772,26 @@ rule General_28 {
       author = "PYAS Security"
       date = "2024-06-12"
    strings:
-      $s1 = "GNU C11 6.3.0" ascii
-      $s2 = "GCC: (MinGW.org GCC-6.3.0-1) 6.3.0" fullword ascii
-      $s3 = "___mingw_readdir" fullword ascii
-      $s4 = "___mingw_closedir" fullword ascii
-      $s5 = "___mingw_seekdir" fullword ascii
-      $s6 = "%d is not a prime number." fullword ascii
-      $s7 = "___mingw_rewinddir" fullword ascii
-      $s8 = "__mingw32_init_mainargs" fullword ascii
-      $s9 = "___mingw_telldir" fullword ascii
-      $s10 = "Enter an integer: " fullword ascii
-      $s11 = "___mingw_opendir" fullword ascii
-      $s12 = "/home/keith/" ascii
-      $s13 = "../../../src/gcc-6.3.0/libgcc" ascii
-      $s14 = "___mingw_dirname" fullword ascii
-      $s15 = "_isPrime`" fullword ascii
-      $s16 = "%d is a prime number." fullword ascii
-      $s17 = ".weak.__Jv_RegisterClasses.___EH_FRAME_BEGIN__" fullword ascii
-      $s18 = "-mtune=generic" ascii
-      $s19 = "-march=i586" ascii
-      $s20 = "-g -g -g -O2 -O2 -O2" ascii
-      $s21 = "-fbuilding-libgcc" ascii
-      $s22 = "-fno-stack-protector" ascii
+      $x1 = "schemas.microsoft.com" wide
+      $x2 = "Client Worker Thread" ascii
+      $s1 = "A6BFEA43-501F-456F-A845-983D3AD7B8F0" wide
+      $s2 = "upgrader" wide
+      $s3 = "rtvscan.exe" wide
+      $s4 = "Enable-WindowsOptionalFeature -FeatureName" wide
+      $s5 = "remupd.exe" fullword wide
+      $s6 = "Mcshield.exe" fullword wide
+      $s7 = "mssecess.exe" fullword wide
+      $s8 = "RavMonD.exe" fullword wide
+      $s9 = "KvMonXP.exe" fullword wide
+      $s10 = "baiduSafeTray.exe" fullword wide
+      $s11 = "Qavanijeb.exe" fullword wide
+      $s12 = "%s --> Error: %d, EC: %d" fullword ascii
+      $s13 = "wscript.exe //E:vbscript" wide
+      $s14 = "upgrader_64" wide
+      $s15 = "Process Data Error" fullword wide
    condition:
-      uint16(0) == 0x5a4d and filesize < 500KB and
-      8 of them
+      uint16(0) == 0x5a4d and filesize < 1000KB and
+      1 of ($x*) and 6 of them
 }
 
 rule General_29 {
@@ -1441,32 +1436,4 @@ rule General_52 {
    condition:
       uint16(0) == 0x5a4d and filesize < 2000KB and
       8 of them
-}
-
-rule General_53 {
-   meta:
-      description = "53"
-      author = "PYAS Security"
-      date = "2024-06-12"
-   strings:
-      $x1 = "schemas.microsoft.com" wide
-      $x2 = "Client Worker Thread" ascii
-      $s1 = "A6BFEA43-501F-456F-A845-983D3AD7B8F0" wide
-      $s2 = "upgrader" wide
-      $s3 = "rtvscan.exe" wide
-      $s4 = "Enable-WindowsOptionalFeature -FeatureName" wide
-      $s5 = "remupd.exe" fullword wide
-      $s6 = "Mcshield.exe" fullword wide
-      $s7 = "mssecess.exe" fullword wide
-      $s8 = "RavMonD.exe" fullword wide
-      $s9 = "KvMonXP.exe" fullword wide
-      $s10 = "baiduSafeTray.exe" fullword wide
-      $s11 = "Qavanijeb.exe" fullword wide
-      $s12 = "%s --> Error: %d, EC: %d" fullword ascii
-      $s13 = "wscript.exe //E:vbscript" wide
-      $s14 = "upgrader_64" wide
-      $s15 = "Process Data Error" fullword wide
-   condition:
-      uint16(0) == 0x5a4d and filesize < 1000KB and
-      1 of ($x*) and 6 of them
 }

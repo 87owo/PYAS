@@ -42,15 +42,12 @@ class DLScan:
         "box": Image.Resampling.BOX, "bilinear": Image.Resampling.BILINEAR,
         "hamming": Image.Resampling.HAMMING, "bicubic": Image.Resampling.BICUBIC,
         "lanczos": Image.Resampling.LANCZOS, "nearest": Image.Resampling.NEAREST}
-        self.shells = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '!o',
-        'cry', 'test', 'ace', 'yg', 'obr', 'tvm', 'dec', 'enc', 'b1_', 'base',
-        'bss', 'clr_uef', 'cursors', 'trs_age', 'engine', 'enigma', 'protect',
-        'nep', 'no_bbt', 'wpp_sf', 'retpol', 'rt', 'rwexec', 'rygs', 'poolmi',
-        's:@', 'pgae', 'proxy', 'wisevec', 'segm', 'transit', 'vmp', 'extjmp',
-        'upx', 'tracesup', 'res', 'lzma', 'malloc_h', 'miniex', 'ndr64', 'be',
-        'mssmixer', 'wow', 'press', 'fio', 'pad', 'hexpthk', 'h~;', 'icapsec',
-        'sanontcp', 'secur', 'asmstub', 'nsys_wr', 'orpc', 'pack', 'wow64svc',
-        'uedbg', 'viahw', 'data', 'zk', 'fothk', 'qihoo']#"""
+        shell_section = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 
+        'cry', 'tvm', 'dec', 'enc', 'vmp', 'upx', 'lzma', 'pack', 'press', 
+        'enigma', 'protect', 'secur']
+        unimportant_section = ['viahwaes', 'rodata', 'orpc', 'nep', 'ace',
+        'extjmp', 'no_bbt', 'data']
+        self.shells = shell_section + unimportant_section #"""
 
     def load_model(self, file_path):
         try:

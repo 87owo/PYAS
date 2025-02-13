@@ -1,5 +1,5 @@
-import os, sys, time, json, yara
-import numpy, pefile, onnxruntime
+import os, sys, time, json, yara, numpy
+import chardet, pefile, onnxruntime
 from PIL import Image
 
 class YRScan:
@@ -38,10 +38,15 @@ class YRScan:
 class DLScan:
     def __init__(self):
         self.models = {}
-        self.valid_interpolations = {"none": Image.Resampling.NEAREST,
-        "box": Image.Resampling.BOX, "bilinear": Image.Resampling.BILINEAR,
-        "hamming": Image.Resampling.HAMMING, "bicubic": Image.Resampling.BICUBIC,
-        "lanczos": Image.Resampling.LANCZOS, "nearest": Image.Resampling.NEAREST}
+        self.valid_interpolations = {
+        "box": Image.Resampling.BOX,
+        "none": Image.Resampling.NEAREST,
+        "bilinear": Image.Resampling.BILINEAR,
+        "hamming": Image.Resampling.HAMMING,
+        "bicubic": Image.Resampling.BICUBIC,
+        "lanczos": Image.Resampling.LANCZOS,
+        "nearest": Image.Resampling.NEAREST}
+
         shell_section = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
         "cry", "tvm", "dec", "enc", "vmp", "upx", "aes", "lzma", "press", 
         "pack", "enigma", "protect", "secur"]
@@ -71,38 +76,64 @@ class DLScan:
         except Exception as e:
             pass
 
-    def dl_scan(self, file_data):
+    def dl_scan(self, file_path):
         try:
-            label_similarities = {label: [] for label in self.labels}
-            image_data = self.preprocess_image(file_data, tuple(self.resize))
-            image_array = numpy.asarray(image_data).astype('float32') / 255.0
-            image_expand = numpy.expand_dims(image_array, axis=(0, -1))
+            files_data = self.get_type(file_path)
+            batch_images = []
+            for section, file_data in files_data.items():
+                image_data = self.preprocess_image(file_data, tuple(self.resize))
+                image_array = numpy.asarray(image_data).astype('float32') / 255.0
+                if len(image_array.shape) == 2:
+                    image_array = numpy.expand_dims(image_array, axis=-1)
+                batch_images.append(image_array)
+            batch_images = numpy.stack(batch_images, axis=0)
+            batch_results = [{label: [] for label in self.labels} for _ in range(len(files_data))]
             for model_name, model in self.models.items():
                 input_name = model.get_inputs()[0].name
-                pre_answers = model.run(None, {input_name: image_expand})[0][0]
-                for k, score in enumerate(pre_answers):
-                    label_similarities[self.labels[k].strip()].append(score)
-            label_percentage = {label: (sum(similarities) / len(self.models)) * 100
-            for label, similarities in label_similarities.items()}
-            label, level = max(label_percentage.items(), key=lambda x: x[1])
-            return label, int(level)
+                predictions = model.run(None, {input_name: batch_images})[0]
+                for i, pre_answers in enumerate(predictions):
+                    for k, score in enumerate(pre_answers):
+                        batch_results[i][self.labels[k].strip()].append(score)
+            final_results = []
+            for result in batch_results:
+                label_percentage = {label: (sum(scores) / len(scores)) * 100
+                for label, scores in result.items()}
+                best_label, best_confidence = max(label_percentage.items(), key=lambda x: x[1])
+                final_results.append((best_label, int(best_confidence)))
+                if best_label in self.detect:
+                    return best_label, int(best_confidence)
+            return False, False
         except Exception as e:
             return False, False
 
     def preprocess_image(self, file_data, target_size):
         width, height, channels, interpolation = target_size
-        wah = int(numpy.ceil(numpy.sqrt(len(file_data))))
+        wah = int(numpy.ceil(numpy.sqrt(len(file_data) / channels)))
         file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
-        image_array = numpy.zeros((wah * wah,), dtype=numpy.uint8)
+        expected_size = wah * wah * channels
+        image_array = numpy.zeros((expected_size,), dtype=numpy.uint8)
         image_array[:len(file_data)] = file_data
         if channels == 1:
             image = Image.fromarray(image_array.reshape((wah, wah)), 'L')
         elif channels == 3:
-            image = Image.fromarray(image_array.reshape((wah, wah)), 'RGB')
+            image = Image.fromarray(image_array.reshape((wah, wah, 3)), 'RGB')
+        else:
+            image = Image.fromarray(image_array.reshape((wah, wah, channels)))
         if width == 0 and height == 0:
             return image
         interpolations = self.valid_interpolations[interpolation.lower()]
         return image.resize((width, height), interpolations)
+
+    def is_text_file(self, file_path, sample_size):
+        try:
+            with open(file_path, "rb") as f:
+                raw_data = f.read(sample_size)
+            encoding = chardet.detect(raw_data)["encoding"]
+            if encoding and raw_data.decode(encoding):
+                return True
+            return False
+        except:
+            return False
 
     def get_type(self, file_path):
         match_data = {}
@@ -111,13 +142,12 @@ class DLScan:
             try:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
-                        section_name = section.Name.rstrip(b'\x00').decode('latin1')
-                        if (section.Characteristics & 0x00000020 and not
-                        any(shell in section_name.lower() for shell in self.shells)):
-                            match_data[section_name] = section.get_data()
+                        name = section.Name.rstrip(b'\x00').decode('latin1')
+                        if not any(s in name.lower() for s in self.shells): #
+                            if section.Characteristics & 0x00000020:
+                                match_data[name] = section.get_data()
             except:
-                if ftype in [".bat", ".cmd", ".ps1", ".vbs", ".wsf", ".html", 
-                ".js", ".txt", ".htm", ".hta", ".php", ".css", ".xml", ".json"]:
+                if self.is_text_file(file_path, 1024):
                     with open(file_path, 'rb') as file:
                         match_data[ftype] = file.read()
         return match_data

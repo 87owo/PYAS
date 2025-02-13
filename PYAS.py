@@ -1367,21 +1367,21 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def start_scan(self, file): # 調用掃描引擎
         try:
-            match_data = self.model.get_type(file)
-            for section, data in match_data.items():
-                label, level = self.model.dl_scan(data)
-                if label and label in self.model.detect:
-                    if self.config_json["sensitivity"]:
-                        return f"{label}.{level}"
-                    elif level >= self.model.values:
-                        return f"{label}.{level}"
+            label, level = self.model.dl_scan(file)
+            if label and self.config_json["sensitivity"]:
+                return f"{label}.{level}"
+            elif label and level >= self.model.values:
+                return f"{label}.{level}"
+        except Exception as e:
+            print(e)
+        try:
             if self.config_json["extend_mode"]:
                 label, level = self.rules.yr_scan(file)
                 if label and isinstance(level, str):
                     return f"{label}.{level}"
-            return False
-        except:
-            return False
+        except Exception as e:
+            print(e)
+        return False
 
     def repair_system(self): # 修復系統
         try:

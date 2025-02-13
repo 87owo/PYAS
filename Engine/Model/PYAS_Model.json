@@ -7,5 +7,5 @@
 
     "Resize": [224, 224, 1, "nearest"], 
 
-    "Values": 90
+    "Values": 95
 }

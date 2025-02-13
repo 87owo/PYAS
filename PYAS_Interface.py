@@ -1112,7 +1112,7 @@ class Ui_MainWindow(object):
         self.Window_title.setGeometry(QtCore.QRect(10, 0, 661, 41))
         font = QtGui.QFont()
         font.setFamily("Microsoft YaHei")
-        font.setPointSize(15)
+        font.setPointSize(13)
         font.setBold(False)
         font.setWeight(50)
         self.Window_title.setFont(font)

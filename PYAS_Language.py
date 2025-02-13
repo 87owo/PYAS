@@ -62,4 +62,5 @@ translate_dict = {
               "指定":"Specify ","清空":"Empty ","資源回收桶":"Recycle Bin ",
               "與":"With ","當":"When ","功能":"Function ","異常":"Abnormal ",
               "重置":"Reset ","窗口":"Window ","暫存":"Temp ","自訂":"Custom ",
-              "不支持":"Not Support ","共":"Total ","時":"","  ":" "}}
+              "不支持":"Not Support ","共":"Total ","秒":"Seconds ","耗時":"Takes ",
+              "時":"","  ":" "}}

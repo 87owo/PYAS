@@ -78,6 +78,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.gc_collect = 0
         self.block_window = 0
         self.total_scan = 0
+        self.scan_time = 0
         self.virus_lock = {}
         self.virus_list_ui = []
         self.Process_quantity = 0
@@ -1194,6 +1195,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 pass
             self.scan_file = True
             self.total_scan = 0
+            self.scan_time = time.time()
             self.virus_lock = {}
             self.virus_list_ui = []
             self.ui.Virus_Scan_Solve_Button.hide()
@@ -1270,17 +1272,19 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         try:
             QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
             Qt.QueuedConnection, Q_ARG(str, self.trans("病毒掃描")))
-            if self.virus_lock:
+            if self.virus_list_ui:
                 self.ui.Virus_Scan_Solve_Button.show()
                 self.ui.Virus_Scan_Break_Button.hide()
                 self.ui.Virus_Scan_choose_Button.show()
-                text = self.trans(f"當前發現 {len(self.virus_lock)} 個病毒，共掃描 {self.total_scan} 個檔案")
+                text = self.trans(f"當前發現 {len(self.virus_list_ui)} 個病毒")
             else:
                 self.virus_scan_break()
                 text = self.trans("當前未發現病毒")
+            takes_time = int(time.time() - self.scan_time)
+            text_end = self.trans(f"，耗時 {takes_time} 秒，共掃描 {self.total_scan} 個檔案")
             QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-            Qt.QueuedConnection, Q_ARG(str, text))
-            self.send_notify(text)
+            Qt.QueuedConnection, Q_ARG(str, text+text_end))
+            self.send_notify(text+text_end)
         except Exception as e:
             print(e)
 

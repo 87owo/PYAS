@@ -46,7 +46,7 @@ class DLScan:
         'cry', 'tvm', 'dec', 'enc', 'vmp', 'upx', 'lzma', 'pack', 'press', 
         'enigma', 'protect', 'secur']
         unimportant_section = ['viahwaes', 'rodata', 'orpc', 'nep', 'ace',
-        'extjmp', 'no_bbt', 'data']
+        'extjmp', 'no_bbt', 'data', 'hexpthk']
         self.shells = shell_section + unimportant_section #"""
 
     def load_model(self, file_path):

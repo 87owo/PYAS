@@ -45,29 +45,29 @@ class DLScan:
         shell_section = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
         "cry", "tvm", "dec", "enc", "vmp", "upx", "aes", "lzma", "press", 
         "pack", "enigma", "protect", "secur"]
-        unimportant_section = ["!o", "ace", "asmstub", "b1_", "base",
-        "be", "bss", "clr_uef", "cursors", "data", "engine", "extjmp",
-        "fio", "fothk", "hexpthk", "h~;", "icapsec", "malloc_h", "zk", 
-        "mssmixer", "ndr64", "nep", "no_bbt", "nsys_wr", "obr", "orpc",
-        "pad", "pgae", "poolmi", "proxy", "qihoo", "res", "tracesup",
-        "rwexec", "rygs", "s:@", "sanontcp", "segm", "test", "miniex",
-        "transit", "trs_age", "uedbg", "viahwaes", "wisevec", "wow",
-        "retpol", "rt", "wow64svc", "wpp_sf", "yg"]
-        self.shells = shell_section + unimportant_section #"""
+        unknown_section = ["asmstub", "base", "bss", "clr_uef", "cursors", 
+        "engine", "fio", "fothk", "h~;", "icapsec", "malloc_h", "miniex", 
+        "mssmixer", "ndr64", "nsys_wr", "obr", "wow", "wow64svc", "wpp_sf",
+        "pad", "pgae", "poolmi", "proxy", "qihoo", "res", "retpol", "uedbg",
+        "rwexec", "rygs", "s:@", "sanontcp", "segm", "test", "tracesup",
+        "transit", "trs_age", "wisevec"]
+        unimportant_section = ["viahwaes", "orpc", "nep", "ace", "extjmp", 
+        "no_bbt", "data", "page", "hexpthk"]
+        self.shells = shell_section + unimportant_section + unknown_section
 
     def load_model(self, file_path):
         try:
             ftype = os.path.splitext(file_path)[-1].lower()
             if ftype in [".json", ".txt"]:
-                with open(file_path, "r") as f:
+                with open(file_path, 'r') as f:
                     self.class_names = json.load(f)
             elif ftype in [".onnx"]:
                 self.models[file_path] = onnxruntime.InferenceSession(file_path)
-            self.labels = self.class_names["Labels"]
-            self.detect = self.class_names["Detect"]
-            self.values = self.class_names["Values"]
-            self.resize = self.class_names["Resize"]
-            self.suffix = self.class_names["Suffix"]
+            self.labels = self.class_names['Labels']
+            self.detect = self.class_names['Detect']
+            self.values = self.class_names['Values']
+            self.resize = self.class_names['Resize']
+            self.suffix = self.class_names['Suffix']
         except Exception as e:
             pass
 

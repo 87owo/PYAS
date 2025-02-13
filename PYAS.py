@@ -1280,7 +1280,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             else:
                 self.virus_scan_break()
                 text = self.trans("當前未發現病毒")
-            takes_time = int(time.time() - self.scan_time)
+            takes_time = int(time.time() - self.scan_time) + 1
             text_end = self.trans(f"，耗時 {takes_time} 秒，共掃描 {self.total_scan} 個檔案")
             QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
             Qt.QueuedConnection, Q_ARG(str, text+text_end))

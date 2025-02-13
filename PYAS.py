@@ -57,7 +57,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.init_config_read() # 初始化配置
         self.init_config_wdll() # 初始化系統
         self.init_config_boot() # 初始化引導
-        self.init_config_proc() # 初始化進程
+        self.init_config_list() # 初始化列表
         self.init_config_data() # 初始化引擎
         self.init_config_icon() # 初始化圖標
         self.init_config_qtui() # 初始化介面
@@ -77,8 +77,8 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.pyas_opacity = 0
         self.gc_collect = 0
         self.block_window = 0
+        self.total_scan = 0
         self.virus_lock = {}
-        self.virus_list = []
         self.virus_list_ui = []
         self.Process_quantity = 0
         self.Process_list_all_pid = []
@@ -115,7 +115,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
     def reset_options(self): # 重置所有設定
         if self.question_event("您確定要重置所有設定嗎?"):
             self.clean_function()
-            print(self.config_json["proc_protect"])
             self.config_json = self.default_json
             self.init_config_write(self.config_json)
             self.init_config_pyas()
@@ -182,9 +181,10 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         except Exception as e:
             print(e)
 
-    def init_config_proc(self): # 初始化引導
+    def init_config_list(self): # 初始化列表
         try:
             self.exist_process = self.get_process_list()
+            self.exist_connections = self.get_connections_list()
         except Exception as e:
             print(e)
 
@@ -1149,7 +1149,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 QApplication.processEvents()
                 h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                 file = self.get_process_file(h_process).replace("\\", "/")
-                if file:
+                if os.path.exists(file):
                     Process_list_app.append((pid, f"[{pid}] > {file}"))
             Process_list_app.sort(key=lambda x: x[0])
             self.Process_list_all_pid = [pid for pid, _ in Process_list_app]
@@ -1188,13 +1188,13 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
             QApplication.processEvents()
             try:
-                for file in self.virus_list:
+                for file in self.virus_lock:
                     self.lock_file(file, False)
             except:
                 pass
             self.scan_file = True
+            self.total_scan = 0
             self.virus_lock = {}
-            self.virus_list = []
             self.virus_list_ui = []
             self.ui.Virus_Scan_Solve_Button.hide()
             self.ui.Virus_Scan_choose_widget.hide()
@@ -1208,7 +1208,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         def copyPathFunc():
             item_row = False
             for i in self.ui.Virus_Scan_output.selectedIndexes():
-                item_row = self.virus_list[i.row()]
+                item_row = self.virus_list_ui[i.row()]
             if item_row:
                 pyperclip.copy(item_row.replace("/", "\\"))
         menu = QMenu()
@@ -1230,7 +1230,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
     def virus_solve(self): # 清理病毒
         try:
             self.ui.Virus_Scan_Solve_Button.hide()
-            for file in self.virus_list:
+            for file in self.virus_lock:
                 try:
                     if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
                         QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
@@ -1249,7 +1249,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
             QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
             Qt.QueuedConnection, Q_ARG(str, self.trans("病毒掃描")))
             QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-            Qt.QueuedConnection, Q_ARG(str, self.trans("掃描完成")))
+            Qt.QueuedConnection, Q_ARG(str, self.trans("請選擇掃描方式")))
         except Exception as e:
             print(e)
 
@@ -1257,7 +1257,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         try:
             if state and file:
                 self.lock_file(file, True)
-                self.virus_list.append(file)
                 self.virus_list_ui.append(f"[{state}] {file}")
                 item = QListWidgetItem()
                 item.setText(f"[{state}] {file}")
@@ -1267,15 +1266,15 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         except:
             pass
 
-    def answer_scan(self): # 統計結果
+    def answer_scan(self): # 統計結果 
         try:
             QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
             Qt.QueuedConnection, Q_ARG(str, self.trans("病毒掃描")))
-            if self.virus_list:
+            if self.virus_lock:
                 self.ui.Virus_Scan_Solve_Button.show()
                 self.ui.Virus_Scan_Break_Button.hide()
                 self.ui.Virus_Scan_choose_Button.show()
-                text = self.trans(f"當前發現 {len(self.virus_list)} 個病毒")
+                text = self.trans(f"當前發現 {len(self.virus_lock)} 個病毒，共掃描 {self.total_scan} 個檔案")
             else:
                 self.virus_scan_break()
                 text = self.trans("當前未發現病毒")
@@ -1289,10 +1288,6 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.scan_file = False
         self.ui.Virus_Scan_Break_Button.hide()
         self.ui.Virus_Scan_choose_Button.show()
-        QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
-        Qt.QueuedConnection, Q_ARG(str, self.trans("病毒掃描")))
-        QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-        Qt.QueuedConnection, Q_ARG(str, self.trans("請選擇掃描方式")))
 
     def virus_scan_menu(self):
         if self.ui.Virus_Scan_choose_widget.isHidden():
@@ -1309,6 +1304,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.scan_thread = Thread(target=self.write_scan,
                 args=(self.start_scan(file),file,), daemon=True)
                 self.scan_thread.start()
+                self.total_scan += 1
                 while self.scan_thread.is_alive():
                     QApplication.processEvents()
                 self.scan_thread.join()
@@ -1360,7 +1356,8 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                     Qt.QueuedConnection, Q_ARG(str, self.trans("正在掃描")))
                     QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
                     Qt.QueuedConnection, Q_ARG(str, file))
-                    self.write_scan(self.start_scan(file),file)
+                    self.write_scan(self.start_scan(file), file)
+                    self.total_scan += 1
             except:
                 pass
 
@@ -1374,16 +1371,13 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                         return f"{label}.{level}"
                     elif level >= self.model.values:
                         return f"{label}.{level}"
-        except:
-            pass
-        try:
             if self.config_json["extend_mode"]:
                 label, level = self.rules.yr_scan(file)
                 if label and isinstance(level, str):
                     return f"{label}.{level}"
+            return False
         except:
-            pass
-        return False
+            return False
 
     def repair_system(self): # 修復系統
         try:
@@ -1563,7 +1557,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.lock_process(h_process, True)
                 if self.start_scan(file):
                     self.kill_process("病毒攔截", h_process, file)
-                elif ":/Windows" not in file and ":/Program" not in file:
+                elif ":/Windows" not in file:
                     self.track_proc = (h_process, file)
             self.lock_process(h_process, False)
         except Exception as e:
@@ -1680,42 +1674,57 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
                 self.send_notify(self.trans(f"竄改警告: self.sys_protect (reg)"), False)
                 self.kill_process("竄改攔截", *self.track_proc)
 
-    def get_tcp_connections(self):
-        size = ctypes.wintypes.DWORD()
-        ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
-        if ret != 122:
-            raise ctypes.WinError(ret)
-        buf = ctypes.create_string_buffer(size.value)
-        ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
-        if ret != 0:
-            raise ctypes.WinError(ret)
-        num_entries = ctypes.cast(buf, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
-        connections = []
-        row_size = ctypes.sizeof(MIB_TCPROW_OWNER_PID)
-        offset = ctypes.sizeof(ctypes.wintypes.DWORD)
-        for i in range(num_entries):
-            entry_address = ctypes.addressof(buf) + offset + i * row_size
-            conn = ctypes.cast(entry_address, ctypes.POINTER(MIB_TCPROW_OWNER_PID)).contents
-            local_ip = f"{conn.dwLocalAddr & 0xFF}.{(conn.dwLocalAddr >> 8) & 0xFF}.{(conn.dwLocalAddr >> 16) & 0xFF}.{(conn.dwLocalAddr >> 24) & 0xFF}"
-            remote_ip = f"{conn.dwRemoteAddr & 0xFF}.{(conn.dwRemoteAddr >> 8) & 0xFF}.{(conn.dwRemoteAddr >> 16) & 0xFF}.{(conn.dwRemoteAddr >> 24) & 0xFF}"
-            connections.append({"pid": conn.dwOwningPid, "local_ip": local_ip, "remote_ip": remote_ip, "state": conn.dwState})
-        return connections
+    def get_connections_list(self):  # 獲取連接列表
+        try:
+            connections = set()
+            size = ctypes.wintypes.DWORD()
+            ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
+            if ret != 122:
+                raise ctypes.WinError(ret)
+            buf = ctypes.create_string_buffer(size.value)
+            ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
+            if ret != 0:
+                raise ctypes.WinError(ret)
+            num_entries = ctypes.cast(buf, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
+            row_size = ctypes.sizeof(MIB_TCPROW_OWNER_PID)
+            offset = ctypes.sizeof(ctypes.wintypes.DWORD)
+            for i in range(num_entries):
+                entry_address = ctypes.addressof(buf) + offset + i * row_size
+                conn = ctypes.cast(entry_address, ctypes.POINTER(MIB_TCPROW_OWNER_PID)).contents
+                connections.add((conn.dwOwningPid, conn.dwLocalAddr, conn.dwRemoteAddr, conn.dwState))
+            return connections
+        except Exception as e:
+            print(e)
+            return None
 
-    def protect_net_thread(self): # 網路防護
+    def protect_net_thread(self):
         while self.config_json["net_protect"]:
             try:
-                time.sleep(0.5)
-                for conn in self.get_tcp_connections():
-                    if conn['remote_ip'] in self.rules.network:
-                        h_process = self.kernel32.OpenProcess(0x1F0FFF, False, conn['pid'])
-                        file = self.get_process_file(h_process).replace("\\", "/")
-                        self.kill_process("網路攔截", (h_process, file))
+                time.sleep(0.2)
+                new_connections = self.get_connections_list()
+                for key in new_connections - self.exist_connections:
+                    self.handle_new_connections(key)
+                self.exist_connections = new_connections
             except Exception as e:
                 print(e)
         if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
             if not self.first_startup:
                 self.send_notify(self.trans(f"竄改警告: self.net_protect"), False)
                 self.kill_process("竄改攔截", *self.track_proc)
+
+    def handle_new_connections(self, key): # 過濾並掃描
+        try:
+            h_process = self.kernel32.OpenProcess(0x1F0FFF, False, key[0])
+            file = self.get_process_file(h_process).replace("\\", "/")
+            remote_ip = f"{key[2] & 0xFF}.{(key[2] >> 8) & 0xFF}.{(key[2] >> 16) & 0xFF}.{(key[2] >> 24) & 0xFF}"
+            if os.path.exists(file) and not self.check_whitelist(file):
+                self.lock_process(h_process, True)
+                if remote_ip in self.rules.network:
+                    self.kill_process("網路攔截", h_process, file)
+            self.lock_process(h_process, False)
+        except Exception as e:
+            print(e)
+            self.lock_process(h_process, False)
 
 if __name__ == '__main__': # 檢查主程序
     QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)

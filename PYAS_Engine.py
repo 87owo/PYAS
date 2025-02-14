@@ -78,16 +78,15 @@ class DLScan:
 
     def dl_scan(self, file_path):
         try:
-            files_data = self.get_type(file_path)
             batch_images = []
-            for section, file_data in files_data.items():
+            for section, file_data in self.get_type(file_path).items():
                 image_data = self.preprocess_image(file_data, tuple(self.resize))
                 image_array = numpy.asarray(image_data).astype('float32') / 255.0
                 if len(image_array.shape) == 2:
                     image_array = numpy.expand_dims(image_array, axis=-1)
                 batch_images.append(image_array)
+            batch_results = [{label: [] for label in self.labels} for _ in range(len(batch_images))]
             batch_images = numpy.stack(batch_images, axis=0)
-            batch_results = [{label: [] for label in self.labels} for _ in range(len(files_data))]
             for model_name, model in self.models.items():
                 input_name = model.get_inputs()[0].name
                 predictions = model.run(None, {input_name: batch_images})[0]
@@ -109,25 +108,24 @@ class DLScan:
     def preprocess_image(self, file_data, target_size):
         width, height, channels, interpolation = target_size
         wah = int(numpy.ceil(numpy.sqrt(len(file_data) / channels)))
-        file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
+        array_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
         expected_size = wah * wah * channels
         image_array = numpy.zeros((expected_size,), dtype=numpy.uint8)
-        image_array[:len(file_data)] = file_data
+        image_array[:len(file_data)] = array_data
         if channels == 1:
-            image = Image.fromarray(image_array.reshape((wah, wah)), 'L')
+            reshape = image_array.reshape((wah, wah))
+            image = Image.fromarray(reshape, 'L')
         elif channels == 3:
-            image = Image.fromarray(image_array.reshape((wah, wah, 3)), 'RGB')
-        else:
-            image = Image.fromarray(image_array.reshape((wah, wah, channels)))
+            reshape = image_array.reshape((wah, wah, 3))
+            image = Image.fromarray(reshape, 'RGB')
         if width == 0 and height == 0:
             return image
-        interpolations = self.valid_interpolations[interpolation.lower()]
-        return image.resize((width, height), interpolations)
+        i = self.valid_interpolations.get(interpolation.lower(), Image.BILINEAR)
+        return image.resize((width, height), i)
 
-    def is_text_file(self, file_path, sample_size):
+    def is_text_file(self, content, sample_size):
         try:
-            with open(file_path, "rb") as f:
-                raw_data = f.read(sample_size)
+            raw_data = content[:sample_size]
             encoding = chardet.detect(raw_data)["encoding"]
             if encoding and raw_data.decode(encoding):
                 return True
@@ -143,11 +141,12 @@ class DLScan:
                 with pefile.PE(file_path, fast_load=True) as pe:
                     for section in pe.sections:
                         name = section.Name.rstrip(b'\x00').decode('latin1')
-                        if not any(s in name.lower() for s in self.shells): #
-                            if section.Characteristics & 0x00000020:
-                                match_data[name] = section.get_data()
+                        if (section.Characteristics & 0x00000020 and not
+                        any(s in name.lower() for s in self.shells)):
+                            match_data[name] = section.get_data()
             except:
-                if self.is_text_file(file_path, 1024):
-                    with open(file_path, 'rb') as file:
-                        match_data[ftype] = file.read()
+                with open(file_path, 'rb') as f:
+                    file_content = f.read()
+                if self.is_text_file(file_content, 1024):
+                    match_data[ftype] = file_content
         return match_data

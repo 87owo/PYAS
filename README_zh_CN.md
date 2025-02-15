@@ -1,17 +1,19 @@
 # PYAS (Python 杀毒软件)
 
-![PYAS](https://github.com/user-attachments/assets/39c273b9-c467-480a-a8b3-31714a6df3ef)
+![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
 
 ## 安装要求
 
 ```
-pip install pefile==2023.2.7
-pip install pyperclip==1.8.2
-pip install PyQt5==5.15.9
-pip install yara-python==4.5.1
-pip install numpy==2.1.1
+pip install chardet==5.2.0
+pip install numpy==1.26.3
 pip install onnxruntime==1.18.1
+pip install pefile==2023.2.7
 pip install pillow==10.4.0
+pip install pyperclip==1.8.2
+pip install PyQt5==5.15.11
+pip install requests==2.32.3
+pip install yara-python==4.5.1
 ```
 
 ## 文件信息

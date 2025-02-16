@@ -127,8 +127,9 @@ class DLScan:
         try:
             raw_data = content[:sample_size]
             encoding = chardet.detect(raw_data)["encoding"]
-            if encoding and raw_data.decode(encoding):
-                return True
+            if encoding in ["ascii", "utf-8", "utf-8-sig"]:
+                if raw_data.decode(encoding):
+                    return True
             return False
         except:
             return False
@@ -143,6 +144,7 @@ class DLScan:
                         name = section.Name.rstrip(b'\x00').decode('latin1')
                         if (section.Characteristics & 0x00000020 and not
                         any(s in name.lower() for s in self.shells)):
+                            print(name)
                             match_data[name] = section.get_data()
             except:
                 with open(file_path, 'rb') as f:

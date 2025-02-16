@@ -70,7 +70,7 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
 
     def init_config_vars(self): # 初始化變數
         self.pyae_version = "AI Engine"
-        self.pyas_version = "3.2.9"
+        self.pyas_version = "3.3.0"
         self.mbr_value = None
         self.track_proc = None
         self.first_startup = 1

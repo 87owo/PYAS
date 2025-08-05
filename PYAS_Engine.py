@@ -1,154 +1,150 @@
-import os, sys, time, json, yara, numpy
-import chardet, pefile, onnxruntime
+import os, yara, numpy, locale, pefile, onnxruntime
 from PIL import Image
 
-class YRScan:
+class rule_scanner:
     def __init__(self):
         self.rules = {}
         self.network = []
 
-    def load_rules(self, file_path):
+    def load_path(self, path):
+        for root, _, files in os.walk(path):
+            for file in files:
+                self.load_file(os.path.join(root, file))
+
+    def load_file(self, file):
+        ext = os.path.splitext(file)[1].lower()
         try:
-            ftype = os.path.splitext(file_path)[-1].lower()
-            if ftype in [".yara", ".yar"]:
-                self.rules[file_path] = yara.compile(file_path)
-            elif ftype in [".yc", ".yrc"]:
-                self.rules[file_path] = yara.load(file_path)
-            elif ftype in [".ip", ".ips"]:
-                with open(file_path, "r") as f:
-                    self.network += [l.strip() for l in f.readlines()]
+            if ext in ('.yara', '.yar'):
+                self.rules[file] = yara.compile(file)
+            elif ext in ('.yc', '.yrc'):
+                self.rules[file] = yara.load(file)
+            elif ext in ('.ip', '.txt'):
+                with open(file, "r") as f:
+                    self.network.extend(line.strip() for line in f if line.strip())
         except Exception as e:
             print(e)
 
-    def yr_scan(self, file_path):
+    def yara_scan(self, file_path):
         try:
-            if isinstance(file_path, str):
-                with open(file_path, "rb") as f:
-                    file_path = f.read()
-            for name, rules in self.rules.items():
-                matchs_rules = rules.match(data=file_path)
-                if matchs_rules:
-                    label = str(matchs_rules[0]).split("_")[0]
-                    level = str(matchs_rules[0]).split("_")[-1]
+            data = open(file_path, "rb").read() if isinstance(file_path, str) else file_path
+            for rules in self.rules.values():
+                matches = rules.match(data=data)
+                if matches:
+                    rule_name = str(matches[0])
+                    label = rule_name.split("_")[0]
+                    level = rule_name.split("_")[-1]
                     return f"Rules/{label}", level
             return False, False
-        except Exception as e:
+        except Exception:
             return False, False
 
-class DLScan:
+class model_scanner:
+    SHELLS = {
+        "0","1","2","3","4","5","6","7","8","9","cry","tvm","dec","enc","vmp","upx","aes","lzma","press","pack",
+        "enigma","protect","secur","asmstub","base","bss","clr_uef","cursors","transit","trs_age","engine","fio",
+        "fothk","h~;","icapsec","malloc_h","miniex","mssmixer","ndr64","nsys_wr","obr","wow","wow64svc","wpp_sf",
+        "pad","pgae","poolmi","proxy","qihoo","retpol","uedbg","tracesup","rwexec","rygs","s:@","sanontcp","segm",
+        "test","res","wisevec","viahwaes","orpc","nep","ace","extjmp","no_bbt","data","page","hexpthk"}
+
     def __init__(self):
         self.models = {}
-        self.valid_interpolations = {
-        "box": Image.Resampling.BOX,
-        "none": Image.Resampling.NEAREST,
-        "bilinear": Image.Resampling.BILINEAR,
-        "hamming": Image.Resampling.HAMMING,
-        "bicubic": Image.Resampling.BICUBIC,
-        "lanczos": Image.Resampling.LANCZOS,
-        "nearest": Image.Resampling.NEAREST}
+        self.suffix = {".com", ".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".wsf"}
+        self.labels = ["Pefile/White", "Script/White", "Pefile/General", "Script/General"]
+        self.detect = {"Pefile/General", "Script/General"}
+        self.resize = (224, 224)
 
-        shell_section = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
-        "cry", "tvm", "dec", "enc", "vmp", "upx", "aes", "lzma", "press", 
-        "pack", "enigma", "protect", "secur"]
-        unknown_section = ["asmstub", "base", "bss", "clr_uef", "cursors", 
-        "engine", "fio", "fothk", "h~;", "icapsec", "malloc_h", "miniex", 
-        "mssmixer", "ndr64", "nsys_wr", "obr", "wow", "wow64svc", "wpp_sf",
-        "pad", "pgae", "poolmi", "proxy", "qihoo", "res", "retpol", "uedbg",
-        "rwexec", "rygs", "s:@", "sanontcp", "segm", "test", "tracesup",
-        "transit", "trs_age", "wisevec"]
-        unimportant_section = ["viahwaes", "orpc", "nep", "ace", "extjmp", 
-        "no_bbt", "data", "page", "hexpthk"]
-        self.shells = shell_section + unimportant_section + unknown_section
+    def load_path(self, path):
+        for root, _, files in os.walk(path):
+            for file in files:
+                self.load_file(os.path.join(root, file))
 
-    def load_model(self, file_path):
+    def load_file(self, file):
+        if file.lower().endswith('.onnx'):
+            try:
+                self.models[file] = onnxruntime.InferenceSession(file)
+            except Exception as e:
+                print(e)
+
+    def is_valid_suffix(self, file_path):
+        return os.path.splitext(file_path)[-1].lower() in self.suffix
+
+    def model_scan(self, file_path):
         try:
-            ftype = os.path.splitext(file_path)[-1].lower()
-            if ftype in [".json", ".txt"]:
-                with open(file_path, 'r') as f:
-                    self.class_names = json.load(f)
-            elif ftype in [".onnx"]:
-                self.models[file_path] = onnxruntime.InferenceSession(file_path)
-            self.labels = self.class_names['Labels']
-            self.detect = self.class_names['Detect']
-            self.values = self.class_names['Values']
-            self.resize = self.class_names['Resize']
-            self.suffix = self.class_names['Suffix']
-        except Exception as e:
-            pass
+            if not self.models or not self.is_valid_suffix(file_path):
+                return False, False
 
-    def dl_scan(self, file_path):
-        try:
-            batch_images = []
-            for section, file_data in self.get_type(file_path).items():
-                image_data = self.preprocess_image(file_data, tuple(self.resize))
-                image_array = numpy.asarray(image_data).astype('float32') / 255.0
-                if len(image_array.shape) == 2:
-                    image_array = numpy.expand_dims(image_array, axis=-1)
-                batch_images.append(image_array)
-            batch_results = [{label: [] for label in self.labels} for _ in range(len(batch_images))]
-            batch_images = numpy.stack(batch_images, axis=0)
-            for model_name, model in self.models.items():
-                input_name = model.get_inputs()[0].name
-                predictions = model.run(None, {input_name: batch_images})[0]
-                for i, pre_answers in enumerate(predictions):
-                    for k, score in enumerate(pre_answers):
-                        batch_results[i][self.labels[k].strip()].append(score)
-            final_results = []
-            for result in batch_results:
-                label_percentage = {label: (sum(scores) / len(scores)) * 100
-                for label, scores in result.items()}
-                best_label, best_confidence = max(label_percentage.items(), key=lambda x: x[1])
-                final_results.append((best_label, int(best_confidence)))
-                if best_label in self.detect:
-                    return best_label, int(best_confidence)
+            model = next(iter(self.models.values()))
+            shape = model.get_inputs()[0].shape
+            channels = shape[-1] if shape[-1] in (1, 3) else (shape[1] if shape[1] in (1, 3) else 1)
+
+            file_sections = self.get_type(file_path)
+            if not file_sections:
+                return False, False
+
+            batch_images = [self.preprocess_image(data, self.resize, channels) for data in file_sections.values()]
+            arr = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in batch_images])
+            if arr.ndim == 3:
+                arr = arr[..., None]
+            if shape[-1] in (1, 3):
+                model_input = arr
+            elif shape[1] in (1, 3):
+                model_input = arr.transpose(0, 3, 1, 2)
+            else:
+                return False, False
+
+            input_name = model.get_inputs()[0].name
+            predictions = model.run(None, {input_name: model_input})[0]
+
+            label_scores = {label: [] for label in self.labels}
+            for pre_answers in predictions:
+                for k, score in enumerate(pre_answers):
+                    label_scores[self.labels[k]].append(score)
+            label_percentage = {label: (sum(scores)/len(scores))*100 for label, scores in label_scores.items() if scores}
+            if not label_percentage:
+                return False, False
+            best_label, best_conf = max(label_percentage.items(), key=lambda x: x[1])
+            if best_label in self.detect:
+                return best_label, int(best_conf)
             return False, False
-        except Exception as e:
+        except Exception:
             return False, False
 
-    def preprocess_image(self, file_data, target_size):
-        width, height, channels, interpolation = target_size
+    def preprocess_image(self, file_data, size, channels=1):
+        width, height = size
         wah = int(numpy.ceil(numpy.sqrt(len(file_data) / channels)))
-        array_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
-        expected_size = wah * wah * channels
-        image_array = numpy.zeros((expected_size,), dtype=numpy.uint8)
-        image_array[:len(file_data)] = array_data
+        arr = numpy.frombuffer(file_data, dtype=numpy.uint8)
+        img = numpy.zeros(wah*wah*channels, dtype=numpy.uint8)
+        img[:len(file_data)] = arr
         if channels == 1:
-            reshape = image_array.reshape((wah, wah))
-            image = Image.fromarray(reshape, 'L')
-        elif channels == 3:
-            reshape = image_array.reshape((wah, wah, 3))
-            image = Image.fromarray(reshape, 'RGB')
-        if width == 0 and height == 0:
-            return image
-        i = self.valid_interpolations.get(interpolation.lower(), Image.BILINEAR)
-        return image.resize((width, height), i)
+            image = Image.fromarray(img.reshape((wah, wah)), 'L')
+        else:
+            image = Image.fromarray(img.reshape((wah, wah, channels)), 'RGB')
+        return image.resize((width, height), Image.Resampling.NEAREST)
 
-    def is_text_file(self, content, sample_size):
-        try:
-            raw_data = content[:sample_size]
-            encoding = chardet.detect(raw_data)["encoding"]
-            if encoding in ["ascii", "utf-8", "utf-8-sig"]:
-                if raw_data.decode(encoding):
-                    return True
+    def is_text_file(self, content, sample_size=1024):
+        raw = content[:sample_size]
+        if not raw:
             return False
-        except:
-            return False
+        text_char = set(range(32, 127)) | {9, 10, 13}
+        nontext = sum(b not in text_char for b in raw)
+        return nontext / len(raw) < 0.15
 
     def get_type(self, file_path):
         match_data = {}
-        ftype = os.path.splitext(file_path)[-1].lower()
-        if ftype in self.suffix:
-            try:
-                with pefile.PE(file_path, fast_load=True) as pe:
-                    for section in pe.sections:
-                        name = section.Name.rstrip(b'\x00').decode('latin1')
-                        if (section.Characteristics & 0x00000020 and not
-                        any(s in name.lower() for s in self.shells)):
-                            print(name)
-                            match_data[name] = section.get_data()
-            except:
-                with open(file_path, 'rb') as f:
-                    file_content = f.read()
-                if self.is_text_file(file_content, 1024):
-                    match_data[ftype] = file_content
+        if not self.is_valid_suffix(file_path):
+            return match_data
+        try:
+            with pefile.PE(file_path, fast_load=True) as pe:
+                sec = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+                if bool(sec.VirtualAddress and sec.Size):
+                    return {}
+                for section in pe.sections:
+                    name = section.Name.rstrip(b'\x00').decode('latin1').lower()
+                    if (section.Characteristics & 0x00000020) and name not in self.SHELLS:
+                        match_data[name] = section.get_data()
+        except pefile.PEFormatError:
+            with open(file_path, 'rb') as f:
+                file_content = f.read()
+            if self.is_text_file(file_content):
+                match_data[os.path.splitext(file_path)[-1].lower()] = file_content
         return match_data

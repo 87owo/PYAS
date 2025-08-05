@@ -1,851 +1,1153 @@
-import os, gc, sys, time, json
-import ctypes, ctypes.wintypes
-import requests, msvcrt, pyperclip
-from PYAS_Engine import YRScan, DLScan
-from PYAS_Suffixes import file_types
-from PYAS_Language import translate_dict
-from PYAS_Interface import Ui_MainWindow
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from subprocess import *
-from threading import *
+import os, gc, re, sys, time, json, base64
+import ctypes, ctypes.wintypes, threading
+import requests, pyperclip, winreg, shutil
+import traceback, hashlib, msvcrt
 
-class PROCESSENTRY32(ctypes.Structure): # 初始化定義
+from PYAS_Config import *
+from PYAS_Engine import *
+from PYAS_Interface import *
+
+from PySide6.QtWidgets import *
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+
+####################################################################################################
+
+class PROCESSENTRY32(ctypes.Structure):
     _fields_ = [
-    ("dwSize", ctypes.wintypes.DWORD),
-    ("cntUsage", ctypes.wintypes.DWORD),
-    ("th32ProcessID", ctypes.wintypes.DWORD),
-    ("th32DefaultHeapID", ctypes.wintypes.LPVOID),
-    ("th32ModuleID", ctypes.wintypes.DWORD),
-    ("cntThreads", ctypes.wintypes.DWORD),
-    ("th32ParentProcessID", ctypes.wintypes.DWORD),
-    ("dwFlags", ctypes.wintypes.DWORD),
-    ("szExeFile", ctypes.wintypes.CHAR * 260)]
+        ("dwSize", ctypes.wintypes.DWORD),
+        ("cntUsage", ctypes.wintypes.DWORD),
+        ("th32ProcessID", ctypes.wintypes.DWORD),
+        ("th32DefaultHeapID", ctypes.wintypes.LPVOID),
+        ("th32ModuleID", ctypes.wintypes.DWORD),
+        ("cntThreads", ctypes.wintypes.DWORD),
+        ("th32ParentProcessID", ctypes.wintypes.DWORD),
+        ("dwFlags", ctypes.wintypes.DWORD),
+        ("szExeFile", ctypes.wintypes.CHAR * 260)]
 
 class MIB_TCPROW_OWNER_PID(ctypes.Structure):
     _fields_ = [
-    ("dwState", ctypes.wintypes.DWORD),
-    ("dwLocalAddr", ctypes.wintypes.DWORD),
-    ("dwLocalPort", ctypes.wintypes.DWORD),
-    ("dwRemoteAddr", ctypes.wintypes.DWORD),
-    ("dwRemotePort", ctypes.wintypes.DWORD),
-    ("dwOwningPid", ctypes.wintypes.DWORD)]
+        ("dwState", ctypes.wintypes.DWORD),
+        ("dwLocalAddr", ctypes.wintypes.DWORD),
+        ("dwLocalPort", ctypes.wintypes.DWORD),
+        ("dwRemoteAddr", ctypes.wintypes.DWORD),
+        ("dwRemotePort", ctypes.wintypes.DWORD),
+        ("dwOwningPid", ctypes.wintypes.DWORD)]
 
 class MIB_TCPTABLE_OWNER_PID(ctypes.Structure):
     _fields_ = [
-    ("dwNumEntries", ctypes.wintypes.DWORD),
-    ("table", MIB_TCPROW_OWNER_PID * 1)]
+        ("dwNumEntries", ctypes.wintypes.DWORD),
+        ("table", MIB_TCPROW_OWNER_PID * 1)]
 
 class FILE_NOTIFY_INFORMATION(ctypes.Structure):
     _fields_ = [
-    ("NextEntryOffset", ctypes.wintypes.DWORD),
-    ("Action", ctypes.wintypes.DWORD),
-    ("FileNameLength", ctypes.wintypes.DWORD),
-    ("FileName", ctypes.wintypes.WCHAR * 1024)]
+        ("NextEntryOffset", ctypes.wintypes.DWORD),
+        ("Action", ctypes.wintypes.DWORD),
+        ("FileNameLength", ctypes.wintypes.DWORD),
+        ("FileName", ctypes.wintypes.WCHAR * 1024)]
 
-class MainWindow_Controller(QMainWindow): # 初始化主程式
-    def __init__(self): # 初始化調用
-        super(MainWindow_Controller, self).__init__()
+class SERVICE_STATUS(ctypes.Structure):
+    _fields_ = [
+        ("dwServiceType", ctypes.wintypes.DWORD),
+        ("dwCurrentState", ctypes.wintypes.DWORD),
+        ("dwControlsAccepted", ctypes.wintypes.DWORD),
+        ("dwWin32ExitCode", ctypes.wintypes.DWORD),
+        ("dwServiceSpecificExitCode", ctypes.wintypes.DWORD),
+        ("dwCheckPoint", ctypes.wintypes.DWORD),
+        ("dwWaitHint", ctypes.wintypes.DWORD),]
+
+####################################################################################################
+
+class MainWindow_Controller(QMainWindow):
+    scan_progress_signal = Signal(str)
+    scan_add_virus_signal = Signal(str)
+    scan_result_signal = Signal(str)
+    scan_reset_signal = Signal()
+    progress_title_signal = Signal(str)
+
+    def __init__(self):
+        super().__init__()
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.init_config_pyas() # 初始化程式
+        self.init_environ()
+        self.init_variable()
+        self.load_config()
+        self.init_interface()
+        self.init_windll()
+        self.backup_mbr()
+        self.relock_file()
+        self.init_whitelist()
+        self.init_thread()
+        self.init_connect()
+        self.show_startup()
 
-    def init_config_pyas(self):
-        self.init_config_vars() # 初始化變數
-        self.init_config_path() # 初始化路徑
-        self.init_config_read() # 初始化配置
-        self.init_config_wdll() # 初始化系統
-        self.init_config_boot() # 初始化引導
-        self.init_config_list() # 初始化列表
-        self.init_config_data() # 初始化引擎
-        self.init_config_icon() # 初始化圖標
-        self.init_config_qtui() # 初始化介面
-        self.init_config_color() # 初始化顏色
-        self.init_config_conn() # 初始化交互
-        self.init_config_lang() # 初始化語言
-        self.init_config_func() # 初始化功能
-        self.init_config_done() # 初始化完畢
-        self.init_config_theme() # 初始化主題
+####################################################################################################
 
-    def init_config_vars(self): # 初始化變數
-        self.pyae_version = "AI Engine"
-        self.pyas_version = "3.3.0"
-        self.mbr_value = None
-        self.track_proc = None
-        self.first_startup = 1
-        self.pyas_opacity = 0
-        self.gc_collect = 0
-        self.block_window = 0
-        self.total_scan = 0
-        self.scan_time = 0
+    def init_variable(self):
+        self.ui = Ui_main_window()
+        self.ui.setupUi(self)
+        self.python = sys.executable
+        self.process_timer = QTimer(self)
+
+        self.model = model_scanner()
+        self.model.load_path(self.path_models)
+        self.rule = rule_scanner()
+        self.rule.load_path(self.path_rules)
+
+        self.mouse_flag = 0
+        self.mouse_pos = 0
+        self.current_opacity = 0
+
+        self.scan_running = False
         self.virus_lock = {}
-        self.virus_list_ui = []
-        self.Process_quantity = 0
-        self.Process_list_all_pid = []
-        self.default_json = {
-        "language_ui": "en_US",  # "en_US", "zh_TW", "zh_CN"
-        "theme_color": "White",  # "Solid color" or "./Theme/Path"
-        "product_key": "None",   # "None" or "XXXXX-X..."
-        "service_url": "None",   # "None" or "http://..."
-        "proc_protect": 1, # "0" (Close), "1" (Open)
-        "file_protect": 1, # "0" (Close), "1" (Open)
-        "sys_protect": 1,  # "0" (Close), "1" (Open)
-        "net_protect": 1,  # "0" (Close), "1" (Open)
-        "cus_protect": 0,  # "0" (Close), "1" (Open)
-        "sensitivity": 0,  # "0" (Medium), "1" (High)
-        "extend_mode": 0,  # "0" (False), "1" (True)
-        "white_lists": [],
-        "block_lists": []}
+        self.virus_results = []
+        self.scan_count = 0
+        self.mbr_backup = {}
+
+        self.theme_names = [
+            "white_switch", "red_switch", "yellow_switch",
+            "green_switch", "blue_switch", "black_switch"
+        ]
+        self.lang_names = [
+            "traditional_switch", "simplified_switch", "english_switch"
+        ]
+        self.pyas_default = {
+            "version": "3.3.0",
+            "product": "00000-00000-00000-00000-00000",
+            "language": "english_switch",
+            "theme": "white_switch",
+            "sensitive": 95,
+            "custom_rule": {},
+            "process_switch": True,
+            "document_switch": True,
+            "system_switch": True,
+            "driver_switch": True,
+            "network_switch": True,
+        }
         self.pass_windows = [
-        {'': ''}, {'PYAS': 'Qt5152QWindowIcon'},
-        {'': 'Shell_TrayWnd'}, {'': 'WorkerW'}]
+            {"exe": "System Idle Process", "class": "", "title": ""},
+            {"exe": "", "class": "Windows.UI.Core.CoreWindow", "title": ""},
+            {"exe": "", "class": "Qt691QWindowIcon", "title": "PYAS"},
+            {"exe": "explorer.exe", "class": "", "title": ""},
+        ]
 
-    def init_config_path(self): # 初始化路徑
+####################################################################################################
+
+    def init_environ(self):
+        self.file_pyas = self.norm_path(sys.argv[0])
+        self.args_pyas = sys.argv[1:]
+        self.path_pyas = os.path.dirname(self.file_pyas)
+
+        self.path_appdata = os.environ.get("APPDATA")
+        self.path_name = os.environ.get("USERNAME")
+        self.path_temp = os.environ.get("TEMP", f"C:\\Users\\{self.path_name}\\AppData\\Local\\Temp")
+        self.path_config = os.environ.get("ALLUSERSPROFILE", "C:\\ProgramData")
+        self.path_system = os.environ.get("SYSTEMROOT", "C:\\Windows")
+        self.path_user = os.environ.get("USERPROFILE", f"C:\\Users\\{self.path_name}")
+
+        self.path_systemp = os.path.join(self.path_system, "Temp")
+        self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
+        self.path_models = os.path.join(self.path_pyas, "Engine", "Models")
+        self.path_rules = os.path.join(self.path_pyas, "Engine", "Rules")
+        self.path_protect = os.path.join(self.path_pyas, "Plugins", "Filter")
+        self.path_drivers = os.path.join(self.path_protect, "PYAS_Driver.sys")
+
+####################################################################################################
+
+    def init_windll(self):
+        for name in ["ntdll", "Psapi", "user32", "kernel32", "advapi32", "iphlpapi"]:
+            try:
+                setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
+            except Exception as e:
+                self.send_message(e, "warn", False)
+
+        self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
+        self.advapi32.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
+        self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
+        self.advapi32.CreateServiceW.argtypes = [
+            ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD,
+            ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD),
+            ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p
+        ]
+        self.advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
+        self.advapi32.OpenServiceW.argtypes = [
+            ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.wintypes.DWORD
+        ]
+        self.advapi32.StartServiceW.restype = ctypes.wintypes.BOOL
+        self.advapi32.StartServiceW.argtypes = [
+            ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.c_wchar_p)
+        ]
+        self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
+        self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
+
+        self.advapi32.ControlService.argtypes = [
+            ctypes.wintypes.HANDLE,
+            ctypes.wintypes.DWORD,
+            ctypes.POINTER(SERVICE_STATUS),
+        ]
+        self.advapi32.ControlService.restype = ctypes.wintypes.BOOL
+        self.advapi32.QueryServiceStatus.argtypes = [
+            ctypes.wintypes.HANDLE,
+            ctypes.POINTER(SERVICE_STATUS),
+        ]
+        self.advapi32.QueryServiceStatus.restype = ctypes.wintypes.BOOL
+
+####################################################################################################
+
+    def load_config(self):
+        self.pyas_config = self.read_config(self.file_config, self.pyas_default)
+
+    def save_config(self, file_path, config):
         try:
-            self.path_conf = r"C:/ProgramData/PYAS"
-            self.path_pyas = sys.argv[0].replace("\\", "/")
-            self.path_dirs = os.path.dirname(self.path_pyas)
-            self.file_conf = os.path.join(self.path_conf, "PYAS.json")
-            self.path_model = os.path.join(self.path_dirs, "Engine/Model")
-            self.path_rules = os.path.join(self.path_dirs, "Engine/Rules")
-            self.path_driver = os.path.join(self.path_dirs, "Driver/Protect")
+            filter_config = {}
+            for k, v in config.items():
+                if k.endswith("_button") and isinstance(v, bool) and k.replace("_button", "_window") in self.widgets:
+                    continue
+                filter_config[k] = v
+            path = os.path.dirname(file_path)
+            if not os.path.exists(path):
+                os.makedirs(path)
+            with open(file_path, "w") as f:
+                f.write(json.dumps(filter_config, indent=4, ensure_ascii=False))
         except Exception as e:
-            print(e)
+            self.send_message(e, "warn", False)
 
-    def reset_options(self): # 重置所有設定
-        if self.question_event("您確定要重置所有設定嗎?"):
-            self.clean_function()
-            self.config_json = self.default_json
-            self.init_config_write(self.config_json)
-            self.init_config_pyas()
-
-    def clean_function(self): # 清理運行函數
-        self.first_startup = 1
-        self.block_window = 0
-        self.config_json["proc_protect"] = 0
-        self.config_json["file_protect"] = 0
-        self.config_json["sys_protect"] = 0
-        self.config_json["net_protect"] = 0
-        self.virus_scan_break()
-        self.protect_drv_init()
-        self.gc_collect = 0
-
-    def init_config_read(self): # 初始化配置
+    def read_config(self, file_path, default_value):
         try:
-            self.config_json = {}
-            if not os.path.exists(self.path_conf): 
-                os.makedirs(self.path_conf)
-            if not os.path.exists(self.file_conf):
-                self.init_config_write(self.config_json)
-            with open(self.file_conf, "r") as f: 
-                self.config_json = json.load(f)
-            self.config_json["language_ui"] = self.config_json.get("language_ui", "en_US")
-            self.config_json["theme_color"] = self.config_json.get("theme_color", "White")
-            self.config_json["product_key"] = self.config_json.get("product_key", "None")
-            self.config_json["service_url"] = self.config_json.get("service_url", "None")
-            self.config_json["proc_protect"] = self.config_json.get("proc_protect", 1)
-            self.config_json["file_protect"] = self.config_json.get("file_protect", 1)
-            self.config_json["sys_protect"] = self.config_json.get("sys_protect", 1)
-            self.config_json["net_protect"] = self.config_json.get("net_protect", 1)
-            self.config_json["sensitivity"] = self.config_json.get("sensitivity", 0)
-            self.config_json["extend_mode"] = self.config_json.get("extend_mode", 0)
-            self.config_json["white_lists"] = self.config_json.get("white_lists", [])
-            self.config_json["block_lists"] = self.config_json.get("block_lists", [])
+            config_value = {}
+            if os.path.exists(file_path):
+                with open(file_path, "r") as f:
+                    config_value = json.load(f)
+            for key, value in default_value.items():
+                config_value.setdefault(key, value)
+            return config_value
         except Exception as e:
-            print(e)
+            self.send_message(e, "warn", False)
+            return default_value.copy()
 
-    def init_config_write(self, config): # 寫入配置
-        try:
-            with open(self.file_conf, "w") as f:
-                f.write(json.dumps(config, indent=4, ensure_ascii=False))
-        except Exception as e:
-            print(e)
+    def config_list(self, key):
+        if key not in self.pyas_config:
+            self.pyas_config[key] = []
+        return self.pyas_config[key]
 
-    def init_config_wdll(self): # 初始化系統
-        try:
-            self.ntdll = ctypes.WinDLL('ntdll', use_last_error=True)
-            self.psapi = ctypes.WinDLL('Psapi', use_last_error=True)
-            self.user32 = ctypes.WinDLL('user32', use_last_error=True)
-            self.kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-            self.advapi32 = ctypes.WinDLL('advapi32', use_last_error=True)
-            self.iphlpapi = ctypes.WinDLL('iphlpapi', use_last_error=True)
-        except Exception as e:
-            print(e)
+####################################################################################################
 
-    def init_config_boot(self): # 初始化引導
-        try:
-            with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                self.mbr_value = f.read(512)
-            if self.mbr_value[510:512] != b'\x55\xAA':
-                self.mbr_value = None
-        except Exception as e:
-            print(e)
+    def init_interface(self):
+        self.widgets = {k: v for k, v in self.ui.__dict__.items() if isinstance(v, QWidget)}
 
-    def init_config_list(self): # 初始化列表
-        try:
-            self.exist_process = self.get_process_list()
-            self.exist_connections = self.get_connections_list()
-        except Exception as e:
-            print(e)
+        self.menu_window = [self.widgets.get(x) for x in ["options_window", "navigate_window"]]
+        self.sub_window = [self.widgets.get(x) for x in ["method_window", "solve_button"]]
+        self.blank_window = [self.widgets.get("blank_window")]
+        self.main_window = [self.widgets.get(x) for x in [
+            "about_window", "setting_window", "protect_window",
+            "taskmgr_window", "tool_window", "scan_window", "home_window"]]
 
-    def init_config_data(self): # 初始化引擎
-        try:
-            self.model = DLScan()
-            for root, dirs, files in os.walk(self.path_model):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    self.model.load_model(file_path)
-        except Exception as e:
-            print(e)
-        try:
-            self.rules = YRScan()
-            for root, dirs, files in os.walk(self.path_rules):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    self.rules.load_rules(file_path)
-        except Exception as e:
-            print(e)
+        for w in self.sub_window:
+            if w: w.hide()
+        for w in self.main_window + self.menu_window:
+            if w: w.raise_()
+        for w in self.menu_window + self.blank_window:
+            if w: w.setGraphicsEffect(self.create_shadow())
 
-    def init_config_icon(self): # 初始化圖標
+        self.last_widget = self.widgets.get("home_window")
+        self.setup_theme_mapping()
+        self.setup_process_menu()
+
+    def create_shadow(self):
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setOffset(0, 0)
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(175, 175, 175))
+        return shadow
+
+####################################################################################################
+
+    def init_connect(self):
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.activated.connect(self.init_config_show)
-        self.tray_icon.setIcon(QFileIconProvider().icon(QFileInfo(self.path_pyas)))
+        self.tray_icon.setIcon(QIcon(r":/icon/logo_black.png"))
+        self.tray_icon.activated.connect(self.show_button)
         self.tray_icon.show()
 
-    def init_config_qtui(self): # 初始化介面
-        self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)
-        self.Process_sim = QStringListModel()
-        self.Process_Timer = QTimer()
-        self.Process_Timer.timeout.connect(self.process_list)
-        self.ui.widget_2.lower()
-        self.ui.Navigation_Bar.raise_()
-        self.ui.Window_widget.raise_()
-        self.ui.Virus_Scan_choose_widget.raise_()
-        self.effect_shadow = QGraphicsDropShadowEffect(self)
-        self.effect_shadow.setOffset(0,0)
-        self.effect_shadow.setBlurRadius(10)
-        self.effect_shadow.setColor(Qt.gray)
-        self.ui.widget_2.setGraphicsEffect(self.effect_shadow)
-        self.effect_shadow2 = QGraphicsDropShadowEffect(self)
-        self.effect_shadow2.setOffset(0,0)
-        self.effect_shadow2.setBlurRadius(10)
-        self.effect_shadow2.setColor(Qt.gray) 
-        self.ui.Navigation_Bar.setGraphicsEffect(self.effect_shadow2)
-        self.effect_shadow3 = QGraphicsDropShadowEffect(self)
-        self.effect_shadow3.setOffset(0,0)
-        self.effect_shadow3.setBlurRadius(7)
-        self.effect_shadow3.setColor(Qt.gray) 
-        self.ui.Window_widget.setGraphicsEffect(self.effect_shadow3)
-        self.ui.Virus_Scan_choose_widget.hide()
-        self.ui.Virus_Scan_widget.hide()
-        self.ui.Tools_widget.hide()
-        self.ui.Protection_widget.hide()
-        self.ui.Virus_Scan_Solve_Button.hide()
-        self.ui.Virus_Scan_Break_Button.hide()
-        self.ui.Process_widget.hide()
-        self.ui.Setting_widget.hide()
-        self.ui.About_widget.hide()
-        self.ui.State_output.style().polish(self.ui.State_output.verticalScrollBar())
-        self.ui.Virus_Scan_output.style().polish(self.ui.Virus_Scan_output.verticalScrollBar())
-        self.ui.License_terms.setText('''MIT License\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.''')
+        self.scan_progress_signal.connect(self.slot_scan_progress)
+        self.scan_add_virus_signal.connect(self.slot_scan_add_virus)
+        self.scan_result_signal.connect(self.slot_scan_result)
+        self.scan_reset_signal.connect(self.slot_scan_reset)
+        self.progress_title_signal.connect(self.slot_progress_title)
 
-    def init_config_conn(self): # 初始化交互
-        self.ui.Close_Button.clicked.connect(self.close)
-        self.ui.Minimize_Button.clicked.connect(self.showMinimized)
-        self.ui.Menu_Button.clicked.connect(self.show_menu)
-        self.ui.State_Button.clicked.connect(self.change_state_widget)
-        self.ui.Tools_Button.clicked.connect(self.change_tools_widget)    
-        self.ui.Virus_Scan_Button.clicked.connect(self.change_scan_widget)
-        self.ui.Protection_Button.clicked.connect(self.change_protect_widget)
-        self.ui.Setting_Button.clicked.connect(self.change_setting_widget)
-        self.ui.Virus_Scan_output.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.ui.Virus_Scan_output.customContextMenuRequested.connect(self.Virus_Scan_output_menu)
-        self.ui.Virus_Scan_Solve_Button.clicked.connect(self.virus_solve)
-        self.ui.Virus_Scan_choose_Button.clicked.connect(self.virus_scan_menu)
-        self.ui.Virus_Scan_Break_Button.clicked.connect(self.virus_scan_break)
-        self.ui.File_Scan_Button.clicked.connect(self.file_scan)
-        self.ui.Path_Scan_Button.clicked.connect(self.path_scan)
-        self.ui.Disk_Scan_Button.clicked.connect(self.disk_scan)
-        self.ui.System_Process_Manage_Button.clicked.connect(lambda:self.change_tools(self.ui.Process_widget))
-        self.ui.Repair_System_Files_Button.clicked.connect(self.repair_system)
-        self.ui.Clean_System_Files_Button.clicked.connect(self.clean_system)
-        self.ui.Window_Block_Button.clicked.connect(self.add_software_window)
-        self.ui.Window_Block_Button_2.clicked.connect(self.remove_software_window)
-        self.ui.Repair_System_Network_Button.clicked.connect(self.repair_network)
-        self.ui.Reset_Options_Button.clicked.connect(self.reset_options)
-        self.ui.Process_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.ui.Process_list.customContextMenuRequested.connect(self.process_list_menu)
-        self.ui.Protection_switch_Button.clicked.connect(self.protect_proc_init)
-        self.ui.Protection_switch_Button_2.clicked.connect(self.protect_file_init)
-        self.ui.Protection_switch_Button_3.clicked.connect(self.protect_sys_init)
-        self.ui.Protection_switch_Button_4.clicked.connect(self.protect_drv_init)
-        self.ui.Protection_switch_Button_5.clicked.connect(self.protect_net_init)
-        self.ui.Protection_switch_Button_8.clicked.connect(self.protect_cus_init)
-        self.ui.high_sensitivity_switch_Button.clicked.connect(self.change_sensitive)
-        self.ui.extension_kit_switch_Button.clicked.connect(self.extension_kit)
-        self.ui.cloud_services_switch_Button.clicked.connect(self.cloud_services)
-        self.ui.Add_White_list_Button.clicked.connect(self.add_white_list)
-        self.ui.Add_White_list_Button_3.clicked.connect(self.remove_white_list)
-        self.ui.Language_Traditional_Chinese.clicked.connect(self.init_change_lang)
-        self.ui.Language_Simplified_Chinese.clicked.connect(self.init_change_lang)
-        self.ui.Language_English.clicked.connect(self.init_change_lang)
-        self.ui.Theme_White.clicked.connect(self.init_change_theme)
-        self.ui.Theme_Customize.clicked.connect(self.init_change_theme)
-        self.ui.Theme_Green.clicked.connect(self.init_change_theme)
-        self.ui.Theme_Yellow.clicked.connect(self.init_change_theme)
-        self.ui.Theme_Blue.clicked.connect(self.init_change_theme)
-        self.ui.Theme_Red.clicked.connect(self.init_change_theme)
+        for name, widget in self.widgets.items():
+            if hasattr(widget, "setCheckable") and widget.isCheckable():
+                if name in self.lang_names:
+                    widget.toggled.connect(lambda checked, ln=name: self.on_language_radio(ln, checked))
+                    if self.pyas_config.get("language") == name:
+                        widget.setChecked(True)
+                elif name in self.theme_names:
+                    widget.toggled.connect(lambda checked, tn=name: self.on_theme_radio(tn, checked))
+                    if self.pyas_config.get("theme") == name:
+                        widget.setChecked(True)
+                elif "_switch" in name:
+                    widget.toggled.connect(lambda checked, n=name: self.save_state(n, checked))
+                    if name in self.pyas_config:
+                        try:
+                            widget.setChecked(self.pyas_config[name])
+                        except Exception:
+                            pass
 
-    def init_config_lang(self): # 初始化語言
-        try:
-            if self.config_json["language_ui"] == "zh_TW":
-                self.ui.Language_Traditional_Chinese.setChecked(True)
-            elif self.config_json["language_ui"] == "zh_CN":
-                self.ui.Language_Simplified_Chinese.setChecked(True)
-            elif self.config_json["language_ui"] == "en_US":
-                self.ui.Language_English.setChecked(True)
-            self.init_change_text()
-        except Exception as e:
-            print(e)
+            if "_button" in name and hasattr(widget, "clicked"):
+                wn = name.replace("_button", "_window")
+                if self.widgets.get(wn):
+                    widget.clicked.connect(lambda _, wn=wn: self.change_window(wn))
+                elif hasattr(self, name):
+                    widget.clicked.connect(getattr(self, name))
 
-    def init_change_lang(self): # 變更語言
-        try:
-            if self.ui.Language_Traditional_Chinese.isChecked():
-                self.config_json["language_ui"] = "zh_TW"
-            elif self.ui.Language_Simplified_Chinese.isChecked():
-                self.config_json["language_ui"] = "zh_CN"
-            elif self.ui.Language_English.isChecked():
-                self.config_json["language_ui"] = "en_US"
-            self.init_change_text()
-            self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
+    def on_language_radio(self, ln, checked):
+        if checked:
+            self.pyas_config["language"] = ln
+            self.save_config(self.file_config, self.pyas_config)
+            self.apply_settings()
 
-    def trans(self, text):
-        for k, v in translate_dict.get(self.config_json["language_ui"], translate_dict).items():
-            text = text.replace(str(k), str(v))
-        return text
+    def on_theme_radio(self, tn, checked):
+        if checked:
+            self.pyas_config["theme"] = tn
+            self.save_config(self.file_config, self.pyas_config)
+            self.apply_settings()
 
-    def init_change_text(self): # 變更文字
-        self.ui.State_title.setText(self.trans("此裝置已受到防護"))
-        self.ui.Window_title.setText(self.trans(f"PYAS Security"))
-        self.ui.PYAS_CopyRight.setText(self.trans(f"Copyright© 2020-{max(int(time.strftime('%Y')), 2020)} PYAS Security"))
-        self.ui.Virus_Scan_title.setText(self.trans("病毒掃描"))
-        self.ui.Virus_Scan_text.setText(self.trans("請選擇掃描方式"))
-        self.ui.Virus_Scan_choose_Button.setText(self.trans("病毒掃描"))
-        self.ui.File_Scan_Button.setText(self.trans("檔案掃描"))
-        self.ui.Path_Scan_Button.setText(self.trans("路徑掃描"))
-        self.ui.Disk_Scan_Button.setText(self.trans("全盤掃描"))
-        self.ui.Virus_Scan_Solve_Button.setText(self.trans("立即刪除"))
-        self.ui.Virus_Scan_Break_Button.setText(self.trans("停止掃描"))
-        self.ui.Process_Total_title.setText(self.trans("進程總數:"))
-        self.ui.Protection_title.setText(self.trans("進程防護"))
-        self.ui.Protection_illustrate.setText(self.trans("啟用此選項可以攔截進程病毒"))
-        self.ui.Protection_switch_Button.setText(self.trans(self.ui.Protection_switch_Button.text()))
-        self.ui.Protection_title_2.setText(self.trans("檔案防護"))
-        self.ui.Protection_illustrate_2.setText(self.trans("啟用此選項可以監控檔案變更"))
-        self.ui.Protection_switch_Button_2.setText(self.trans(self.ui.Protection_switch_Button_2.text()))
-        self.ui.Protection_title_3.setText(self.trans("系統防護"))
-        self.ui.Protection_illustrate_3.setText(self.trans("啟用此選項可以修復系統項目"))
-        self.ui.Protection_switch_Button_3.setText(self.trans(self.ui.Protection_switch_Button_3.text()))
-        self.ui.Protection_title_4.setText(self.trans("驅動防護"))
-        self.ui.Protection_illustrate_4.setText(self.trans("啟用此選項可以增強自身防護"))
-        self.ui.Protection_switch_Button_4.setText(self.trans(self.ui.Protection_switch_Button_4.text()))
-        self.ui.Protection_title_5.setText(self.trans("網路防護"))
-        self.ui.Protection_illustrate_5.setText(self.trans("啟用此選項可以監控網路通訊"))
-        self.ui.Protection_switch_Button_5.setText(self.trans(self.ui.Protection_switch_Button_5.text()))
-        self.ui.Protection_title_8.setText(self.trans("自訂防護"))
-        self.ui.Protection_illustrate_8.setText(self.trans("啟用此選項可以選擇自訂防護"))
-        self.ui.Protection_switch_Button_8.setText(self.trans(self.ui.Protection_switch_Button_8.text()))
-        self.ui.State_log.setText(self.trans("日誌:"))
-        self.ui.System_Process_Manage_title.setText(self.trans("進程管理"))
-        self.ui.System_Process_Manage_illustrate.setText(self.trans("此選項可以實時查看系統進程"))
-        self.ui.System_Process_Manage_Button.setText(self.trans("選擇"))
-        self.ui.Clean_System_Files_title.setText(self.trans("垃圾清理"))
-        self.ui.Clean_System_Files_illustrate.setText(self.trans("此選項可以清理暫存檔案"))
-        self.ui.Clean_System_Files_Button.setText(self.trans("選擇"))
-        self.ui.Repair_System_Files_title.setText(self.trans("系統修復"))
-        self.ui.Repair_System_Files_illustrate.setText(self.trans("此選項可以修復系統註冊表"))
-        self.ui.Repair_System_Files_Button.setText(self.trans("選擇"))
-        self.ui.Repair_System_Network_title.setText(self.trans("網路修復"))
-        self.ui.Repair_System_Network_illustrate.setText(self.trans("此選項可以重置系統網路連接"))
-        self.ui.Repair_System_Network_Button.setText(self.trans("選擇"))
-        self.ui.Reset_Options_title.setText(self.trans("重置選項"))
-        self.ui.Reset_Options_illustrate.setText(self.trans("此選項可以重置所有設定選項"))
-        self.ui.Reset_Options_Button.setText(self.trans("選擇"))
-        self.ui.Window_Block_title.setText(self.trans("彈窗攔截"))
-        self.ui.Window_Block_illustrate.setText(self.trans("此選項可以選擇指定窗口並攔截"))
-        self.ui.Window_Block_Button.setText(self.trans("增加"))
-        self.ui.Window_Block_Button_2.setText(self.trans("移除"))
-        self.ui.PYAS_Version.setText(self.trans(f"PYAS Security V{self.pyas_version} ({self.pyae_version})"))
-        self.ui.GUI_Made_title.setText(self.trans("介面製作:"))
-        self.ui.GUI_Made_Name.setText(self.trans("mtkiao"))
-        self.ui.Core_Made_title.setText(self.trans("核心製作:"))
-        self.ui.Core_Made_Name.setText(self.trans("87owo"))
-        self.ui.Testers_title.setText(self.trans("特別感謝:"))
-        self.ui.Testers_Name.setText(self.trans("0sha0"))
-        self.ui.PYAS_URL_title.setText(self.trans("官方網站:"))
-        self.ui.PYAS_URL.setText(self.trans("<html><head/><body><p><a href=\"https://github.com/87owo/PYAS\"><span style=\" text-decoration: underline; color:#000000;\">https://github.com/87owo/PYAS</span></a></p></body></html>"))
-        self.ui.high_sensitivity_title.setText(self.trans("高靈敏度模式"))
-        self.ui.high_sensitivity_illustrate.setText(self.trans("啟用此選項可以提高掃描引擎靈敏度"))
-        self.ui.high_sensitivity_switch_Button.setText(self.trans(self.ui.high_sensitivity_switch_Button.text()))
-        self.ui.extension_kit_title.setText(self.trans("擴展掃描引擎"))
-        self.ui.extension_kit_illustrate.setText(self.trans("啟用此選項可以使用第三方擴展套件"))
-        self.ui.extension_kit_switch_Button.setText(self.trans(self.ui.extension_kit_switch_Button.text()))
-        self.ui.cloud_services_title.setText(self.trans("雲端掃描服務"))
-        self.ui.cloud_services_illustrate.setText(self.trans("啟用此選項可以連接雲端掃描服務"))
-        self.ui.cloud_services_switch_Button.setText(self.trans(self.ui.cloud_services_switch_Button.text()))
-        self.ui.Add_White_list_title.setText(self.trans("增加到白名單"))
-        self.ui.Add_White_list_illustrate.setText(self.trans("此選項可以選擇檔案並增加到白名單"))
-        self.ui.Add_White_list_Button.setText(self.trans("增加"))
-        self.ui.Add_White_list_Button_3.setText(self.trans("移除"))
-        self.ui.Theme_title.setText(self.trans("顯色主題"))
-        self.ui.Theme_illustrate.setText(self.trans("請選擇主題"))
-        self.ui.Theme_Customize.setText(self.trans("自訂主題"))
-        self.ui.Theme_White.setText(self.trans("白色主題"))
-        self.ui.Theme_Yellow.setText(self.trans("黃色主題"))
-        self.ui.Theme_Red.setText(self.trans("紅色主題"))
-        self.ui.Theme_Green.setText(self.trans("綠色主題"))
-        self.ui.Theme_Blue.setText(self.trans("藍色主題"))
-        self.ui.Language_title.setText(self.trans("顯示語言"))
-        self.ui.Language_illustrate.setText(self.trans("請選擇語言"))
-        self.ui.License_terms_title.setText(self.trans("許可條款:"))
+####################################################################################################
 
-    def init_config_color(self):
-        self.config_theme = {
-        "White": {"color": "White", "icon": ":/icon/Check.png",
-        "button_on": """QPushButton{border:none;
-        background-color:rgb(200,250,200);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(210,250,210);}""",
-        "button_off": """QPushButton{border:none;
-        background-color:rgb(230,230,230);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(220,220,220);}""",
-        "widget_style": "background-color:rgb(255,255,255);",
-        "window_style": "background-color:rgb(245,245,245);",
-        "navigation_style": "background-color:rgb(235,235,235);"},#
-        "Red": {"color": "Red", "icon": ":/icon/Check.png",
-        "button_on": """QPushButton{border:none;
-        background-color:rgb(250,200,200);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(250,210,210);}""",
-        "button_off": """QPushButton{border:none;
-        background-color:rgb(250,220,220);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(250,210,210);}""",
-        "widget_style": "background-color:rgb(250,240,240);",
-        "window_style": "background-color:rgb(250,230,230);",
-        "navigation_style": "background-color:rgb(250,220,220);"},#
-        "Green": {"color": "Green", "icon": ":/icon/Check.png",
-        "button_on": """QPushButton{border:none;
-        background-color:rgb(200,250,200);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(210,250,210);}""",
-        "button_off": """QPushButton{border:none;
-        background-color:rgb(220,250,220);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(210,250,210);}""",
-        "widget_style": "background-color:rgb(240,250,240);",
-        "window_style": "background-color:rgb(230,250,230);",
-        "navigation_style": "background-color:rgb(220,250,220);"},#
-        "Blue": {"color": "Blue", "icon": ":/icon/Check.png",
-        "button_on": """QPushButton{border:none;
-        background-color:rgb(200,250,250);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(210,250,250);}""",
-        "button_off": """QPushButton{border:none;
-        background-color:rgb(220,250,250);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(210,250,250);}""",
-        "widget_style": "background-color:rgb(240,250,250);",
-        "window_style": "background-color:rgb(230,250,250);",
-        "navigation_style": "background-color:rgb(220,250,250);"},#
-        "Yellow": {"color": "Yellow", "icon": ":/icon/Check.png",
-        "button_on": """QPushButton{border:none;
-        background-color:rgb(250,250,200);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(250,250,210);}""",
-        "button_off": """QPushButton{border:none;
-        background-color:rgb(250,250,220);border-radius: 10px;}
-        QPushButton:hover{background-color:rgb(250,250,210);}""",
-        "widget_style": "background-color:rgb(250,250,240);",
-        "window_style": "background-color:rgb(250,250,230);",
-        "navigation_style": "background-color:rgb(250,250,220);"}}
-        self.init_change_color()
-
-    def init_config_theme(self): # 初始化主題
-        try:
-            if self.config_json["theme_color"] == "White":
-                self.ui.Theme_White.setChecked(True)
-            elif self.config_json["theme_color"] == "Red":
-                self.ui.Theme_Red.setChecked(True)
-            elif self.config_json["theme_color"] == "Green":
-                self.ui.Theme_Green.setChecked(True)
-            elif self.config_json["theme_color"] == "Yellow":
-                self.ui.Theme_Yellow.setChecked(True)
-            elif self.config_json["theme_color"] == "Blue":
-                self.ui.Theme_Blue.setChecked(True)
-            elif os.path.exists(self.config_json["theme_color"]):
-                self.ui.Theme_Customize.setChecked(True)
-            self.init_change_color()
-        except Exception as e:
-            print(e)
-
-    def init_change_theme(self): # 變更主題
-        try:
-            if self.ui.Theme_White.isChecked():
-                self.config_json["theme_color"] = "White"
-            elif self.ui.Theme_Red.isChecked():
-                self.config_json["theme_color"] = "Red"
-            elif self.ui.Theme_Green.isChecked():
-                self.config_json["theme_color"] = "Green"
-            elif self.ui.Theme_Blue.isChecked():
-                self.config_json["theme_color"] = "Blue"
-            elif self.ui.Theme_Yellow.isChecked():
-                self.config_json["theme_color"] = "Yellow"
-            elif self.ui.Theme_Customize.isChecked():
-                self.config_json["theme_color"] = "Customize"
-            self.init_change_color()
-            self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def init_change_color(self): # 變更色彩
-        try:
-            if self.config_json["theme_color"] in self.config_theme:
-                self.theme = self.config_theme[self.config_json["theme_color"]]
-                self.config_json["theme_color"] = self.theme["color"]
-                self.ui.State_icon.setPixmap(QPixmap(self.theme["icon"]))
+    def save_state(self, name, checked):
+        self.pyas_config[name] = bool(checked)
+        if name == "sensitive_switch":
+            self.pyas_config["sensitive"] = 0 if checked else 95
+        elif name == "extension_switch":
+            pass
+        elif name == "process_switch":
+            if checked:
+                self.start_daemon_thread(self.protect_proc_thread)
+        elif name == "document_switch":
+            if checked:
+                self.start_daemon_thread(self.protect_file_thread)
+        elif name == "system_switch":
+            if checked:
+                self.start_daemon_thread(self.protect_system_thread)
+        elif name == "driver_switch":
+            if checked:
+                self.install_system_driver()
             else:
-                if not os.path.exists(os.path.join(self.config_json["theme_color"], "Color.json")):
-                    path = str(QFileDialog.getExistingDirectory(self, self.trans("自訂主題"), ""))
-                    if path and os.path.exists(os.path.join(path, "Color.json")):
-                        self.config_json["theme_color"] = path
-                with open(os.path.join(self.config_json["theme_color"], "Color.json"), "r") as f: 
-                    self.theme = json.load(f)
-                icon_path = os.path.join(self.config_json["theme_color"], self.theme["icon"])
-                self.ui.State_icon.setPixmap(QPixmap(icon_path))
-            self.ui.Window_widget.setStyleSheet(self.theme["window_style"])
-            self.ui.Navigation_Bar.setStyleSheet(self.theme["navigation_style"])
-            self.ui.State_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.Virus_Scan_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.Tools_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.Process_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.Protection_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.Setting_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.About_widget.setStyleSheet(self.theme["widget_style"])
-            self.ui.widget_2.setStyleSheet(self.theme["widget_style"])
-            self.ui.Virus_Scan_choose_Button.setStyleSheet(self.theme["button_on"])
-            self.ui.Add_White_list_Button.setStyleSheet(self.theme["button_off"])
-            self.ui.Add_White_list_Button_3.setStyleSheet(self.theme["button_off"])
-            self.ui.System_Process_Manage_Button.setStyleSheet(self.theme["button_off"])
-            self.ui.Repair_System_Files_Button.setStyleSheet(self.theme["button_off"])
-            self.ui.Clean_System_Files_Button.setStyleSheet(self.theme["button_off"])
-            self.ui.Reset_Options_Button.setStyleSheet(self.theme["button_off"])
-            self.ui.Window_Block_Button.setStyleSheet(self.theme["button_off"])
-            self.ui.Window_Block_Button_2.setStyleSheet(self.theme["button_off"])
-            self.ui.Repair_System_Network_Button.setStyleSheet(self.theme["button_off"])
-            if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.Protection_switch_Button.setStyleSheet(self.theme["button_off"])
-            if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_2.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.Protection_switch_Button_2.setStyleSheet(self.theme["button_off"])
-            if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_3.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.Protection_switch_Button_3.setStyleSheet(self.theme["button_off"])
-            if self.ui.Protection_switch_Button_4.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_4.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.Protection_switch_Button_4.setStyleSheet(self.theme["button_off"])
-            if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_off"])
-            if self.ui.Protection_switch_Button_8.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_off"])
-            if self.ui.high_sensitivity_switch_Button.text() == self.trans("已開啟"):
-                self.ui.high_sensitivity_switch_Button.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.high_sensitivity_switch_Button.setStyleSheet(self.theme["button_off"])
-            if self.ui.extension_kit_switch_Button.text() == self.trans("已開啟"):
-                self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_off"])
-            if self.ui.cloud_services_switch_Button.text() == self.trans("已開啟"):
-                self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_on"])
-            else:
-                self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_off"])
-        except Exception as e:
-            print(e)
-            self.config_json["theme_color"] = "White"
-            self.init_config_theme()
-
-    def init_config_done(self): # 初始化完畢
-        try:
-            if len(sys.argv) > 1: 
-                param = sys.argv[1].replace("/", "-")
-                if "-h" not in param:
-                    self.init_config_show()
-            elif len(sys.argv) <= 1:
-                self.init_config_show()
-            self.first_startup = 0
-        except Exception as e:
-            print(e)
-
-    def init_config_func(self): # 初始化功能
-        try:
-            if self.config_json["proc_protect"] == 1:
-                self.protect_proc_init()
-            if self.config_json["file_protect"] == 1:
-                self.protect_file_init()
-            if self.config_json["sys_protect"] == 1:
-                self.protect_sys_init()
-            if self.config_json["net_protect"] == 1:
-                self.protect_net_init()
-            #if self.config_json["cus_protect"] == 1:
-                #self.protect_cus_init()
-            if self.config_json["sensitivity"] == 1:
-                self.change_sensitive()
-            if self.config_json["extend_mode"] == 1:
-                self.extension_kit()
-            self.protect_drv_init()
-            self.block_window_init()
-            self.gc_collect_init()
-        except Exception as e:
-            print(e)
-
-    def protect_proc_init(self): # 初始化進程防護
-        try:
-            if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button.setText(self.trans("已關閉"))
-                self.ui.Protection_switch_Button.setStyleSheet(self.theme["button_off"])
-                self.config_json["proc_protect"] = 0
-            else:
-                self.config_json["proc_protect"] = 1
-                Thread(target=self.protect_proc_thread, daemon=True).start()
-                self.ui.Protection_switch_Button.setText(self.trans("已開啟"))
-                self.ui.Protection_switch_Button.setStyleSheet(self.theme["button_on"])
-            self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def protect_file_init(self): # 初始化檔案防護
-        try:
-            if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_2.setText(self.trans("已關閉"))
-                self.ui.Protection_switch_Button_2.setStyleSheet(self.theme["button_off"])
-                self.config_json["file_protect"] = 0
-            else:
-                self.config_json["file_protect"] = 1
-                Thread(target=self.protect_file_thread, daemon=True).start()
-                self.ui.Protection_switch_Button_2.setText(self.trans("已開啟"))
-                self.ui.Protection_switch_Button_2.setStyleSheet(self.theme["button_on"])
-            self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def protect_sys_init(self): # 初始化系統防護
-        try:
-            if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_3.setText(self.trans("已關閉"))
-                self.ui.Protection_switch_Button_3.setStyleSheet(self.theme["button_off"])
-                self.config_json["sys_protect"] = 0
-            else:
-                self.config_json["sys_protect"] = 1
-                Thread(target=self.protect_boot_thread, daemon=True).start()
-                Thread(target=self.protect_reg_thread, daemon=True).start()
-                self.ui.Protection_switch_Button_3.setText(self.trans("已開啟"))
-                self.ui.Protection_switch_Button_3.setStyleSheet(self.theme["button_on"])
-            self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def protect_drv_init(self): # 初始化驅動防護
-        try:
-            file_path = self.path_driver.replace("\\", "/")
-            if os.path.exists(file_path):
-                if self.ui.Protection_switch_Button_4.text() == self.trans("已開啟"):
-                    result = Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                    if not self.first_startup:
-                        if result == 0 or result == 577:
-                            if self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                                Popen(f'"{file_path}/Uninstall_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE)
-                            else:
-                                Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                    if result == 1062 or result == 1060:
-                        self.ui.Protection_switch_Button_4.setText(self.trans("已關閉"))
-                        self.ui.Protection_switch_Button_4.setStyleSheet(self.theme["button_off"])
-                else:
-                    result = Popen("sc start PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                    if not self.first_startup:
-                        if result == 1060 or result == 3 or result == 577:
-                            if self.question_event("此選項可能會與其他軟體不兼容，您確定要開啟嗎?"):
-                                Popen("sc delete PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                                Popen(f'"{file_path}/Install_Driver.bat"', shell=True, stdout=PIPE, stderr=PIPE)
-                            else:
-                                Popen("sc stop PYAS_Driver", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                    if result == 0 or result == 1056:
-                        self.ui.Protection_switch_Button_4.setText(self.trans("已開啟"))
-                        self.ui.Protection_switch_Button_4.setStyleSheet(self.theme["button_on"])
-        except Exception as e:
-            print(e)
-
-    def protect_net_init(self): # 初始化網路防護
-        try:
-            if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
-                self.ui.Protection_switch_Button_5.setText(self.trans("已關閉"))
-                self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_off"])
-                self.config_json["net_protect"] = 0
-            else:
-                self.config_json["net_protect"] = 1
-                Thread(target=self.protect_net_thread, daemon=True).start()
-                self.ui.Protection_switch_Button_5.setText(self.trans("已開啟"))
-                self.ui.Protection_switch_Button_5.setStyleSheet(self.theme["button_on"])
-            self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def protect_cus_init(self): # 初始化自訂防護
-        self.info_event("此功能不支持使用")
-        #if self.ui.Protection_switch_Button_8.text() == self.trans("已開啟"):
-            #self.ui.Protection_switch_Button_8.setText(self.trans("已關閉"))
-            #self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_off"])
-            #self.config_json["cus_protect"] = 0
-        #else:
-            #self.config_json["cus_protect"] = 1
-            #self.ui.Protection_switch_Button_8.setText(self.trans("已開啟"))
-            #self.ui.Protection_switch_Button_8.setStyleSheet(self.theme["button_on"])
-        #self.init_config_write(self.config_json)
-
-    def change_sensitive(self): # 初始化靈敏度
-        if self.ui.high_sensitivity_switch_Button.text() == self.trans("已開啟"):
-            self.ui.high_sensitivity_switch_Button.setText(self.trans("已關閉"))
-            self.ui.high_sensitivity_switch_Button.setStyleSheet(self.theme["button_off"])
-            self.config_json["sensitivity"] = 0
-        elif self.first_startup or self.question_event("此選項可能會誤報檔案，您確定要開啟嗎?"):
-            self.config_json["sensitivity"] = 1
-            self.ui.high_sensitivity_switch_Button.setText(self.trans("已開啟"))
-            self.ui.high_sensitivity_switch_Button.setStyleSheet(self.theme["button_on"])
-        self.init_config_write(self.config_json)
-
-    def extension_kit(self): # 初始化擴展引擎
-        if self.ui.extension_kit_switch_Button.text() == self.trans("已開啟"):
-            self.ui.extension_kit_switch_Button.setText(self.trans("已關閉"))
-            self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_off"])
-            self.config_json["extend_mode"] = 0
+                self.stop_system_driver()
+        elif name == "network_switch":
+            if checked:
+                self.start_daemon_thread(self.protect_net_thread)
         else:
-            self.config_json["extend_mode"] = 1
-            self.ui.extension_kit_switch_Button.setText(self.trans("已開啟"))
-            self.ui.extension_kit_switch_Button.setStyleSheet(self.theme["button_on"])
-        self.init_config_write(self.config_json)
+            self.send_message(f"此功能不支持使用", "info")
+        self.save_config(self.file_config, self.pyas_config)
 
-    def cloud_services(self): # 初始化雲端掃描
-        self.info_event("此功能不支持使用")
-        #if self.ui.cloud_services_switch_Button.text() == self.trans("已開啟"):
-            #self.ui.cloud_services_switch_Button.setText(self.trans("已關閉"))
-            #self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_off"])
-            #self.config_json["service_url"] = 0
-        #else:
-            #self.config_json["service_url"] = 1
-            #self.ui.cloud_services_switch_Button.setText(self.trans("已開啟"))
-            #self.ui.cloud_services_switch_Button.setStyleSheet(self.theme["button_on"])
-        #self.init_config_write(self.config_json)
+    def init_thread(self):
+        self.start_daemon_thread(self.pipe_server_thread)
+        self.start_daemon_thread(self.popup_intercept_thread)
 
-    def gc_collect_init(self): # 初始化程式回收
+    def start_daemon_thread(self, target, *args, **kwargs):
+        t = threading.Thread(target=target, args=args, kwargs=kwargs, daemon=True)
+        t.start()
+        return t
+
+####################################################################################################
+
+    def setup_theme_mapping(self):
+        for name, widget in self.widgets.items():
+            mapping = {}
+            base_name = name.replace("_button", "").replace("_window", "")
+            theme_icon_map = {
+                theme: f":/icon/{base_name}_{'white' if theme == 'black_switch' else 'black'}.png"
+                for theme in self.theme_names}
+
+            if hasattr(widget, "setPixmap"):
+                mapping["pixmap"] = theme_icon_map
+            if hasattr(widget, "setIcon"):
+                mapping["icon"] = theme_icon_map
+            if mapping:
+                widget._theme_mapping = mapping
+
+####################################################################################################
+
+    def apply_settings(self):
+        lang = self.pyas_config.get("language", "english_switch")
+        theme = self.pyas_config.get("theme", "white_switch")
+        lang_map = translate_dict.get(lang, {})
+        theme_map = translate_dict.get(theme, {})
+
+        for name, widget in self.widgets.items():
+            if "_switch" in name and hasattr(widget, "setText") and hasattr(widget, "isChecked"):
+                if name not in self.lang_names + self.theme_names:
+                    checked = widget.isChecked()
+                    widget.setText(lang_map.get("開啟", "開啟") if checked else lang_map.get("關閉", "關閉"))
+
+                    if not widget.property("_connected_toggle"):
+                        widget.toggled.connect(lambda checked, b=widget: self.toggle_switch_text(b, checked))
+                        widget.setProperty("_connected_toggle", True)
+
+            elif hasattr(widget, "setText"):
+                if not hasattr(widget, "_origin_text"):
+                    widget._origin_text = self.get_widget_text(widget)
+                widget.setText(self.trans(lang, widget._origin_text))
+
+            if hasattr(widget, "setStyleSheet"):
+                if not hasattr(widget, "_origin_style"):
+                    widget._origin_style = widget.styleSheet()
+                style = widget._origin_style
+                for k, v in theme_map.items():
+                    style = style.replace(str(k), str(v))
+                widget.setStyleSheet(style)
+
+            mapping = getattr(widget, "_theme_mapping", None)
+            if isinstance(mapping, dict):
+                if "icon" in mapping and hasattr(widget, "setIcon"):
+                    icon_path = mapping["icon"].get(theme)
+                    if icon_path and (os.path.exists(icon_path) or icon_path.startswith(":")):
+                        widget.setIcon(QIcon(icon_path))
+                        widget.icon_path = icon_path
+
+                if "pixmap" in mapping and hasattr(widget, "setPixmap"):
+                    pm_path = mapping["pixmap"].get(theme)
+                    if pm_path and pm_path.startswith(":"):
+                        pix = QPixmap(pm_path)
+                        if not pix.isNull():
+                            widget.setPixmap(pix)
+                            widget.pixmap_path = pm_path
+
+####################################################################################################
+
+    def toggle_switch_text(self, btn, checked):
+        lang = self.pyas_config.get("language", "traditional_switch")
+        switch_map = translate_dict.get(lang, {})
+        btn.setText(switch_map.get("開啟", "開啟") if checked else switch_map.get("關閉", "關閉"))
+
+    def get_widget_text(self, widget):
+        for method in ["text", "toPlainText", "currentText"]:
+            if hasattr(widget, method) and callable(getattr(widget, method)):
+                return getattr(widget, method)()
+        return ""
+
+    def trans(self, language, text):
+        for key, value in translate_dict.get(language, translate_dict).items():
+            text = str(text).replace(str(key), str(value))
+        return text.rstrip()
+
+####################################################################################################
+
+    def change_opacity(self, widget, current, target, duration=200):
+        self.cleanup_animation(widget, "opacity_animation")
+        anim = QPropertyAnimation(widget, b"windowOpacity")
+        anim.setStartValue(current / 100.0)
+        anim.setEndValue(target / 100.0)
+        anim.setDuration(duration)
+        anim.setEasingCurve(QEasingCurve.Linear)
+        anim.valueChanged.connect(lambda v: self.update_opacity(widget, v))
+        anim.start()
+        widget.opacity_animation = anim
+
+    def update_opacity(self, widget, value):
+        widget.setWindowOpacity(value)
+        widget.current_opacity = value * 100
+        widget.setVisible(value > 0)
+
+    def cleanup_animation(self, widget, attr):
+        anim = getattr(widget, attr, None)
+        if anim:
+            anim.stop()
+            anim.deleteLater()
+            setattr(widget, attr, None)
+
+####################################################################################################
+
+    def change_window(self, widget_name, duration=200):
+        widget = self.widgets.get(widget_name)
+        if widget and widget != self.last_widget:
+            widget.raise_()
+            widget.hide()
+            for window in self.menu_window:
+                window.raise_()
+            for window in self.sub_window:
+                window.hide()
+            self.animate_geometry(widget, duration)
+            self.last_widget = widget
+
+            if widget_name == "taskmgr_window":
+                self.start_process_timer()
+            else:
+                self.stop_process_timer()
+
+    def animate_geometry(self, widget, duration):
+        click = widget.mapFromGlobal(QCursor.pos())
+        w, h = widget.width(), widget.height()
+        final_radius = int(((max(click.x(), w - click.x())) ** 2 + (max(click.y(), h - click.y())) ** 2) ** 0.5)
+        anim = QVariantAnimation(widget)
+        anim.setStartValue(0)
+        anim.setEndValue(final_radius)
+        anim.setDuration(duration)
+        anim.valueChanged.connect(lambda val: self.update_geometry(widget, click, val))
+        anim.start()
+
+    def update_geometry(self, widget, click, value):
+        widget.setMask(QRegion(click.x() - value, click.y() - value, 2 * value, 2 * value, QRegion.Ellipse))
+        widget.setVisible(value > 0)
+
+####################################################################################################
+
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton:
+            self.mouse_flag = True
+            self.mouse_pos = event.globalPosition().toPoint() - self.pos()
+            self.change_opacity(self, self.current_opacity, 80, 100)
+            event.accept()
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if self.mouse_flag:
+            new_top_left = event.globalPosition().toPoint() - self.mouse_pos
+            self.move(new_top_left)
+            event.accept()
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.LeftButton and self.mouse_flag:
+            self.mouse_flag = False
+            self.setCursor(QCursor(Qt.ArrowCursor))
+            self.change_opacity(self, self.current_opacity, 100, 100)
+            event.accept()
+
+####################################################################################################
+
+    def nativeEvent(self, eventType, message):
+        event = ctypes.wintypes.MSG.from_address(int(message))
+        if event.message in [0x0010, 0x0002, 0x0012, 0x0112, 0x0212]:
+            return True, 0
+        return super().nativeEvent(eventType, message)
+
+    def show_startup(self):
         try:
-            self.gc_collect = 1
-            Thread(target=self.gc_collect_thread, daemon=True).start()
+            if self.singleton_mutex("pyas_security"):
+                param = ""
+                if self.args_pyas:
+                    param = self.args_pyas[0].replace("/", "-")
+                if "-h" not in param:
+                    self.show_button()
+                self.apply_settings()
+            else:
+                sys.exit(0)
         except Exception as e:
-            print(e)
+            self.send_message(e, "warn", False)
 
-    def gc_collect_thread(self): # 程式回收線程
-        while self.gc_collect:
+    def show_button(self):
+        self.show()
+        self.change_opacity(self, self.current_opacity, 100, 200)
+
+    def minimize_button(self):
+        self.change_opacity(self, self.current_opacity, 0, 200)
+
+    def close_button(self):
+        if self.send_message("您確定要退出所有防護嗎?", "quest"):
+            self.minimize_button()
+            while self.isVisible():
+                QApplication.processEvents()
+            if hasattr(self, "tray_icon"):
+                self.tray_icon.hide()
+                self.tray_icon.deleteLater()
+            QApplication.quit()
+
+    def reset_button(self):
+        if self.send_message("您確定要重置所有設定嗎?", "quest"):
+            self.pyas_config = self.pyas_default.copy()
+            self.restart_button()
+
+    def restart_button(self):
+        self.save_config(self.file_config, self.pyas_config)
+        self.minimize_button()
+        while self.isVisible():
+            QApplication.processEvents()
+        os.execl(self.python, self.python, *sys.argv)
+
+    def singleton_mutex(self, name):
+        mutex = self.kernel32.CreateMutexW(None, False, name)
+        if self.kernel32.GetLastError() == 183:
+            return False
+        return True
+
+####################################################################################################
+
+    def send_message(self, message, mode, translate=True):
+        if QThread.currentThread() != QApplication.instance().thread():
+            QMetaObject.invokeMethod(self, "send_message_thread", Qt.QueuedConnection,
+                Q_ARG("QString", str(message)), Q_ARG("QString", mode), Q_ARG("bool", translate))
+            return False
+        return self.send_message_thread(message, mode, translate)
+
+    @Slot(str, str, bool)
+    def send_message_thread(self, message, mode, translate=True):
+        try:
+            yes, no, ok = QMessageBox.Yes, QMessageBox.No, QMessageBox.Ok
+            select = None
+
+            if not isinstance(message, str):
+                message = str(message)
+            if message and translate:
+                message = self.trans(self.pyas_config["language"], message)
+
+            m = mode.lower()
+            if m == "quest":
+                select = QMessageBox.question(self, "Quest", message, yes | no) == yes
+            elif m == "info":
+                select = QMessageBox.information(self, "Info", message, ok) == ok
+            elif m == "error":
+                select = QMessageBox.critical(self, "Error", message, ok) == ok
+            elif m == "notify":
+                now = time.strftime("%Y-%m-%d %H:%M:%S")
+                self.tray_icon.showMessage(now, message, QSystemTrayIcon.Information, 5000)
+            elif m == "files":
+                select = QFileDialog.getOpenFileNames(self, message)[0]
+            elif m == "file":
+                select = QFileDialog.getOpenFileName(self, message)[0]
+            elif m == "path":
+                select = QFileDialog.getExistingDirectory(self, message)
+            elif m == "save":
+                select = QFileDialog.getSaveFileName(self, message)[0]
+
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            output = f"[{now}] | {mode} | {message} | {select}"
+            log_widget = self.widgets.get("log_text")
+            if log_widget:
+                log_widget.append(output)
+            return select or False
+        except Exception:
+            traceback.print_exc()
+            return False
+
+    def invoke_method(self, obj, method, *args):
+        q_args = []
+        for arg in args:
+            if isinstance(arg, int):
+                q_args.append(Q_ARG("int", arg))
+            elif isinstance(arg, QSystemTrayIcon.MessageIcon):
+                q_args.append(Q_ARG("QSystemTrayIcon::MessageIcon", arg))
+            else:
+                q_args.append(Q_ARG("QString", str(arg)))
+        QMetaObject.invokeMethod(obj, method, Qt.QueuedConnection, *q_args)
+
+    def norm_path(self, path):
+        if isinstance(path, (list, tuple, set)):
+            t = type(path)
+            return t(self.norm_path(p) for p in path)
+        if isinstance(path, str):
+            return os.path.normpath(os.path.abspath(path))
+        return path
+
+####################################################################################################
+
+    @Slot()
+    def slot_scan_reset(self):
+        self.widgets["virus_list"].clear()
+        self.widgets["solve_button"].hide()
+        self.widgets["stop_button"].show()
+        self.widgets["method_button"].hide()
+        self.widgets["method_window"].hide()
+
+    @Slot(str)
+    def slot_progress_title(self, text: str):
+        self.widgets["progress_title"].setText(text)
+
+    @Slot(str)
+    def slot_scan_progress(self, text):
+        self.widgets["progress_text"].setText(text)
+
+    @Slot(str)
+    def slot_scan_add_virus(self, item_text):
+        item = QListWidgetItem(item_text)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
+        self.widgets["virus_list"].addItem(item)
+
+    @Slot(str)
+    def slot_scan_result(self, msg):
+        self.widgets["progress_text"].setText(msg)
+        count = len(self.virus_results)
+        self.widgets["solve_button"].setVisible(count > 0)
+        self.widgets["stop_button"].hide()
+        self.widgets["method_button"].show()
+        self.send_message(msg, "notify", True)
+
+####################################################################################################
+
+    def init_scan(self):
+        try:
+            self.scan_running = True
+            self.virus_results = []
+            self.scan_count = 0
+            self.scan_start = time.time()
+            self.last_widget = self.widgets.get("scan_window")
+            self.scan_reset_signal.emit()
+            self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "正在掃描"))
+            self.scan_progress_signal.emit(self.trans(self.pyas_config["language"], "正在初始化中"))
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def file_button(self):
+        targets = self.send_message("檔案掃描", "files")
+        if targets:
+            self.init_scan()
+            self.start_daemon_thread(self.scan_worker, targets)
+
+    def path_button(self):
+        targets = self.send_message("路徑掃描", "path")
+        if targets:
+            self.init_scan()
+            self.start_daemon_thread(self.scan_worker, targets)
+
+    def full_button(self):
+        targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
+        if targets:
+            self.init_scan()
+            self.start_daemon_thread(self.scan_worker, targets)
+
+####################################################################################################
+
+    def scan_worker(self, targets):
+        try:
+            for file_path in self.yield_files(targets):
+                if not self.scan_running:
+                    break
+                try:
+                    norm_path = self.norm_path(file_path)
+                    if self.is_in_whitelist(norm_path):
+                        continue
+                    self.scan_count += 1
+                    state = self.scan_engine(norm_path)
+                    if state:
+                        self.virus_results.append(norm_path)
+                        self.scan_add_virus_signal.emit(f"[{state}] > {norm_path}")
+                    self.scan_progress_signal.emit(norm_path)
+                except Exception as e:
+                    self.send_message(e, "warn", False)
+        finally:
+            elapsed = int(time.time() - self.scan_start)
+            count = len(self.virus_results)
+            result = (
+                f"發現 {count} 個病毒，耗時 {elapsed} 秒，共掃描 {self.scan_count} 檔案"
+                if count else f"未發現病毒，耗時 {elapsed} 秒，共掃描 {self.scan_count} 檔案")
+            self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "病毒掃描"))
+            self.scan_result_signal.emit(self.trans(self.pyas_config["language"], result))
+
+    def yield_files(self, targets):
+        if isinstance(targets, str):
+            if os.path.isdir(targets):
+                for root, _, files in os.walk(targets):
+                    for f in files:
+                        yield self.norm_path(os.path.join(root, f))
+            elif os.path.isfile(targets):
+                yield self.norm_path(targets)
+        elif isinstance(targets, (list, tuple, set)):
+            for t in targets:
+                yield from self.yield_files(t)
+
+    def scan_engine(self, file_path):
+        try:
+            label, level = self.model.model_scan(file_path)
+            if label and level >= self.pyas_config.get("sensitive", 95):
+                return f"{label}.{level}"
+
+            if self.pyas_config.get("extension_switch", False):
+                label, level = self.rule.yara_scan(file_path)
+                if label and level:
+                    return f"{label}.{level}"
+        except Exception as e:
+            self.send_message(e, "warn", False)
+        return None
+
+####################################################################################################
+
+    def solve_button(self):
+        deleted = 0
+        virus_list = self.widgets["virus_list"]
+        for i in reversed(range(virus_list.count())):
+            item = virus_list.item(i)
+            if item.checkState() == Qt.Checked:
+                try:
+                    file_path = self.norm_path(item.text().split(">")[1].strip())
+                    os.remove(file_path)
+                    deleted += 1
+                except Exception as e:
+                    self.send_message(e, "warn", False)
+                virus_list.takeItem(i)
+        self.widgets["solve_button"].hide()
+        msg = f"已清理 {deleted} 個病毒檔案" if deleted else "無檔案被刪除"
+        self.widgets["progress_text"].setText(self.trans(self.pyas_config["language"], msg))
+
+    def stop_button(self):
+        self.scan_running = False
+        self.widgets["stop_button"].hide()
+
+####################################################################################################
+
+    def list_process(self):
+        pe = self.get_process_entry()
+        snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        result, success = [], self.kernel32.Process32First(snapshot, ctypes.byref(pe))
+        while success:
+            pid = pe.th32ProcessID
+            name, file_path = (None, None)
+            if pid > 4:
+                name, file_path = self.get_exe_info(pid)
+            if not name:
+                raw = bytes(pe.szExeFile).split(b"\x00", 1)[0]
+                if raw:
+                    try:
+                        name = raw.decode("mbcs", errors="replace") or None
+                    except Exception:
+                        name = None
+            result.append((pid, name, file_path))
+            success = self.kernel32.Process32Next(snapshot, ctypes.byref(pe))
+        self.kernel32.CloseHandle(snapshot)
+        return result
+
+    def refresh_process(self):
+        procs = self.list_process()
+        self.proc_pid_map = [pid for pid, _, _ in procs]
+        widget = self.widgets.get("manage_list")
+        info_text = self.widgets.get("info_text")
+        if widget:
+            model = QStringListModel([f"{name or 'None'} | {pid} | {file_path or 'None'}" for pid, name, file_path in procs])
+            widget.setModel(model)
+        if info_text:
+            info_text.setText(str(len(self.proc_pid_map)))
+
+    def device_path_to_drive(self, path):
+        if not path:
+            return ""
+        for d in range(65, 91):
+            drive = f"{chr(d)}:"
+            buf = ctypes.create_unicode_buffer(1024)
+            if self.kernel32.QueryDosDeviceW(drive, buf, 1024):
+                dev = buf.value
+                if path.startswith(dev):
+                    return path.replace(dev, drive, 1)
+        return path
+
+    def start_process_timer(self):
+        if hasattr(self, "process_timer") and self.process_timer.isActive():
+            return
+        self.process_timer = QTimer(self)
+        self.process_timer.timeout.connect(self.refresh_process)
+        self.process_timer.start(0)
+
+    def stop_process_timer(self):
+        if hasattr(self, "process_timer"):
+            self.process_timer.stop()
+
+    def setup_process_menu(self):
+        widget = self.widgets.get("manage_list")
+        if widget:
+            widget.setContextMenuPolicy(Qt.CustomContextMenu)
+            widget.customContextMenuRequested.connect(self.show_process_menu)
+
+    def show_process_menu(self, pos):
+        widget = self.widgets.get("manage_list")
+        if not widget:
+            return
+        idx = widget.indexAt(pos)
+        if not idx.isValid() or idx.row() >= len(self.proc_pid_map):
+            return
+        pid = self.proc_pid_map[idx.row()]
+        menu = QMenu()
+        kill_action = menu.addAction("結束進程")
+        if menu.exec(widget.viewport().mapToGlobal(pos)) == kill_action:
+            self.kill_process(pid)
+
+    def kill_process(self, pid):
+        try:
+            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            if h:
+                file_path = self.norm_path(self.get_process_file(h))
+                if hasattr(self, "file_pyas") and file_path == getattr(self, "file_pyas", None):
+                    self.close()
+                else:
+                    self.kernel32.TerminateProcess(h, 0)
+                self.kernel32.CloseHandle(h)
+        except Exception as e:
+            self.send_message(e, "warn", False)
+        self.refresh_process()
+
+####################################################################################################
+
+    def clean_button(self):
+        try:
+            if self.send_message("您確定要清理系統垃圾嗎?", "quest"):
+                self.total_deleted_size = 0
+                for path in [self.path_temp, self.path_systemp]:
+                    self.traverse_temp(path)
+                size_text = self.format_size(self.total_deleted_size)
+                self.send_message(f"成功清理了 {size_text} 系統垃圾", "info")
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def traverse_temp(self, path):
+        try:
+            if not os.path.exists(path):
+                return
+            for fd in os.listdir(path):
+                file = os.path.join(path, fd)
+                try:
+                    QApplication.processEvents()
+                    if os.path.isdir(file):
+                        self.traverse_temp(file)
+                        try:
+                            os.rmdir(file)
+                        except Exception:
+                            pass
+                    else:
+                        file_size = os.path.getsize(file)
+                        os.remove(file)
+                        self.total_deleted_size += file_size
+                except Exception:
+                    continue
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def format_size(self, size):
+        units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+        for unit in units:
+            if size < 1024 or unit == units[-1]:
+                return f"{size:.2f} {unit}"
+            size /= 1024
+
+####################################################################################################
+
+    def repair_button(self):
+        try:
+            if self.send_message("您確定要修復系統檔案嗎?", "quest"):
+                self.repair_system_mbr()
+                self.repair_system_wallpaper()
+                self.repair_system_restrict()
+                self.repair_system_file_type()
+                self.repair_system_file_icon()
+                self.repair_system_image()
+                self.send_message("修復系統檔案成功", "info")
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def backup_mbr(self, max_drives=26):
+        self.mbr_backup = {}
+        for drive in range(max_drives):
+            drive_path = rf"\\.\PhysicalDrive{drive}"
+            try:
+                with open(drive_path, "rb") as f:
+                    mbr = f.read(512)
+                if mbr[510:512] == b"\x55\xAA":
+                    self.mbr_backup[drive] = mbr
+            except FileNotFoundError:
+                continue
+            except Exception as e:
+                self.send_message(e, "warn", False)
+
+    def repair_system_mbr(self):
+        if not hasattr(self, "mbr_backup") or not self.mbr_backup:
+            return
+        for drive, mbr_value in self.mbr_backup.items():
+            drive_path = rf"\\.\PhysicalDrive{drive}"
+            try:
+                with open(drive_path, "rb+") as f:
+                    current = f.read(512)
+                    if current != mbr_value:
+                        f.seek(0)
+                        f.write(mbr_value)
+            except Exception as e:
+                self.send_message(e, "warn", False)
+
+    def repair_system_wallpaper(self):
+        try:
+            wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
+            if not os.path.exists(wallpaper):
+                return
+            key = r"Control Panel\\Desktop"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE) as reg:
+                winreg.SetValueEx(reg, "Wallpaper", 0, winreg.REG_SZ, wallpaper)
+            theme_dir = os.path.join(self.path_appdata, "Microsoft", "Windows", "Themes")
+            for fname in ["TranscodedWallpaper", "TranscodedWallpaper.tmp"]:
+                fpath = os.path.join(theme_dir, fname)
+                if os.path.exists(fpath):
+                    try:
+                        os.remove(fpath)
+                    except Exception:
+                        pass
+            cache_dir = os.path.join(theme_dir, "CachedFiles")
+            if os.path.exists(cache_dir):
+                try:
+                    shutil.rmtree(cache_dir, ignore_errors=True)
+                except Exception:
+                    pass
+            self.user32.SystemParametersInfoW(20, 0, wallpaper, 3)
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def repair_system_restrict(self):
+        try:
+            permissions = [
+                "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu",
+                "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop",
+                "NoLogOff", "NoFolderOptions", "RestrictRun", "NoViewContexMenu", "HideClock",
+                "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD",
+                "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks",
+                "DisableLockWorkstation", "Restrict_Run", "DisableTaskMgr", "DisableRegistryTools",
+                "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents",
+                "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges",
+                "NoChangeStartMenu", "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar",
+                "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoManageMyComputerVerb",
+                "NoWindowsUpdate", "ClearRecentDocsOnExit", "NoStartMenuNetworkPlaces"
+            ]
+            restrict_paths = [
+                (winreg.HKEY_CURRENT_USER, r"Software\Policies\Microsoft\MMC"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"),
+            ]
+
+            for hkey, path in restrict_paths:
+                try:
+                    with winreg.OpenKey(hkey, path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WRITE) as reg:
+                        for value in permissions:
+                            try:
+                                winreg.DeleteValue(reg, value)
+                            except FileNotFoundError:
+                                continue
+                except FileNotFoundError:
+                    continue
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def repair_system_file_type(self):
+        try:
+            file_types = [".exe", ".bat", ".cmd", ".com"]
+            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+                for ext in file_types:
+                    try:
+                        with winreg.CreateKey(root, rf"SOFTWARE\Classes\{ext}") as reg:
+                            winreg.SetValue(reg, "", winreg.REG_SZ, "exefile" if ext == ".exe" else ext[1:]+"file")
+                    except Exception:
+                        continue
+
+                for shell_cmd in ["open", "runas"]:
+                    try:
+                        with winreg.CreateKey(root, r"SOFTWARE\Classes\exefile\shell\{}\command".format(shell_cmd)) as reg:
+                            winreg.SetValue(reg, "", winreg.REG_SZ, '"%1" %*')
+                    except Exception:
+                        continue
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def repair_system_file_icon(self):
+        try:
+            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+                try:
+                    with winreg.CreateKey(root, r"SOFTWARE\Classes\exefile\DefaultIcon") as reg:
+                        winreg.SetValue(reg, "", winreg.REG_SZ, "%1")
+                except Exception:
+                    continue
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+    def repair_system_image(self):
+        try:
+            key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_ALL_ACCESS) as reg:
+                i = 0
+                while True:
+                    try:
+                        subkey = winreg.EnumKey(reg, i)
+                        subkey_path = key_path + "\\" + subkey
+                        with winreg.OpenKey(reg, subkey, 0, winreg.KEY_ALL_ACCESS) as sub_reg:
+                            for value in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
+                                try:
+                                    winreg.DeleteValue(sub_reg, value)
+                                except FileNotFoundError:
+                                    continue
+                        i += 1
+                    except OSError:
+                        break
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+####################################################################################################
+
+    def popup_button(self):
+        self.config_list("block_list")
+        self.block_window = False
+        if self.send_message("請選擇要攔截的軟體彈窗", "quest"):
+            while True:
+                QApplication.processEvents()
+                title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
+                if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
+                    if self.send_message(f"您確定要攔截 {process_name} ({title}) 嗎?", "quest"):
+                        if self.add_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
+                            self.send_message(f"成功增加到彈窗攔截: {process_name} ({title})", "info")
+                        else:
+                            self.send_message("已存在彈窗攔截", "info")
+                    break
+        self.start_daemon_thread(self.popup_intercept_thread)
+
+    def popup_button_2(self):
+        self.config_list("block_list")
+        self.block_window = False
+        if self.send_message("請選擇要取消攔截的軟體彈窗", "quest"):
+            while True:
+                QApplication.processEvents()
+                title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
+                if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
+                    if self.send_message(f"您確定要取消攔截 {process_name} ({title}) 嗎?", "quest"):
+                        if self.remove_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
+                            self.send_message(f"成功取消彈窗攔截: {process_name} ({title})", "info")
+                        else:
+                            self.send_message("未找到彈窗攔截", "info")
+                    break
+        self.start_daemon_thread(self.popup_intercept_thread)
+
+    def window_rule_match(self, item, process_name, class_name, title):
+        for k, v in zip(["exe", "class", "title"], [process_name, class_name, title]):
+            if item.get(k, "") and item.get(k, "") != v:
+                return False
+        return True
+
+    def add_window_rule(self, rule_list, process_name, class_name, title):
+        if not any(self.window_rule_match(item, process_name, class_name, title) for item in rule_list):
+            rule_list.append({"exe": process_name, "class": class_name, "title": title})
+            self.save_config(self.file_config, self.pyas_config)
+            return True
+        return False
+
+    def remove_window_rule(self, rule_list, process_name, class_name, title):
+        before = len(rule_list)
+        rule_list[:] = [item for item in rule_list if not self.window_rule_match(item, process_name, class_name, title)]
+        if len(rule_list) < before:
+            self.save_config(self.file_config, self.pyas_config)
+            return True
+        return False
+
+    def popup_intercept_thread(self):
+        self.block_window = True
+        while self.block_window:
             try:
                 time.sleep(0.2)
-                collected = gc.collect()
-            except:
-                pass
+                rules = self.pyas_config.get("block_list", [])
+                if not rules:
+                    continue
+                for hWnd in self.get_all_windows():
+                    title, class_name, process_name = self.get_window_info(hWnd)
+                    if (not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows) and
+                        any(self.window_rule_match(item, process_name, class_name, title) for item in rules)):
+                        for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
+                            self.user32.SendMessageW(hWnd, msg, 0xF060, 0)
+            except Exception as e:
+                self.send_message(e, "warn", False)
 
-    def block_window_init(self): # 初始化彈窗攔截
-        try:
-            self.block_window = 1
-            Thread(target=self.block_software_window, daemon=True).start()
-        except Exception as e:
-            print(e)
-
-    def add_white_list(self): # 添加白名單
-        try:
-            file = str(QFileDialog.getExistingDirectory(self,self.trans("增加到白名單"),"")).replace("\\", "/")
-            if file and self.question_event("您確定要增加到白名單嗎?"):
-                if file not in self.config_json["white_lists"]:
-                    self.config_json["white_lists"].append(file)
-                self.info_event(f"成功增加到白名單: "+file)
-                self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def remove_white_list(self):
-        try:
-            file = str(QFileDialog.getExistingDirectory(self,self.trans("移除白名單"),"")).replace("\\", "/")
-            if file and self.question_event("您確定要移除白名單嗎?"):
-                if file in self.config_json["white_lists"]:
-                    self.config_json["white_lists"].remove(file)
-                self.info_event(f"成功移除白名單: "+file)
-                self.init_config_write(self.config_json)
-        except Exception as e:
-            print(e)
-
-    def add_software_window(self): # 添加彈窗攔截
-        try:
-            self.block_window = 0
-            if self.question_event("請選擇要攔截的軟體彈窗"):
-                while True:
-                    QApplication.processEvents()
-                    hWnd = self.user32.GetForegroundWindow()
-                    window_info = self.get_window_info(hWnd)
-                    if window_info not in self.pass_windows:
-                        if self.question_event(f"您確定要攔截 {window_info} 嗎?"):
-                            if window_info not in self.config_json["block_lists"]:
-                                self.config_json["block_lists"].append(window_info)
-                            self.info_event(f"成功增加到彈窗攔截: {window_info}")
-                        break
-                self.init_config_write(self.config_json)
-            self.block_window_init()
-        except Exception as e:
-            print(e)
-
-    def remove_software_window(self):
-        try:
-            self.block_window = 0
-            if self.question_event("請選擇要取消攔截的軟體彈窗"):
-                while True:
-                    QApplication.processEvents()
-                    hWnd = self.user32.GetForegroundWindow()
-                    window_info = self.get_window_info(hWnd)
-                    if window_info not in self.pass_windows:
-                        if self.question_event(f"您確定要取消攔截 {window_info} 嗎?"):
-                            if window_info in self.config_json["block_lists"]:
-                                self.config_json["block_lists"].remove(window_info)
-                            self.info_event(f"成功取消彈窗攔截: {window_info}")
-                        break
-                self.init_config_write(self.config_json)
-            self.block_window_init()
-        except Exception as e:
-            print(e)
-
-    def get_window_info(self, hWnd): # 取得窗口資訊
-        length = self.user32.GetWindowTextLengthW(hWnd)
-        title = ctypes.create_unicode_buffer(length + 1)
-        self.user32.GetWindowTextW(hWnd, title, length + 1)
-        window_title = str(title.value)
-        class_name = ctypes.create_unicode_buffer(256)
-        self.user32.GetClassNameW(hWnd, class_name, 256)
-        class_name = str(class_name.value)
-        return {window_title: class_name}
-
-    def enum_windows_callback(self, hWnd, lParam):
-        self.hwnd_list.append(hWnd)
-        return True
+####################################################################################################
 
     def get_all_windows(self):
         self.hwnd_list = []
@@ -853,886 +1155,366 @@ class MainWindow_Controller(QMainWindow): # 初始化主程式
         self.user32.EnumWindows(WNDENUMPROC(self.enum_windows_callback), 0)
         return self.hwnd_list
 
-    def block_software_window(self):  # 彈窗攔截線程
-        while self.block_window:
-            try:
-                time.sleep(0.2)
-                if not self.config_json["block_lists"]:
-                    continue
-                for hWnd in self.get_all_windows():
-                    window_info = self.get_window_info(hWnd)
-                    if window_info in self.config_json["block_lists"]:
-                        self.user32.SendMessageW(hWnd, 0x0010, 0xF060, 0) # WM_CLOSE, SC_CLOSE
-                        self.user32.SendMessageW(hWnd, 0x0002, 0xF060, 0) # WM_DESTROY, SC_CLOSE
-                        self.user32.SendMessageW(hWnd, 0x0012, 0xF060, 0) # WM_QUIT, SC_CLOSE
-                        self.user32.SendMessageW(hWnd, 0x0112, 0xF060, 0) # WM_SYSCOMMAND, SC_CLOSE
-            except Exception as e:
-                print(e)
+    def enum_windows_callback(self, hWnd, lParam):
+        self.hwnd_list.append(hWnd)
+        return True
 
-    def init_config_show(self): # 顯示畫面
-        def update_opacity():
-            if self.pyas_opacity <= 100:
-                self.pyas_opacity += 2
-                self.setWindowOpacity(self.pyas_opacity/100)
-            else:
-                self.timer.stop()
-        self.pyas_opacity = 0
-        self.show()
-        self.timer = QTimer()
-        self.timer.timeout.connect(update_opacity)
-        self.timer.start(2)
-
-    def init_config_hide(self): # 隱藏畫面
-        def update_opacity():
-            if self.pyas_opacity >= 0:
-                self.pyas_opacity -= 2
-                self.setWindowOpacity(self.pyas_opacity/100)
-            else:
-                self.timer.stop()
-                self.hide()
-        self.timer = QTimer()
-        self.timer.timeout.connect(update_opacity)
-        self.timer.start(2)
-
-    def showMinimized(self): # 最小化畫面
-        if self.block_window:
-            self.init_config_hide()
-            #self.send_notify(self.trans("PYAS 已最小化到系統托盤圖標"))
-
-    def nativeEvent(self, eventType, message):
-        msg = ctypes.wintypes.MSG.from_address(int(message))
-        if msg.message in [0x0010, 0x0002, 0x0012, 0x0112, 0x0212]:
-            return True, 0
-        return super(MainWindow_Controller, self).nativeEvent(eventType, message)
-
-    def closeEvent(self, event): # 退出程序
-        if self.question_event("您確定要退出 PYAS 和所有防護嗎?"):
-            self.init_config_write(self.config_json)
-            self.clean_function()
-            event.accept()
-        else:
-            event.ignore()
-
-    def show_menu(self): # 功能選單
-        #self.WindowMenu = QMenu()
-        #Main_Settings = QAction(self.trans("設定"),self)
-        #Main_Update = QAction(self.trans("更新"),self)
-        #Main_About = QAction(self.trans("關於"),self)
-        #self.WindowMenu.addAction(Main_Settings)
-        #self.WindowMenu.addAction(Main_Update)
-        #self.WindowMenu.addAction(Main_About)
-        #Qusetion = self.WindowMenu.exec_(self.ui.Menu_Button.mapToGlobal(QPoint(0, 30)))
-        #if Qusetion == Main_About and self.ui.About_widget.isHidden():
-        if self.ui.About_widget.isHidden():
-            self.ui.State_widget.hide()
-            self.ui.Virus_Scan_widget.hide()
-            self.ui.Tools_widget.hide()
-            self.ui.Protection_widget.hide()
-            self.ui.Process_widget.hide()
-            self.ui.About_widget.show()
-            self.ui.Setting_widget.hide()
-            self.Process_Timer.stop()
-            self.change_animation_3(self.ui.About_widget,0.5)
-            self.change_animation_5(self.ui.About_widget,80,50,761,481)
-        #if Qusetion == Main_Update:
-            #self.update_database()
-
-    def update_database(self): # 更新數據
+    def get_window_info(self, hWnd):
+        length = self.user32.GetWindowTextLengthW(hWnd)
+        title = ctypes.create_unicode_buffer(length + 1)
+        self.user32.GetWindowTextW(hWnd, title, length + 1)
+        class_name = ctypes.create_unicode_buffer(256)
+        self.user32.GetClassNameW(hWnd, class_name, 256)
+        pid = ctypes.c_ulong()
+        self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
+        process_name = ""
         try:
-            if self.question_event("您確定要更新數據庫嗎?"):
-                self.info_event(f"Not support this function")
-                pass
-        except Exception as e:
-            print(e)
+            process_name = self.get_process_name_by_pid(pid.value)
+        except Exception:
+            pass
+        return str(title.value), str(class_name.value), process_name
 
-    def change_animation(self,widget): # 畫面動畫
-        x, y = 80, widget.pos().y()
-        self.anim = QPropertyAnimation(widget, b"geometry")
-        widget.setGeometry(QRect(x - 60,y, 761, 481))
-        self.anim.setKeyValueAt(0.2, QRect(x - 30,y,761,481))
-        self.anim.setKeyValueAt(0.3, QRect(x - 10,y,761,481))
-        self.anim.setKeyValueAt(0.4, QRect(x - 5,y,761,481))
-        self.anim.setKeyValueAt(1, QRect(x,y,761,481))
-        self.anim.start()
+    def get_process_name_by_pid(self, pid):
+        snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        entry = PROCESSENTRY32()
+        entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
+        name = ""
+        if self.kernel32.Process32First(snapshot, ctypes.byref(entry)):
+            while True:
+                if entry.th32ProcessID == pid:
+                    name = entry.szExeFile.decode("mbcs").rstrip("\x00")
+                    break
+                if not self.kernel32.Process32Next(snapshot, ctypes.byref(entry)):
+                    break
+        self.kernel32.CloseHandle(snapshot)
+        return name
 
-    def change_animation_3(self,widget,time):
-        self.opacity = QGraphicsOpacityEffect()
-        self.opacity.setOpacity(0)
-        self.opacity.i = self.opacity.opacity()
-        widget.setGraphicsEffect(self.opacity)
-        widget.setAutoFillBackground(True)
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.timeout)
-        self.timer.start(2)
+####################################################################################################
 
-    def timeout(self): # 透明度動畫
-        if self.opacity.i <= 1:
-            self.opacity.i += 0.05
-            self.opacity.setOpacity(self.opacity.i)
-        else:
-            self.timer.stop()
+    def whitelist_button(self):
+        self.config_list("white_list")
+        files = self.send_message("選擇檔案", "files")
+        if files:
+            if self.send_message("您確定要增加到白名單嗎?", "quest"):
+                n = self.manage_named_list("white_list", files, action="add", with_hash=True)
+                self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info")
 
-    def change_animation_4(self,widget,time,ny,ny2): # 掃描選單動畫
-        x, y = widget.pos().x(), widget.pos().y()
-        self.anim4 = QPropertyAnimation(widget, b"geometry")
-        self.anim4.setDuration(time)
-        self.anim4.setStartValue(QRect(x, y, 111, ny))
-        self.anim4.setEndValue(QRect(x, y, 111, ny2))
-        self.anim4.start()
+    def whitelist_button_2(self):
+        self.config_list("white_list")
+        files = self.send_message("選擇檔案", "files")
+        if files:
+            if self.send_message("您確定要移除白名單嗎?", "quest"):
+                n = self.manage_named_list("white_list", files, action="remove", with_hash=True)
+                self.send_message(f"成功移除白名單，共 {n} 個檔案", "info")
 
-    def change_animation_5(self,widget,x,y,nx,ny): # 設置動畫
-        self.anim = QPropertyAnimation(widget, b"geometry")
-        widget.setGeometry(QRect(x,y - 45, nx,ny))
-        self.anim.setKeyValueAt(0.2, QRect(x,y - 30,nx,ny))
-        self.anim.setKeyValueAt(0.3, QRect(x,y - 10,nx,ny))
-        self.anim.setKeyValueAt(0.4, QRect(x,y - 5,nx,ny))
-        self.anim.setKeyValueAt(1, QRect(x,y,nx,ny))
-        self.anim.start()
+    def quarantine_button(self):
+        self.config_list("quarantine")
+        files = self.send_message("選擇檔案", "files")
+        if files:
+            if self.send_message("您確定要增加到隔離區嗎?", "quest"):
+                n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
+                if n > 0:
+                    self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info")
 
-    def change_setting_widget(self): # 狀態動畫
-        if self.ui.Setting_widget.isHidden():
-            self.change_animation_3(self.ui.Setting_widget,0.5)
-            self.change_animation(self.ui.Setting_widget)
-            self.ui.State_widget.hide()
-            self.ui.Virus_Scan_widget.hide()
-            self.ui.Tools_widget.hide()
-            self.ui.Protection_widget.hide()
-            self.ui.Process_widget.hide()
-            self.ui.About_widget.hide()
-            self.ui.Setting_widget.show()
-            self.Process_Timer.stop()
+    def quarantine_button_2(self):
+        self.config_list("quarantine")
+        quarantine_dir = os.path.join(self.path_config, "quarantine")
+        files = self.send_message("選擇檔案", "files")
+        if files:
+            if self.send_message("您確定要移除隔離區嗎?", "quest"):
+                n = self.manage_named_list("quarantine", files, action="remove", with_hash=True, lock_func=self.lock_file)
+                self.send_message(f"成功移除隔離區，共 {n} 個檔案", "info")
 
-    def change_state_widget(self): # 狀態動畫
-        if self.ui.State_widget.isHidden():
-            self.change_animation_3(self.ui.State_widget,0.5)
-            self.change_animation(self.ui.State_widget)
-            self.ui.State_widget.show()
-            self.ui.Virus_Scan_widget.hide()
-            self.ui.Tools_widget.hide()
-            self.ui.Protection_widget.hide()
-            self.ui.Process_widget.hide()
-            self.ui.About_widget.hide()
-            self.ui.Setting_widget.hide()
-            self.Process_Timer.stop()
+    def add_to_quarantine(self, files):
+        self.config_list("quarantine")
+        return self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
 
-    def change_scan_widget(self): # 掃描動畫
-        if self.ui.Virus_Scan_widget.isHidden():
-            self.change_animation_3(self.ui.Virus_Scan_widget,0.5)
-            self.change_animation(self.ui.Virus_Scan_widget)
-            self.ui.State_widget.hide()
-            self.ui.Virus_Scan_widget.show()
-            self.ui.Tools_widget.hide()
-            self.ui.Protection_widget.hide()
-            self.ui.Process_widget.hide()
-            self.ui.About_widget.hide()
-            self.ui.Setting_widget.hide()
-            self.Process_Timer.stop()
+    def is_in_whitelist(self, file_path):
+        norm_path = self.norm_path(file_path)
+        file_hash = self.calc_file_hash(norm_path)
+        return any(item["file"] == norm_path and item["hash"] == file_hash
+            for item in self.pyas_config.get("white_list", []))
 
-    def change_tools_widget(self): # 工具動畫
-        if self.ui.Tools_widget.isHidden():
-            self.change_animation_3(self.ui.Tools_widget,0.5)
-            self.change_animation(self.ui.Tools_widget)
-            self.ui.State_widget.hide()
-            self.ui.Virus_Scan_widget.hide()
-            self.ui.Tools_widget.show()
-            self.ui.Protection_widget.hide()
-            self.ui.Process_widget.hide()
-            self.ui.About_widget.hide()
-            self.ui.Setting_widget.hide()
-            self.Process_Timer.stop()
+    def init_whitelist(self):
+        self.manage_named_list("white_list", [self.file_pyas], action="add", with_hash=True)
 
-    def change_protect_widget(self): # 防護動畫
-        if self.ui.Protection_widget.isHidden():
-            self.change_animation_3(self.ui.Protection_widget,0.5)
-            self.change_animation(self.ui.Protection_widget)
-            self.ui.State_widget.hide()
-            self.ui.Virus_Scan_widget.hide()
-            self.ui.Tools_widget.hide()
-            self.ui.Protection_widget.show()
-            self.ui.Process_widget.hide()
-            self.ui.About_widget.hide()
-            self.ui.Setting_widget.hide()
-            self.Process_Timer.stop()
+####################################################################################################
 
-    def change_tools(self,widget): # 切換工具
-        self.Process_Timer.stop()
-        self.ui.Tools_widget.hide()
-        self.ui.Setting_widget.hide()
-        self.ui.About_widget.hide()
-        if widget == self.ui.Process_widget:
-            self.Process_Timer.start(0)
-        self.change_animation_3(widget,0.5)
-        self.change_animation(widget)
-        widget.show()
+    def manage_named_list(self, list_key, files, action="add", with_hash=True, lock_func=None):
+        target_list = self.config_list(list_key)
+        files = files or []
+        norm_paths = self.norm_path(files)
+        if isinstance(norm_paths, str):
+            norm_paths = [norm_paths]
 
-    def mousePressEvent(self, event): # 滑鼠按下動畫
-        def update_opacity():
-            if self.pyas_opacity > 80 and self.m_flag == True:
-                self.pyas_opacity -= 1
-                self.setWindowOpacity(self.pyas_opacity/100)
-            else:
-                self.timer.stop()
-        x, y = event.x(), event.y()
-        if event.button()==Qt.LeftButton and x >= 10 and x <= 841 and y >= 10 and y <= 49:
-            self.m_flag = True
-            self.m_Position=event.globalPos()-self.pos()
-            event.accept()
-            self.timer = QTimer()
-            self.timer.timeout.connect(update_opacity)
-            self.timer.start(5)
-
-    def mouseMoveEvent(self, QMouseEvent): # 滑鼠拖曳動畫
-        try:
-            if Qt.LeftButton and self.m_flag:
-                self.move(QMouseEvent.globalPos()-self.m_Position)
+        n = 0
+        if action == "add":
+            for path in norm_paths:
                 QApplication.processEvents()
-                QMouseEvent.accept()
-        except:
-            pass
+                file_hash = self.calc_file_hash(path) if with_hash else ""
+                if not any(self.norm_path(item["file"]) == path and (not with_hash or item.get("hash", "") == file_hash) for item in target_list):
+                    if lock_func:
+                        try:
+                            lock_func(path, True)
+                        except Exception as e:
+                            self.send_message(e, "warn", False)
+                    target_list.append({"file": path, "hash": file_hash})
+                    n += 1
 
-    def mouseReleaseEvent(self, QMouseEvent): # 滑鼠鬆開動畫
-        def update_opacity():
-            if self.pyas_opacity < 100 and self.m_flag == False:
-                self.pyas_opacity += 1
-                self.setWindowOpacity(self.pyas_opacity/100)
-            else:
-                self.timer.stop()
-        self.m_flag = False
-        self.setCursor(QCursor(Qt.ArrowCursor))
-        self.timer = QTimer()
-        self.timer.timeout.connect(update_opacity)
-        self.timer.start(5)
-
-    def paintEvent(self, event):
-        pat2 = QPainter(self)
-        pat2.setRenderHint(QPainter.Antialiasing)
-        pat2.setBrush(Qt.white)
-        pat2.setPen(Qt.transparent)
-        rect = self.rect()
-        rect.setLeft(10)
-        rect.setTop(10)
-        rect.setWidth(rect.width()-10)
-        rect.setHeight(rect.height()-10)
-        pat2.drawRoundedRect(rect, 1, 1)
-
-    def info_event(self, text): # 顯示訊息
-        try:
-            print(f"[Info] > {text}")
-            if not self.first_startup:
-                QMessageBox.information(self, "Info", self.trans(str(text)), QMessageBox.Ok)
-        except:
-            pass
-
-    def question_event(self, text): # 詢問訊息
-        try:
-            print(f"[Quest] > {text}")
-            if not self.first_startup:
-                return QMessageBox.question(self, "Quest",
-                self.trans(str(text)),QMessageBox.Yes|QMessageBox.No) == 16384
-        except:
-            return False
-
-    def send_notify(self, text, notify_bar=True): # 發送通知
-        try:
-            now_time = time.strftime('%Y-%m-%d %H:%M:%S')
-            print(f"[Notify] > [{now_time}] {text}")
-            QMetaObject.invokeMethod(self.ui.State_output, "append",
-            Qt.QueuedConnection, Q_ARG(str, f"[{now_time}] {text}"))
-            if not self.first_startup and notify_bar == True:
-                self.tray_icon.showMessage(now_time, text, 5000)
-        except:
-            pass
-
-    def process_list(self): # 排序列表
-        try:
-            Process_list_app = []
-            for pid in self.get_process_list():
-                QApplication.processEvents()
-                h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-                file = self.get_process_file(h_process).replace("\\", "/")
-                if os.path.exists(file):
-                    Process_list_app.append((pid, f"[{pid}] > {file}"))
-            Process_list_app.sort(key=lambda x: x[0])
-            self.Process_list_all_pid = [pid for pid, _ in Process_list_app]
-            if len(self.Process_list_all_pid) != self.Process_quantity:
-                self.Process_quantity = len(self.Process_list_all_pid)
-                self.ui.Process_Total_View.setText(str(self.Process_quantity))
-                process_display = [name for _, name in Process_list_app]
-                self.Process_sim.setStringList(process_display)
-                self.ui.Process_list.setModel(self.Process_sim)
-        except Exception as e:
-            print(e)
-
-    def process_list_menu(self, pos): # 系統進程管理
-        try:
-            for i in self.ui.Process_list.selectedIndexes():
-                selected_pid = self.Process_list_all_pid[i.row()]
-            self.Process_popMenu = QMenu()
-            self.kill_Process = QAction(self.trans("結束進程"), self)
-            self.Process_popMenu.addAction(self.kill_Process)
-            if self.Process_popMenu.exec_(self.ui.Process_list.mapToGlobal(pos)) == self.kill_Process:
+        elif action == "remove":
+            remove_list = [item for item in target_list if item["file"] in norm_paths]
+            for item in remove_list:
                 try:
-                    hProcess = self.kernel32.OpenProcess(0x1F0FFF, False, selected_pid)
-                    file_path = self.get_process_file(hProcess).replace('\\', '/')
-                    if file_path == self.path_pyas:
-                        self.close()
-                    else:
-                        self.kernel32.TerminateProcess(hProcess, 0)
-                    self.kernel32.CloseHandle(hProcess)
+                    if lock_func:
+                        lock_func(item["file"], False)
+                    target_list.remove(item)
+                    n += 1
                 except Exception as e:
-                    print(e)
-        except Exception as e:
-            print(e)
+                    self.send_message(e, "warn", False)
+        if n:
+            self.save_config(self.file_config, self.pyas_config)
+        return n
 
-    def init_scan(self): # 初始化掃描
+    def calc_file_hash(self, file_path, block_size=65536):
         try:
-            self.ui.Virus_Scan_text.setText(self.trans("正在初始化中"))
-            QApplication.processEvents()
-            try:
-                for file in self.virus_lock:
-                    self.lock_file(file, False)
-            except:
-                pass
-            self.scan_file = True
-            self.total_scan = 0
-            self.scan_time = time.time()
-            self.virus_lock = {}
-            self.virus_list_ui = []
-            self.ui.Virus_Scan_Solve_Button.hide()
-            self.ui.Virus_Scan_choose_widget.hide()
-            self.ui.Virus_Scan_choose_Button.hide()
-            self.ui.Virus_Scan_Break_Button.show()
-            self.ui.Virus_Scan_output.clear()
-        except Exception as e:
-            print(e)
+            h = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(block_size), b""):
+                    h.update(chunk)
+            return h.hexdigest()
+        except Exception:
+            return ""
 
-    def Virus_Scan_output_menu(self, point): # 複製掃描內容
-        def copyPathFunc():
-            item_row = False
-            for i in self.ui.Virus_Scan_output.selectedIndexes():
-                item_row = self.virus_list_ui[i.row()]
-            if item_row:
-                pyperclip.copy(item_row.replace("/", "\\"))
-        menu = QMenu()
-        copyPath = menu.addAction(self.trans("複製路徑"))
-        copyPath.triggered.connect(lambda: copyPathFunc())
-        menu.exec_(self.ui.Virus_Scan_output.mapToGlobal(point))
+####################################################################################################
 
-    def lock_file(self, file, lock): # 鎖定檔案
+    def lock_file(self, file, lock):
         try:
             if lock:
-                self.virus_lock[file] = os.open(file, os.O_RDWR)
+                if file not in self.virus_lock:
+                    self.virus_lock[file] = os.open(file, os.O_RDWR)
                 msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBRLCK, os.path.getsize(file))
             else:
-                msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
-                os.close(self.virus_lock[file])
+                if file in self.virus_lock:
+                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
+                    os.close(self.virus_lock[file])
+                    del self.virus_lock[file]
         except Exception as e:
-            print(e)
+            self.send_message(e, "warn", False)
 
-    def virus_solve(self): # 清理病毒
-        try:
-            self.ui.Virus_Scan_Solve_Button.hide()
-            for file in self.virus_lock:
+    def relock_file(self):
+        quarantine_list = self.pyas_config.get("quarantine", [])
+        for item in quarantine_list:
+            file = item["file"]
+            if os.path.exists(file):
                 try:
-                    if self.ui.Virus_Scan_output.findItems(file, Qt.MatchContains)[0].checkState() == Qt.Checked:
-                        QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
-                        Qt.QueuedConnection, Q_ARG(str, self.trans("正在刪除")))
-                        QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-                        Qt.QueuedConnection, Q_ARG(str, file))
-                        QApplication.processEvents()
-                        self.lock_file(file, False)
-                        self.ransom_counts = 0
-                        os.remove(file)
-                    else:
-                        self.lock_file(file, False)
-                except:
-                    continue
-            self.ui.Virus_Scan_output.clear()
-            QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
-            Qt.QueuedConnection, Q_ARG(str, self.trans("病毒掃描")))
-            QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-            Qt.QueuedConnection, Q_ARG(str, self.trans("請選擇掃描方式")))
-        except Exception as e:
-            print(e)
-
-    def write_scan(self, state, file): # 顯示掃描結果
-        try:
-            if state and file:
-                self.lock_file(file, True)
-                self.virus_list_ui.append(f"[{state}] {file}")
-                item = QListWidgetItem()
-                item.setText(f"[{state}] {file}")
-                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-                item.setCheckState(Qt.Checked)
-                self.ui.Virus_Scan_output.addItem(item)
-        except:
-            pass
-
-    def answer_scan(self): # 統計結果 
-        try:
-            QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
-            Qt.QueuedConnection, Q_ARG(str, self.trans("病毒掃描")))
-            if self.virus_list_ui:
-                self.ui.Virus_Scan_Solve_Button.show()
-                self.ui.Virus_Scan_Break_Button.hide()
-                self.ui.Virus_Scan_choose_Button.show()
-                text = self.trans(f"當前發現 {len(self.virus_list_ui)} 個病毒")
-            else:
-                self.virus_scan_break()
-                text = self.trans("當前未發現病毒")
-            takes_time = int(time.time() - self.scan_time) + 1
-            text_end = self.trans(f"，耗時 {takes_time} 秒，共掃描 {self.total_scan} 個檔案")
-            QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-            Qt.QueuedConnection, Q_ARG(str, text+text_end))
-            self.send_notify(text+text_end)
-        except Exception as e:
-            print(e)
-
-    def virus_scan_break(self): # 停止掃描
-        self.scan_file = False
-        self.ui.Virus_Scan_Break_Button.hide()
-        self.ui.Virus_Scan_choose_Button.show()
-
-    def virus_scan_menu(self):
-        if self.ui.Virus_Scan_choose_widget.isHidden():
-            self.ui.Virus_Scan_choose_widget.show()
-            self.change_animation_4(self.ui.Virus_Scan_choose_widget,100,0,101)
-        else:
-            self.ui.Virus_Scan_choose_widget.hide()
-
-    def file_scan(self): # 檔案掃描
-        try:
-            file = str(QFileDialog.getOpenFileName(self,self.trans("病毒掃描"),"")[0])
-            if file and not self.check_whitelist(file):
-                self.init_scan()
-                self.scan_thread = Thread(target=self.write_scan,
-                args=(self.start_scan(file),file,), daemon=True)
-                self.scan_thread.start()
-                self.total_scan += 1
-                while self.scan_thread.is_alive():
-                    QApplication.processEvents()
-                self.scan_thread.join()
-                self.answer_scan()
-        except Exception as e:
-            print(e)
-            self.virus_scan_break()
-
-    def path_scan(self): # 路徑掃描
-        try:
-            path = str(QFileDialog.getExistingDirectory(self,self.trans("病毒掃描"),""))
-            if path and not self.check_whitelist(path):
-                self.init_scan()
-                self.scan_thread = Thread(target=self.traverse_path, args=(path,), daemon=True)
-                self.scan_thread.start()
-                while self.scan_thread.is_alive():
-                    QApplication.processEvents()
-                self.scan_thread.join()
-                self.answer_scan()
-        except Exception as e:
-            print(e)
-            self.virus_scan_break()
-
-    def disk_scan(self): # 全盤掃描
-        try:
-            self.init_scan()
-            for l in range(65, 91):
-                if os.path.exists(f"{chr(l)}:/"):
-                    self.scan_thread = Thread(target=self.traverse_path, args=(f"{chr(l)}:/",), daemon=True)
-                    self.scan_thread.start()
-                    while self.scan_thread.is_alive():
-                        QApplication.processEvents()
-                    self.scan_thread.join()
-            self.answer_scan()
-        except Exception as e:
-            print(e)
-            self.virus_scan_break()
-
-    def traverse_path(self, file_path): # 遍歷路徑
-        for fd in os.listdir(file_path):
-            try:
-                file = str(os.path.join(file_path,fd)).replace("\\", "/")
-                if self.scan_file == False:
-                    break
-                elif os.path.isdir(file):
-                    self.traverse_path(file)
-                elif not self.check_whitelist(file):
-                    QMetaObject.invokeMethod(self.ui.Virus_Scan_title, "setText",
-                    Qt.QueuedConnection, Q_ARG(str, self.trans("正在掃描")))
-                    QMetaObject.invokeMethod(self.ui.Virus_Scan_text, "setText",
-                    Qt.QueuedConnection, Q_ARG(str, file))
-                    self.write_scan(self.start_scan(file), file)
-                    self.total_scan += 1
-            except:
-                pass
-
-    def start_scan(self, file): # 調用掃描引擎
-        try:
-            label, level = self.model.dl_scan(file)
-            if label and self.config_json["sensitivity"]:
-                return f"{label}.{level}"
-            elif label and level >= self.model.values:
-                return f"{label}.{level}"
-        except Exception as e:
-            print(e)
-        try:
-            if self.config_json["extend_mode"]:
-                label, level = self.rules.yr_scan(file)
-                if label and isinstance(level, str):
-                    return f"{label}.{level}"
-        except Exception as e:
-            print(e)
-        return False
-
-    def repair_system(self): # 修復系統
-        try:
-            if self.question_event("您確定要修復系統檔案嗎?"):
-                self.repair_system_wallpaper()
-                self.repair_system_restrict()
-                self.repair_system_file_type()
-                self.repair_system_file_icon()
-                self.repair_system_image()
-                self.info_event("修復系統檔案成功")
-        except Exception as e:
-            print(e)
-
-    def open_registry_key(self, hkey, subkey, access=0xF003F): # 開啟註冊表
-        key_handle = ctypes.wintypes.HANDLE()
-        if self.advapi32.RegOpenKeyExW(hkey, subkey, 0, access, ctypes.byref(key_handle)) == 0:
-            return key_handle
-        return None
-
-    def delete_registry_key(self, hkey, subkey): # 刪除註冊表鍵
-        if self.advapi32.RegDeleteKeyW(hkey, subkey) == 0 and self.track_proc:
-            self.kill_process("註冊表攔截", *self.track_proc)
-
-    def delete_registry_value(self, hkey, subkey, value_name): # 刪除註冊表值
-        key_handle = self.open_registry_key(hkey, subkey)
-        if self.advapi32.RegDeleteValueW(key_handle, value_name) == 0 and self.track_proc:
-            self.kill_process("註冊表攔截", *self.track_proc)
-        self.advapi32.RegCloseKey(key_handle)
-
-    def create_registry_keys(self, hkey, subkey): # 創建註冊表鍵
-        key_handle = self.open_registry_key(hkey, subkey)
-        if key_handle:
-            self.advapi32.RegCreateKeyExW(hkey, subkey, 0, None, 0, 0xF003F, None, ctypes.byref(key_handle), None)
-        self.advapi32.RegCloseKey(key_handle)
-
-    def set_registry_value(self, hkey, subkey, value_name, value_data): # 設置註冊表值
-        key_handle = self.open_registry_key(hkey, subkey)
-        if key_handle:
-            self.advapi32.RegSetValueExW(key_handle, value_name, 0, 1, value_data, (len(value_data) + 1) * 2)
-        self.advapi32.RegCloseKey(key_handle)
-
-    def repair_system_restrict(self): # 遍歷修復內容
-        permissions = ["NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu","NoSetFolders",
-        "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop", "NoLogOff", "NoFolderOptions", "RestrictRun",
-        "NoViewContexMenu", "HideClock", "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD",
-        "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation", "Restrict_Run", 
-        "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents",
-        "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges", "NoChangeStartMenu",
-        "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", 
-        "NoManageMyComputerVerb", "NoWindowsUpdate", "ClearRecentDocsOnExit", "NoStartMenuNetworkPlaces"]
-        keys_to_create = [(0x80000001, r"Software\Policies\Microsoft\MMC"),
-        (0x80000001, r"Software\Policies\Microsoft\MMC\{8FC0B734-A0E1-11D1-A7D3-0000F87571E3}"),
-        (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-        (0x80000001, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-        (0x80000001, r"SOFTWARE\Policies\Microsoft\Windows\System"),
-        (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-        (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-        (0x80000002, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\ActiveDesktop"),
-        (0x80000002, r"SOFTWARE\Policies\Microsoft\Windows\System")]
-        for hkey, subkey in keys_to_create:
-            try:
-                self.create_registry_keys(hkey, subkey)
-                for value_name in permissions:
-                    self.delete_registry_value(hkey, subkey, value_name)
-            except:
-                print(e)
-
-    def repair_system_image(self): # 修復註冊表映像
-        try:
-            image_file = r'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
-            key_handle = self.open_registry_key(0x80000002, image_file, 0xF003F)
-            count = ctypes.wintypes.DWORD()
-            self.advapi32.RegQueryInfoKeyW(key_handle, None, None, None,
-            ctypes.byref(count), None, None, None, None, None, None, None)
-            for i in range(count.value, -1, -1):
-                try:
-                    subkey_name = ctypes.create_unicode_buffer(256)
-                    self.advapi32.RegEnumKeyW(key_handle, i, subkey_name, 256)
-                    self.delete_registry_key(key_handle, subkey_name.value)
+                    self.lock_file(file, True)
                 except Exception as e:
-                    print(e)
-        except Exception as e:
-            pass
+                    self.send_message(e, "warn", False)
 
-    def repair_system_file_icon(self): # 修復執行檔圖標
-        try:
-            self.set_registry_value(0x80000000, 'exefile', 'DefaultIcon', '%1')
-            self.set_registry_value(0x80000002, r'SOFTWARE\Classes\exefile', 'DefaultIcon', '%1')
-        except:
-            pass
+####################################################################################################
 
-    def repair_system_file_type(self): # 修復檔案開啟方式
-        for hkey in [0x80000002, 0x80000001, 0x80000000]:
-            for ext, value in [('.exe', 'exefile'), ('exefile', 'Application')]:
-                try:
-                    self.set_registry_value(hkey, r'SOFTWARE\Classes', ext, value)
-                    self.set_registry_value(hkey, f'{ext}\\shell\\open\\command', '', '"%1" %*')
-                except:
-                    pass
-
-    def repair_system_wallpaper(self): # 重置系統壁紙
-        try:
-            wallpaper = "C:/Windows/web/wallpaper/windows/img0.jpg"
-            self.set_registry_value(0x80000001, "Wallpaper", ctypes.create_unicode_buffer(wallpaper), wallpaper)
-            self.user32.SystemParametersInfoW(20, 0, wallpaper, 2)
-        except Exception as e:
-            print(e)
-
-    def repair_network(self): # 重置網路設置
-        try:
-            if self.question_event("您確定要修復系統網路嗎?"):
-                Popen("netsh winsock reset", shell=True, stdout=PIPE, stderr=PIPE).wait()
-                if self.question_event("使用此選項需要重啟，您確定要重啟嗎?"):
-                    Popen("shutdown -r -t 0", shell=True, stdout=PIPE, stderr=PIPE).wait()
-        except Exception as e:
-            print(e)
-
-    def clean_system(self): # 清理系統暫存垃圾
-        try:
-            if self.question_event("您確定要清理系統垃圾嗎?"):
-                self.total_deleted_size = 0
-                self.traverse_temp(f"C:/Users/{os.getlogin()}/AppData/Local/Temp/")
-                self.traverse_temp(f"C:/Windows/Temp/")
-                self.traverse_temp(f"C:/$Recycle.Bin/")
-                self.info_event(f"成功清理了 {self.total_deleted_size} 位元的系統垃圾")
-        except Exception as e:
-            print(e)
-
-    def traverse_temp(self, path): # 刪除暫存操作
-        for fd in os.listdir(path):
+    def protect_proc_thread(self):
+        self.exist_process = self.get_process_list()
+        while self.pyas_config.get("process_switch", False):
             try:
-                file = str(os.path.join(path,fd)).replace("\\", "/")
-                QApplication.processEvents()
-                if os.path.isdir(file):
-                    self.traverse_temp(file)
-                else:
-                    file_size = os.path.getsize(file)
-                    self.ransom_counts = 0
-                    os.remove(file)
-                    self.total_deleted_size += file_size
-            except:
-                continue
-
-    def protect_proc_thread(self): # 進程防護
-        while self.config_json["proc_protect"]:
-            try:
-                time.sleep(0.1)
-                new_process = self.get_process_list()
-                for pid in new_process - self.exist_process:
+                time.sleep(0.2)
+                cur = self.get_process_list()
+                for pid in cur - self.exist_process:
                     self.handle_new_process(pid)
-                self.exist_process = new_process
+                self.exist_process = cur
             except Exception as e:
-                print(e)
-        if self.ui.Protection_switch_Button.text() == self.trans("已開啟"):
-            if not self.first_startup:
-                self.send_notify(self.trans(f"竄改警告: self.proc_protect"), False)
-                self.kill_process("竄改攔截", *self.track_proc)
+                self.send_message(e, "warn", False)
 
-    def get_process_list(self): # 獲取進程列表
-        try:
-            exist_process, pe32 = set(), PROCESSENTRY32()
-            pe32.dwSize = ctypes.sizeof(PROCESSENTRY32)
-            hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-            if self.kernel32.Process32First(hSnapshot, ctypes.byref(pe32)):
-                while self.kernel32.Process32Next(hSnapshot, ctypes.byref(pe32)):
-                    exist_process.add(pe32.th32ProcessID)
-            self.kernel32.CloseHandle(hSnapshot)
-            return exist_process
-        except:
-            return None
+    def get_process_list(self):
+        exist_process, pe = set(), self.get_process_entry()
+        hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        if self.kernel32.Process32First(hSnapshot, ctypes.byref(pe)):
+            while True:
+                exist_process.add(pe.th32ProcessID)
+                if not self.kernel32.Process32Next(hSnapshot, ctypes.byref(pe)):
+                    break
+        self.kernel32.CloseHandle(hSnapshot)
+        return exist_process
 
-    def handle_new_process(self, pid): # 過濾並掃描
+    def handle_new_process(self, pid):
         try:
-            h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-            file = self.get_process_file(h_process).replace("\\", "/")
-            if os.path.exists(file) and not self.check_whitelist(file):
-                self.lock_process(h_process, True)
-                if self.start_scan(file):
-                    self.kill_process("病毒攔截", h_process, file)
-                elif ":/Windows" not in file:
-                    self.track_proc = (h_process, file)
-            self.lock_process(h_process, False)
+            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            if not h:
+                return
+            file_path = self.norm_path(self.get_process_file(h))
+            if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
+                self.suspend_process(h, True)
+                state = self.scan_engine(file_path)
+                if state:
+                    self.kernel32.TerminateProcess(h, 0)
+                    self.send_message(f"進程防護攔截 | 病毒掃描 | {pid} | {file_path} | None", "notify", True)
+                self.suspend_process(h, False)
+            self.kernel32.CloseHandle(h)
         except Exception as e:
-            print(e)
-            self.lock_process(h_process, False)
+            self.send_message(e, "warn", False)
 
-    def check_whitelist(self, file): # 計算是否在白名單路徑內
-        path = os.path.dirname(file)
-        for whitefile in self.config_json["white_lists"]:
-            if whitefile in path:
-                return True
-        return False
-
-    def kill_process(self, info, h_process, file): # 終止進程
+    def suspend_process(self, h_process, suspend):
         try:
-            self.kernel32.TerminateProcess(h_process, 0)
-            self.kernel32.CloseHandle(h_process)
-            self.send_notify(self.trans(f"{info}: ")+file, True)
-            self.track_proc = None
-        except:
-            pass
-
-    def lock_process(self, h_process, lock): # 暫停進程
-        try:
-            if lock:
+            if not hasattr(self.ntdll, "NtSuspendProcess"):
+                self.ntdll.NtSuspendProcess.argtypes = [ctypes.c_void_p]
+                self.ntdll.NtSuspendProcess.restype = ctypes.c_ulong
+                self.ntdll.NtResumeProcess.argtypes = [ctypes.c_void_p]
+                self.ntdll.NtResumeProcess.restype = ctypes.c_ulong
+            if suspend:
                 self.ntdll.NtSuspendProcess(h_process)
             else:
                 self.ntdll.NtResumeProcess(h_process)
-        except:
-            pass
+        except Exception as e:
+            self.send_message(e, "warn", False)
 
-    def get_process_file(self, h_process): # 獲取進程檔案路徑
-        exe_path = ctypes.create_unicode_buffer(260)
-        self.psapi.GetProcessImageFileNameW(h_process, exe_path, ctypes.sizeof(exe_path) // 2)
-        full_path = exe_path.value
-        drives = [f"{chr(l)}:\\" for l in range(65, 91) if os.path.exists(f"{chr(l)}:\\")]
-        for drive in drives:
-            drive_letter = drive[0] + ":"
-            device_path = ctypes.create_unicode_buffer(260)
-            self.kernel32.QueryDosDeviceW(drive_letter, device_path, 260)
-            if full_path.startswith(device_path.value):
-                full_path = full_path.replace(device_path.value, drive, 1)
-                return full_path.replace("\\\\", "\\")
-        return full_path
+    def get_process_file(self, h_process):
+        buf = ctypes.create_unicode_buffer(1024)
+        if self.psapi.GetProcessImageFileNameW(h_process, buf, 1024):
+            return self.norm_path(self.device_path_to_drive(buf.value))
+        return ""
 
-    def protect_file_thread(self): # 檔案變更監控
-        self.ransom_counts = 0
-        hDir = self.kernel32.CreateFileW("C:\\", 0x80000000, 0x00000001 | 0x00000002 | 0x00000004, None, 3, 0x02000000, None)
-        buffer = ctypes.create_string_buffer(2060)
-        while self.config_json["file_protect"]:
+    def get_process_entry(self):
+        pe = PROCESSENTRY32()
+        pe.dwSize = ctypes.sizeof(PROCESSENTRY32)
+        return pe
+
+    def get_exe_info(self, pid):
+        name, file_path = None, None
+        h = self.kernel32.OpenProcess(0x1000, False, pid)
+        if h:
+            buf = ctypes.create_unicode_buffer(1024)
+            if self.psapi.GetProcessImageFileNameW(h, buf, 1024):
+                path = self.norm_path(self.device_path_to_drive(buf.value))
+                if path:
+                    file_path = path
+                    name = os.path.basename(path)
+            self.kernel32.CloseHandle(h)
+        return name, file_path
+
+####################################################################################################
+
+    def protect_file_thread(self):
+        FILE_LIST_DIRECTORY = 0x0001
+        hDir = self.kernel32.CreateFileW(self.path_user, FILE_LIST_DIRECTORY, 0x00000007, None, 3, 0x02000000, None)
+        buffer = ctypes.create_string_buffer(65536)
+
+        while self.pyas_config.get("document_switch", False):
             try:
-                bytesReturned = ctypes.wintypes.DWORD()
-                if self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True,
-                    0x00000001 | 0x00000002 | 0x00000004 | 0x00000008 | 0x00000010 | 0x00000100,
-                    ctypes.byref(bytesReturned), None, None):
-                    notify_info = FILE_NOTIFY_INFORMATION.from_buffer_copy(buffer[0:])
-                    raw_filename = notify_info.FileName[:notify_info.FileNameLength // 2]
-                    fpath = f"C:/{raw_filename}".replace("\\", "/")
-                    ftype = os.path.splitext(fpath)[-1].lower()
-                    if self.ransom_counts >= 5 and self.track_proc:
-                        self.ransom_counts = 0
-                        self.kill_process("勒索攔截", *self.track_proc)
-                    elif ":/Windows" in fpath and "/Temp/" not in fpath:
-                        if notify_info.Action in [2, 4] and ftype in file_types:
-                            self.ransom_counts += 1
-                    elif ":/Users" in fpath and "/AppData/" not in fpath:
-                        if notify_info.Action in [2, 4] and ftype in file_types:
-                            self.ransom_counts += 1
-                    if ":/Windows" not in fpath and ":/Program" not in fpath:
-                        if notify_info.Action == 3 and self.start_scan(fpath):
-                            self.ransom_counts = 0
-                            os.remove(fpath)
-                            self.send_notify(self.trans("病毒刪除: ") + fpath, True)
-            except:
-                print(e)
-        self.kernel32.CloseHandle(hDir)
-        if self.ui.Protection_switch_Button_2.text() == self.trans("已開啟"):
-            if not self.first_startup:
-                self.send_notify(self.trans(f"竄改警告: self.file_protect"), False)
-                self.kill_process("竄改攔截", *self.track_proc)
+                bytes_returned = ctypes.wintypes.DWORD()
+                res = self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True,
+                    0x0000001F, ctypes.byref(bytes_returned), None, None)
 
-    def protect_boot_thread(self): # 引導防護
-        while self.config_json["sys_protect"] and self.mbr_value:
-            try:
-                time.sleep(0.2)
-                with open(r"\\.\PhysicalDrive0", "r+b") as f:
-                    if self.mbr_value[510:512] != b'\x55\xAA':
-                        self.kill_process("引導攔截", *self.track_proc)
-                    elif f.read(512) != self.mbr_value:
-                        f.seek(0)
-                        f.write(self.mbr_value)
-                        self.kill_process("引導攔截", *self.track_proc)
-            except PermissionError as e:
-                self.kill_process("引導攔截", *self.track_proc)
+                if res:
+                    notify = FILE_NOTIFY_INFORMATION.from_buffer_copy(buffer)
+                    raw_filename = notify.FileName[:notify.FileNameLength // 2]
+                    file_path = self.norm_path(os.path.join(self.path_user, raw_filename))
+
+                    if notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
+                        state = self.scan_engine(file_path)
+                        if state:
+                            self.add_to_quarantine([file_path])
+                            self.send_message(f"檔案防護攔截 | 病毒掃描 | None | {file_path} | None", "notify", True)
             except Exception as e:
-                print(e)
-        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
-            if not self.first_startup:
-                self.send_notify(self.trans(f"竄改警告: self.sys_protect (boot)"), False)
-                self.kill_process("竄改攔截", *self.track_proc)
+                self.send_message(e, "warn", False)
+        self.kernel32.CloseHandle(hDir)
 
-    def protect_reg_thread(self): # 註冊表防護
-        while self.config_json["sys_protect"]:
+####################################################################################################
+
+    def protect_net_thread(self):
+        while self.pyas_config.get("network_switch", False):
             try:
-                time.sleep(0.2)
-                self.repair_system_image()
-                self.repair_system_restrict()
-                self.repair_system_file_type()
-                self.repair_system_file_icon()
-            except:
-                pass
-        if self.ui.Protection_switch_Button_3.text() == self.trans("已開啟"):
-            if not self.first_startup:
-                self.send_notify(self.trans(f"竄改警告: self.sys_protect (reg)"), False)
-                self.kill_process("竄改攔截", *self.track_proc)
+                time.sleep(0.5)
+                conns = self.get_connections_list()
+                if not hasattr(self, "exist_connections"):
+                    self.exist_connections = conns
 
-    def get_connections_list(self):  # 獲取連接列表
+                for key in conns - self.exist_connections:
+                    self.handle_new_connection(key)
+                self.exist_connections = conns
+            except Exception as e:
+                self.send_message(e, "warn", False)
+        self.exist_connections = None
+
+    def get_connections_list(self):
         try:
             connections = set()
             size = ctypes.wintypes.DWORD()
-            ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
+            AF_INET = 2
+            TCP_TABLE_OWNER_PID_ALL = 5
+
+            ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0)
             if ret != 122:
                 raise ctypes.WinError(ret)
+
             buf = ctypes.create_string_buffer(size.value)
-            ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
+            ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0)
             if ret != 0:
                 raise ctypes.WinError(ret)
+
             num_entries = ctypes.cast(buf, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
             row_size = ctypes.sizeof(MIB_TCPROW_OWNER_PID)
             offset = ctypes.sizeof(ctypes.wintypes.DWORD)
+
             for i in range(num_entries):
-                entry_address = ctypes.addressof(buf) + offset + i * row_size
-                conn = ctypes.cast(entry_address, ctypes.POINTER(MIB_TCPROW_OWNER_PID)).contents
-                connections.add((conn.dwOwningPid, conn.dwLocalAddr, conn.dwRemoteAddr, conn.dwState))
+                entry_addr = ctypes.addressof(buf) + offset + i * row_size
+                row = MIB_TCPROW_OWNER_PID.from_address(entry_addr)
+                connections.add((row.dwOwningPid, row.dwRemoteAddr, row.dwRemotePort))
             return connections
         except Exception as e:
-            print(e)
-            return None
+            self.send_message(e, "warn", False)
+            return set()
 
-    def protect_net_thread(self):
-        while self.config_json["net_protect"]:
-            try:
-                time.sleep(0.2)
-                new_connections = self.get_connections_list()
-                for key in new_connections - self.exist_connections:
-                    self.handle_new_connections(key)
-                self.exist_connections = new_connections
-            except Exception as e:
-                print(e)
-        if self.ui.Protection_switch_Button_5.text() == self.trans("已開啟"):
-            if not self.first_startup:
-                self.send_notify(self.trans(f"竄改警告: self.net_protect"), False)
-                self.kill_process("竄改攔截", *self.track_proc)
-
-    def handle_new_connections(self, key): # 過濾並掃描
+    def handle_new_connection(self, key):
+        pid, remote_addr, remote_port = key
         try:
-            h_process = self.kernel32.OpenProcess(0x1F0FFF, False, key[0])
-            file = self.get_process_file(h_process).replace("\\", "/")
-            remote_ip = f"{key[2] & 0xFF}.{(key[2] >> 8) & 0xFF}.{(key[2] >> 16) & 0xFF}.{(key[2] >> 24) & 0xFF}"
-            if os.path.exists(file) and not self.check_whitelist(file):
-                self.lock_process(h_process, True)
-                if remote_ip in self.rules.network:
-                    self.kill_process("網路攔截", h_process, file)
-            self.lock_process(h_process, False)
-        except Exception as e:
-            print(e)
-            self.lock_process(h_process, False)
+            h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            if not h_process:
+                return
+            file_path = self.norm_path(self.get_process_file(h_process))
+            remote_ip = f"{remote_addr & 0xFF}.{(remote_addr >> 8) & 0xFF}.{(remote_addr >> 16) & 0xFF}.{(remote_addr >> 24) & 0xFF}"
 
-if __name__ == '__main__': # 檢查主程序
-    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
-    QGuiApplication.setAttribute(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
+            if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
+                if hasattr(self.rule, "network") and remote_ip in self.rule.network:
+                    self.kernel32.TerminateProcess(h_process, 0)
+                    self.send_message(f"網路防護攔截 | 規則檔案 | {pid} | {file_path} | {remote_ip}", "notify", True)
+            self.kernel32.CloseHandle(h_process)
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+####################################################################################################
+
+    def protect_system_thread(self):
+        while self.pyas_config.get("system_switch", False):
+            try:
+                self.repair_system_mbr()
+                self.repair_system_restrict()
+                self.repair_system_file_type()
+                self.repair_system_file_icon()
+                self.repair_system_image()
+                time.sleep(0.2)
+            except Exception as e:
+                self.send_message(e, "warn", False)
+
+####################################################################################################
+
+    def install_system_driver(self):
+        # The source code cannot be made public due to security concerns
+        pass
+
+    def stop_system_driver(self):
+        # The source code cannot be made public due to security concerns
+        pass
+
+####################################################################################################
+
+    def pipe_server_thread(self):
+        # The source code cannot be made public due to security concerns
+        pass
+
+####################################################################################################
+
+if __name__ == "__main__":
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
     app = QApplication(sys.argv)
     MainWindow_Controller()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

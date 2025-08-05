@@ -12,7 +12,8 @@ pip install Pillow==11.0.0
 pip install pyperclip==1.9.0
 pip install PySide6==6.9.1
 pip install requests==2.32.4
-pip install yara-python==4.5.4```
+pip install yara-python==4.5.4
+```
 
 ## 文件信息
 

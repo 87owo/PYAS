@@ -11,38 +11,33 @@
 ## Requirements
 
 ```
-pip install chardet==5.2.0
-pip install numpy==1.26.3
+pip install numpy==1.26.4
 pip install onnxruntime==1.18.1
 pip install pefile==2023.2.7
-pip install pillow==10.4.0
-pip install pyperclip==1.8.2
-pip install PyQt5==5.15.11
-pip install requests==2.32.3
-pip install yara-python==4.5.1
+pip install Pillow==11.0.0
+pip install pyperclip==1.9.0
+pip install PySide6==6.9.1
+pip install requests==2.32.4
+pip install yara-python==4.5.4
 ```
 
 ## File Information
 
 ```
 PYAS/
-├── Driver/ (Protect driver and Microsoft runtime)
-│   └── ...
-│
-├── Engine/ (Deep learn model and Yara database)
-│   └── ...
-│
-├── Exten/ (Exten tools and System repair tools)
-│   └── ...
-│
-├── PYAS.py (Main PYAS program with qtui interaction and protect function)
-├── PYAS_Engine.py (Deep learning predict and yara rules file scanner)
-├── PYAS_Suffixes.py (including scan file suffixes and common suffixes)
-├── PYAS_Interface.py (Qt designer ui, must be matched with the main program)
-├── PYAS_Resource.py (status pictures, icon packages, and button icons)
-├── PYAS_Language.py (Traditional Chinese, Simplified Chinese and English)
-├── PYAS_Version.py (file information, version information, original name)
-└── ...
+├── PYAS.py                  # Main application (PySide6 GUI interface)
+├── PYAS_Config.py           # Configuration handling and global parameters
+├── PYAS_Engine.py           # Scanning engine (integrates YARA & ONNX AI detection)
+├── PYAS_Interface.py        # User interface definitions and widget logic
+├── PYAS_Resource.py         # Static resource management
+├── PYAS_Version.py          # Packaging and version info
+├── Engine/
+│   ├── Models/              # Directory for ONNX AI models
+│   └── Rules/               # Directory for YARA and network rules
+├── Plugins/
+│   └── Filter/              # Driver directory
+│       └── PYAS_Driver.sys  # Windows kernel driver for security protection
+└── ...                      # Other supplementary folders and files
 ```
 
 ## Official Website
@@ -55,17 +50,13 @@ https://github.com/87owo/PYAS
 
 https://github.com/87owo/Microsoft_Runtime/releases
 
-## PYAS Driver
-
-https://github.com/0sha0/PYAS_Protection
-
 ## MIT license
 
 https://github.com/87owo/PYAS/blob/main/LICENSE.md
 
 ## Support System
 
-Windows 8.1, 10, 11 (64-bit), Ram 500MB, Rom 200MB or higher
+Windows 10, 11 (64-bit), Ram 500MB, Rom 200MB or higher
 
 Other systems may experience software malfunctions or crash
 

@@ -112,7 +112,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch"
         ]
         self.pyas_default = {
-            "version": "3.3.0",
+            "version": "3.3.1",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -130,6 +130,11 @@ class MainWindow_Controller(QMainWindow):
             {"exe": "", "class": "Qt691QWindowIcon", "title": "PYAS"},
             {"exe": "explorer.exe", "class": "", "title": ""},
         ]
+        self.block_replace = {
+            "MBR_BLOCK": "引導行為攔截",
+            "REG_BLOCK": "註冊表行為攔截",
+            "FILE_BLOCK": "檔案行為攔截"
+        }
 
 ####################################################################################################
 
@@ -161,37 +166,31 @@ class MainWindow_Controller(QMainWindow):
             except Exception as e:
                 self.send_message(e, "warn", False)
 
-        self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
         self.advapi32.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
-        self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
+        self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
+
         self.advapi32.CreateServiceW.argtypes = [
             ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD,
-            ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD,
-            ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD),
-            ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p
+            ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_wchar_p,
+            ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_wchar_p, ctypes.c_wchar_p,
+            ctypes.c_wchar_p
         ]
-        self.advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.OpenServiceW.argtypes = [
-            ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.wintypes.DWORD
-        ]
-        self.advapi32.StartServiceW.restype = ctypes.wintypes.BOOL
-        self.advapi32.StartServiceW.argtypes = [
-            ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.c_wchar_p)
-        ]
-        self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
-        self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
+        self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
 
-        self.advapi32.ControlService.argtypes = [
-            ctypes.wintypes.HANDLE,
-            ctypes.wintypes.DWORD,
-            ctypes.POINTER(SERVICE_STATUS),
-        ]
+        self.advapi32.OpenServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
+        self.advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
+
+        self.advapi32.StartServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.c_wchar_p)]
+        self.advapi32.StartServiceW.restype = ctypes.wintypes.BOOL
+
+        self.advapi32.ControlService.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(SERVICE_STATUS)]
         self.advapi32.ControlService.restype = ctypes.wintypes.BOOL
-        self.advapi32.QueryServiceStatus.argtypes = [
-            ctypes.wintypes.HANDLE,
-            ctypes.POINTER(SERVICE_STATUS),
-        ]
-        self.advapi32.QueryServiceStatus.restype = ctypes.wintypes.BOOL
+
+        self.advapi32.DeleteService.argtypes = [ctypes.wintypes.HANDLE]
+        self.advapi32.DeleteService.restype = ctypes.wintypes.BOOL
+
+        self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
+        self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
 
 ####################################################################################################
 
@@ -332,17 +331,17 @@ class MainWindow_Controller(QMainWindow):
         elif name == "driver_switch":
             if checked:
                 self.install_system_driver()
+                self.start_daemon_thread(self.pipe_server_thread)
             else:
                 self.stop_system_driver()
         elif name == "network_switch":
             if checked:
                 self.start_daemon_thread(self.protect_net_thread)
         else:
-            self.send_message(f"此功能不支持使用", "info")
+            self.send_message(f"此功能不支持使用", "info", True)
         self.save_config(self.file_config, self.pyas_config)
 
     def init_thread(self):
-        self.start_daemon_thread(self.pipe_server_thread)
         self.start_daemon_thread(self.popup_intercept_thread)
 
     def start_daemon_thread(self, target, *args, **kwargs):
@@ -543,7 +542,14 @@ class MainWindow_Controller(QMainWindow):
         self.change_opacity(self, self.current_opacity, 0, 200)
 
     def close_button(self):
-        if self.send_message("您確定要退出所有防護嗎?", "quest"):
+        if self.send_message("您確定要退出所有防護嗎?", "quest", True):
+            self.pyas_config["process_switch"] = False
+            self.pyas_config["document_switch"] = False
+            self.pyas_config["system_switch"] = False
+            self.pyas_config["driver_switch"] = False
+            self.pyas_config["network_switch"] = False
+            self.stop_system_driver()
+
             self.minimize_button()
             while self.isVisible():
                 QApplication.processEvents()
@@ -553,7 +559,7 @@ class MainWindow_Controller(QMainWindow):
             QApplication.quit()
 
     def reset_button(self):
-        if self.send_message("您確定要重置所有設定嗎?", "quest"):
+        if self.send_message("您確定要重置所有設定嗎?", "quest", True):
             self.pyas_config = self.pyas_default.copy()
             self.restart_button()
 
@@ -688,13 +694,13 @@ class MainWindow_Controller(QMainWindow):
             self.send_message(e, "warn", False)
 
     def file_button(self):
-        targets = self.send_message("檔案掃描", "files")
+        targets = self.send_message("檔案掃描", "files", True)
         if targets:
             self.init_scan()
             self.start_daemon_thread(self.scan_worker, targets)
 
     def path_button(self):
-        targets = self.send_message("路徑掃描", "path")
+        targets = self.send_message("路徑掃描", "path", True)
         if targets:
             self.init_scan()
             self.start_daemon_thread(self.scan_worker, targets)
@@ -876,12 +882,12 @@ class MainWindow_Controller(QMainWindow):
 
     def clean_button(self):
         try:
-            if self.send_message("您確定要清理系統垃圾嗎?", "quest"):
+            if self.send_message("您確定要清理系統垃圾嗎?", "quest", True):
                 self.total_deleted_size = 0
                 for path in [self.path_temp, self.path_systemp]:
                     self.traverse_temp(path)
                 size_text = self.format_size(self.total_deleted_size)
-                self.send_message(f"成功清理了 {size_text} 系統垃圾", "info")
+                self.send_message(f"成功清理了 {size_text} 系統垃圾", "info", True)
         except Exception as e:
             self.send_message(e, "warn", False)
 
@@ -919,14 +925,14 @@ class MainWindow_Controller(QMainWindow):
 
     def repair_button(self):
         try:
-            if self.send_message("您確定要修復系統檔案嗎?", "quest"):
+            if self.send_message("您確定要修復系統檔案嗎?", "quest", True):
                 self.repair_system_mbr()
                 self.repair_system_wallpaper()
                 self.repair_system_restrict()
                 self.repair_system_file_type()
                 self.repair_system_file_icon()
                 self.repair_system_image()
-                self.send_message("修復系統檔案成功", "info")
+                self.send_message("修復系統檔案成功", "info", True)
         except Exception as e:
             self.send_message(e, "warn", False)
 
@@ -940,6 +946,8 @@ class MainWindow_Controller(QMainWindow):
                 if mbr[510:512] == b"\x55\xAA":
                     self.mbr_backup[drive] = mbr
             except FileNotFoundError:
+                continue
+            except PermissionError as e:
                 continue
             except Exception as e:
                 self.send_message(e, "warn", False)
@@ -955,6 +963,8 @@ class MainWindow_Controller(QMainWindow):
                     if current != mbr_value:
                         f.seek(0)
                         f.write(mbr_value)
+            except PermissionError as e:
+                continue
             except Exception as e:
                 self.send_message(e, "warn", False)
 
@@ -987,27 +997,27 @@ class MainWindow_Controller(QMainWindow):
     def repair_system_restrict(self):
         try:
             permissions = [
-                "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoRealMode", "NoRecentDocsMenu",
-                "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoRun", "NoDesktop",
-                "NoLogOff", "NoFolderOptions", "RestrictRun", "NoViewContexMenu", "HideClock",
-                "NoStartMenuMorePrograms", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD",
-                "NoWinKeys", "StartMenuLogOff", "NoSimpleNetlDList", "NoLowDiskSpaceChecks",
-                "DisableLockWorkstation", "Restrict_Run", "DisableTaskMgr", "DisableRegistryTools",
-                "DisableChangePassword", "Wallpaper", "NoComponents", "NoAddingComponents",
-                "NoStartMenuPinnedList", "NoActiveDesktop", "NoSetActiveDesktop", "NoActiveDesktopChanges",
+                "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoStartMenuPinnedList",
+                "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoDesktop",
+                "NoLogoff", "NoFolderOptions", "RestrictRun", "NoViewContextMenu", "HideClock",
+                "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD", "NoAddingComponents",
+                "NoWinKeys", "NoStartMenuLogOff", "NoSimpleNetIDList", "NoLowDiskSpaceChecks",
+                "DisableLockWorkstation","Restrict_Run", "DisableTaskMgr", "DisableRegistryTools",
+                "DisableChangePassword", "Wallpaper", "NoComponents", "NoStartMenuMorePrograms",
+                "NoActiveDesktop", "NoSetActiveDesktop", "NoRecentDocsMenu", "NoWindowsUpdate",
                 "NoChangeStartMenu", "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar",
-                "NoSMHelp", "NoTrayContextMenu", "NoViewContextMenu", "NoManageMyComputerVerb",
-                "NoWindowsUpdate", "ClearRecentDocsOnExit", "NoStartMenuNetworkPlaces"
+                "NoSMHelp", "NoTrayContextMenu", "NoManageMyComputerVerb", "NoRealMode", "NoRun",
+                "ClearRecentDocsOnExit", "NoActiveDesktopChanges", "NoStartMenuNetworkPlaces"
             ]
             restrict_paths = [
-                (winreg.HKEY_CURRENT_USER, r"Software\Policies\Microsoft\MMC"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\MMC"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"),
                 (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
                 (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"),
                 (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
                 (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System"),
                 (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System"),
             ]
 
             for hkey, path in restrict_paths:
@@ -1080,32 +1090,32 @@ class MainWindow_Controller(QMainWindow):
     def popup_button(self):
         self.config_list("block_list")
         self.block_window = False
-        if self.send_message("請選擇要攔截的軟體彈窗", "quest"):
+        if self.send_message("請選擇要攔截的軟體彈窗", "quest", True):
             while True:
                 QApplication.processEvents()
                 title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
                 if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
-                    if self.send_message(f"您確定要攔截 {process_name} ({title}) 嗎?", "quest"):
+                    if self.send_message(f"您確定要攔截 {process_name} ({title}) 嗎?", "quest", True):
                         if self.add_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
-                            self.send_message(f"成功增加到彈窗攔截: {process_name} ({title})", "info")
+                            self.send_message(f"成功增加到彈窗攔截: {process_name} ({title})", "info", True)
                         else:
-                            self.send_message("已存在彈窗攔截", "info")
+                            self.send_message("已存在彈窗攔截", "info", True)
                     break
         self.start_daemon_thread(self.popup_intercept_thread)
 
     def popup_button_2(self):
         self.config_list("block_list")
         self.block_window = False
-        if self.send_message("請選擇要取消攔截的軟體彈窗", "quest"):
+        if self.send_message("請選擇要取消攔截的軟體彈窗", "quest", True):
             while True:
                 QApplication.processEvents()
                 title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
                 if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
-                    if self.send_message(f"您確定要取消攔截 {process_name} ({title}) 嗎?", "quest"):
+                    if self.send_message(f"您確定要取消攔截 {process_name} ({title}) 嗎?", "quest", True):
                         if self.remove_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
-                            self.send_message(f"成功取消彈窗攔截: {process_name} ({title})", "info")
+                            self.send_message(f"成功取消彈窗攔截: {process_name} ({title})", "info", True)
                         else:
-                            self.send_message("未找到彈窗攔截", "info")
+                            self.send_message("未找到彈窗攔截", "info", True)
                     break
         self.start_daemon_thread(self.popup_intercept_thread)
 
@@ -1193,7 +1203,7 @@ class MainWindow_Controller(QMainWindow):
 
     def whitelist_button(self):
         self.config_list("white_list")
-        files = self.send_message("選擇檔案", "files")
+        files = self.send_message("選擇檔案", "files", True)
         if files:
             if self.send_message("您確定要增加到白名單嗎?", "quest"):
                 n = self.manage_named_list("white_list", files, action="add", with_hash=True)
@@ -1201,7 +1211,7 @@ class MainWindow_Controller(QMainWindow):
 
     def whitelist_button_2(self):
         self.config_list("white_list")
-        files = self.send_message("選擇檔案", "files")
+        files = self.send_message("選擇檔案", "files", True)
         if files:
             if self.send_message("您確定要移除白名單嗎?", "quest"):
                 n = self.manage_named_list("white_list", files, action="remove", with_hash=True)
@@ -1209,7 +1219,7 @@ class MainWindow_Controller(QMainWindow):
 
     def quarantine_button(self):
         self.config_list("quarantine")
-        files = self.send_message("選擇檔案", "files")
+        files = self.send_message("選擇檔案", "files", True)
         if files:
             if self.send_message("您確定要增加到隔離區嗎?", "quest"):
                 n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
@@ -1219,7 +1229,7 @@ class MainWindow_Controller(QMainWindow):
     def quarantine_button_2(self):
         self.config_list("quarantine")
         quarantine_dir = os.path.join(self.path_config, "quarantine")
-        files = self.send_message("選擇檔案", "files")
+        files = self.send_message("選擇檔案", "files", True)
         if files:
             if self.send_message("您確定要移除隔離區嗎?", "quest"):
                 n = self.manage_named_list("quarantine", files, action="remove", with_hash=True, lock_func=self.lock_file)
@@ -1347,7 +1357,7 @@ class MainWindow_Controller(QMainWindow):
                 state = self.scan_engine(file_path)
                 if state:
                     self.kernel32.TerminateProcess(h, 0)
-                    self.send_message(f"進程防護攔截 | 病毒掃描 | {pid} | {file_path} | None", "notify", True)
+                    self.send_message(f"進程防護攔截 | 靜態掃描攔截 | {pid} | {file_path} | None", "notify", True)
                 self.suspend_process(h, False)
             self.kernel32.CloseHandle(h)
         except Exception as e:
@@ -1413,7 +1423,7 @@ class MainWindow_Controller(QMainWindow):
                         state = self.scan_engine(file_path)
                         if state:
                             self.add_to_quarantine([file_path])
-                            self.send_message(f"檔案防護攔截 | 病毒掃描 | None | {file_path} | None", "notify", True)
+                            self.send_message(f"檔案防護攔截 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
             except Exception as e:
                 self.send_message(e, "warn", False)
         self.kernel32.CloseHandle(hDir)
@@ -1425,15 +1435,17 @@ class MainWindow_Controller(QMainWindow):
             try:
                 time.sleep(0.5)
                 conns = self.get_connections_list()
-                if not hasattr(self, "exist_connections"):
-                    self.exist_connections = conns
+                if not hasattr(self, "exist_connections") or self.exist_connections is None:
+                    self.exist_connections = set()
+                if conns is None:
+                    conns = set()
 
                 for key in conns - self.exist_connections:
                     self.handle_new_connection(key)
                 self.exist_connections = conns
             except Exception as e:
                 self.send_message(e, "warn", False)
-        self.exist_connections = None
+        self.exist_connections = set()
 
     def get_connections_list(self):
         try:
@@ -1476,7 +1488,7 @@ class MainWindow_Controller(QMainWindow):
             if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
                 if hasattr(self.rule, "network") and remote_ip in self.rule.network:
                     self.kernel32.TerminateProcess(h_process, 0)
-                    self.send_message(f"網路防護攔截 | 規則檔案 | {pid} | {file_path} | {remote_ip}", "notify", True)
+                    self.send_message(f"網路防護攔截 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
             self.kernel32.CloseHandle(h_process)
         except Exception as e:
             self.send_message(e, "warn", False)
@@ -1498,12 +1510,41 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def install_system_driver(self):
-        # The source code cannot be made public due to security concerns
-        pass
+        service_name = "PYAS_Driver"
+        scm = self.advapi32.OpenSCManagerW(None, None, 0xF003F)
+        if not scm:
+            return False
+
+        svc = self.advapi32.CreateServiceW(scm, service_name, service_name, 0xF01FF, 
+            0x00000001, 0x00000003, 0x00000001, self.path_drivers, None, None, None, None, None)
+        if not svc:
+            svc = self.advapi32.OpenServiceW(scm, service_name, 0xF01FF)
+            if not svc:
+                self.advapi32.CloseServiceHandle(scm)
+                return False
+
+        res = self.advapi32.StartServiceW(svc,0,None)
+        self.advapi32.CloseServiceHandle(svc)
+        self.advapi32.CloseServiceHandle(scm)
+        return bool(res)
 
     def stop_system_driver(self):
-        # The source code cannot be made public due to security concerns
-        pass
+        service_name = "PYAS_Driver"
+        scm = self.advapi32.OpenSCManagerW(None, None, 0xF003F)
+        if not scm:
+            return False
+
+        svc = self.advapi32.OpenServiceW(scm, service_name, 0xF01FF)
+        if not svc:
+            self.advapi32.CloseServiceHandle(scm)
+            return False
+
+        status = SERVICE_STATUS()
+        self.advapi32.ControlService(svc, 0x00000001, ctypes.byref(status))
+        self.advapi32.DeleteService(svc)
+        self.advapi32.CloseServiceHandle(svc)
+        self.advapi32.CloseServiceHandle(scm)
+        return True
 
 ####################################################################################################
 

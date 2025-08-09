@@ -62,6 +62,6 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 
 https://github.com/87owo/PYAS
 
-## Code License
+## Project License
 
 https://github.com/87owo/PYAS/blob/main/LICENSE.md

@@ -48,7 +48,7 @@ PYAS/
 
 ## Packaged Releases
 
-https://github.com/87owo/PYAS/releases
+Packaged Releases Download: https://github.com/87owo/PYAS/releases
 
 ## Support System
 

@@ -34,6 +34,7 @@ PYAS/
 ├── Engine/
 │   ├── Models/              # Directory for ONNX AI models
 │   └── Rules/               # Directory for YARA and network rules
+│
 ├── Plugins/
 │   └── Filter/              # Windows kernel driver for security protection
 │
@@ -56,7 +57,7 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 |-----------|---------------|----------------|------------------|-------------------|
 | Minimum   | Administrator | Windows 8.1    | 200MB            | 100MB             |
 | Recommend | Administrator | Windows 10     | 300MB            | 200MB             |
-| Optimal   | Administrator | >= Windows 11  | 500MB            | 200MB             |
+| Optimal   | Administrator | Windows 11     | 500MB            | 200MB             |
 
 ## Official Website
 

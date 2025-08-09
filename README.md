@@ -1,5 +1,7 @@
 # PYAS (Python Antivirus Software)
 
+Python antivirus software uses deep learning and behavioral monitoring to block threats!
+
 ![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
 
 ## Readme Language
@@ -25,43 +27,37 @@ pip install yara-python==4.5.4
 
 ```
 PYAS/
-├── PYAS.py                  # Main application (PySide6 GUI interface)
-├── PYAS_Config.py           # Configuration handling and global parameters
-├── PYAS_Engine.py           # Scanning engine (integrates YARA & ONNX AI detection)
-├── PYAS_Interface.py        # User interface definitions and widget logic
-├── PYAS_Resource.py         # Static resource management
-├── PYAS_Version.py          # Packaging and version info
 ├── Engine/
 │   ├── Models/              # Directory for ONNX AI models
 │   └── Rules/               # Directory for YARA and network rules
 ├── Plugins/
-│   └── Filter/              # Driver directory
-│       └── PYAS_Driver.sys  # Windows kernel driver for security protection
+│   └── Filter/              # Windows kernel driver for security protection
+│
+├── PYAS.py                  # Main application and GUI interface
+├── PYAS_Config.py           # Configuration handling and global parameters
+├── PYAS_Engine.py           # YARA and ONNX Scanning engine
+├── PYAS_Interface.py        # User interface definitions and widget logic
+├── PYAS_Resource.py         # Static resource management
+├── PYAS_Version.py          # Packaging and version info
 └── ...                      # Other supplementary folders and files
 ```
 
-## Official Website
+## Packaged Releases
 
-https://pyantivirus.wixsite.com/pyas
-
-https://github.com/87owo/PYAS
-
-## Microsoft Runtime
-
-https://github.com/87owo/Microsoft_Runtime/releases
-
-## MIT license
-
-https://github.com/87owo/PYAS/blob/main/LICENSE.md
+https://github.com/87owo/PYAS/releases
 
 ## Support System
 
-Windows 10, 11 (64-bit), Ram 500MB, Rom 200MB or higher
+| Config    | System version | Available memory | Available storage |
+|-----------|----------------|------------------|-------------------|
+| Minimum   | Windows 8.1    | 200MB            | 100MB             |
+| Recommend | Windows 10     | 300MB            | 200MB             |
+| Optimal   | Windows 11     | 500MB            | 200MB             |
 
-Other systems may experience software malfunctions or crash
+## Official Website
 
-## Special Thanks
+https://github.com/87owo/PYAS
 
-Wix, mtkiao129, 0sha0, AV-T Team of LisectGroup
+## Code License
 
-Copyright© 2020~2025 PYAS Security By 87owo
+https://github.com/87owo/PYAS/blob/main/LICENSE.md

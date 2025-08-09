@@ -1,4 +1,4 @@
-# PYAS (Python Antivirus Software)
+# PYAS
 
 Python antivirus software uses deep learning and behavioral monitoring to block threats!
 

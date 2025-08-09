@@ -19,10 +19,10 @@ class rule_scanner:
             elif ext in ('.yc', '.yrc'):
                 self.rules[file] = yara.load(file)
             elif ext in ('.ip', '.txt'):
-                with open(file, "r") as f:
+                with open(file, "r", encoding="utf-8", errors="ignore") as f:
                     self.network.extend(line.strip() for line in f if line.strip())
-        except Exception as e:
-            print(e)
+        except Exception:
+            return False
 
     def yara_scan(self, file_path):
         try:
@@ -62,8 +62,8 @@ class model_scanner:
         if file.lower().endswith('.onnx'):
             try:
                 self.models[file] = onnxruntime.InferenceSession(file)
-            except Exception as e:
-                print(e)
+            except Exception:
+                return False
 
     def is_valid_suffix(self, file_path):
         return os.path.splitext(file_path)[-1].lower() in self.suffix

@@ -194,9 +194,6 @@ class MainWindow_Controller(QMainWindow):
 
 ####################################################################################################
 
-    def load_config(self):
-        self.pyas_config = self.read_config(self.file_config, self.pyas_default)
-
     def save_config(self, file_path, config):
         try:
             filter_config = {}
@@ -207,7 +204,7 @@ class MainWindow_Controller(QMainWindow):
             path = os.path.dirname(file_path)
             if not os.path.exists(path):
                 os.makedirs(path)
-            with open(file_path, "w") as f:
+            with open(file_path, "w", encoding="utf-8", errors="ignore") as f:
                 f.write(json.dumps(filter_config, indent=4, ensure_ascii=False))
         except Exception as e:
             self.send_message(e, "warn", False)
@@ -216,7 +213,7 @@ class MainWindow_Controller(QMainWindow):
         try:
             config_value = {}
             if os.path.exists(file_path):
-                with open(file_path, "r") as f:
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     config_value = json.load(f)
             for key, value in default_value.items():
                 config_value.setdefault(key, value)
@@ -224,6 +221,9 @@ class MainWindow_Controller(QMainWindow):
         except Exception as e:
             self.send_message(e, "warn", False)
             return default_value.copy()
+
+    def load_config(self):
+        self.pyas_config = self.read_config(self.file_config, self.pyas_default)
 
     def config_list(self, key):
         if key not in self.pyas_config:
@@ -1549,8 +1549,49 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def pipe_server_thread(self):
-        # The source code cannot be made public due to security concerns
-        pass
+        pipe_path = r"\\.\pipe\PYAS_Output_Pipe"
+        PIPE_BUF_SIZE = 65536
+        while self.pyas_config.get("driver_switch", False):
+            try:
+                hPipe = self.kernel32.CreateNamedPipeW(pipe_path, 0x00000001, 0x00000004 | 0x00000002, 1, PIPE_BUF_SIZE, PIPE_BUF_SIZE, 0, None)
+                if hPipe == ctypes.c_void_p(-1).value:
+                    time.sleep(0.2)
+                    continue
+
+                while self.pyas_config.get("driver_switch", False):
+                    if not self.kernel32.ConnectNamedPipe(hPipe, None) and self.kernel32.GetLastError() != 535:
+                        time.sleep(0.2)
+                        continue
+
+                    buf = ctypes.create_string_buffer(PIPE_BUF_SIZE)
+                    bytes_read = ctypes.c_ulong(0)
+                    if not self.kernel32.ReadFile(hPipe, buf, PIPE_BUF_SIZE, ctypes.byref(bytes_read), None) or bytes_read.value == 0:
+                        self.kernel32.DisconnectNamedPipe(hPipe)
+                        time.sleep(0.2)
+                        continue
+
+                    msg = buf.raw[:bytes_read.value].decode("utf-8", errors="ignore")
+                    parts = [p.strip() for p in msg.split("|", 3)]
+                    if len(parts) == 4:
+                        rules, pid, raw_path, target = parts
+                        for old, new in self.block_replace.items():
+                            rules = rules.replace(old, new)
+                        self.send_message(f"驅動防護攔截 | {rules} | {pid} | {raw_path} | {target}", "notify", True)
+
+                        if not self.is_in_whitelist(self.device_path_to_drive(raw_path)): 
+                            try:
+                                hProc = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid))
+                                if hProc:
+                                    self.kernel32.TerminateProcess(hProc, 1)
+                                    self.kernel32.CloseHandle(hProc)
+                            except Exception as e:
+                                self.send_message(e, "warn", False)
+
+                    self.kernel32.DisconnectNamedPipe(hPipe)
+                self.kernel32.CloseHandle(hPipe)
+            except Exception as e:
+                self.send_message(e, "warn", False)
+                time.sleep(0.5)
 
 ####################################################################################################
 

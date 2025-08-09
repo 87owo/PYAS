@@ -12,6 +12,8 @@ Python antivirus software uses deep learning and behavioral monitoring to block 
 
 ## Requirements
 
+Python 3.10 is recommended. Other Python versions may require different pip commands.
+
 ```
 pip install numpy==1.26.4
 pip install onnxruntime==1.18.1
@@ -24,6 +26,8 @@ pip install yara-python==4.5.4
 ```
 
 ## File Information
+
+The following lists the storage locations of all relevant code and other related documents.
 
 ```
 PYAS/

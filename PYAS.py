@@ -106,13 +106,13 @@ class MainWindow_Controller(QMainWindow):
 
         self.theme_names = [
             "white_switch", "red_switch", "yellow_switch",
-            "green_switch", "blue_switch", "black_switch"
+            "green_switch", "blue_switch", "black_switch",
         ]
         self.lang_names = [
-            "traditional_switch", "simplified_switch", "english_switch"
+            "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.1",
+            "version": "3.3.2",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -131,9 +131,14 @@ class MainWindow_Controller(QMainWindow):
             {"exe": "explorer.exe", "class": "", "title": ""},
         ]
         self.block_replace = {
-            "MBR_BLOCK": "引導行為攔截",
+            "BOOT_BLOCK": "引導行為攔截",
             "REG_BLOCK": "註冊表行為攔截",
-            "FILE_BLOCK": "檔案行為攔截"
+            "FILE_BLOCK": "檔案行為攔截",
+            "RANSOM_BLOCK": "勒索行為攔截",
+            "CLR_BLOCK": "托管行為攔截",
+            "SHELLCODE_BLOCK": "殼碼行為攔截",
+            "THREAD_BLOCK": "線程行為攔截",
+            "INJECT_BLOCK": "注入行為攔截",
         }
 
 ####################################################################################################
@@ -536,6 +541,8 @@ class MainWindow_Controller(QMainWindow):
 
     def show_button(self):
         self.show()
+        self.activateWindow()
+        self.repaint()
         self.change_opacity(self, self.current_opacity, 100, 200)
 
     def minimize_button(self):

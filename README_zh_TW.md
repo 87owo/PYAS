@@ -1,8 +1,20 @@
-# PYAS (Python 防毒軟體)
+# PYAS
+
+以 Python 開發的防毒軟體，結合深度學習與行為監控來阻擋威脅！
 
 ![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
 
-## 安裝要求
+## 說明語言
+
+English : https://github.com/87owo/PYAS/blob/main/README.md
+
+繁體中文 : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
+
+简体中文 : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md
+
+## 安裝需求
+
+建議使用 Python 3.10。其他版本的 Python 可能需要不同的 pip 指令。
 
 ```
 pip install numpy==1.26.4
@@ -17,45 +29,44 @@ pip install yara-python==4.5.4
 
 ## 檔案資訊
 
+以下列出所有相關程式碼與文件的存放位置。
+
 ```
 PYAS/
-├── PYAS.py                  # 主程式，提供 PySide6 視覺化操作介面
-├── PYAS_Config.py           # 設定檔處理與全域參數管理
-├── PYAS_Engine.py           # 掃描引擎，整合 YARA 規則與 ONNX AI 模型
-├── PYAS_Interface.py        # UI 介面定義與元件交互
-├── PYAS_Resource.py         # 資源檔與靜態資源管理
-├── PYAS_Version.py          # 程式版本與打包資訊
 ├── Engine/
-│   ├── Models/              # AI 模型（ONNX 格式）存放目錄
-│   └── Rules/               # YARA 規則與網路規則存放目錄
+│   ├── Models/              # ONNX 深度學習模型目錄
+│   └── Rules/               # YARA 與網路規則目錄
+│
 ├── Plugins/
-│   └── Filter/              # 驅動程式目錄
-│       └── PYAS_Driver.sys  # Windows 驅動程式（系統保護用）
-└── ...                      # 其它輔助資料夾與檔案
+│   └── Filter/              # 用於安全防護的 Windows 核心驅動程式
+│
+├── PYAS.py                  # 主程式與圖形介面 (GUI)
+├── PYAS_Config.py           # 組態處理與全域參數
+├── PYAS_Engine.py           # YARA 與 ONNX 掃描引擎
+├── PYAS_Interface.py        # 使用者介面定義與元件邏輯
+├── PYAS_Resource.py         # 靜態圖片資源管理
+├── PYAS_Version.py          # 打包與版本資訊
+└── ...                      # 其他補充資料夾與檔案
 ```
 
-## 官方網頁
+## 打包發行版
 
-https://pyantivirus.wixsite.com/pyas
+打包發行版下載：https://github.com/87owo/PYAS/releases
 
-https://github.com/87owo/PYAS
+## 系統需求
 
-## 微軟運行庫
+| 需求 | 權限    | 系統版本        | 可用記憶體 | 可用儲存空間 |
+| -- | ----- | ----------- | ----- | ------ |
+| 最低 | 系統管理員 | Windows 8.1 | 200MB | 100MB  |
+| 建議 | 系統管理員 | Windows 10  | 300MB | 200MB  |
+| 最佳 | 系統管理員 | Windows 11  | 500MB | 200MB  |
 
-https://github.com/87owo/Microsoft_Runtime/releases
+## 官方網站
 
-## 開源協議
+官方網站 : https://pyantivirus.wixsite.com/pyas
+
+開源網站 : https://github.com/87owo/PYAS
+
+## 專案授權條款
 
 https://github.com/87owo/PYAS/blob/main/LICENSE.md
-
-## 支援系統
-
-Windows 10, 11 (64-bit),記憶體 500MB, 磁碟容量 200MB 或更高
-
-其他系統或版本可能會遇到軟體功能故障或程序崩潰
-
-## 特別感謝
-
-Wix, mtkiao129, 0sha0, AV-T Team of LisectGroup
-
-Copyright© 2020~2025 PYAS Security By 87owo

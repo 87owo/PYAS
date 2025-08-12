@@ -6,6 +6,8 @@ Python antivirus software uses deep learning and behavioral monitoring to block 
 
 ## Readme Language
 
+English : https://github.com/87owo/PYAS/blob/main/README.md
+
 繁體中文 : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
 
 简体中文 : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md

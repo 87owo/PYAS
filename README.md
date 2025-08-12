@@ -44,7 +44,7 @@ PYAS/
 ├── PYAS_Config.py           # Configuration handling and global parameters
 ├── PYAS_Engine.py           # YARA and ONNX Scanning engine
 ├── PYAS_Interface.py        # User interface definitions and widget logic
-├── PYAS_Resource.py         # Static resource management
+├── PYAS_Resource.py         # Static picture resource management
 ├── PYAS_Version.py          # Packaging and version info
 └── ...                      # Other supplementary folders and files
 ```

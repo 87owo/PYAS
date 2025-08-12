@@ -63,7 +63,9 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 
 ## Official Website
 
-https://github.com/87owo/PYAS
+Official Website : https://pyantivirus.wixsite.com/pyas
+
+Open Source Website : https://github.com/87owo/PYAS
 
 ## Project License
 

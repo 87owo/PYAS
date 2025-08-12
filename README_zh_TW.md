@@ -49,7 +49,7 @@ PYAS/
 └── ...                      # 其他補充資料夾與檔案
 ```
 
-## 打包發行版
+## 安裝版本
 
 打包發行版下載：https://github.com/87owo/PYAS/releases
 

@@ -112,7 +112,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.2",
+            "version": "3.3.3",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -139,6 +139,7 @@ class MainWindow_Controller(QMainWindow):
             "SHELLCODE_BLOCK": "殼碼行為攔截",
             "THREAD_BLOCK": "線程行為攔截",
             "INJECT_BLOCK": "注入行為攔截",
+            "PROC_BLOCK": "進程行為攔截",
         }
 
 ####################################################################################################
@@ -147,6 +148,7 @@ class MainWindow_Controller(QMainWindow):
         self.file_pyas = self.norm_path(sys.argv[0])
         self.args_pyas = sys.argv[1:]
         self.path_pyas = os.path.dirname(self.file_pyas)
+        self.pid_pyas = int(os.getpid())
 
         self.path_appdata = os.environ.get("APPDATA")
         self.path_name = os.environ.get("USERNAME")
@@ -334,17 +336,20 @@ class MainWindow_Controller(QMainWindow):
             if checked:
                 self.start_daemon_thread(self.protect_system_thread)
         elif name == "driver_switch":
-            if checked:
-                self.install_system_driver()
+            if not checked:
+                self.stop_system_driver()
+            elif self.install_system_driver():
                 self.start_daemon_thread(self.pipe_server_thread)
             else:
-                self.stop_system_driver()
+                self.pyas_config[name] = False
+                self.send_message("驅動防護啟用失敗", "warn", True)
         elif name == "network_switch":
             if checked:
                 self.start_daemon_thread(self.protect_net_thread)
         else:
             self.send_message(f"此功能不支持使用", "info", True)
         self.save_config(self.file_config, self.pyas_config)
+        self.apply_settings()
 
     def init_thread(self):
         self.start_daemon_thread(self.popup_intercept_thread)
@@ -390,9 +395,12 @@ class MainWindow_Controller(QMainWindow):
                         widget.setProperty("_connected_toggle", True)
 
             elif hasattr(widget, "setText"):
-                if not hasattr(widget, "_origin_text"):
-                    widget._origin_text = self.get_widget_text(widget)
-                widget.setText(self.trans(lang, widget._origin_text))
+                if name == "log_text":
+                    pass
+                else:
+                    if not hasattr(widget, "_origin_text"):
+                        widget._origin_text = self.get_widget_text(widget)
+                    widget.setText(self.trans(lang, widget._origin_text))
 
             if hasattr(widget, "setStyleSheet"):
                 if not hasattr(widget, "_origin_style"):

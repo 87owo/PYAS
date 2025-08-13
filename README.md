@@ -57,7 +57,7 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 
 | Config    | Permissions   | System version | Available memory | Available storage |
 |-----------|---------------|----------------|------------------|-------------------|
-| Minimum   | Administrator | Windows 8.1    | 200MB            | 100MB             |
+| Minimum   | Administrator | Windows 10     | 200MB            | 100MB             |
 | Recommend | Administrator | Windows 10     | 300MB            | 200MB             |
 | Optimal   | Administrator | Windows 11     | 500MB            | 200MB             |
 

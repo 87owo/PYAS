@@ -35,15 +35,15 @@ pip install yara-python==4.5.4
 PYAS/
 ├── Engine/
 │   ├── Models/              # ONNX 深度学习模型目录
-│   └── Rules/               # YARA 与网络规则目录
+│   └── Rules/               # YARA 和网络 IP 规则目录
 │
 ├── Plugins/
-│   └── Filter/              # 用于安全防护的 Windows 核心驱动
+│   └── Filter/              # 用于安全保护的内核驱动程序
 │
-├── PYAS.py                  # 主程式与图形界面 (GUI)
-├── PYAS_Config.py           # 组态处理与全域参数
-├── PYAS_Engine.py           # YARA 与 ONNX 扫描引擎
-├── PYAS_Interface.py        # 使用者介面定义与元件逻辑
+├── PYAS.py                  # 主应用程序及界面接口调用
+├── PYAS_Config.py           # 配置处理和全局参数
+├── PYAS_Engine.py           # YARA、IP 和 ONNX 扫描引擎
+├── PYAS_Interface.py        # 用户界面定义和小部件逻辑
 ├── PYAS_Resource.py         # 静态图片资源管理
 ├── PYAS_Version.py          # 打包与版本资讯
 └── ...                      # 其他补充文件夹与文件
@@ -55,11 +55,10 @@ PYAS/
 
 ## 系统需求
 
-| 配置需求 | 权限需求    | 系统需求        | 可用內存 | 可用储存空间 |
-| ---- | ------- | ----------- | ----- | ------ |
-| 最低 | 系统管理员 | Windows 10  | 200MB | 100MB  |
-| 建议 | 系统管理员 | Windows 10  | 300MB | 200MB  |
-| 最佳 | 系统管理员 | Windows 11  | 500MB | 200MB  |
+| 配置要求 | 权限  | 系统版本                 | 处理器   | 可用内存  | 可用存储  |
+| ---- | --- | -------------------- | ----- | ----- | ----- |
+| 最低配置 | 管理员 | >= Windows 10 (20H1) | 1 GHz | 200MB | 100MB |
+| 推荐配置 | 管理员 | >= Windows 10 (21H2) | 3 GHz | 300MB | 200MB |
 
 ## 官方网站
 

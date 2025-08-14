@@ -1,6 +1,6 @@
 # PYAS
 
-Python antivirus software uses deep learning and behavioral monitoring to block threats!
+Antivirus written in Python and C that blocks threats with deep learning and behavioral monitoring!
 
 ![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
 

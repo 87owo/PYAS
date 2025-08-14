@@ -34,15 +34,15 @@ The following lists the storage locations of all relevant code and other related
 ```
 PYAS/
 ├── Engine/
-│   ├── Models/              # Directory for ONNX AI models
-│   └── Rules/               # Directory for YARA and network rules
+│   ├── Models/              # Directory for ONNX deep learning models
+│   └── Rules/               # Directory for YARA and network IP rules
 │
 ├── Plugins/
 │   └── Filter/              # Windows kernel driver for security protection
 │
-├── PYAS.py                  # Main application and GUI interface
+├── PYAS.py                  # Main application and interface call
 ├── PYAS_Config.py           # Configuration handling and global parameters
-├── PYAS_Engine.py           # YARA and ONNX Scanning engine
+├── PYAS_Engine.py           # YARA, IP and ONNX scanning engine
 ├── PYAS_Interface.py        # User interface definitions and widget logic
 ├── PYAS_Resource.py         # Static picture resource management
 ├── PYAS_Version.py          # Packaging and version info
@@ -55,10 +55,10 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 
 ## Support System
 
-| Config    | Permissions   | System version       | Available memory | Available storage |
-|-----------|---------------|----------------------|------------------|-------------------|
-| Minimum   | Administrator | >= Windows 10 (20H1) | 200MB            | 100MB             |
-| Recommend | Administrator | >= Windows 10 (21H2) | 300MB            | 200MB             |
+| Config    | Permissions   | System version       | Processor | Available memory | Available storage |
+|-----------|---------------|----------------------|-----------|------------------|-------------------|
+| Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 200MB            | 100MB             |
+| Recommend | Administrator | >= Windows 10 (21H2) | 3 GHz     | 300MB            | 200MB             |
 
 ## Official Website
 

@@ -1,6 +1,6 @@
 # PYAS
 
-使用 Python 和 C 编写的杀毒软件，通过深度学习和行为监控阻止威胁！
+使用 Python 和 C 编写的杀毒软件，并通过深度学习和行为监控阻止威胁！
 
 ![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
 

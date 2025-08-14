@@ -55,10 +55,10 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 
 ## Support System
 
-| Config    | Permissions   | System version       | Processor | Available memory | Available storage |
-|-----------|---------------|----------------------|-----------|------------------|-------------------|
-| Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 200MB            | 100MB             |
-| Recommend | Administrator | >= Windows 10 (21H2) | 3 GHz     | 300MB            | 200MB             |
+| Config    | Permissions   | System version       | Processor | Memory | Storage |
+|-----------|---------------|----------------------|-----------|--------|---------|
+| Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 200MB  | 100MB   |
+| Recommend | Administrator | >= Windows 10 (21H2) | 3 GHz     | 500MB  | 200MB   |
 
 ## Official Website
 

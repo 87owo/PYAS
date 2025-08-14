@@ -35,14 +35,14 @@ pip install yara-python==4.5.4
 PYAS/
 ├── Engine/
 │   ├── Models/              # ONNX 深度學習模型目錄
-│   └── Rules/               # YARA 與網路規則目錄
+│   └── Rules/               # YARA 與網路 IP 規則目錄
 │
 ├── Plugins/
-│   └── Filter/              # 用於安全防護的 Windows 核心驅動程式
+│   └── Filter/              # 用於安全防護的核心驅動程式
 │
-├── PYAS.py                  # 主程式與圖形介面 (GUI)
+├── PYAS.py                  # 主應用程式及介面調用
 ├── PYAS_Config.py           # 組態處理與全域參數
-├── PYAS_Engine.py           # YARA 與 ONNX 掃描引擎
+├── PYAS_Engine.py           # YARA、IP 與 ONNX 掃描引擎
 ├── PYAS_Interface.py        # 使用者介面定義與元件邏輯
 ├── PYAS_Resource.py         # 靜態圖片資源管理
 ├── PYAS_Version.py          # 打包與版本資訊
@@ -51,7 +51,7 @@ PYAS/
 
 ## 安裝版本
 
-打包發行版下載：https://github.com/87owo/PYAS/releases
+打包發行版下載 : https://github.com/87owo/PYAS/releases
 
 ## 系統需求
 

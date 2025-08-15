@@ -1332,14 +1332,6 @@ class MainWindow_Controller(QMainWindow):
 
     def update_button(self):
         try:
-            webbrowser.open("https://github.com/87owo/PYAS/releases")
-            return True
-        except Exception as e:
-            self.send_message(e, "warn", False)
-            return False
-
-    def update_button(self):
-        try:
             current = str(self.pyas_config.get("version", "")).strip()
             page = "https://github.com/87owo/PYAS/releases"
             latest = ""

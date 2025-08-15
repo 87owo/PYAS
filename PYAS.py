@@ -1645,13 +1645,14 @@ class MainWindow_Controller(QMainWindow):
                             rules = rules.replace(old, new)
                         self.send_message(f"驅動防護 | {rules} | {pid} | {raw_path} | {target}", "notify", True)
 
-                        try:
-                            h = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid.strip()))
-                            if h:
-                                self.kernel32.TerminateProcess(h, 0xC0000022)
-                                self.kernel32.CloseHandle(h)
-                        except Exception as e:
-                            self.send_message(e, "warn", False)
+                        if not self.is_in_whitelist(self.device_path_to_drive(raw_path)):
+                            try:
+                                h = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid.strip()))
+                                if h:
+                                    self.kernel32.TerminateProcess(h, 0xC0000022)
+                                    self.kernel32.CloseHandle(h)
+                            except Exception as e:
+                                self.send_message(e, "warn", False)
 
                     self.kernel32.DisconnectNamedPipe(hPipe)
                 self.kernel32.CloseHandle(hPipe)

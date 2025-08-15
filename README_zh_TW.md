@@ -63,7 +63,7 @@ PYAS/
 └── ...                              # 其他補充資料夾與檔案
 ```
 
-## Program Architecture
+## 程式架構
 
 PYAS 防毒軟體完整程式流程架構圖。
 

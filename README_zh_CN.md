@@ -2,7 +2,7 @@
 
 使用 Python 和 C 编写的杀毒软件，并通过深度学习和行为监控阻止威胁！
 
-![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
+<img width="2245" height="1477" alt="PYAS_UI" src="https://github.com/user-attachments/assets/87d40261-7655-49ad-a19c-1ffcca60584f" />
 
 ## 说明语言
 

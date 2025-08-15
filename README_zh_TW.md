@@ -2,7 +2,7 @@
 
 使用 Python 和 C 開發的防毒軟體，並透過深度學習和行為監控來阻止威脅！
 
-![PYAS_UI](https://github.com/user-attachments/assets/68765836-7272-482f-b8cd-d8ba728d88ab)
+<img width="2245" height="1477" alt="PYAS_UI" src="https://github.com/user-attachments/assets/87d40261-7655-49ad-a19c-1ffcca60584f" />
 
 ## 說明語言
 

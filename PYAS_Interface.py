@@ -665,9 +665,7 @@ class Ui_main_window(object):
         self.license_text = QTextEdit(self.license_widget)
         self.license_text.setObjectName(u"license_text")
         self.license_text.setGeometry(QRect(10, 10, 730, 220))
-        font7 = QFont()
-        font7.setPointSize(9)
-        self.license_text.setFont(font7)
+        self.license_text.setFont(font2)
         self.license_text.setLayoutDirection(Qt.LeftToRight)
         self.license_text.setStyleSheet(u"QTextEdit { background-color: transparent; color: rgb(0, 0, 0); border: 1px solid rgb(235, 235, 235); border-radius: 10px; outline: none; } QTextEdit QScrollBar:vertical { background: transparent; width: 6px; margin: 0px; } QTextEdit QScrollBar::handle:vertical { background: rgb(200, 200, 200); border-radius: 3px; min-height: 20px; } QTextEdit QScrollBar:horizontal { background: transparent; height: 6px; margin: 0px; } QTextEdit QScrollBar::handle:horizontal { background: rgb(200, 200, 200); border-radius: 3px; min-width: 20px; } QTextEdit QScrollBar::handle:hover { background: rgb(180, 180, 180); } QTextEdit QScrollBar::add-line, QTextEdit QScrollBar::sub-line { width: 0px; height: 0px; } QTextEdit QScrollBar::add-page, QTextEdit QScrollBar::sub-page { background: transparent; }\n"
 "")
@@ -1196,15 +1194,15 @@ class Ui_main_window(object):
         self.log_text = QTextEdit(self.log_widget)
         self.log_text.setObjectName(u"log_text")
         self.log_text.setGeometry(QRect(10, 10, 730, 220))
-        font8 = QFont()
-        font8.setFamilies([u"Microsoft YaHei"])
-        font8.setPointSize(9)
-        font8.setBold(False)
-        font8.setItalic(False)
-        font8.setStrikeOut(False)
-        font8.setKerning(True)
-        font8.setStyleStrategy(QFont.PreferAntialias)
-        self.log_text.setFont(font8)
+        font7 = QFont()
+        font7.setFamilies([u"Microsoft YaHei"])
+        font7.setPointSize(9)
+        font7.setBold(False)
+        font7.setItalic(False)
+        font7.setStrikeOut(False)
+        font7.setKerning(True)
+        font7.setStyleStrategy(QFont.PreferAntialias)
+        self.log_text.setFont(font7)
         self.log_text.setLayoutDirection(Qt.LeftToRight)
         self.log_text.setAutoFillBackground(False)
         self.log_text.setStyleSheet(u"QTextEdit { background-color: transparent; color: rgb(0, 0, 0); border: 1px solid rgb(235, 235, 235); border-radius: 10px; outline: none; } QTextEdit QScrollBar:vertical { background: transparent; width: 6px; margin: 0px; } QTextEdit QScrollBar::handle:vertical { background: rgb(200, 200, 200); border-radius: 3px; min-height: 20px; } QTextEdit QScrollBar:horizontal { background: transparent; height: 6px; margin: 0px; } QTextEdit QScrollBar::handle:horizontal { background: rgb(200, 200, 200); border-radius: 3px; min-width: 20px; } QTextEdit QScrollBar::handle:hover { background: rgb(180, 180, 180); } QTextEdit QScrollBar::add-line, QTextEdit QScrollBar::sub-line { width: 0px; height: 0px; } QTextEdit QScrollBar::add-page, QTextEdit QScrollBar::sub-page { background: transparent; }\n"
@@ -1225,12 +1223,12 @@ class Ui_main_window(object):
         self.state_title = QLabel(self.state_widget)
         self.state_title.setObjectName(u"state_title")
         self.state_title.setGeometry(QRect(10, 200, 730, 30))
-        font9 = QFont()
-        font9.setFamilies([u"Microsoft YaHei"])
-        font9.setPointSize(14)
-        font9.setBold(True)
-        font9.setStyleStrategy(QFont.PreferAntialias)
-        self.state_title.setFont(font9)
+        font8 = QFont()
+        font8.setFamilies([u"Microsoft YaHei"])
+        font8.setPointSize(14)
+        font8.setBold(True)
+        font8.setStyleStrategy(QFont.PreferAntialias)
+        self.state_title.setFont(font8)
         self.state_title.setLayoutDirection(Qt.LeftToRight)
         self.state_title.setStyleSheet(u"QLabel { background-color: transparent; color: rgb(0, 0, 0); }\n"
 "")
@@ -1242,13 +1240,13 @@ class Ui_main_window(object):
         self.state_icon.setSizePolicy(sizePolicy)
         self.state_icon.setMinimumSize(QSize(0, 171))
         self.state_icon.setMaximumSize(QSize(16777215, 16777215))
-        font10 = QFont()
-        font10.setFamilies([u"Microsoft YaHei"])
-        font10.setPointSize(10)
-        font10.setStrikeOut(False)
-        font10.setKerning(True)
-        font10.setStyleStrategy(QFont.PreferAntialias)
-        self.state_icon.setFont(font10)
+        font9 = QFont()
+        font9.setFamilies([u"Microsoft YaHei"])
+        font9.setPointSize(10)
+        font9.setStrikeOut(False)
+        font9.setKerning(True)
+        font9.setStyleStrategy(QFont.PreferAntialias)
+        self.state_icon.setFont(font9)
         self.state_icon.setContextMenuPolicy(Qt.DefaultContextMenu)
         self.state_icon.setLayoutDirection(Qt.LeftToRight)
         self.state_icon.setStyleSheet(u"")
@@ -1478,37 +1476,40 @@ class Ui_main_window(object):
         self.license_text.setHtml(QCoreApplication.translate("main_window", u"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:'MS Shell Dlg 2'; font-size:9pt; font-weight:400; font-style:normal;\">\n"
+"</style></head><body style=\" font-family:'Microsoft YaHei'; font-size:9pt; font-weight:400; font-style:normal;\">\n"
 "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">PYAS Security Software Development License Agreement</p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Last updated: 2025-08-07</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Last updated: 2025-08-15</p>\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">1. License &amp; Ownership  </p>\n"
-"<p style=\" margin-top:0px; m"
-                        "argin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 A single device key is required for activation.</p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Non exclusive, non transferable, internal use only.  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 87owo retains all rights; IP not transferred.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">1. License &amp; Ownership</p>\n"
+"<p style=\" margin-top:0px; ma"
+                        "rgin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 A single device key may be required to activate the software or source code.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Non exclusive, non transferable, and for personal, internal use only.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 87owo reserves all rights. Intellectual property rights are not transferred.</p>\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">2. Use &amp; Prohibitions  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 No redistribution, sublicensing, rental "
-                        "or leasing.  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 No reverse engineering, modification or removal of notices.  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 The software may not be used for any unlawful purpose.</p>\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">3. Open Source Component  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 The main Python script is licensed under MIT License.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">2. Use &amp; Prohibitions</p>\n"
 "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent"
-                        ":0; text-indent:0px;\">   \u2013 All drivers Protect*.c/h script remain proprietary.</p>\n"
+                        ":0; text-indent:0px;\">   \u2013 Private redistribution, sublicensing, or rental is prohibited.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Private reverse engineering or removal of notices is prohibited.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Any of the above requires prior authorization from the original author.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Only personal internal use or modification of the source code is permitted.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Use of the software or source code for any illegal purpose is prohibited.</p>\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin"
+                        "-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">3. License Components</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 All project script archives and executable files are proprietary.</p>\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">4. Updates &amp; Terms  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Updates may include patches, enhancements, or new versions.  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Continued use of the software implies acceptance of the terms.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">4. Updates &amp; Terms</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Updates to new versions may include patches, enhancements, or modifications.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-lef"
+                        "t:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 Continued use constitutes your acceptance of these features or terms.</p>\n"
 "<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin"
-                        "-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">5. Warranty &amp; Liability  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 The software is provided \u201cas is,\u201d without warranty.  </p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 No liability for indirect or consequential damages.</p>\n"
-"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n"
-"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">\u00a9 2020\u20132025 87owo (PYAS Security). All rights reserved.  </p></body></html>", None))
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">5. Warranty &amp; Liability</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 This software is provided &quot;as is,&quot; without warranty of any kind.</p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">   \u2013 In no event shall there be any liability for consequential damages.</p>\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-in"
+                        "dent:0px;\"><br /></p>\n"
+"<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">\u00a9 2020\u20132025 87owo (PYAS Security). All rights reserved.</p>\n"
+"<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p></body></html>", None))
         self.process_title.setText(QCoreApplication.translate("main_window", u"\u9032\u7a0b\u9632\u8b77", None))
         self.process_text.setText(QCoreApplication.translate("main_window", u"\u6b64\u9078\u9805\u53ef\u4ee5\u6514\u622a\u9032\u7a0b\u75c5\u6bd2", None))
         self.process_switch.setText(QCoreApplication.translate("main_window", u"\u95dc\u9589", None))

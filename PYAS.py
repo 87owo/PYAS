@@ -404,7 +404,7 @@ class MainWindow_Controller(QMainWindow):
                     widget.setText(self.trans(lang, widget._origin_text))
 
             elif hasattr(widget, "setText"):
-                if name == "log_text":
+                if name in ["log_text","license_text"]:
                     pass
                 else:
                     if not hasattr(widget, "_origin_text"):

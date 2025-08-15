@@ -65,6 +65,8 @@ PYAS/
 
 ## Program Architecture
 
+PYAS antivirus software complete program flow architecture diagram.
+
 <img width="23000" height="6000" alt="PYAS_Architecture" src="https://github.com/user-attachments/assets/3a7ce637-c2b3-4719-9658-07f286cfa879" />
 
 ## Packaged Releases

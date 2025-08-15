@@ -63,6 +63,12 @@ PYAS/
 └── ...                              # 其他補充資料夾與檔案
 ```
 
+## Program Architecture
+
+PYAS 防毒軟體完整程式流程架構圖。
+
+<img width="23000" height="6000" alt="PYAS_Architecture" src="https://github.com/user-attachments/assets/3a7ce637-c2b3-4719-9658-07f286cfa879" />
+
 ## 安裝版本
 
 打包發行版下載 : https://github.com/87owo/PYAS/releases

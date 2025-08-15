@@ -63,6 +63,12 @@ PYAS/
 └── ...                              # 其他补充文件夹与文件
 ```
 
+## 代码架构
+
+PYAS 杀毒软件完整代码流程架构图。
+
+<img width="23000" height="6000" alt="PYAS_Architecture" src="https://github.com/user-attachments/assets/3a7ce637-c2b3-4719-9658-07f286cfa879" />
+
 ## 安装版本
 
 打包发行版下载：https://github.com/87owo/PYAS/releases

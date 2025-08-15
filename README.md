@@ -34,19 +34,33 @@ The following lists the storage locations of all relevant code and other related
 ```
 PYAS/
 ├── Engine/
-│   ├── Models/              # Directory for ONNX deep learning models
-│   └── Rules/               # Directory for YARA and network IP rules
+│   ├── Models/
+│   │   ├── convert.py                  # Convert executable files or other files to images
+│   │   └── train.py                    # TensorFlow CNN model training complete code
+│   │
+│   └── Rules/
+│       ├── rules.yar                   # Yara virus signature rule matching
+│       └── rules.ips                   # IP network address rule matching
 │
 ├── Plugins/
-│   └── Filter/              # Windows kernel driver for security protection
+│   └── Filter/
+│       ├── DriverEntry.c               # Main driver entry and initialization logic
+│       ├── DriverEntry.h               # Global driver definitions, constants, and function prototypes
+│       ├── DriverPipe.c                # Kernel to user pipe logging implementation
+│       ├── ProtectBoot.c               # Disk boot sector write protection
+│       ├── ProtectImage.c              # Image load monitoring and shellcode detection
+│       ├── ProtectInject.c             # Process thread handle access control to prevent injection
+│       ├── ProtectReg.c                # Registry modification protection
+│       ├── ProtectRules.c              # White, block list, and matching logic for files registry
+│       └── ProtectRules.h              # Protection rule declarations
 │
-├── PYAS.py                  # Main application and interface call
-├── PYAS_Config.py           # Configuration handling and global parameters
-├── PYAS_Engine.py           # YARA, IP and ONNX scanning engine
-├── PYAS_Interface.py        # User interface definitions and widget logic
-├── PYAS_Resource.py         # Static picture resource management
-├── PYAS_Version.py          # Packaging and version info
-└── ...                      # Other supplementary folders and files
+├── PYAS.py                             # Main application entry point and UI to engine interface
+├── PYAS_Config.py                      # Configuration loading, saving, and global parameters
+├── PYAS_Engine.py                      # Core scanning engine: YARA, IP, ONNX model execution
+├── PYAS_Interface.py                   # User interface components and event handling
+├── PYAS_Resource.py                    # Static image and icon resource management
+├── PYAS_Version.py                     # Version metadata for packaging and updates
+└── ...                                 # Other supplementary folders and files
 ```
 
 ## Packaged Releases

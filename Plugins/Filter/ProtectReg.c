@@ -1,0 +1,116 @@
+#include <ntifs.h>
+#include "ProtectRules.h"
+#include "DriverEntry.h"
+
+static BOOLEAN QueryRegPathFromObject(PVOID KeyObject, PUNICODE_STRING OutPath, POBJECT_NAME_INFORMATION* OutInfo)
+{
+    ULONG len = 0;
+    NTSTATUS s = ObQueryNameString(KeyObject, NULL, 0, &len);
+    if (s != STATUS_INFO_LENGTH_MISMATCH)
+        return FALSE;
+    
+    POBJECT_NAME_INFORMATION p = (POBJECT_NAME_INFORMATION)ExAllocatePool2(POOL_FLAG_NON_PAGED, len, 'rgeR');
+    if (!p)
+        return FALSE;
+    
+    s = ObQueryNameString(KeyObject, p, len, &len);
+    if (!NT_SUCCESS(s) || !p->Name.Buffer || p->Name.Length == 0) {
+        ExFreePool(p);
+        return FALSE;
+    }
+    *OutInfo = p;
+    OutPath->Buffer = p->Name.Buffer;
+    OutPath->Length = p->Name.Length;
+    OutPath->MaximumLength = p->Name.Length;
+    return TRUE;
+}
+
+NTSTATUS RegistryProtectCallback(PVOID ctx, PVOID arg1, PVOID arg2)
+{
+    UNREFERENCED_PARAMETER(ctx);
+    if (g_Unloading)
+        return STATUS_SUCCESS;
+
+    REG_NOTIFY_CLASS type = (REG_NOTIFY_CLASS)(ULONG_PTR)arg1;
+    NTSTATUS status = STATUS_SUCCESS;
+    UNICODE_STRING checkReg = { 0 };
+    POBJECT_NAME_INFORMATION nameInfo = NULL;
+
+    UNICODE_STRING exe = { 0 };
+    WCHAR exeBuf[260] = { 0 };
+    exe.Buffer = exeBuf;
+    exe.MaximumLength = sizeof(exeBuf);
+    exe.Length = 0;
+
+    HANDLE pid = PsGetCurrentProcessId();
+    if (pid == (HANDLE)0 || pid == (HANDLE)4)
+        return STATUS_SUCCESS;
+
+    PUNICODE_STRING valueName = NULL;
+    BOOLEAN need_log = FALSE;
+    CHAR logbuf[1024] = { 0 };
+    BOOLEAN canQuery = (KeGetCurrentIrql() == PASSIVE_LEVEL);
+
+    if (type == RegNtPreSetValueKey) {
+        PREG_SET_VALUE_KEY_INFORMATION s = (PREG_SET_VALUE_KEY_INFORMATION)arg2;
+        valueName = s->ValueName;
+        if (canQuery)
+            QueryRegPathFromObject(s->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreDeleteValueKey) {
+        PREG_DELETE_VALUE_KEY_INFORMATION d = (PREG_DELETE_VALUE_KEY_INFORMATION)arg2;
+        valueName = d->ValueName;
+        if (canQuery)
+            QueryRegPathFromObject(d->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreDeleteKey) {
+        PREG_DELETE_KEY_INFORMATION d = (PREG_DELETE_KEY_INFORMATION)arg2;
+        if (canQuery)
+            QueryRegPathFromObject(d->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreRenameKey) {
+        PREG_RENAME_KEY_INFORMATION r = (PREG_RENAME_KEY_INFORMATION)arg2;
+        if (canQuery)
+            QueryRegPathFromObject(r->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreCreateKeyEx) {
+        PREG_CREATE_KEY_INFORMATION c = (PREG_CREATE_KEY_INFORMATION)arg2;
+        if (c->CompleteName)
+            checkReg = *c->CompleteName;
+    }
+    else if (type == RegNtPreReplaceKey) {
+        PREG_REPLACE_KEY_INFORMATION rk = (PREG_REPLACE_KEY_INFORMATION)arg2;
+        if (canQuery)
+            QueryRegPathFromObject(rk->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreSaveKey) {
+        PREG_SAVE_KEY_INFORMATION sk = (PREG_SAVE_KEY_INFORMATION)arg2;
+        if (canQuery)
+            QueryRegPathFromObject(sk->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreRestoreKey) {
+        PREG_RESTORE_KEY_INFORMATION res = (PREG_RESTORE_KEY_INFORMATION)arg2;
+        if (canQuery)
+            QueryRegPathFromObject(res->Object, &checkReg, &nameInfo);
+    }
+    else if (type == RegNtPreLoadKey) {
+        PREG_LOAD_KEY_INFORMATION lk = (PREG_LOAD_KEY_INFORMATION)arg2;
+        if (lk->KeyName)
+            checkReg = *lk->KeyName;
+    }
+    if (checkReg.Buffer || (valueName && valueName->Buffer)) {
+        GetProcessImagePathByPid(pid, &exe);
+        if (IsRegistryBlock(&checkReg, valueName, &exe)) {
+            RtlStringCchPrintfA(logbuf, sizeof(logbuf), "REG_BLOCK | %u | %wZ | %wZ", (ULONG)(ULONG_PTR)pid, &exe, &checkReg);
+            need_log = TRUE;
+            status = STATUS_ACCESS_DENIED;
+            if (canQuery)
+                ZwTerminateProcess(NtCurrentProcess(), STATUS_ACCESS_DENIED);
+        }
+    }
+    if (nameInfo)
+        ExFreePool(nameInfo);
+    if (need_log)
+        SendPipeLog(logbuf, strlen(logbuf));
+    return status;
+}

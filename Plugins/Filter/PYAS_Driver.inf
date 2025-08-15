@@ -1,0 +1,27 @@
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = System 
+ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider    = %ManufacturerName%
+CatalogFile = PYAS_Driver.cat
+PnpLockdown = 1
+DriverVer   = 
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[DefaultInstall.ntamd64]
+CopyFiles = @PYAS_Driver.sys
+AddService = PYAS_Driver,0x00000002
+
+[SourceDisksFiles]
+PYAS_Driver.sys = 1
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[Strings]
+ManufacturerName = "PYAS_Driver"
+DiskName = "PYAS_Driver"
+ServiceName="PYAS_Driver"
+ServiceDisplayName="PYAS_Driver"

@@ -68,4 +68,4 @@ PYAS/
 
 ## 授權條款
 
-https://github.com/87owo/PYAS/blob/main/LICENSE.md
+https://github.com/87owo/PYAS/blob/main/LICENSE.txt

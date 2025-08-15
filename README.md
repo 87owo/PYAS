@@ -68,4 +68,4 @@ Open Source Website : https://github.com/87owo/PYAS
 
 ## Project License
 
-https://github.com/87owo/PYAS/blob/main/LICENSE.md
+https://github.com/87owo/PYAS/blob/main/LICENSE.txt

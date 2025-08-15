@@ -1,7 +1,7 @@
 import os, gc, re, sys, time, json, base64
 import ctypes, ctypes.wintypes, threading
-import requests, pyperclip, winreg, shutil
-import traceback, hashlib, msvcrt
+import requests, webbrowser, winreg, shutil
+import traceback, hashlib, msvcrt, pyperclip
 
 from PYAS_Config import *
 from PYAS_Engine import *
@@ -112,17 +112,17 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.3",
+            "version": "3.3.4",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
             "sensitive": 95,
-            "custom_rule": {},
             "process_switch": True,
             "document_switch": True,
             "system_switch": True,
             "driver_switch": True,
             "network_switch": True,
+            "custom_rule": [],
         }
         self.pass_windows = [
             {"exe": "System Idle Process", "class": "", "title": ""},
@@ -230,7 +230,14 @@ class MainWindow_Controller(QMainWindow):
             return default_value.copy()
 
     def load_config(self):
+        existed = os.path.exists(self.file_config)
         self.pyas_config = self.read_config(self.file_config, self.pyas_default)
+        if existed:
+            dv = str(self.pyas_default.get("version", "")).strip()
+            cv = str(self.pyas_config.get("version", "")).strip()
+            if dv and dv != cv:
+                self.pyas_config["version"] = dv
+                self.save_config(self.file_config, self.pyas_config)
 
     def config_list(self, key):
         if key not in self.pyas_config:
@@ -341,7 +348,6 @@ class MainWindow_Controller(QMainWindow):
             elif self.install_system_driver():
                 self.start_daemon_thread(self.pipe_server_thread)
             else:
-                self.pyas_config[name] = False
                 self.send_message("驅動防護啟用失敗", "warn", True)
         elif name == "network_switch":
             if checked:
@@ -349,7 +355,6 @@ class MainWindow_Controller(QMainWindow):
         else:
             self.send_message(f"此功能不支持使用", "info", True)
         self.save_config(self.file_config, self.pyas_config)
-        self.apply_settings()
 
     def init_thread(self):
         self.start_daemon_thread(self.popup_intercept_thread)
@@ -393,6 +398,10 @@ class MainWindow_Controller(QMainWindow):
                     if not widget.property("_connected_toggle"):
                         widget.toggled.connect(lambda checked, b=widget: self.toggle_switch_text(b, checked))
                         widget.setProperty("_connected_toggle", True)
+                else:
+                    if not hasattr(widget, "_origin_text"):
+                        widget._origin_text = self.get_widget_text(widget)
+                    widget.setText(self.trans(lang, widget._origin_text))
 
             elif hasattr(widget, "setText"):
                 if name == "log_text":
@@ -630,12 +639,13 @@ class MainWindow_Controller(QMainWindow):
             elif m == "save":
                 select = QFileDialog.getSaveFileName(self, message)[0]
 
+            select = select or False
             now = time.strftime("%Y-%m-%d %H:%M:%S")
             output = f"[{now}] | {mode} | {message} | {select}"
             log_widget = self.widgets.get("log_text")
             if log_widget:
                 log_widget.append(output)
-            return select or False
+            return select
         except Exception:
             traceback.print_exc()
             return False
@@ -1312,6 +1322,59 @@ class MainWindow_Controller(QMainWindow):
 
 ####################################################################################################
 
+    def website_button(self):
+        try:
+            webbrowser.open("https://github.com/87owo/PYAS")
+            return True
+        except Exception as e:
+            self.send_message(e, "warn", False)
+            return False
+
+    def update_button(self):
+        try:
+            webbrowser.open("https://github.com/87owo/PYAS/releases")
+            return True
+        except Exception as e:
+            self.send_message(e, "warn", False)
+            return False
+
+    def update_button(self):
+        try:
+            current = str(self.pyas_config.get("version", "")).strip()
+            page = "https://github.com/87owo/PYAS/releases"
+            latest = ""
+            try:
+                j = requests.get("https://api.github.com/repos/87owo/PYAS/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "PYAS"}, timeout=10).json()
+                latest = (j.get("tag_name") or j.get("name") or "").strip()
+                page = j.get("html_url") or page
+            except Exception:
+                try:
+                    u = requests.get("https://github.com/87owo/PYAS/releases/latest", headers={"User-Agent": "PYAS"}, allow_redirects=True, timeout=10).url
+                    page = u or page
+                    m = re.search(r"/tag/([^/]+)$", str(u))
+                    latest = m.group(1).strip() if m else ""
+                except Exception:
+                    pass
+
+            rl = re.sub(r"^[vV]\s*", "", str(latest))
+            cl = re.sub(r"^[vV]\s*", "", str(current))
+            tr = tuple(int(x) for x in re.findall(r"\d+", rl))
+            tl = tuple(int(x) for x in re.findall(r"\d+", cl))
+            if tr and (not tl or tr > tl):
+                if self.send_message(f"發現新版本 {latest}，您確定要前往更新嗎?", "quest", True):
+                    webbrowser.open(page)
+            else:
+                if cl:
+                    self.send_message(f"當前已是最新版本 {current}", "info", True)
+                else:
+                    webbrowser.open(page)
+            return True
+        except Exception as e:
+            self.send_message(e, "warn", False)
+            return False
+
+####################################################################################################
+
     def lock_file(self, file, lock):
         try:
             if lock:
@@ -1372,7 +1435,7 @@ class MainWindow_Controller(QMainWindow):
                 state = self.scan_engine(file_path)
                 if state:
                     self.kernel32.TerminateProcess(h, 0)
-                    self.send_message(f"進程防護攔截 | 靜態掃描攔截 | {pid} | {file_path} | None", "notify", True)
+                    self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | {file_path} | None", "notify", True)
                 self.suspend_process(h, False)
             self.kernel32.CloseHandle(h)
         except Exception as e:
@@ -1419,8 +1482,7 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def protect_file_thread(self):
-        FILE_LIST_DIRECTORY = 0x0001
-        hDir = self.kernel32.CreateFileW(self.path_user, FILE_LIST_DIRECTORY, 0x00000007, None, 3, 0x02000000, None)
+        hDir = self.kernel32.CreateFileW(self.path_user, 0x0001, 0x00000007, None, 3, 0x02000000, None)
         buffer = ctypes.create_string_buffer(65536)
 
         while self.pyas_config.get("document_switch", False):
@@ -1438,7 +1500,7 @@ class MainWindow_Controller(QMainWindow):
                         state = self.scan_engine(file_path)
                         if state:
                             self.add_to_quarantine([file_path])
-                            self.send_message(f"檔案防護攔截 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
+                            self.send_message(f"檔案防護 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
             except Exception as e:
                 self.send_message(e, "warn", False)
         self.kernel32.CloseHandle(hDir)
@@ -1466,15 +1528,12 @@ class MainWindow_Controller(QMainWindow):
         try:
             connections = set()
             size = ctypes.wintypes.DWORD()
-            AF_INET = 2
-            TCP_TABLE_OWNER_PID_ALL = 5
-
-            ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0)
+            ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
             if ret != 122:
                 raise ctypes.WinError(ret)
 
             buf = ctypes.create_string_buffer(size.value)
-            ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0)
+            ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
             if ret != 0:
                 raise ctypes.WinError(ret)
 
@@ -1503,7 +1562,7 @@ class MainWindow_Controller(QMainWindow):
             if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
                 if hasattr(self.rule, "network") and remote_ip in self.rule.network:
                     self.kernel32.TerminateProcess(h_process, 0)
-                    self.send_message(f"網路防護攔截 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
+                    self.send_message(f"網路防護 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
             self.kernel32.CloseHandle(h_process)
         except Exception as e:
             self.send_message(e, "warn", False)

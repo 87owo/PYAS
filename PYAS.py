@@ -1623,8 +1623,41 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def pipe_server_thread(self):
-        # The source code cannot be made public due to security concerns
-        pass
+        pipe_path = r"\\.\pipe\PYAS_Output_Pipe"
+        PIPE_BUF_SIZE = 65536
+
+        while self.pyas_config.get("driver_switch", False):
+            try:
+                hPipe = self.kernel32.CreateNamedPipeW(pipe_path, 0x00000001, 0x00000004 | 0x00000002, 1, PIPE_BUF_SIZE, PIPE_BUF_SIZE, 0, None)
+                if hPipe == ctypes.c_void_p(-1).value:
+                    time.sleep(0.2)
+                    continue
+
+                while self.pyas_config.get("driver_switch", False):
+                    if not self.kernel32.ConnectNamedPipe(hPipe, None) and self.kernel32.GetLastError() != 535:
+                        time.sleep(0.2)
+                        continue
+
+                    buf = ctypes.create_string_buffer(PIPE_BUF_SIZE)
+                    bytes_read = ctypes.c_ulong(0)
+                    if not self.kernel32.ReadFile(hPipe, buf, PIPE_BUF_SIZE, ctypes.byref(bytes_read), None) or bytes_read.value == 0:
+                        self.kernel32.DisconnectNamedPipe(hPipe)
+                        time.sleep(0.2)
+                        continue
+
+                    msg = buf.raw[:bytes_read.value].decode("utf-8", errors="ignore")
+                    parts = [p.strip() for p in msg.split("|", 3)]
+                    if len(parts) == 4:
+                        rules, pid, raw_path, target = parts
+                        for old, new in self.block_replace.items():
+                            rules = rules.replace(old, new)
+                        self.send_message(f"驅動防護 | {rules} | {pid} | {raw_path} | {target}", "notify", True)
+
+                    self.kernel32.DisconnectNamedPipe(hPipe)
+                self.kernel32.CloseHandle(hPipe)
+            except Exception as e:
+                self.send_message(e, "warn", False)
+                time.sleep(0.5)
 
 ####################################################################################################
 

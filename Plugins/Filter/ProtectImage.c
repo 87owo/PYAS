@@ -91,48 +91,56 @@ static VOID ImageLoadNotify(IN PUNICODE_STRING FullImageName, IN HANDLE ProcessI
         return;
     if (ProcessId == (HANDLE)0 || ProcessId == (HANDLE)4) 
         return;
-    if (KeGetCurrentIrql() != PASSIVE_LEVEL) 
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL)
         return;
-
+    if (!ExAcquireRundownProtection(&g_Rundown))
+        return;
+    
     WCHAR exeBuf[512] = { 0 };
     UNICODE_STRING exeName = { 0 };
     exeName.Buffer = exeBuf;
     exeName.MaximumLength = sizeof(exeBuf);
     exeName.Length = 0;
-
+    
     if (!GetProcessImagePathByPid(ProcessId, &exeName)) {
         PEPROCESS eproc = PsGetCurrentProcess();
         PCSTR n = PsGetProcessImageFileName(eproc);
         size_t l = n ? strlen(n) : 0;
-        for (size_t i = 0; i < l && i < RTL_NUMBER_OF(exeBuf) - 1; i++)
+        
+        for (size_t i = 0; i < l && i < RTL_NUMBER_OF(exeBuf) - 1; i++) 
             exeBuf[i] = (WCHAR)n[i];
         exeBuf[l] = 0;
         exeName.Length = (USHORT)(l * sizeof(WCHAR));
     }
+    if (exeName.Length & 1) exeName.Length--;
     {
-        if (exeName.Length & 1)
-            exeName.Length--;
         size_t elen = exeName.Length / sizeof(WCHAR);
         if ((elen >= 14 && _wcsnicmp(exeName.Buffer + elen - 14, L"powershell.exe", 14) == 0) ||
-            (elen >= 8 && _wcsnicmp(exeName.Buffer + elen - 8, L"pwsh.exe", 8) == 0))
-            return;
+            (elen >= 8 && _wcsnicmp(exeName.Buffer + elen - 8, L"pwsh.exe", 8) == 0)) {
+            ExReleaseRundownProtection(&g_Rundown);
+            return; 
+        }
     }
-    if (IsWhitelist(&exeName)) 
-        return;
-
+    if (IsWhitelist(&exeName)) {
+        ExReleaseRundownProtection(&g_Rundown);
+        return; 
+    }
     CHAR logbuf[1024] = { 0 };
     if (FullImageName && FullImageName->Buffer) {
         if ((StrStrI(FullImageName->Buffer, L"clr.dll") || StrStrI(FullImageName->Buffer, L"mscorwks.dll")) && !IsFrameworkClrPath(FullImageName->Buffer)) {
             RtlStringCchPrintfA(logbuf, sizeof(logbuf), "CLR_BLOCK | %u | %wZ | %wZ", (ULONG)(ULONG_PTR)ProcessId, &exeName, FullImageName);
             SendPipeLog(logbuf, strlen(logbuf));
-            ZwTerminateProcess(NtCurrentProcess(), STATUS_ACCESS_DENIED);
+            ExReleaseRundownProtection(&g_Rundown);
+            return;
         }
     }
     if (CheckShellcodeWalkStack(8)) {
         RtlStringCchPrintfA(logbuf, sizeof(logbuf), "SHELLCODE_BLOCK | %u | %wZ | None", (ULONG)(ULONG_PTR)ProcessId, &exeName);
         SendPipeLog(logbuf, strlen(logbuf));
-        ZwTerminateProcess(NtCurrentProcess(), STATUS_ACCESS_DENIED);
+        ExReleaseRundownProtection(&g_Rundown);
+        return;
     }
+    ExReleaseRundownProtection(&g_Rundown);
 }
 
 NTSTATUS InitImageProtect(VOID) {

@@ -11,53 +11,58 @@ static OB_PREOP_CALLBACK_STATUS PreProcessCallback(PVOID RegistrationContext, PO
     UNREFERENCED_PARAMETER(RegistrationContext);
     if (g_Unloading)
         return OB_PREOP_SUCCESS;
-    if (!Info || Info->KernelHandle)
+    if (!Info || Info->KernelHandle) 
         return OB_PREOP_SUCCESS;
     if (!Info->Object)
         return OB_PREOP_SUCCESS;
     if (Info->Operation != OB_OPERATION_HANDLE_CREATE && Info->Operation != OB_OPERATION_HANDLE_DUPLICATE)
         return OB_PREOP_SUCCESS;
-
+    if (!ExAcquireRundownProtection(&g_Rundown)) 
+        return OB_PREOP_SUCCESS;
+    
     HANDLE cur = PsGetCurrentProcessId();
-    if (cur == (HANDLE)0 || cur == (HANDLE)4)
-        return OB_PREOP_SUCCESS;
-
+    if (cur == (HANDLE)0 || cur == (HANDLE)4) {
+        ExReleaseRundownProtection(&g_Rundown);
+        return OB_PREOP_SUCCESS; 
+    }
     HANDLE target = PsGetProcessId((PEPROCESS)Info->Object);
-    if (target == cur)
+    if (target == cur) { 
+        ExReleaseRundownProtection(&g_Rundown);
         return OB_PREOP_SUCCESS;
-
+    }
     ACCESS_MASK* desired = (Info->Operation == OB_OPERATION_HANDLE_CREATE) ? &Info->Parameters->CreateHandleInformation.DesiredAccess : &Info->Parameters->DuplicateHandleInformation.DesiredAccess;
     ACCESS_MASK mask = PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE;
-
     PCSTR tn = PsGetProcessImageFileName((PEPROCESS)Info->Object);
     if (tn && (_stricmp(tn, "lsass.exe") == 0))
         mask |= PROCESS_VM_READ;
-
-    if ((*desired & mask) == 0)
+    
+    if ((*desired & mask) == 0) {
+        ExReleaseRundownProtection(&g_Rundown); 
         return OB_PREOP_SUCCESS;
-
+    }
     BOOLEAN logok = (KeGetCurrentIrql() == PASSIVE_LEVEL);
     WCHAR cbuf[512] = { 0 }, tbuf[512] = { 0 };
     UNICODE_STRING cexe = { 0 }, texe = { 0 };
-    cexe.Buffer = cbuf;
-    cexe.MaximumLength = sizeof(cbuf);
-    texe.Buffer = tbuf;
-    texe.MaximumLength = sizeof(tbuf);
-
-    if (logok)
+    cexe.Buffer = cbuf; cexe.MaximumLength = sizeof(cbuf);
+    texe.Buffer = tbuf; texe.MaximumLength = sizeof(tbuf);
+    
+    if (logok) 
         GetProcessImagePathByPid(cur, &cexe);
-    if (logok && IsWhitelist(&cexe))
-        return OB_PREOP_SUCCESS;
-
+    if (logok && IsWhitelist(&cexe)) { 
+        ExReleaseRundownProtection(&g_Rundown); 
+        return OB_PREOP_SUCCESS; 
+    }
     ACCESS_MASK old = *desired;
     *desired &= ~mask;
     if ((*desired) != old && logok) {
         GetProcessImagePathByPid(target, &texe);
+        
         if (cexe.Length == 0) {
             PEPROCESS eproc = PsGetCurrentProcess();
             PCSTR n = PsGetProcessImageFileName(eproc);
             size_t l = n ? strlen(n) : 0;
-            for (size_t i = 0; i < l && i < RTL_NUMBER_OF(cbuf) - 1; i++)
+            
+            for (size_t i = 0; i < l && i < RTL_NUMBER_OF(cbuf) - 1; i++) 
                 cbuf[i] = (WCHAR)n[i];
             cbuf[l] = 0;
             cexe.Length = (USHORT)(l * sizeof(WCHAR));
@@ -65,57 +70,61 @@ static OB_PREOP_CALLBACK_STATUS PreProcessCallback(PVOID RegistrationContext, PO
         CHAR logbuf[1024] = { 0 };
         RtlStringCchPrintfA(logbuf, sizeof(logbuf), "INJECT_BLOCK | %u | %wZ | %wZ", (ULONG)(ULONG_PTR)cur, &cexe, &texe);
         SendPipeLog(logbuf, strlen(logbuf));
-        ZwTerminateProcess(NtCurrentProcess(), STATUS_ACCESS_DENIED);
     }
+    ExReleaseRundownProtection(&g_Rundown);
     return OB_PREOP_SUCCESS;
 }
 
-static OB_PREOP_CALLBACK_STATUS PreThreadCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info) {
+static OB_PREOP_CALLBACK_STATUS PreThreadCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info)
+{
     UNREFERENCED_PARAMETER(RegistrationContext);
-
-    if (!Info || Info->KernelHandle)
+    if (!Info || Info->KernelHandle) 
         return OB_PREOP_SUCCESS;
-    if (Info->Object == NULL)
+    if (Info->Object == NULL) 
         return OB_PREOP_SUCCESS;
     if (Info->Operation != OB_OPERATION_HANDLE_CREATE && Info->Operation != OB_OPERATION_HANDLE_DUPLICATE)
         return OB_PREOP_SUCCESS;
-
+    if (!ExAcquireRundownProtection(&g_Rundown)) 
+        return OB_PREOP_SUCCESS;
+    
     HANDLE cur = PsGetCurrentProcessId();
-    if (cur == (HANDLE)0 || cur == (HANDLE)4)
-        return OB_PREOP_SUCCESS;
-
+    if (cur == (HANDLE)0 || cur == (HANDLE)4) { 
+        ExReleaseRundownProtection(&g_Rundown);
+        return OB_PREOP_SUCCESS; 
+    }
     HANDLE owner = PsGetThreadProcessId((PETHREAD)Info->Object);
-    if (owner == cur)
-        return OB_PREOP_SUCCESS;
-
+    if (owner == cur) { 
+        ExReleaseRundownProtection(&g_Rundown); 
+        return OB_PREOP_SUCCESS; 
+    }
     ACCESS_MASK tmask = THREAD_SET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_IMPERSONATE | THREAD_DIRECT_IMPERSONATION;
     ACCESS_MASK* desired = (Info->Operation == OB_OPERATION_HANDLE_CREATE) ? &Info->Parameters->CreateHandleInformation.DesiredAccess : &Info->Parameters->DuplicateHandleInformation.DesiredAccess;
-    if ((*desired & tmask) == 0)
+    if ((*desired & tmask) == 0) { 
+        ExReleaseRundownProtection(&g_Rundown); 
         return OB_PREOP_SUCCESS;
-
+    }
     BOOLEAN logok = (KeGetCurrentIrql() == PASSIVE_LEVEL);
     WCHAR cbuf[512] = { 0 };
     UNICODE_STRING cexe = { 0 };
-
     cexe.Buffer = cbuf;
     cexe.MaximumLength = sizeof(cbuf);
-
-    if (logok)
+    
+    if (logok) 
         GetProcessImagePathByPid(cur, &cexe);
-    if (logok) {
-        if (IsWhitelist(&cexe))
-            return OB_PREOP_SUCCESS;
+    if (logok && IsWhitelist(&cexe)) {
+        ExReleaseRundownProtection(&g_Rundown);
+        return OB_PREOP_SUCCESS; 
     }
     ACCESS_MASK old = *desired;
     *desired &= ~tmask;
     if ((*desired) != old && logok) {
         CHAR logbuf[1024] = { 0 };
-
+        
         if (cexe.Length == 0) {
             PEPROCESS eproc = PsGetCurrentProcess();
             PCSTR n = PsGetProcessImageFileName(eproc);
             size_t l = n ? strlen(n) : 0;
-
+            
             for (size_t i = 0; i < l && i < RTL_NUMBER_OF(cbuf) - 1; i++)
                 cbuf[i] = (WCHAR)n[i];
             cbuf[l] = 0;
@@ -123,14 +132,19 @@ static OB_PREOP_CALLBACK_STATUS PreThreadCallback(PVOID RegistrationContext, POB
         }
         RtlStringCchPrintfA(logbuf, sizeof(logbuf), "THREAD_BLOCK | %u | %wZ | %u", (ULONG)(ULONG_PTR)cur, &cexe, (ULONG)(ULONG_PTR)owner);
         SendPipeLog(logbuf, strlen(logbuf));
-        ZwTerminateProcess(NtCurrentProcess(), STATUS_ACCESS_DENIED);
     }
+    ExReleaseRundownProtection(&g_Rundown);
     return OB_PREOP_SUCCESS;
 }
 
-NTSTATUS InitInjectProtect(VOID) {
-    UNICODE_STRING alt;
-    RtlInitUnicodeString(&alt, L"385000");
+NTSTATUS InitInjectProtect(VOID) 
+{
+    static WCHAR obAltBuf[32];
+    static UNICODE_STRING obAlt;
+    LARGE_INTEGER t = KeQueryPerformanceCounter(NULL);
+    RtlStringCchPrintfW(obAltBuf, RTL_NUMBER_OF(obAltBuf), L"385000.%I64x", t.QuadPart);
+    RtlInitUnicodeString(&obAlt, obAltBuf);
+    
     g_ObOps = (POB_OPERATION_REGISTRATION)ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(OB_OPERATION_REGISTRATION) * 2, 'bOpr');
     if (!g_ObOps)
         return STATUS_INSUFFICIENT_RESOURCES;
@@ -146,26 +160,27 @@ NTSTATUS InitInjectProtect(VOID) {
     RtlZeroMemory(&g_ObReg, sizeof(g_ObReg));
     g_ObReg.Version = OB_FLT_REGISTRATION_VERSION;
     g_ObReg.OperationRegistrationCount = 2;
-    g_ObReg.Altitude = alt;
+    g_ObReg.Altitude = obAlt;
     g_ObReg.RegistrationContext = NULL;
     g_ObReg.OperationRegistration = g_ObOps;
     
     NTSTATUS s = ObRegisterCallbacks(&g_ObReg, &g_ObRegHandle);
     if (!NT_SUCCESS(s)) {
-        ExFreePool(g_ObOps);
+        ExFreePool2(g_ObOps, 'bOpr', NULL, 0);
         g_ObOps = NULL;
         RtlZeroMemory(&g_ObReg, sizeof(g_ObReg));
     }
     return s;
 }
 
-VOID UninitInjectProtect(VOID) {
+VOID UninitInjectProtect(VOID)
+{
     if (g_ObRegHandle) { 
         ObUnRegisterCallbacks(g_ObRegHandle);
         g_ObRegHandle = NULL;
     }
-    if (g_ObOps) { 
-        ExFreePool(g_ObOps);
+    if (g_ObOps) {
+        ExFreePool2(g_ObOps, 'bOpr', NULL, 0);
         g_ObOps = NULL;
     }
     RtlZeroMemory(&g_ObReg, sizeof(g_ObReg));

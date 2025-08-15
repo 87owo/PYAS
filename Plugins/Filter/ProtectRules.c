@@ -260,17 +260,49 @@ static wchar_t* MatchListGetRule(PUNICODE_STRING s, wchar_t** list)
     return 0;
 }
 
+static __forceinline BOOLEAN USOK(PUNICODE_STRING s)
+{
+    return s && s->Buffer && s->Length;
+}
+
 BOOLEAN IsRegistryBlock(PUNICODE_STRING key, PUNICODE_STRING valueName, PUNICODE_STRING exe)
 {
-    if (exe && exe->Buffer && exe->Length) {
+    if (USOK(exe)) {
         if (IsWhitelist(exe))
             return FALSE;
     }
-    if (key && key->Buffer && key->Length) {
+    if (USOK(exe) && USOK(key)) {
+        size_t elen = exe->Length / sizeof(WCHAR);
+        size_t klen = key->Length / sizeof(WCHAR);
+        if (((elen >= 12 && _wcsnicmp(exe->Buffer + elen - 12, L"services.exe", 12) == 0) ||
+            (elen >= 11 && _wcsnicmp(exe->Buffer + elen - 11, L"svchost.exe", 11) == 0) ||
+            (elen >= 6 && _wcsnicmp(exe->Buffer + elen - 6, L"sc.exe", 6) == 0))) {
+            if (WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**"))
+                return FALSE;
+        }
+        if ((elen >= 14 && _wcsnicmp(exe->Buffer + elen - 14, L"powershell.exe", 14) == 0) || 
+            (elen >= 8 && _wcsnicmp(exe->Buffer + elen - 8, L"pwsh.exe", 8) == 0)) {
+            if (WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap") ||
+                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap\\**"))
+                return FALSE;
+        }
+        if ((elen >= 11 && _wcsnicmp(exe->Buffer + elen - 11, L"msiexec.exe", 11) == 0) || 
+            (elen >= 20 && _wcsnicmp(exe->Buffer + elen - 20, L"TrustedInstaller.exe", 20) == 0)) {
+            if (WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Installer\\**") ||
+                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Uninstall\\**") ||
+                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**"))
+                return FALSE;
+        }
+        if (elen >= 12 && _wcsnicmp(exe->Buffer + elen - 12, L"schtasks.exe", 12) == 0) {
+            if (WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\**"))
+                return FALSE;
+        }
+    }
+    if (USOK(key)) {
         if (MatchBlockReg(key))
             return TRUE;
     }
-    if (valueName && valueName->Buffer && valueName->Length) {
+    if (USOK(valueName)) {
         SIZE_T n = valueName->Length / sizeof(WCHAR);
         for (SIZE_T i = 0; g_BlockReg[i]; ++i) {
             wchar_t* pat = g_BlockReg[i];
@@ -291,40 +323,40 @@ BOOLEAN GetProcessImagePathByPid(HANDLE pid, PUNICODE_STRING ProcessImagePath)
     if (!NT_SUCCESS(status))
         return FALSE;
 
-#if (NTDDI_VERSION >= NTDDI_WIN10_RS1)
-    UNICODE_STRING* image = NULL;
-    status = SeLocateProcessImageName(process, &image);
-   
-    if (NT_SUCCESS(status) && image) {
-        if (ProcessImagePath->MaximumLength >= image->Length + sizeof(WCHAR)) {
+    HANDLE h = NULL;
+    status = ObOpenObjectByPointer(process, OBJ_KERNEL_HANDLE, NULL, PROCESS_QUERY_LIMITED_INFORMATION, *PsProcessType, KernelMode, &h);
+    if (!NT_SUCCESS(status)) {
+        ObDereferenceObject(process);
+        return FALSE;
+    }
+    ULONG len = 0;
+    status = ZwQueryInformationProcess(h, ProcessImageFileName, NULL, 0, &len);
+    if (status != STATUS_INFO_LENGTH_MISMATCH || len == 0) {
+        ZwClose(h);
+        ObDereferenceObject(process);
+        return FALSE;
+    }
+    PVOID buf = ExAllocatePool2(POOL_FLAG_NON_PAGED, len, 'iPgN');
+    if (!buf) {
+        ZwClose(h);
+        ObDereferenceObject(process);
+        return FALSE;
+    }
+    status = ZwQueryInformationProcess(h, ProcessImageFileName, buf, len, &len);
+    if (NT_SUCCESS(status)) {
+        PUNICODE_STRING image = (PUNICODE_STRING)buf;
+        if (image->Buffer && image->Length > 0 && ProcessImagePath->MaximumLength >= image->Length + sizeof(WCHAR)) {
             RtlCopyMemory(ProcessImagePath->Buffer, image->Buffer, image->Length);
             ProcessImagePath->Length = image->Length;
             ProcessImagePath->Buffer[image->Length / sizeof(WCHAR)] = 0;
-            ExFreePool(image);
+            ExFreePool2(buf, 'iPgN', NULL, 0);
+            ZwClose(h);
             ObDereferenceObject(process);
             return TRUE;
         }
-        ExFreePool(image);
     }
-#endif
-    {
-        PCSTR nameA = PsGetProcessImageFileName(process);
-        if (nameA) {
-            ANSI_STRING as;
-            UNICODE_STRING us = { 0 };
-            RtlInitAnsiString(&as, nameA);
-            
-            if (NT_SUCCESS(RtlAnsiStringToUnicodeString(&us, &as, TRUE)) && ProcessImagePath->MaximumLength >= us.Length + sizeof(WCHAR)) {
-                RtlCopyMemory(ProcessImagePath->Buffer, us.Buffer, us.Length);
-                ProcessImagePath->Length = us.Length;
-                ProcessImagePath->Buffer[us.Length / sizeof(WCHAR)] = 0;
-                RtlFreeUnicodeString(&us);
-                ObDereferenceObject(process);
-                return TRUE;
-            }
-            RtlFreeUnicodeString(&us);
-        }
-    }
+    ExFreePool2(buf, 'iPgN', NULL, 0);
+    ZwClose(h);
     ObDereferenceObject(process);
     return FALSE;
 }

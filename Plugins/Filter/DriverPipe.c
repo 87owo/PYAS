@@ -26,8 +26,8 @@ static VOID PipeLogWork(PDEVICE_OBJECT DeviceObject, PVOID Context)
         ZwClose(h);
     }
     IoFreeWorkItem(ctx->Item);
-    ExFreePool(ctx->Buf);
-    ExFreePool(ctx);
+    ExFreePool2(ctx->Buf, 'golP', NULL, 0);
+    ExFreePool2(ctx, 'golP', NULL, 0);
     if (InterlockedDecrement(&g_LogWorkCount) == 0 && g_Unloading)
         KeSetEvent(&g_LogDrainEvent, IO_NO_INCREMENT, FALSE);
 }
@@ -48,15 +48,14 @@ VOID SendPipeLog(PCSTR msg, SIZE_T len)
     ctx->Len = len;
     ctx->Buf = (PCHAR)ExAllocatePool2(POOL_FLAG_NON_PAGED, ctx->Len, 'golP');
     if (!ctx->Buf) {
-        ExFreePool(ctx);
+        ExFreePool2(ctx, 'golP', NULL, 0);
         return;
     }
-    
     RtlCopyMemory(ctx->Buf, msg, ctx->Len);
     ctx->Item = IoAllocateWorkItem(g_ControlDeviceObject);
     if (!ctx->Item) {
-        ExFreePool(ctx->Buf);
-        ExFreePool(ctx);
+        ExFreePool2(ctx->Buf, 'golP', NULL, 0);
+        ExFreePool2(ctx, 'golP', NULL, 0);
         return;
     }
     InterlockedIncrement(&g_LogWorkCount);

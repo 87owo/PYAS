@@ -759,8 +759,8 @@ class MainWindow_Controller(QMainWindow):
             elapsed = int(time.time() - self.scan_start)
             count = len(self.virus_results)
             result = (
-                f"發現 {count} 個病毒，耗時 {elapsed} 秒，共掃描 {self.scan_count} 檔案"
-                if count else f"未發現病毒，耗時 {elapsed} 秒，共掃描 {self.scan_count} 檔案")
+                f"發現 {count} 個病毒，共掃描 {self.scan_count} 檔案，耗時 {elapsed} 秒"
+                if count else f"未發現病毒，共掃描 {self.scan_count} 檔案，耗時 {elapsed} 秒")
             self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "病毒掃描"))
             self.scan_result_signal.emit(self.trans(self.pyas_config["language"], result))
 
@@ -794,20 +794,37 @@ class MainWindow_Controller(QMainWindow):
 
     def solve_button(self):
         deleted = 0
+        started = False
         virus_list = self.widgets["virus_list"]
+        start_ts = time.time()
+
         for i in reversed(range(virus_list.count())):
             item = virus_list.item(i)
             if item.checkState() == Qt.Checked:
+                file_path = self.norm_path(item.text().split(">")[1].strip())
+                if not started:
+                    self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "正在刪除"))
+                    started = True
+                self.scan_progress_signal.emit(file_path)
                 try:
-                    file_path = self.norm_path(item.text().split(">")[1].strip())
                     os.remove(file_path)
                     deleted += 1
+                    virus_list.takeItem(i)
+                    try:
+                        self.virus_results.remove(file_path)
+                    except ValueError:
+                        pass
                 except Exception as e:
                     self.send_message(e, "warn", False)
-                virus_list.takeItem(i)
-        self.widgets["solve_button"].hide()
-        msg = f"已清理 {deleted} 個病毒檔案" if deleted else "無檔案被刪除"
-        self.widgets["progress_text"].setText(self.trans(self.pyas_config["language"], msg))
+                QApplication.processEvents()
+        remain = virus_list.count()
+        elapsed = int(time.time() - start_ts)
+        self.widgets["solve_button"].setVisible(remain > 0)
+        self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "病毒掃描"))
+        result = (
+            f"剩餘 {remain} 個病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒"
+            if remain else f"未剩餘病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒")
+        self.scan_result_signal.emit(self.trans(self.pyas_config["language"], result))
 
     def stop_button(self):
         self.scan_running = False

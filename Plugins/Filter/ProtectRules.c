@@ -56,6 +56,16 @@ wchar_t* g_BlockFile[] = {
     L"\\Device\\HarddiskVolume*\\System Volume Information\\**",
     L"\\Device\\HarddiskVolume*\\Windows\\**",
     L"\\Device\\HarddiskVolume*\\ProgramData\\PYAS\\**",
+    L"\\Device\\HarddiskVolume*\\$*\\**",
+    
+    L"**\\CON**",
+    L"**\\PRN**",
+    L"**\\AUX**",
+    L"**\\NUL**",
+    L"**\\COM*\\**",
+    L"**\\LPT*\\**",
+    L"**\\evil*.exe",
+    L"**\\OSDATA**",
     NULL
 };
 

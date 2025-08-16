@@ -86,14 +86,16 @@ wchar_t* g_BlockReg[] = {
     L"\\REGISTRY\\MACHINE\\SOFTWARE\\Wow6432Node\\**",
     L"\\REGISTRY\\MACHINE\\**\\Microsoft\\Windows Defender\\**",
 
+    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\*\\StubPath",
+    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Windows*\\CurrentVersion\\**",
+    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Windows Script Host\\Settings\\**",
+
+    L"\\REGISTRY\\USER\\*_Classes\\*\\shell\\open\\command\\**",
     L"\\REGISTRY\\USER\\*_Classes\\CLSID\\{fdb00e52-a214-4aa1-8fba-4357bb0072ec}\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\**",
 
-    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\*\\StubPath",
-    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Windows*\\CurrentVersion\\**",
-    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Windows Script Host\\Settings\\**",
 
     L"DisableAntiSpyware",
     L"DisableWindowsUpdateAccess",

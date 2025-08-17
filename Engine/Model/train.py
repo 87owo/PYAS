@@ -67,7 +67,6 @@ def se_block(x, reduction):
     s = layers.Conv2D(filters // reduction, 1, padding='same', activation='gelu')(x)
     s = layers.BatchNormalization()(s)
     s = layers.Conv2D(filters, 1, padding='same', activation='sigmoid')(s)
-    s = layers.BatchNormalization()(s)
     return layers.multiply([x, s])
 
 def build_model(input_shape, num_classes):
@@ -98,6 +97,7 @@ train_ds, val_ds = load_dataset(r'./Image_File', r'./Image_File')
 for imgs, _ in train_ds.take(1):
     train_ds.image_shape = imgs.shape[1:]
     break
+
 strategy = tf.distribute.MirroredStrategy(cross_device_ops=tf.distribute.HierarchicalCopyAllReduce())
 with strategy.scope():
     try:
@@ -106,6 +106,7 @@ with strategy.scope():
     except:
         print("Creating a new model")
         model = build_model(train_ds.image_shape, len(train_ds.class_indices))
+    print(f"Total parameters: {model.count_params()}")
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
 input("Training complete.")

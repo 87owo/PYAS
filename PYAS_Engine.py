@@ -39,18 +39,18 @@ class rule_scanner:
             return False, False
 
 class model_scanner:
-    SHELLS = {
-        "0","1","2","3","4","5","6","7","8","9","cry","tvm","dec","enc","vmp","upx","aes","lzma","press","pack",
-        "enigma","protect","secur","asmstub","base","bss","clr_uef","cursors","transit","trs_age","engine","fio",
-        "fothk","h~;","icapsec","malloc_h","miniex","mssmixer","ndr64","nsys_wr","obr","wow","wow64svc","wpp_sf",
-        "pad","pgae","poolmi","proxy","qihoo","retpol","uedbg","tracesup","rwexec","rygs","s:@","sanontcp","segm",
-        "test","res","wisevec","viahwaes","orpc","nep","ace","extjmp","no_bbt","data","page","hexpthk"}
-
     def __init__(self):
         self.models = {}
-        self.suffix = {".com", ".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1", ".vbs", ".wsf"}
-        self.labels = ["Pefile/White", "Script/White", "Pefile/General", "Script/General"]
-        self.detect = {"Pefile/General", "Script/General"}
+        self.suffix = {
+            ".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys",
+            ".bat", ".cmd", ".html", ".js", ".php", ".ps1", ".vbs", ".wsf", ".xml"
+        }
+        self.labels = [
+            "Pefile/White", "Script/White", "Pefile/General", "Script/General"
+        ]
+        self.detect = {
+            "Pefile/General", "Script/General"
+        }
         self.resize = (224, 224)
 
     def load_path(self, path):
@@ -65,14 +65,8 @@ class model_scanner:
             except Exception:
                 return False
 
-    def is_valid_suffix(self, file_path):
-        return os.path.splitext(file_path)[-1].lower() in self.suffix
-
     def model_scan(self, file_path):
         try:
-            if not self.models or not self.is_valid_suffix(file_path):
-                return False, False
-
             model = next(iter(self.models.values()))
             shape = model.get_inputs()[0].shape
             channels = shape[-1] if shape[-1] in (1, 3) else (shape[1] if shape[1] in (1, 3) else 1)
@@ -131,7 +125,7 @@ class model_scanner:
 
     def get_type(self, file_path):
         match_data = {}
-        if not self.is_valid_suffix(file_path):
+        if not os.path.splitext(file_path)[-1].lower() in self.suffix:
             return match_data
         try:
             with pefile.PE(file_path, fast_load=True) as pe:
@@ -140,7 +134,7 @@ class model_scanner:
                     return {}
                 for section in pe.sections:
                     name = section.Name.rstrip(b'\x00').decode('latin1').lower()
-                    if (section.Characteristics & 0x00000020) and name not in self.SHELLS:
+                    if section.Characteristics & 0x00000020:
                         match_data[name] = section.get_data()
         except pefile.PEFormatError:
             with open(file_path, 'rb') as f:

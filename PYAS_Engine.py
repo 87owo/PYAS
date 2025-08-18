@@ -1,5 +1,71 @@
-import os, yara, numpy, locale, pefile, onnxruntime
+import os, yara, numpy, onnxruntime
+import ctypes, ctypes.wintypes, pefile
 from PIL import Image
+
+####################################################################################################
+
+class GUID(ctypes.Structure):
+    _fields_ = [
+        ("Data1", ctypes.wintypes.DWORD),
+        ("Data2", ctypes.wintypes.WORD),
+        ("Data3", ctypes.wintypes.WORD),
+        ("Data4", ctypes.c_ubyte * 8)]
+
+class WINTRUST_FILE_INFO(ctypes.Structure):
+    _fields_ = [
+        ("cbStruct", ctypes.wintypes.DWORD),
+        ("pcwszFilePath", ctypes.wintypes.LPCWSTR),
+        ("hFile", ctypes.wintypes.HANDLE),
+        ("pgKnownSubject", ctypes.wintypes.LPVOID)]
+
+class WINTRUST_DATA(ctypes.Structure):
+    _fields_ = [
+        ("cbStruct", ctypes.wintypes.DWORD),
+        ("pPolicyCallbackData", ctypes.wintypes.LPVOID),
+        ("pSIPClientData", ctypes.wintypes.LPVOID),
+        ("dwUIChoice", ctypes.wintypes.DWORD),
+        ("fdwRevocationChecks", ctypes.wintypes.DWORD),
+        ("dwUnionChoice", ctypes.wintypes.DWORD),
+        ("pFile", ctypes.POINTER(WINTRUST_FILE_INFO)),
+        ("dwStateAction", ctypes.wintypes.DWORD),
+        ("hWVTStateData", ctypes.wintypes.HANDLE),
+        ("pwszURLReference", ctypes.wintypes.LPCWSTR),
+        ("dwProvFlags", ctypes.wintypes.DWORD),
+        ("dwUIContext", ctypes.wintypes.DWORD),
+        ("pSignatureSettings", ctypes.wintypes.LPVOID)]
+
+####################################################################################################
+
+class sign_scanner:
+    def __init__(self):
+        self.verify = GUID(0x00AAC56B, 0xCD44, 0x11D0, (0x8C, 0xC2, 0x00, 0xC0, 0x4F, 0xC2, 0x95, 0xEE))
+
+    def init_windll(self, path):
+        for name in path:
+            try:
+                setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
+            except Exception as e:
+                self.send_message(e, "warn", False)
+
+        self.WinVerifyTrust = self.wintrust.WinVerifyTrust
+        self.WinVerifyTrust.restype = ctypes.wintypes.LONG
+        self.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.c_void_p]
+
+    def is_sign(self, file_path):
+        with pefile.PE(file, fast_load=True) as pe:
+            sec_dir = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+            return sec_dir.VirtualAddress != 0 and sec_dir.Size > 0
+
+    def sign_verify(self, file_path):
+        fi = WINTRUST_FILE_INFO(ctypes.sizeof(WINTRUST_FILE_INFO), file_path, None, None)
+        data = WINTRUST_DATA(ctypes.sizeof(WINTRUST_DATA), None, None, 2, 0, 1,
+            ctypes.pointer(fi), 1, None, None, 0, 0, None)
+        s = self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
+        data.dwStateAction = 2
+        self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
+        return s == 0
+
+####################################################################################################
 
 class rule_scanner:
     def __init__(self):
@@ -38,19 +104,18 @@ class rule_scanner:
         except Exception:
             return False, False
 
+####################################################################################################
+
 class model_scanner:
     def __init__(self):
         self.models = {}
         self.suffix = {
             ".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys",
-            ".bat", ".cmd", ".html", ".js", ".php", ".ps1", ".vbs", ".wsf", ".xml"
-        }
+            ".bat", ".cmd", ".html", ".js", ".php", ".ps1", ".vbs", ".wsf", ".xml"}
         self.labels = [
-            "Pefile/White", "Script/White", "Pefile/General", "Script/General"
-        ]
+            "Pefile/White", "Script/White", "Pefile/General", "Script/General"]
         self.detect = {
-            "Pefile/General", "Script/General"
-        }
+            "Pefile/General", "Script/General"}
         self.resize = (224, 224)
 
     def load_path(self, path):
@@ -109,6 +174,7 @@ class model_scanner:
         arr = numpy.frombuffer(file_data, dtype=numpy.uint8)
         img = numpy.zeros(wah*wah*channels, dtype=numpy.uint8)
         img[:len(file_data)] = arr
+
         if channels == 1:
             image = Image.fromarray(img.reshape((wah, wah)), 'L')
         else:

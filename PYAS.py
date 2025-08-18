@@ -89,6 +89,8 @@ class MainWindow_Controller(QMainWindow):
         self.python = sys.executable
         self.process_timer = QTimer(self)
 
+        self.sign = sign_scanner()
+        self.sign.init_windll(["wintrust"])
         self.model = model_scanner()
         self.model.load_path(self.path_models)
         self.rule = rule_scanner()
@@ -112,7 +114,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.4",
+            "version": "3.3.5",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -778,6 +780,9 @@ class MainWindow_Controller(QMainWindow):
 
     def scan_engine(self, file_path):
         try:
+            if self.sign.sign_verify(file_path):
+                return False
+
             label, level = self.model.model_scan(file_path)
             if label and level >= self.pyas_config.get("sensitive", 95):
                 return f"{label}.{level}"
@@ -786,9 +791,10 @@ class MainWindow_Controller(QMainWindow):
                 label, level = self.rule.yara_scan(file_path)
                 if label and level:
                     return f"{label}.{level}"
+            return False
         except Exception as e:
             self.send_message(e, "warn", False)
-        return None
+            return None
 
 ####################################################################################################
 
@@ -1662,7 +1668,8 @@ class MainWindow_Controller(QMainWindow):
                             rules = rules.replace(old, new)
                         self.send_message(f"驅動防護 | {rules} | {pid} | {raw_path} | {target}", "notify", True)
 
-                        if not self.is_in_whitelist(self.device_path_to_drive(raw_path)):
+                        file_path = self.device_path_to_drive(raw_path)
+                        if not self.is_in_whitelist(file_path) and not self.sign.sign_verify(file_path):
                             try:
                                 h = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid.strip()))
                                 if h:

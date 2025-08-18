@@ -84,9 +84,9 @@ wchar_t* g_BlockReg[] = {
     L"\\REGISTRY\\MACHINE\\SAM\\**",
     L"\\REGISTRY\\MACHINE\\SECURITY\\**",
 
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Control\\**",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\**",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Services\\**",
+    L"\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Control\\**",
+    L"\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Enum\\**",
+    L"\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Services\\**",
     L"\\REGISTRY\\MACHINE\\SYSTEM\\MountedDevices\\**",
     L"\\REGISTRY\\MACHINE\\SYSTEM\\Setup\\**",
 
@@ -94,6 +94,7 @@ wchar_t* g_BlockReg[] = {
     L"\\REGISTRY\\MACHINE\\SOFTWARE\\Policies\\Microsoft\\MMC\\**",
     L"\\REGISTRY\\MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\\**",
     L"\\REGISTRY\\MACHINE\\SOFTWARE\\Wow6432Node\\**",
+    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid",
     L"\\REGISTRY\\MACHINE\\**\\Microsoft\\Windows Defender\\**",
 
     L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\*\\StubPath",
@@ -105,7 +106,6 @@ wchar_t* g_BlockReg[] = {
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\**",
-
 
     L"DisableAntiSpyware",
     L"DisableWindowsUpdateAccess",
@@ -292,10 +292,12 @@ BOOLEAN IsRegistryBlock(PUNICODE_STRING key, PUNICODE_STRING valueName, PUNICODE
             if (WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**"))
                 return FALSE;
         }
-        if ((elen >= 14 && _wcsnicmp(exe->Buffer + elen - 14, L"powershell.exe", 14) == 0) || 
+        if ((elen >= 14 && _wcsnicmp(exe->Buffer + elen - 14, L"powershell.exe", 14) == 0) ||
             (elen >= 8 && _wcsnicmp(exe->Buffer + elen - 8, L"pwsh.exe", 8) == 0)) {
             if (WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap") ||
-                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap\\**"))
+                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap\\**") ||
+                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Notifications\\Data") ||
+                WildMatchN(key->Buffer, klen, L"\\REGISTRY\\**\\CurrentVersion\\Notifications\\Data\\**"))
                 return FALSE;
         }
         if ((elen >= 11 && _wcsnicmp(exe->Buffer + elen - 11, L"msiexec.exe", 11) == 0) || 

@@ -641,7 +641,7 @@ class MainWindow_Controller(QMainWindow):
             elif m == "save":
                 select = QFileDialog.getSaveFileName(self, message)[0]
 
-            select = select or False
+            select = select or None
             now = time.strftime("%Y-%m-%d %H:%M:%S")
             output = f"[{now}] | {mode} | {message} | {select}"
             log_widget = self.widgets.get("log_text")

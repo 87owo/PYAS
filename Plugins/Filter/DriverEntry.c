@@ -185,20 +185,20 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject)
 {
     UNREFERENCED_PARAMETER(DriverObject);
     g_Unloading = TRUE;
-    ExWaitForRundownProtectionRelease(&g_Rundown);
-    if (g_SymLinkCreated) { 
+    if (g_SymLinkCreated) {
         IoDeleteSymbolicLink(&g_SymLink);
         g_SymLinkCreated = FALSE;
     }
-    if (g_CmRegActive) { 
-        CmUnRegisterCallback(g_CmRegHandle); 
-        g_CmRegActive = FALSE; 
+    if (g_CmRegActive) {
+        CmUnRegisterCallback(g_CmRegHandle);
+        g_CmRegActive = FALSE;
     }
     UninitInjectProtect();
     UninitImageProtect();
+    ExWaitForRundownProtectionRelease(&g_Rundown);
     if (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0) {
         KeResetEvent(&g_LogDrainEvent);
-        while (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0) 
+        while (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0)
             KeWaitForSingleObject(&g_LogDrainEvent, Executive, KernelMode, FALSE, NULL);
     }
     for (ULONG i = 0; i < g_MbrFilterCount; ++i) {
@@ -209,28 +209,16 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject)
         }
     }
     g_MbrFilterCount = 0;
-    for (;;) {
-        if (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) == 0 && g_MbrFilterCount == 0 && g_ControlDeviceObject == NULL && DiskDrvObj == NULL)
-            break;
-        LARGE_INTEGER d = { 0 };
-        d.QuadPart = -10LL * 1000LL * 50LL;
-        KeDelayExecutionThread(KernelMode, FALSE, &d);
-        if (DiskDrvObj == NULL && g_ControlDeviceObject != NULL) { 
-            IoDeleteDevice(g_ControlDeviceObject); 
-            g_ControlDeviceObject = NULL; 
-        }
-        if (DiskDrvObj) { 
-            ObDereferenceObject(DiskDrvObj);
-            DiskDrvObj = NULL; 
-        }
+    if (DiskDrvObj) {
+        ObDereferenceObject(DiskDrvObj);
+        DiskDrvObj = NULL;
     }
-    {
-        LARGE_INTEGER sd = { 0 };
-        sd.QuadPart = -10LL * 1000LL * 300LL;
-        KeDelayExecutionThread(KernelMode, FALSE, &sd);
+    if (g_ControlDeviceObject) {
+        IoDeleteDevice(g_ControlDeviceObject);
+        g_ControlDeviceObject = NULL;
     }
-    if (g_GuardDevice) { 
-        IoDeleteDevice(g_GuardDevice); 
+    if (g_GuardDevice) {
+        IoDeleteDevice(g_GuardDevice);
         g_GuardDevice = NULL;
     }
 }

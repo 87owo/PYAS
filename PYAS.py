@@ -350,7 +350,7 @@ class MainWindow_Controller(QMainWindow):
             elif self.install_system_driver():
                 self.start_daemon_thread(self.pipe_server_thread)
             else:
-                self.send_message("驅動防護啟用失敗", "warn", True)
+                self.send_message("驅動防護啟用失敗，請重啟裝置來修復錯誤", "warn", True)
         elif name == "network_switch":
             if checked:
                 self.start_daemon_thread(self.protect_net_thread)

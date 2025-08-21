@@ -574,6 +574,8 @@ class MainWindow_Controller(QMainWindow):
             self.pyas_config["system_switch"] = False
             self.pyas_config["driver_switch"] = False
             self.pyas_config["network_switch"] = False
+
+            self.stop_button()
             self.stop_system_driver()
 
             self.minimize_button()
@@ -1142,6 +1144,7 @@ class MainWindow_Controller(QMainWindow):
             while True:
                 QApplication.processEvents()
                 title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
+                print(title, class_name, process_name)
                 if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
                     if self.send_message(f"您確定要攔截 {process_name} ({title}) 嗎?", "quest", True):
                         if self.add_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
@@ -1233,19 +1236,25 @@ class MainWindow_Controller(QMainWindow):
         return str(title.value), str(class_name.value), process_name
 
     def get_process_name_by_pid(self, pid):
+        name, _ = self.get_exe_info(pid)
+        if name:
+            return name
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
         entry = PROCESSENTRY32()
         entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
-        name = ""
+        result = ""
         if self.kernel32.Process32First(snapshot, ctypes.byref(entry)):
             while True:
                 if entry.th32ProcessID == pid:
-                    name = entry.szExeFile.decode("mbcs").rstrip("\x00")
+                    try:
+                        result = entry.szExeFile.decode("mbcs").rstrip("\x00")
+                    except Exception:
+                        result = ""
                     break
                 if not self.kernel32.Process32Next(snapshot, ctypes.byref(entry)):
                     break
         self.kernel32.CloseHandle(snapshot)
-        return name
+        return result
 
 ####################################################################################################
 

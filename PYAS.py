@@ -681,6 +681,13 @@ class MainWindow_Controller(QMainWindow):
             return ap if (not must_exist or os.path.exists(ap)) else None
         return path
 
+    def path_equal(self, a, b):
+        pa = self.norm_path(a, must_exist=False)
+        pb = self.norm_path(b, must_exist=False)
+        if not pa or not pb:
+            return False
+        return os.path.normcase(pa) == os.path.normcase(pb)
+
 ####################################################################################################
 
     @Slot()
@@ -1002,7 +1009,7 @@ class MainWindow_Controller(QMainWindow):
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if h:
                 file_path = self.norm_path(self.get_process_file(h))
-                if file_path == self.file_pyas:
+                if self.path_equal(file_path, self.file_pyas):
                     self.close()
                 else:
                     self.kernel32.TerminateProcess(h, 0)
@@ -1397,9 +1404,12 @@ class MainWindow_Controller(QMainWindow):
         return self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
 
     def is_in_whitelist(self, file_path):
-        file_hash = self.calc_file_hash(norm_path)
-        return any(item["file"] == norm_path and item["hash"] == file_hash
-            for item in self.pyas_config.get("white_list", []))
+        p = self.norm_path(file_path)
+        if not p:
+            return False
+        file_hash = self.calc_file_hash(p)
+        return any(os.path.normcase(item.get("file","")) == os.path.normcase(p) and
+            item.get("hash","") == file_hash for item in self.pyas_config.get("white_list", []))
 
     def init_whitelist(self):
         self.manage_named_list("white_list", [self.file_pyas], action="add", with_hash=True)

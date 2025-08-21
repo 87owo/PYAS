@@ -1,7 +1,7 @@
-import os, gc, re, sys, time, json, base64
+import os, gc, re, sys, time, json, shutil
 import ctypes, ctypes.wintypes, threading
-import requests, webbrowser, winreg, shutil
-import traceback, hashlib, msvcrt, pyperclip
+import requests, webbrowser, winreg, msvcrt
+import traceback, hashlib
 
 from PYAS_Config import *
 from PYAS_Engine import *
@@ -268,6 +268,7 @@ class MainWindow_Controller(QMainWindow):
         self.last_widget = self.widgets.get("home_window")
         self.setup_theme_mapping()
         self.setup_process_menu()
+        self.setup_scan_menu()
 
     def create_shadow(self):
         shadow = QGraphicsDropShadowEffect(self)
@@ -700,9 +701,9 @@ class MainWindow_Controller(QMainWindow):
 
     @Slot(str)
     def slot_scan_result(self, msg):
-        self.widgets["progress_text"].setText(msg)
         count = len(self.virus_results)
         self.widgets["solve_button"].setVisible(count > 0)
+        self.widgets["progress_text"].setText(msg)
         self.widgets["stop_button"].hide()
         self.widgets["method_button"].show()
         self.send_message(msg, "notify", True)
@@ -813,21 +814,20 @@ class MainWindow_Controller(QMainWindow):
                 if not started:
                     self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "正在刪除"))
                     started = True
+
                 self.scan_progress_signal.emit(file_path)
                 try:
                     os.remove(file_path)
                     deleted += 1
                     virus_list.takeItem(i)
-                    try:
-                        self.virus_results.remove(file_path)
-                    except ValueError:
-                        pass
+                    self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(e, "warn", False)
                 QApplication.processEvents()
+
         remain = virus_list.count()
-        elapsed = int(time.time() - start_ts)
         self.widgets["solve_button"].setVisible(remain > 0)
+        elapsed = int(time.time() - start_ts)
         self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "病毒掃描"))
         result = (
             f"剩餘 {remain} 個病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒"
@@ -837,6 +837,54 @@ class MainWindow_Controller(QMainWindow):
     def stop_button(self):
         self.scan_running = False
         self.widgets["stop_button"].hide()
+
+####################################################################################################
+
+    def setup_scan_menu(self):
+        widget = self.widgets.get("virus_list")
+        if widget:
+            widget.setContextMenuPolicy(Qt.CustomContextMenu)
+            widget.customContextMenuRequested.connect(self.show_scan_menu)
+
+    def show_scan_menu(self, pos):
+        widget = self.widgets.get("virus_list")
+        if not widget:
+            return
+        item = widget.itemAt(pos)
+        if not item:
+            return
+
+        lang = self.pyas_config.get("language", "english_switch")
+        menu = QMenu()
+        copy_action = menu.addAction(self.trans(lang, "複製路徑"))
+        del_action = menu.addAction(self.trans(lang, "刪除檔案"))
+
+        act = menu.exec(widget.viewport().mapToGlobal(pos))
+        if act == copy_action:
+            text = item.text()
+            if ">" in text:
+                path = text.split(">",1)[1].strip()
+            else:
+                path = text.strip()
+            p = str(path or "").replace("/", "\\")
+            QGuiApplication.clipboard().setText(p)
+
+        elif act == del_action:
+            text = item.text()
+            if ">" in text:
+                path = text.split(">",1)[1].strip()
+            else:
+                path = text.strip()
+            file_path = self.norm_path(path)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                    widget.takeItem(widget.row(item))
+                    self.virus_results.remove(file_path)
+                except Exception as e:
+                    self.send_message(e, "warn", False)
+            count = len(self.virus_results)
+            self.widgets["solve_button"].setVisible(count > 0)
 
 ####################################################################################################
 
@@ -908,10 +956,19 @@ class MainWindow_Controller(QMainWindow):
         idx = widget.indexAt(pos)
         if not idx.isValid() or idx.row() >= len(self.proc_pid_map):
             return
+
+        lang = self.pyas_config.get("language", "english_switch")
         pid = self.proc_pid_map[idx.row()]
         menu = QMenu()
-        kill_action = menu.addAction("結束進程")
-        if menu.exec(widget.viewport().mapToGlobal(pos)) == kill_action:
+        copy_action = menu.addAction(self.trans(lang, "複製路徑"))
+        kill_action = menu.addAction(self.trans(lang, "結束進程"))
+
+        act = menu.exec(widget.viewport().mapToGlobal(pos))
+        if act == copy_action:
+            _, file_path = self.get_exe_info(pid)
+            p = str(file_path or "").replace("/", "\\")
+            QGuiApplication.clipboard().setText(p)
+        elif act == kill_action:
             self.kill_process(pid)
 
     def kill_process(self, pid):
@@ -1198,12 +1255,25 @@ class MainWindow_Controller(QMainWindow):
                 rules = self.pyas_config.get("block_list", [])
                 if not rules:
                     continue
+
                 for hWnd in self.get_all_windows():
                     title, class_name, process_name = self.get_window_info(hWnd)
                     if (not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows) and
                         any(self.window_rule_match(item, process_name, class_name, title) for item in rules)):
+                        closed = False
                         for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
-                            self.user32.SendMessageW(hWnd, msg, 0xF060, 0)
+                            if self.user32.SendMessageW(hWnd, msg, 0xF060, 0) != 0:
+                                closed = True
+                                break
+
+                        if not closed and process_name:
+                            pid = ctypes.c_ulong()
+                            self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
+                            if pid.value:
+                                h = self.kernel32.OpenProcess(0x1F0FFF, False, pid.value)
+                                if h:
+                                    self.kernel32.TerminateProcess(h, 0)
+                                    self.kernel32.CloseHandle(h)
             except Exception as e:
                 self.send_message(e, "warn", False)
 
@@ -1576,17 +1646,17 @@ class MainWindow_Controller(QMainWindow):
     def handle_new_connection(self, key):
         pid, remote_addr, remote_port = key
         try:
-            h_process = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-            if not h_process:
+            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            if not h:
                 return
-            file_path = self.norm_path(self.get_process_file(h_process))
+            file_path = self.norm_path(self.get_process_file(h))
             remote_ip = f"{remote_addr & 0xFF}.{(remote_addr >> 8) & 0xFF}.{(remote_addr >> 16) & 0xFF}.{(remote_addr >> 24) & 0xFF}"
 
             if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
                 if hasattr(self.rule, "network") and remote_ip in self.rule.network:
-                    self.kernel32.TerminateProcess(h_process, 0)
+                    self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"網路防護 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
-            self.kernel32.CloseHandle(h_process)
+            self.kernel32.CloseHandle(h)
         except Exception as e:
             self.send_message(e, "warn", False)
 
@@ -1681,7 +1751,7 @@ class MainWindow_Controller(QMainWindow):
                             try:
                                 h = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid.strip()))
                                 if h:
-                                    self.kernel32.TerminateProcess(h, 0xC0000022)
+                                    self.kernel32.TerminateProcess(h, 0)
                                     self.kernel32.CloseHandle(h)
                             except Exception as e:
                                 self.send_message(e, "warn", False)

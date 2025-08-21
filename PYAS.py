@@ -669,7 +669,7 @@ class MainWindow_Controller(QMainWindow):
                 q_args.append(Q_ARG("QString", str(arg)))
         QMetaObject.invokeMethod(obj, method, Qt.QueuedConnection, *q_args)
 
-    def norm_path(self, path, must_exist=False):
+    def norm_path(self, path, must_exist=True):
         if isinstance(path, list):
             return [p for p in (self.norm_path(x, must_exist) for x in path) if p]
         if isinstance(path, tuple):
@@ -678,7 +678,7 @@ class MainWindow_Controller(QMainWindow):
             return {p for p in (self.norm_path(x, must_exist) for x in path) if p}
         if isinstance(path, str):
             ap = os.path.normpath(os.path.abspath(path))
-            return ap if (not must_exist or os.path.exists(ap)) else ""
+            return ap if (not must_exist or os.path.exists(ap)) else None
         return path
 
 ####################################################################################################
@@ -898,8 +898,7 @@ class MainWindow_Controller(QMainWindow):
             file_path = self.norm_path(path)
             if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
                 n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
-                if n > 0:
-                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
+                self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
 
 ####################################################################################################
 
@@ -996,15 +995,14 @@ class MainWindow_Controller(QMainWindow):
             if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
                 file_path = self.norm_path(file_path or "")
                 n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
-                if n > 0:
-                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
+                self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
 
     def kill_process(self, pid):
         try:
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if h:
                 file_path = self.norm_path(self.get_process_file(h))
-                if hasattr(self, "file_pyas") and file_path == getattr(self, "file_pyas", None):
+                if file_path == self.file_pyas:
                     self.close()
                 else:
                     self.kernel32.TerminateProcess(h, 0)
@@ -1399,7 +1397,6 @@ class MainWindow_Controller(QMainWindow):
         return self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
 
     def is_in_whitelist(self, file_path):
-        norm_path = self.norm_path(file_path)
         file_hash = self.calc_file_hash(norm_path)
         return any(item["file"] == norm_path and item["hash"] == file_hash
             for item in self.pyas_config.get("white_list", []))
@@ -1683,9 +1680,9 @@ class MainWindow_Controller(QMainWindow):
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if not h:
                 return
-            file_path = self.norm_path(self.get_process_file(h))
             remote_ip = f"{remote_addr & 0xFF}.{(remote_addr >> 8) & 0xFF}.{(remote_addr >> 16) & 0xFF}.{(remote_addr >> 24) & 0xFF}"
 
+            file_path = self.norm_path(self.get_process_file(h))
             if file_path and not self.is_in_whitelist(file_path):
                 if hasattr(self.rule, "network") and remote_ip in self.rule.network:
                     self.kernel32.TerminateProcess(h, 0)
@@ -1780,7 +1777,7 @@ class MainWindow_Controller(QMainWindow):
                             rules = rules.replace(old, new)
                         self.send_message(f"驅動防護 | {rules} | {pid} | {raw_path} | {target}", "notify", True)
 
-                        file_path = self.device_path_to_drive(raw_path)
+                        file_path = self.norm_path(self.device_path_to_drive(raw_path))
                         if not self.is_in_whitelist(file_path) and not self.sign.sign_verify(file_path):
                             try:
                                 h = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid.strip()))

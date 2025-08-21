@@ -1144,7 +1144,6 @@ class MainWindow_Controller(QMainWindow):
             while True:
                 QApplication.processEvents()
                 title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
-                print(title, class_name, process_name)
                 if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
                     if self.send_message(f"您確定要攔截 {process_name} ({title}) 嗎?", "quest", True):
                         if self.add_window_rule(self.pyas_config["block_list"], process_name, class_name, title):

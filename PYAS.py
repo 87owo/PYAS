@@ -623,7 +623,8 @@ class MainWindow_Controller(QMainWindow):
             if not isinstance(message, str):
                 message = str(message)
             if message and translate:
-                message = self.trans(self.pyas_config["language"], message)
+                lang = self.pyas_config.get("language", "english_switch")
+                message = self.trans(lang, message)
 
             m = mode.lower()
             if m == "quest":
@@ -724,8 +725,9 @@ class MainWindow_Controller(QMainWindow):
             self.scan_start = time.time()
             self.last_widget = self.widgets.get("scan_window")
             self.scan_reset_signal.emit()
-            self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "正在掃描"))
-            self.scan_progress_signal.emit(self.trans(self.pyas_config["language"], "正在初始化中"))
+
+            lang = self.pyas_config.get("language", "english_switch")
+            self.scan_progress_signal.emit(self.trans(lang, "正在初始化中"))
         except Exception as e:
             self.send_message(e, "warn", False)
 
@@ -764,17 +766,21 @@ class MainWindow_Controller(QMainWindow):
                     if state:
                         self.virus_results.append(norm_path)
                         self.scan_add_virus_signal.emit(f"[{state}] > {norm_path}")
+
+                    lang = self.pyas_config.get("language", "english_switch")
+                    self.progress_title_signal.emit(self.trans(lang, "正在掃描"))
                     self.scan_progress_signal.emit(norm_path)
                 except Exception as e:
                     self.send_message(e, "warn", False)
         finally:
-            elapsed = int(time.time() - self.scan_start)
             count = len(self.virus_results)
+            elapsed = int(time.time() - self.scan_start)
             result = (
                 f"發現 {count} 個病毒，共掃描 {self.scan_count} 檔案，耗時 {elapsed} 秒"
                 if count else f"未發現病毒，共掃描 {self.scan_count} 檔案，耗時 {elapsed} 秒")
-            self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "病毒掃描"))
-            self.scan_result_signal.emit(self.trans(self.pyas_config["language"], result))
+            lang = self.pyas_config.get("language", "english_switch")
+            self.progress_title_signal.emit(self.trans(lang, "病毒掃描"))
+            self.scan_result_signal.emit(self.trans(lang, result))
 
     def yield_files(self, targets):
         if isinstance(targets, str):
@@ -810,7 +816,6 @@ class MainWindow_Controller(QMainWindow):
 
     def solve_button(self):
         deleted = 0
-        started = False
         virus_list = self.widgets["virus_list"]
         start_ts = time.time()
 
@@ -818,11 +823,10 @@ class MainWindow_Controller(QMainWindow):
             item = virus_list.item(i)
             if item.checkState() == Qt.Checked:
                 file_path = self.norm_path(item.text().split(">")[1].strip())
-                if not started:
-                    self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "正在刪除"))
-                    started = True
-
+                lang = self.pyas_config.get("language", "english_switch")
+                self.progress_title_signal.emit(self.trans(lang, "正在刪除"))
                 self.scan_progress_signal.emit(file_path)
+
                 try:
                     os.remove(file_path)
                     deleted += 1
@@ -832,14 +836,15 @@ class MainWindow_Controller(QMainWindow):
                     self.send_message(e, "warn", False)
                 QApplication.processEvents()
 
-        remain = virus_list.count()
-        self.widgets["solve_button"].setVisible(remain > 0)
+        count = virus_list.count()
+        self.widgets["solve_button"].setVisible(count > 0)
         elapsed = int(time.time() - start_ts)
-        self.progress_title_signal.emit(self.trans(self.pyas_config["language"], "病毒掃描"))
         result = (
-            f"剩餘 {remain} 個病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒"
-            if remain else f"未剩餘病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒")
-        self.scan_result_signal.emit(self.trans(self.pyas_config["language"], result))
+            f"剩餘 {count} 個病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒"
+            if count else f"未剩餘病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒")
+        lang = self.pyas_config.get("language", "english_switch")
+        self.progress_title_signal.emit(self.trans(lang, "病毒掃描"))
+        self.scan_result_signal.emit(self.trans(lang, result))
 
     def stop_button(self):
         self.scan_running = False

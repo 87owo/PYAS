@@ -1010,7 +1010,7 @@ class MainWindow_Controller(QMainWindow):
             if h:
                 file_path = self.norm_path(self.get_process_file(h))
                 if self.path_equal(file_path, self.file_pyas):
-                    self.close()
+                    self.close_button()
                 else:
                     self.kernel32.TerminateProcess(h, 0)
                 self.kernel32.CloseHandle(h)

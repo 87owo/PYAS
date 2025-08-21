@@ -655,6 +655,8 @@ class MainWindow_Controller(QMainWindow):
             traceback.print_exc()
             return False
 
+####################################################################################################
+
     def invoke_method(self, obj, method, *args):
         q_args = []
         for arg in args:
@@ -666,12 +668,16 @@ class MainWindow_Controller(QMainWindow):
                 q_args.append(Q_ARG("QString", str(arg)))
         QMetaObject.invokeMethod(obj, method, Qt.QueuedConnection, *q_args)
 
-    def norm_path(self, path):
-        if isinstance(path, (list, tuple, set)):
-            t = type(path)
-            return t(self.norm_path(p) for p in path)
+    def norm_path(self, path, must_exist=False):
+        if isinstance(path, list):
+            return [p for p in (self.norm_path(x, must_exist) for x in path) if p]
+        if isinstance(path, tuple):
+            return tuple(p for p in (self.norm_path(x, must_exist) for x in path) if p)
+        if isinstance(path, set):
+            return {p for p in (self.norm_path(x, must_exist) for x in path) if p}
         if isinstance(path, str):
-            return os.path.normpath(os.path.abspath(path))
+            ap = os.path.normpath(os.path.abspath(path))
+            return ap if (not must_exist or os.path.exists(ap)) else ""
         return path
 
 ####################################################################################################
@@ -753,6 +759,7 @@ class MainWindow_Controller(QMainWindow):
                     if self.is_in_whitelist(norm_path):
                         continue
                     self.scan_count += 1
+
                     state = self.scan_engine(norm_path)
                     if state:
                         self.virus_results.append(norm_path)
@@ -858,33 +865,36 @@ class MainWindow_Controller(QMainWindow):
         menu = QMenu()
         copy_action = menu.addAction(self.trans(lang, "複製路徑"))
         del_action = menu.addAction(self.trans(lang, "刪除檔案"))
-
+        white_action = menu.addAction(self.trans(lang, "增加白名單"))
         act = menu.exec(widget.viewport().mapToGlobal(pos))
+
+        text = item.text()
+        if ">" in text:
+            path = text.split(">", 1)[1].strip()
+        else:
+            path = text.strip()
+
         if act == copy_action:
-            text = item.text()
-            if ">" in text:
-                path = text.split(">",1)[1].strip()
-            else:
-                path = text.strip()
-            p = str(path or "").replace("/", "\\")
-            QGuiApplication.clipboard().setText(p)
+            QGuiApplication.clipboard().setText(str(path or "").replace("/", "\\"))
 
         elif act == del_action:
-            text = item.text()
-            if ">" in text:
-                path = text.split(">",1)[1].strip()
-            else:
-                path = text.strip()
             file_path = self.norm_path(path)
-            if os.path.exists(file_path):
+            if file_path and self.send_message("您確定要刪除檔案嗎?", "quest"):
                 try:
                     os.remove(file_path)
                     widget.takeItem(widget.row(item))
                     self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(e, "warn", False)
-            count = len(self.virus_results)
-            self.widgets["solve_button"].setVisible(count > 0)
+                count = len(self.virus_results)
+                self.widgets["solve_button"].setVisible(count > 0)
+
+        elif act == white_action:
+            file_path = self.norm_path(path)
+            if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
+                n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
+                if n > 0:
+                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
 
 ####################################################################################################
 
@@ -892,6 +902,7 @@ class MainWindow_Controller(QMainWindow):
         pe = self.get_process_entry()
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
         result, success = [], self.kernel32.Process32First(snapshot, ctypes.byref(pe))
+
         while success:
             pid = pe.th32ProcessID
             name, file_path = (None, None)
@@ -904,6 +915,7 @@ class MainWindow_Controller(QMainWindow):
                         name = raw.decode("mbcs", errors="replace") or None
                     except Exception:
                         name = None
+
             result.append((pid, name, file_path))
             success = self.kernel32.Process32Next(snapshot, ctypes.byref(pe))
         self.kernel32.CloseHandle(snapshot)
@@ -914,6 +926,7 @@ class MainWindow_Controller(QMainWindow):
         self.proc_pid_map = [pid for pid, _, _ in procs]
         widget = self.widgets.get("manage_list")
         info_text = self.widgets.get("info_text")
+
         if widget:
             model = QStringListModel([f"{name or 'None'} | {pid} | {file_path or 'None'}" for pid, name, file_path in procs])
             widget.setModel(model)
@@ -935,6 +948,7 @@ class MainWindow_Controller(QMainWindow):
     def start_process_timer(self):
         if hasattr(self, "process_timer") and self.process_timer.isActive():
             return
+
         self.process_timer = QTimer(self)
         self.process_timer.timeout.connect(self.refresh_process)
         self.process_timer.start(0)
@@ -958,18 +972,27 @@ class MainWindow_Controller(QMainWindow):
             return
 
         lang = self.pyas_config.get("language", "english_switch")
-        pid = self.proc_pid_map[idx.row()]
         menu = QMenu()
         copy_action = menu.addAction(self.trans(lang, "複製路徑"))
         kill_action = menu.addAction(self.trans(lang, "結束進程"))
-
+        white_action = menu.addAction(self.trans(lang, "增加白名單"))
         act = menu.exec(widget.viewport().mapToGlobal(pos))
+
+        pid = self.proc_pid_map[idx.row()]
+        name, file_path = self.get_exe_info(pid)
+
         if act == copy_action:
-            _, file_path = self.get_exe_info(pid)
-            p = str(file_path or "").replace("/", "\\")
-            QGuiApplication.clipboard().setText(p)
+            QGuiApplication.clipboard().setText(str(file_path or "").replace("/", "\\"))
+
         elif act == kill_action:
             self.kill_process(pid)
+
+        elif act == white_action:
+            if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
+                file_path = self.norm_path(file_path or "")
+                n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
+                if n > 0:
+                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
 
     def kill_process(self, pid):
         try:
@@ -1062,6 +1085,7 @@ class MainWindow_Controller(QMainWindow):
     def repair_system_mbr(self):
         if not hasattr(self, "mbr_backup") or not self.mbr_backup:
             return
+
         for drive, mbr_value in self.mbr_backup.items():
             drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
@@ -1080,9 +1104,11 @@ class MainWindow_Controller(QMainWindow):
             wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
             if not os.path.exists(wallpaper):
                 return
+
             key = r"Control Panel\\Desktop"
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE) as reg:
                 winreg.SetValueEx(reg, "Wallpaper", 0, winreg.REG_SZ, wallpaper)
+
             theme_dir = os.path.join(self.path_appdata, "Microsoft", "Windows", "Themes")
             for fname in ["TranscodedWallpaper", "TranscodedWallpaper.tmp"]:
                 fpath = os.path.join(theme_dir, fname)
@@ -1091,6 +1117,7 @@ class MainWindow_Controller(QMainWindow):
                         os.remove(fpath)
                     except Exception:
                         pass
+
             cache_dir = os.path.join(theme_dir, "CachedFiles")
             if os.path.exists(cache_dir):
                 try:
@@ -1200,11 +1227,12 @@ class MainWindow_Controller(QMainWindow):
         if self.send_message("請選擇要攔截的軟體彈窗", "quest", True):
             while True:
                 QApplication.processEvents()
-                title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
-                if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
-                    if self.send_message(f"您確定要攔截 {process_name} ({title}) 嗎?", "quest", True):
-                        if self.add_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
-                            self.send_message(f"成功增加到彈窗攔截: {process_name} ({title})", "info", True)
+
+                title, class_name, proc_name = self.get_window_info(self.user32.GetForegroundWindow())
+                if proc_name and not any(self.window_rule_match(item, proc_name, class_name, title) for item in self.pass_windows):
+                    if self.send_message(f"您確定要攔截 {proc_name} ({title}) 嗎?", "quest", True):
+                        if self.add_window_rule(self.pyas_config["block_list"], proc_name, class_name, title):
+                            self.send_message(f"成功增加到彈窗攔截: {proc_name} ({title})", "info", True)
                         else:
                             self.send_message("已存在彈窗攔截", "info", True)
                     break
@@ -1216,32 +1244,33 @@ class MainWindow_Controller(QMainWindow):
         if self.send_message("請選擇要取消攔截的軟體彈窗", "quest", True):
             while True:
                 QApplication.processEvents()
-                title, class_name, process_name = self.get_window_info(self.user32.GetForegroundWindow())
-                if process_name and not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows):
-                    if self.send_message(f"您確定要取消攔截 {process_name} ({title}) 嗎?", "quest", True):
-                        if self.remove_window_rule(self.pyas_config["block_list"], process_name, class_name, title):
-                            self.send_message(f"成功取消彈窗攔截: {process_name} ({title})", "info", True)
+
+                title, class_name, proc_name = self.get_window_info(self.user32.GetForegroundWindow())
+                if proc_name and not any(self.window_rule_match(item, proc_name, class_name, title) for item in self.pass_windows):
+                    if self.send_message(f"您確定要取消攔截 {proc_name} ({title}) 嗎?", "quest", True):
+                        if self.remove_window_rule(self.pyas_config["block_list"], proc_name, class_name, title):
+                            self.send_message(f"成功取消彈窗攔截: {proc_name} ({title})", "info", True)
                         else:
                             self.send_message("未找到彈窗攔截", "info", True)
                     break
         self.start_daemon_thread(self.popup_intercept_thread)
 
-    def window_rule_match(self, item, process_name, class_name, title):
-        for k, v in zip(["exe", "class", "title"], [process_name, class_name, title]):
+    def window_rule_match(self, item, proc_name, class_name, title):
+        for k, v in zip(["exe", "class", "title"], [proc_name, class_name, title]):
             if item.get(k, "") and item.get(k, "") != v:
                 return False
         return True
 
-    def add_window_rule(self, rule_list, process_name, class_name, title):
-        if not any(self.window_rule_match(item, process_name, class_name, title) for item in rule_list):
-            rule_list.append({"exe": process_name, "class": class_name, "title": title})
+    def add_window_rule(self, rule_list, proc_name, class_name, title):
+        if not any(self.window_rule_match(item, proc_name, class_name, title) for item in rule_list):
+            rule_list.append({"exe": proc_name, "class": class_name, "title": title})
             self.save_config(self.file_config, self.pyas_config)
             return True
         return False
 
-    def remove_window_rule(self, rule_list, process_name, class_name, title):
+    def remove_window_rule(self, rule_list, proc_name, class_name, title):
         before = len(rule_list)
-        rule_list[:] = [item for item in rule_list if not self.window_rule_match(item, process_name, class_name, title)]
+        rule_list[:] = [item for item in rule_list if not self.window_rule_match(item, proc_name, class_name, title)]
         if len(rule_list) < before:
             self.save_config(self.file_config, self.pyas_config)
             return True
@@ -1257,16 +1286,17 @@ class MainWindow_Controller(QMainWindow):
                     continue
 
                 for hWnd in self.get_all_windows():
-                    title, class_name, process_name = self.get_window_info(hWnd)
-                    if (not any(self.window_rule_match(item, process_name, class_name, title) for item in self.pass_windows) and
-                        any(self.window_rule_match(item, process_name, class_name, title) for item in rules)):
+                    title, class_name, proc_name = self.get_window_info(hWnd)
+                    if (not any(self.window_rule_match(item, proc_name, class_name, title) for item in self.pass_windows) and
+                        any(self.window_rule_match(item, proc_name, class_name, title) for item in rules)):
                         closed = False
+
                         for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
                             if self.user32.SendMessageW(hWnd, msg, 0xF060, 0) != 0:
                                 closed = True
                                 break
 
-                        if not closed and process_name:
+                        if not closed and proc_name:
                             pid = ctypes.c_ulong()
                             self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
                             if pid.value:
@@ -1297,20 +1327,22 @@ class MainWindow_Controller(QMainWindow):
         self.user32.GetClassNameW(hWnd, class_name, 256)
         pid = ctypes.c_ulong()
         self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
-        process_name = ""
+
+        proc_name = ""
         try:
-            process_name = self.get_process_name_by_pid(pid.value)
+            proc_name = self.get_process_name(pid.value)
         except Exception:
             pass
-        return str(title.value), str(class_name.value), process_name
+        return str(title.value), str(class_name.value), proc_name
 
-    def get_process_name_by_pid(self, pid):
-        name, _ = self.get_exe_info(pid)
+    def get_process_name(self, pid):
+        name, file_path = self.get_exe_info(pid)
         if name:
             return name
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
         entry = PROCESSENTRY32()
         entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
+
         result = ""
         if self.kernel32.Process32First(snapshot, ctypes.byref(entry)):
             while True:
@@ -1330,36 +1362,32 @@ class MainWindow_Controller(QMainWindow):
     def whitelist_button(self):
         self.config_list("white_list")
         files = self.send_message("選擇檔案", "files", True)
-        if files:
-            if self.send_message("您確定要增加到白名單嗎?", "quest"):
-                n = self.manage_named_list("white_list", files, action="add", with_hash=True)
-                self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info")
+        if files and self.send_message("您確定要增加到白名單嗎?", "quest"):
+            n = self.manage_named_list("white_list", files, action="add", with_hash=True)
+            self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info")
 
     def whitelist_button_2(self):
         self.config_list("white_list")
         files = self.send_message("選擇檔案", "files", True)
-        if files:
-            if self.send_message("您確定要移除白名單嗎?", "quest"):
-                n = self.manage_named_list("white_list", files, action="remove", with_hash=True)
-                self.send_message(f"成功移除白名單，共 {n} 個檔案", "info")
+        if files and self.send_message("您確定要移除白名單嗎?", "quest"):
+            n = self.manage_named_list("white_list", files, action="remove", with_hash=True)
+            self.send_message(f"成功移除白名單，共 {n} 個檔案", "info")
 
     def quarantine_button(self):
         self.config_list("quarantine")
         files = self.send_message("選擇檔案", "files", True)
-        if files:
-            if self.send_message("您確定要增加到隔離區嗎?", "quest"):
-                n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
-                if n > 0:
-                    self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info")
+        if files and self.send_message("您確定要增加到隔離區嗎?", "quest"):
+            n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
+            if n > 0:
+                self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info")
 
     def quarantine_button_2(self):
         self.config_list("quarantine")
         quarantine_dir = os.path.join(self.path_config, "quarantine")
         files = self.send_message("選擇檔案", "files", True)
-        if files:
-            if self.send_message("您確定要移除隔離區嗎?", "quest"):
-                n = self.manage_named_list("quarantine", files, action="remove", with_hash=True, lock_func=self.lock_file)
-                self.send_message(f"成功移除隔離區，共 {n} 個檔案", "info")
+        if files and self.send_message("您確定要移除隔離區嗎?", "quest"):
+            n = self.manage_named_list("quarantine", files, action="remove", with_hash=True, lock_func=self.lock_file)
+            self.send_message(f"成功移除隔離區，共 {n} 個檔案", "info")
 
     def add_to_quarantine(self, files):
         self.config_list("quarantine")
@@ -1379,9 +1407,9 @@ class MainWindow_Controller(QMainWindow):
     def manage_named_list(self, list_key, files, action="add", with_hash=True, lock_func=None):
         target_list = self.config_list(list_key)
         files = files or []
-        norm_paths = self.norm_path(files)
+        norm_paths = self.norm_path(files, must_exist=True)
         if isinstance(norm_paths, str):
-            norm_paths = [norm_paths]
+            norm_paths = [norm_paths] if norm_paths else []
 
         n = 0
         if action == "add":
@@ -1522,8 +1550,9 @@ class MainWindow_Controller(QMainWindow):
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if not h:
                 return
+
             file_path = self.norm_path(self.get_process_file(h))
-            if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
+            if file_path and not self.is_in_whitelist(file_path):
                 self.suspend_process(h, True)
                 state = self.scan_engine(file_path)
                 if state:
@@ -1652,7 +1681,7 @@ class MainWindow_Controller(QMainWindow):
             file_path = self.norm_path(self.get_process_file(h))
             remote_ip = f"{remote_addr & 0xFF}.{(remote_addr >> 8) & 0xFF}.{(remote_addr >> 16) & 0xFF}.{(remote_addr >> 24) & 0xFF}"
 
-            if file_path and os.path.exists(file_path) and not self.is_in_whitelist(file_path):
+            if file_path and not self.is_in_whitelist(file_path):
                 if hasattr(self.rule, "network") and remote_ip in self.rule.network:
                     self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"網路防護 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)

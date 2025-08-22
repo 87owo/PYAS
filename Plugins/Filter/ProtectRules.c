@@ -1,6 +1,6 @@
 #include <ntifs.h>
-#include "ProtectRules.h"
 #include "DriverEntry.h"
+#include "ProtectRules.h"
 
 wchar_t* g_Whitelist[] = {
     L"\\Device\\HarddiskVolume*\\Windows\\**",
@@ -47,7 +47,7 @@ wchar_t* g_AttachDisk[] = {
 };
 
 wchar_t* g_BlockFile[] = {
-    L"\\DosDevices\\**",
+    L"\\Device\\Harddisk*\\DR*",
     L"\\Device\\Harddisk*\\Partition\\**",
     L"\\Device\\HarddiskVolume*\\Boot\\**",
     L"\\Device\\HarddiskVolume*\\EFI\\**",
@@ -55,8 +55,9 @@ wchar_t* g_BlockFile[] = {
     L"\\Device\\HarddiskVolume*\\Recovery\\**",
     L"\\Device\\HarddiskVolume*\\System Volume Information\\**",
     L"\\Device\\HarddiskVolume*\\Windows\\**",
-    L"\\Device\\HarddiskVolume*\\ProgramData\\PYAS\\**",
     L"\\Device\\HarddiskVolume*\\$*\\**",
+    L"\\Device\\HarddiskVolume*\\ProgramData\\PYAS\\**",
+    L"**\\PYAS.exe",
     
     L"**\\CON**",
     L"**\\PRN**",
@@ -76,6 +77,19 @@ wchar_t* g_BlockRansom[] = {
     L"\\Device\\HarddiskVolume*\\Users\\*\\Music\\**",
     L"\\Device\\HarddiskVolume*\\Users\\*\\Pictures\\**",
     L"\\Device\\HarddiskVolume*\\Users\\*\\Videos\\**",
+    NULL
+};
+
+wchar_t* g_Blocksuffix[] = {
+    L".exe", L".dll", L".sys", L".com", L".scr",
+    L".zip", L".7z", L".rar", L".tar", L".gz",
+    L".js", L".bat", L".cmd", L".ps1", L".vbs",
+    L".ppt", L".pptx", L".wps", L".txt", L".rtf",
+    L".pdf", L".xls", L".xlsx", L".doc", L".docx",
+    L".jpg", L".jpeg", L".png", L".webp", L".gif",
+    L".mp3", L".wav", L".aac", L".ogg", L".flac",
+    L".mp4", L".avi", L".mov", L".wmv", L".mkv",
+    L".aux", L".cur", L".mui", L".ttf", L".efi",
     NULL
 };
 
@@ -390,4 +404,33 @@ BOOLEAN MatchBlockReg(PUNICODE_STRING s)
 wchar_t* GetMatchedBlockRegRule(PUNICODE_STRING s)
 {
     return MatchListGetRule(s, g_BlockReg);
+}
+
+BOOLEAN MatchBlockFile(PUNICODE_STRING s)
+{
+    return MatchList(s, g_BlockFile);
+}
+
+BOOLEAN MatchBlockRansom(PUNICODE_STRING s)
+{
+    return MatchList(s, g_BlockRansom);
+}
+
+wchar_t* GetMatchedBlockFileRule(PUNICODE_STRING s)
+{
+    return MatchListGetRule(s, g_BlockFile);
+}
+
+BOOLEAN HasBlockedSuffix(PUNICODE_STRING s)
+{
+    if (!USOK(s))
+        return FALSE;
+    SIZE_T n = s->Length / sizeof(WCHAR);
+    for (SIZE_T i = 0; g_Blocksuffix[i]; ++i) {
+        wchar_t* ext = g_Blocksuffix[i];
+        SIZE_T m = wcslen(ext);
+        if (n >= m && _wcsnicmp(s->Buffer + (n - m), ext, m) == 0)
+            return TRUE;
+    }
+    return FALSE;
 }

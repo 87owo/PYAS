@@ -2,9 +2,10 @@
 #include <ntifs.h>
 #include <ntstrsafe.h>
 #include <ntdddisk.h>
+#include <ntddscsi.h>
 
 #define PIPE_NAME L"\\??\\pipe\\PYAS_Output_Pipe"
-#define MAX_MBR_TARGETS 52
+#define MAX_MBR_TARGETS 256
 
 #ifndef POOL_FLAG_NON_PAGED
 #define POOL_FLAG_NON_PAGED 0x00000001
@@ -48,6 +49,9 @@
 #ifndef THREAD_DIRECT_IMPERSONATION
 #define THREAD_DIRECT_IMPERSONATION 0x0200
 #endif
+#ifndef FILE_DISPOSITION_DELETE
+#define FILE_DISPOSITION_DELETE 0x00000001
+#endif
 #ifndef UINT
 typedef unsigned int UINT;
 #endif
@@ -60,6 +64,7 @@ extern ULONG g_MbrFilterCount;
 extern KSPIN_LOCK g_ProtectLock;
 extern LARGE_INTEGER g_CmRegHandle;
 extern POBJECT_TYPE* IoDriverObjectType;
+extern POBJECT_TYPE* IoFileObjectType;
 extern FAST_MUTEX HookMutex;
 extern PDRIVER_OBJECT DiskDrvObj;
 extern PCSTR PsGetProcessImageFileName(PEPROCESS Process);
@@ -74,14 +79,14 @@ typedef VOID(NTAPI* _pyas_ExFreePoolWithTag)(PVOID, ULONG);
 static __forceinline PVOID PYAS_ExAllocatePool2(ULONG f, SIZE_T s, ULONG t) {
     static _pyas_ExAllocatePool2 p2 = 0;
     if (!p2) {
-        UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExAllocatePool2"); 
-        p2 = (_pyas_ExAllocatePool2)MmGetSystemRoutineAddress(&n); 
+        UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExAllocatePool2");
+        p2 = (_pyas_ExAllocatePool2)MmGetSystemRoutineAddress(&n);
     }
     if (p2)
         return p2(f, s, t);
     static _pyas_ExAllocatePoolWithTag p1 = 0;
     if (!p1) {
-        UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExAllocatePoolWithTag"); 
+        UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExAllocatePoolWithTag");
         p1 = (_pyas_ExAllocatePoolWithTag)MmGetSystemRoutineAddress(&n);
     }
     if (p1)
@@ -93,8 +98,8 @@ static __forceinline VOID PYAS_ExFreePool2(PVOID a, ULONG t, PVOID h, ULONG f) {
     UNREFERENCED_PARAMETER(h);
     UNREFERENCED_PARAMETER(f);
     static _pyas_ExFreePool2 p2 = 0;
-    if (!p2) { 
-        UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExFreePool2"); 
+    if (!p2) {
+        UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExFreePool2");
         p2 = (_pyas_ExFreePool2)MmGetSystemRoutineAddress(&n);
     }
     if (p2) {
@@ -102,13 +107,13 @@ static __forceinline VOID PYAS_ExFreePool2(PVOID a, ULONG t, PVOID h, ULONG f) {
         return;
     }
     static _pyas_ExFreePoolWithTag p1 = 0;
-    if (!p1) { 
+    if (!p1) {
         UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExFreePoolWithTag");
         p1 = (_pyas_ExFreePoolWithTag)MmGetSystemRoutineAddress(&n);
     }
-    if (p1) { 
+    if (p1) {
         p1(a, t);
-        return; 
+        return;
     }
 }
 

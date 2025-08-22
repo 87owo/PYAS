@@ -13,6 +13,9 @@ BOOLEAN g_CmRegActive = FALSE;
 EX_RUNDOWN_REF g_Rundown;
 PDEVICE_OBJECT g_GuardDevice = NULL;
 
+PDEVICE_OBJECT g_MbrFilterTargets[MAX_MBR_TARGETS] = { 0 };
+ULONG g_MbrFilterCount = 0;
+
 volatile LONG g_LogWorkCount = 0;
 static UNICODE_STRING g_DeviceName;
 static WCHAR g_DeviceNameBuf[64];
@@ -90,7 +93,6 @@ static NTSTATUS AttachDiskFilters(PDRIVER_OBJECT DriverObject)
         status = IoCreateDevice(DriverObject, 0, NULL, lower->DeviceType, lower->Characteristics, FALSE, &filter);
         if (!NT_SUCCESS(status))
             continue;
-        
         filter->Flags |= (lower->Flags & (DO_BUFFERED_IO | DO_DIRECT_IO | DO_POWER_PAGABLE));
         status = IoAttachDeviceToDeviceStackSafe(filter, lower, &attached);
         if (!NT_SUCCESS(status) || !attached) {
@@ -109,22 +111,79 @@ static NTSTATUS AttachDiskFilters(PDRIVER_OBJECT DriverObject)
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS AttachFsFilters(PDRIVER_OBJECT DriverObject)
+{
+    UNICODE_STRING symDev = RTL_CONSTANT_STRING(L"IoDeviceObjectType");
+    POBJECT_TYPE* pDevType = (POBJECT_TYPE*)MmGetSystemRoutineAddress(&symDev);
+    if (!pDevType || !*pDevType)
+        return STATUS_NOT_SUPPORTED;
+
+    NTSTATUS status = STATUS_SUCCESS;
+    for (ULONG i = 0; g_AttachDisk[i] && g_MbrFilterCount < MAX_MBR_TARGETS; ++i) {
+        UNICODE_STRING name;
+        RtlInitUnicodeString(&name, g_AttachDisk[i]);
+        PDEVICE_OBJECT fsCtl = NULL;
+        
+        status = ObReferenceObjectByName(&name, OBJ_CASE_INSENSITIVE, NULL, 0, *pDevType, KernelMode, NULL, (PVOID*)&fsCtl);
+        if (!NT_SUCCESS(status) || !fsCtl)
+            continue;
+        
+        PDRIVER_OBJECT fsDrv = fsCtl->DriverObject;
+        if (fsDrv) {
+            ULONG need = 0;
+            
+            status = IoEnumerateDeviceObjectList(fsDrv, NULL, 0, &need);
+            if (status == STATUS_BUFFER_TOO_SMALL || status == STATUS_SUCCESS) {
+                PDEVICE_OBJECT* list = (PDEVICE_OBJECT*)ExAllocatePool2(POOL_FLAG_NON_PAGED, need * sizeof(PDEVICE_OBJECT), 'fsTA');
+                if (list) {
+                    
+                    status = IoEnumerateDeviceObjectList(fsDrv, list, need * sizeof(PDEVICE_OBJECT), &need);
+                    if (NT_SUCCESS(status)) {
+                        for (ULONG j = 0; j < need && g_MbrFilterCount < MAX_MBR_TARGETS; ++j) {
+                            
+                            PDEVICE_OBJECT lower = list[j], filter, attached = NULL;
+                            NTSTATUS s2 = IoCreateDevice(DriverObject, 0, NULL, lower->DeviceType, lower->Characteristics, FALSE, &filter);
+                            if (!NT_SUCCESS(s2))
+                                continue;
+                            
+                            filter->Flags |= (lower->Flags & (DO_BUFFERED_IO | DO_DIRECT_IO | DO_POWER_PAGABLE));
+                            s2 = IoAttachDeviceToDeviceStackSafe(filter, lower, &attached);
+                            if (!NT_SUCCESS(s2) || !attached) {
+                                IoDeleteDevice(filter);
+                                continue;
+                            }
+                            filter->StackSize = lower->StackSize + 1;
+                            filter->AlignmentRequirement = lower->AlignmentRequirement;
+                            filter->DeviceExtension = attached;
+                            filter->Flags &= ~DO_DEVICE_INITIALIZING;
+                            g_MbrFilterTargets[g_MbrFilterCount++] = filter;
+                        }
+                    }
+                    ExFreePool2(list, 'fsTA', NULL, 0);
+                }
+            }
+        }
+        ObDereferenceObject(fsCtl);
+    }
+    return STATUS_SUCCESS;
+}
+
 NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
 {
     UNREFERENCED_PARAMETER(RegistryPath);
-    
+
     KeInitializeSpinLock(&g_ProtectLock);
     ExInitializeFastMutex(&HookMutex);
     KeInitializeEvent(&g_LogDrainEvent, NotificationEvent, TRUE);
     g_Unloading = FALSE;
     g_CmRegActive = FALSE;
-    
+
     InterlockedExchange(&g_LogWorkCount, 0);
     ExInitializeRundownProtection(&g_Rundown);
     {
         UNICODE_STRING guardName = RTL_CONSTANT_STRING(L"\\Device\\PYAS_Driver_Guard");
         NTSTATUS gs = IoCreateDevice(DriverObject, 0, &guardName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_GuardDevice);
-        if (!NT_SUCCESS(gs)) 
+        if (!NT_SUCCESS(gs))
             return STATUS_DEVICE_BUSY;
     }
     {
@@ -135,11 +194,11 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         g_DeviceName.Length = (USHORT)(wcslen(g_DeviceName.Buffer) * sizeof(WCHAR));
     }
     NTSTATUS status = IoCreateDevice(DriverObject, 0, &g_DeviceName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_ControlDeviceObject);
-    if (!NT_SUCCESS(status)) 
+    if (!NT_SUCCESS(status))
         return status;
-    
+
     DriverObject->DriverUnload = DriverUnload;
-    for (ULONG i = 0; i < IRP_MJ_MAXIMUM_FUNCTION; ++i) 
+    for (ULONG i = 0; i < IRP_MJ_MAXIMUM_FUNCTION; ++i)
         DriverObject->MajorFunction[i] = CombinedDispatch;
     g_ControlDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
     IoDeleteSymbolicLink(&g_SymLink);
@@ -157,7 +216,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         if (!NT_SUCCESS(status)) {
             IoDeleteDevice(g_ControlDeviceObject);
             g_ControlDeviceObject = NULL;
-            if (g_GuardDevice) { 
+            if (g_GuardDevice) {
                 IoDeleteDevice(g_GuardDevice);
                 g_GuardDevice = NULL;
             }
@@ -172,11 +231,12 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         RtlStringCchPrintfW(regAltBuf, RTL_NUMBER_OF(regAltBuf), L"385100.%I64x", t.QuadPart);
         RtlInitUnicodeString(&regAlt, regAltBuf);
         status = CmRegisterCallbackEx(RegistryProtectCallback, &regAlt, DriverObject, NULL, &g_CmRegHandle, NULL);
-        if (NT_SUCCESS(status)) 
+        if (NT_SUCCESS(status))
             g_CmRegActive = TRUE;
     }
     InitImageProtect();
     InitInjectProtect();
+    AttachFsFilters(DriverObject);
     AttachDiskFilters(DriverObject);
     return STATUS_SUCCESS;
 }

@@ -20,8 +20,7 @@ static VOID PipeLogWork(PDEVICE_OBJECT DeviceObject, PVOID Context)
 
     RtlInitUnicodeString(&name, PIPE_NAME);
     InitializeObjectAttributes(&oa, &name, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
-    if (NT_SUCCESS(ZwCreateFile(&h, FILE_GENERIC_WRITE, &oa, &iosb, NULL, 0, 0, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0)))
-    {
+    if (NT_SUCCESS(ZwCreateFile(&h, FILE_GENERIC_WRITE, &oa, &iosb, NULL, 0, 0, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0))) {
         ZwWriteFile(h, NULL, NULL, NULL, &iosb, ctx->Buf, (ULONG)(ctx->Len > 0xFFFFFFFF ? 0xFFFFFFFF : ctx->Len), NULL, NULL);
         ZwClose(h);
     }
@@ -40,11 +39,9 @@ VOID SendPipeLog(PCSTR msg, SIZE_T len)
         return;
     if (g_Unloading)
         return;
-    
     PPIPE_LOG_CTX ctx = (PPIPE_LOG_CTX)ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(PIPE_LOG_CTX), 'golP');
     if (!ctx)
         return;
-    
     ctx->Len = len;
     ctx->Buf = (PCHAR)ExAllocatePool2(POOL_FLAG_NON_PAGED, ctx->Len, 'golP');
     if (!ctx->Buf) {

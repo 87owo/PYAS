@@ -1,35 +1,15 @@
 #include <ntifs.h>
 #include "DriverEntry.h"
-#include "ProtectRules.h"
+#include "ProtectMatch.h"
 
 static BOOLEAN g_ImageNotifyEnabled = FALSE;
-
-static BOOLEAN StrStrI(const wchar_t* s, const wchar_t* sub)
-{
-    if (!s || !sub)
-        return FALSE;
-    size_t n = wcslen(s), m = wcslen(sub);
-    if (m == 0 || n < m)
-        return FALSE;
-    for (size_t i = 0; i + m <= n; i++) {
-        size_t j = 0;
-        for (; j < m; j++) {
-            WCHAR a = s[i + j], b = sub[j];
-            if (a >= L'A' && a <= L'Z') a += 32;
-            if (b >= L'A' && b <= L'Z') b += 32;
-            if (a != b) break;
-        }
-        if (j == m)
-            return TRUE;
-    }
-    return FALSE;
-}
 
 static BOOLEAN CheckVadExec(PVOID a)
 {
     MEMORY_BASIC_INFORMATION mbi = { 0 };
     SIZE_T ret = 0;
     NTSTATUS s = ZwQueryVirtualMemory(NtCurrentProcess(), a, MemoryBasicInformation, &mbi, sizeof(mbi), &ret);
+    
     if (!NT_SUCCESS(s))
         return FALSE;
     if (mbi.State != MEM_COMMIT)
@@ -48,9 +28,11 @@ static BOOLEAN WalkForShellcode(ULONG h)
     ULONG c = RtlWalkFrameChain(frames, MAXWALK, 1);
     if (c == 0)
         return FALSE;
+    
     ULONG limit = RTL_NUMBER_OF(frames);
     ULONG count = c < limit ? c : limit;
     ULONG d = h < count ? h : count;
+    
     for (ULONG i = 0; i < d; i++) {
         PVOID p = frames[i];
         if (p && CheckVadExec(p))
@@ -67,25 +49,13 @@ static BOOLEAN WalkForShellcode(ULONG h)
     return FALSE;
 }
 
-static BOOLEAN IsFrameworkClrPath(const wchar_t* s)
-{
-    if (!s)
-        return FALSE;
-    if (!StrStrI(s, L"\\Windows\\Microsoft.NET\\"))
-        return FALSE;
-    if (!StrStrI(s, L"\\Framework\\") && !StrStrI(s, L"\\Framework64\\"))
-        return FALSE;
-    if (StrStrI(s, L"\\clr.dll") || StrStrI(s, L"\\mscorwks.dll"))
-        return TRUE;
-    return FALSE;
-}
-
 static VOID LogAnsi3(PCSTR tag, ULONG upid, PUNICODE_STRING s1, PUNICODE_STRING s2)
 {
     ANSI_STRING a1 = { 0 }, a2 = { 0 };
     CHAR buf[1024] = { 0 };
     RtlUnicodeStringToAnsiString(&a1, s1, TRUE);
-    if (s2) RtlUnicodeStringToAnsiString(&a2, s2, TRUE);
+    if (s2)
+        RtlUnicodeStringToAnsiString(&a2, s2, TRUE);
     RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf), "%s | %u | %s | %s", tag, upid, a1.Buffer ? a1.Buffer : "", a2.Buffer ? a2.Buffer : "");
     SendPipeLog(buf, strlen(buf));
     RtlFreeAnsiString(&a1);
@@ -134,7 +104,7 @@ static VOID ImageLoadNotify(IN PUNICODE_STRING FullImageName, IN HANDLE ProcessI
         return;
     }
     if (FullImageName && FullImageName->Buffer) {
-        if ((StrStrI(FullImageName->Buffer, L"clr.dll") || StrStrI(FullImageName->Buffer, L"mscorwks.dll")) && !IsFrameworkClrPath(FullImageName->Buffer)) {
+        if (MatchClrFromNonFramework(FullImageName)) {
             LogAnsi3("CLR_BLOCK", (ULONG)(ULONG_PTR)ProcessId, &exe, FullImageName);
             ExReleaseRundownProtection(&g_Rundown);
             return;

@@ -1,6 +1,6 @@
 #include <ntifs.h>
 #include "DriverEntry.h"
-#include "ProtectRules.h"
+#include "ProtectMatch.h"
 
 static BOOLEAN GetFilePathFromFileObject(PFILE_OBJECT fo, PUNICODE_STRING out)
 {

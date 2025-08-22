@@ -1,6 +1,6 @@
 #include <ntifs.h>
-#include "ProtectRules.h"
 #include "DriverEntry.h"
+#include "ProtectMatch.h"
 
 static BOOLEAN QueryRegPathFromObject(PVOID KeyObject, PUNICODE_STRING OutPath, POBJECT_NAME_INFORMATION* OutInfo)
 {

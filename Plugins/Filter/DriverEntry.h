@@ -97,6 +97,7 @@ static __forceinline PVOID PYAS_ExAllocatePool2(ULONG f, SIZE_T s, ULONG t) {
 static __forceinline VOID PYAS_ExFreePool2(PVOID a, ULONG t, PVOID h, ULONG f) {
     UNREFERENCED_PARAMETER(h);
     UNREFERENCED_PARAMETER(f);
+    
     static _pyas_ExFreePool2 p2 = 0;
     if (!p2) {
         UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExFreePool2");
@@ -124,6 +125,8 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject);
 VOID SendPipeLog(PCSTR msg, SIZE_T len);
 VOID UninitImageProtect(VOID);
 VOID UninitInjectProtect(VOID);
+VOID UninitRemoteProtect(VOID);
+VOID UninitScreenProtect(VOID);
 
 NTSYSAPI NTSTATUS NTAPI ZwQueryInformationProcess(
     _In_ HANDLE ProcessHandle,
@@ -148,5 +151,7 @@ NTSTATUS FileProtectDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp);
 NTSTATUS RegistryProtectCallback(PVOID ctx, PVOID arg1, PVOID arg2);
 NTSTATUS InitImageProtect(VOID);
 NTSTATUS InitInjectProtect(VOID);
+NTSTATUS InitRemoteProtect(VOID);
+NTSTATUS InitScreenProtect(VOID);
 
 BOOLEAN GetProcessImagePathByPid(HANDLE pid, PUNICODE_STRING ProcessImagePath);

@@ -71,9 +71,10 @@ translate_dict = {
               "沙箱":"Sandbox ", "虛擬":"Virtual ", "隔離":"Quarantine ", "時":"",
               "建立":"Create ","環境":"Environment ","沙箱":"Sandbox ","化":"", "表":"",
               "達":"Reached ", "上限":"Limit ", "區":"", "金鑰":"Key ", "產品":"Product ",
-              "托管":"CLR ","殼碼":"Shellcode ","線程":"Thread ","注入":"Inject ",
+              "運行庫":".NET CLR ","殼碼":"Shellcode ","線程":"Thread ","注入":"Inject ",
               "前往":"Go ","檢查":"Check ","可用":"Available ","靜態":"Static ",
-              "版本":"Version ","是":"","剩餘":"Remain ","  ":" "},
+              "版本":"Version ","是":"","剩餘":"Remain ","遠控":"Remote ","監控":"Monitor ",
+              "  ":" "},
 
     "white_switch": {
         "_white": "_black",},

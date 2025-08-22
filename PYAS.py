@@ -133,15 +133,17 @@ class MainWindow_Controller(QMainWindow):
             {"exe": "explorer.exe", "class": "", "title": ""},
         ]
         self.block_replace = {
-            "BOOT_BLOCK": "引導行為攔截",
-            "REG_BLOCK": "註冊表行為攔截",
             "FILE_BLOCK": "檔案行為攔截",
             "RANSOM_BLOCK": "勒索行為攔截",
-            "CLR_BLOCK": "托管行為攔截",
-            "SHELLCODE_BLOCK": "殼碼行為攔截",
+            "BOOT_BLOCK": "引導行為攔截",
+            "REG_BLOCK": "註冊表行為攔截",
+            "CLR_BLOCK": "執行環境攔截",
+            "SHELLCODE_BLOCK": "殼碼加載攔截",
             "THREAD_BLOCK": "線程行為攔截",
             "INJECT_BLOCK": "注入行為攔截",
             "PROC_BLOCK": "進程行為攔截",
+            "REMOTE_BLOCK": "遠控行為攔截",
+            "SCREEN_BLOCK": "監控行為攔截",
         }
 
 ####################################################################################################
@@ -777,6 +779,7 @@ class MainWindow_Controller(QMainWindow):
                     lang = self.pyas_config.get("language", "english_switch")
                     self.progress_title_signal.emit(self.trans(lang, "正在掃描"))
                     self.scan_progress_signal.emit(norm_path)
+                    gc.collect()
                 except Exception as e:
                     self.send_message(e, "warn", False)
         finally:

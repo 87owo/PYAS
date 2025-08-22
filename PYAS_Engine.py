@@ -92,9 +92,8 @@ class rule_scanner:
 
     def yara_scan(self, file_path):
         try:
-            data = open(file_path, "rb").read() if isinstance(file_path, str) else file_path
             for rules in self.rules.values():
-                matches = rules.match(data=data)
+                matches = rules.match(filepath=file_path)
                 if matches:
                     rule_name = str(matches[0])
                     label = rule_name.split("_")[0]

@@ -201,6 +201,7 @@ class model_scanner:
                     name = section.Name.rstrip(b'\x00').decode('latin1').lower()
                     if section.Characteristics & 0x00000020:
                         match_data[name] = section.get_data()
+
         except pefile.PEFormatError:
             with open(file_path, 'rb') as f:
                 file_content = f.read()

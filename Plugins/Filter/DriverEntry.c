@@ -183,7 +183,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
     {
         UNICODE_STRING guardName = RTL_CONSTANT_STRING(L"\\Device\\PYAS_Driver_Guard");
         NTSTATUS gs = IoCreateDevice(DriverObject, 0, &guardName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_GuardDevice);
-        if (!NT_SUCCESS(gs)) 
+        if (!NT_SUCCESS(gs))
             return STATUS_DEVICE_BUSY;
     }
     {
@@ -194,13 +194,12 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         g_DeviceName.Length = (USHORT)(wcslen(g_DeviceName.Buffer) * sizeof(WCHAR));
     }
     NTSTATUS status = IoCreateDevice(DriverObject, 0, &g_DeviceName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_ControlDeviceObject);
-    if (!NT_SUCCESS(status)) 
+    if (!NT_SUCCESS(status))
         return status;
     
     DriverObject->DriverUnload = DriverUnload;
-    for (ULONG i = 0; i < IRP_MJ_MAXIMUM_FUNCTION; ++i) 
+    for (ULONG i = 0; i < IRP_MJ_MAXIMUM_FUNCTION; ++i)
         DriverObject->MajorFunction[i] = CombinedDispatch;
-    
     g_ControlDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
     IoDeleteSymbolicLink(&g_SymLink);
     {
@@ -231,38 +230,50 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         RtlInitUnicodeString(&regAlt, regAltBuf);
         
         status = CmRegisterCallbackEx(RegistryProtectCallback, &regAlt, DriverObject, NULL, &g_CmRegHandle, NULL);
-        if (NT_SUCCESS(status)) 
+        if (NT_SUCCESS(status))
             g_CmRegActive = TRUE;
     }
     InitImageProtect();
     InitInjectProtect();
     InitRemoteProtect();
     InitScreenProtect();
+    {
+        NTSTATUS ps = InitProcessProtect();
+        if (!NT_SUCCESS(ps)) {
+            CHAR b[64] = { 0 };
+            RtlStringCchPrintfA(b, RTL_NUMBER_OF(b), "PROC_INIT | 0x%08X", ps);
+            SendPipeLog(b, strlen(b));
+        }
+        else {
+            static CHAR ok[] = "PROC_INIT | 0x00000000";
+            SendPipeLog(ok, sizeof(ok) - 1);
+        }
+    }
     AttachFsFilters(DriverObject);
     AttachDiskFilters(DriverObject);
-    
     return STATUS_SUCCESS;
 }
 
 VOID DriverUnload(PDRIVER_OBJECT DriverObject)
 {
     UNREFERENCED_PARAMETER(DriverObject);
-    
+
     g_Unloading = TRUE;
     if (g_SymLinkCreated) {
         IoDeleteSymbolicLink(&g_SymLink);
-        g_SymLinkCreated = FALSE; 
+        g_SymLinkCreated = FALSE;
     }
-    if (g_CmRegActive) { 
-        CmUnRegisterCallback(g_CmRegHandle); 
-        g_CmRegActive = FALSE; 
+    if (g_CmRegActive) {
+        CmUnRegisterCallback(g_CmRegHandle);
+        g_CmRegActive = FALSE;
     }
     UninitInjectProtect();
     UninitImageProtect();
     UninitRemoteProtect();
     UninitScreenProtect();
+    UninitProcessProtect();
     ExWaitForRundownProtectionRelease(&g_Rundown);
-    
+
     if (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0) {
         KeResetEvent(&g_LogDrainEvent);
         while (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0)
@@ -276,16 +287,16 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject)
         }
     }
     g_MbrFilterCount = 0;
-    if (DiskDrvObj) { 
-        ObDereferenceObject(DiskDrvObj); 
-        DiskDrvObj = NULL; 
+    if (DiskDrvObj) {
+        ObDereferenceObject(DiskDrvObj);
+        DiskDrvObj = NULL;
     }
-    if (g_ControlDeviceObject) { 
+    if (g_ControlDeviceObject) {
         IoDeleteDevice(g_ControlDeviceObject);
         g_ControlDeviceObject = NULL;
     }
     if (g_GuardDevice) {
         IoDeleteDevice(g_GuardDevice);
-        g_GuardDevice = NULL; 
+        g_GuardDevice = NULL;
     }
 }

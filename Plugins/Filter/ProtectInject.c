@@ -11,7 +11,7 @@ static VOID LogAnsi3(PCSTR tag, ULONG upid, PUNICODE_STRING s1, PUNICODE_STRING 
     ANSI_STRING a1 = { 0 }, a2 = { 0 };
     CHAR buf[1024] = { 0 };
     RtlUnicodeStringToAnsiString(&a1, s1, TRUE);
-    if (s2) 
+    if (s2)
         RtlUnicodeStringToAnsiString(&a2, s2, TRUE);
     RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf), "%s | %u | %s | %s", tag, upid, a1.Buffer ? a1.Buffer : "", a2.Buffer ? a2.Buffer : "");
     SendPipeLog(buf, strlen(buf));
@@ -118,7 +118,7 @@ static OB_PREOP_CALLBACK_STATUS PreThreadCallback(PVOID RegistrationContext, POB
     cexe.Buffer = cbuf;
     cexe.MaximumLength = sizeof(cbuf);
 
-    if (logok) 
+    if (logok)
         GetProcessImagePathByPid(cur, &cexe);
     if (logok && IsWhitelist(&cexe)) {
         ExReleaseRundownProtection(&g_Rundown);
@@ -145,11 +145,8 @@ static OB_PREOP_CALLBACK_STATUS PreThreadCallback(PVOID RegistrationContext, POB
 
 NTSTATUS InitInjectProtect(VOID)
 {
-    static WCHAR obAltBuf[32];
     static UNICODE_STRING obAlt;
-    LARGE_INTEGER t = KeQueryPerformanceCounter(NULL);
-    RtlStringCchPrintfW(obAltBuf, RTL_NUMBER_OF(obAltBuf), L"385000.%I64x", t.QuadPart);
-    RtlInitUnicodeString(&obAlt, obAltBuf);
+    RtlInitUnicodeString(&obAlt, L"385000");
 
     g_ObOps = (POB_OPERATION_REGISTRATION)ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(OB_OPERATION_REGISTRATION) * 2, 'bOpr');
     if (!g_ObOps)

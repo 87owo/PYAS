@@ -10,6 +10,9 @@
 #ifndef POOL_FLAG_NON_PAGED
 #define POOL_FLAG_NON_PAGED 0x00000001
 #endif
+#ifndef PROCESS_TERMINATE
+#define PROCESS_TERMINATE 0x0001
+#endif
 #ifndef PROCESS_CREATE_THREAD
 #define PROCESS_CREATE_THREAD 0x0002
 #endif
@@ -43,11 +46,26 @@
 #ifndef PROCESS_SET_LIMITED_INFORMATION
 #define PROCESS_SET_LIMITED_INFORMATION 0x2000
 #endif
+#ifndef THREAD_TERMINATE
+#define THREAD_TERMINATE 0x0001
+#endif
+#ifndef THREAD_SUSPEND_RESUME
+#define THREAD_SUSPEND_RESUME 0x0002
+#endif
+#ifndef THREAD_SET_CONTEXT
+#define THREAD_SET_CONTEXT 0x0010
+#endif
 #ifndef THREAD_IMPERSONATE
 #define THREAD_IMPERSONATE 0x0100
 #endif
 #ifndef THREAD_DIRECT_IMPERSONATION
 #define THREAD_DIRECT_IMPERSONATION 0x0200
+#endif
+#ifndef JOB_OBJECT_ASSIGN_PROCESS
+#define JOB_OBJECT_ASSIGN_PROCESS 0x0001
+#endif
+#ifndef JOB_OBJECT_TERMINATE
+#define JOB_OBJECT_TERMINATE 0x0008
 #endif
 #ifndef FILE_DISPOSITION_DELETE
 #define FILE_DISPOSITION_DELETE 0x00000001
@@ -56,6 +74,7 @@
 typedef unsigned int UINT;
 #endif
 
+extern POBJECT_TYPE* PsJobType;
 extern volatile LONG g_LogWorkCount;
 extern BOOLEAN g_Unloading;
 extern KEVENT g_LogDrainEvent;
@@ -97,7 +116,7 @@ static __forceinline PVOID PYAS_ExAllocatePool2(ULONG f, SIZE_T s, ULONG t) {
 static __forceinline VOID PYAS_ExFreePool2(PVOID a, ULONG t, PVOID h, ULONG f) {
     UNREFERENCED_PARAMETER(h);
     UNREFERENCED_PARAMETER(f);
-    
+
     static _pyas_ExFreePool2 p2 = 0;
     if (!p2) {
         UNICODE_STRING n = RTL_CONSTANT_STRING(L"ExFreePool2");
@@ -127,6 +146,7 @@ VOID UninitImageProtect(VOID);
 VOID UninitInjectProtect(VOID);
 VOID UninitRemoteProtect(VOID);
 VOID UninitScreenProtect(VOID);
+VOID UninitProcessProtect(VOID);
 
 NTSYSAPI NTSTATUS NTAPI ZwQueryInformationProcess(
     _In_ HANDLE ProcessHandle,
@@ -153,5 +173,6 @@ NTSTATUS InitImageProtect(VOID);
 NTSTATUS InitInjectProtect(VOID);
 NTSTATUS InitRemoteProtect(VOID);
 NTSTATUS InitScreenProtect(VOID);
+NTSTATUS InitProcessProtect(VOID);
 
 BOOLEAN GetProcessImagePathByPid(HANDLE pid, PUNICODE_STRING ProcessImagePath);

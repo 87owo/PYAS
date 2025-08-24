@@ -17,7 +17,7 @@ static VOID PipeLogWork(PDEVICE_OBJECT DeviceObject, PVOID Context)
     UNICODE_STRING name;
     OBJECT_ATTRIBUTES oa = { 0 };
     IO_STATUS_BLOCK iosb;
-
+    
     RtlInitUnicodeString(&name, PIPE_NAME);
     InitializeObjectAttributes(&oa, &name, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
     if (NT_SUCCESS(ZwCreateFile(&h, FILE_GENERIC_WRITE, &oa, &iosb, NULL, 0, 0, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0))) {
@@ -27,8 +27,10 @@ static VOID PipeLogWork(PDEVICE_OBJECT DeviceObject, PVOID Context)
     IoFreeWorkItem(ctx->Item);
     ExFreePool2(ctx->Buf, 'golP', NULL, 0);
     ExFreePool2(ctx, 'golP', NULL, 0);
-    if (InterlockedDecrement(&g_LogWorkCount) == 0 && g_Unloading)
+    
+    if (InterlockedDecrement(&g_LogWorkCount) == 0) {
         KeSetEvent(&g_LogDrainEvent, IO_NO_INCREMENT, FALSE);
+    }
 }
 
 VOID SendPipeLog(PCSTR msg, SIZE_T len)

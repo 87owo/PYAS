@@ -61,6 +61,7 @@ static NTSTATUS AttachDiskFilters(PDRIVER_OBJECT DriverObject)
     UNICODE_STRING name = RTL_CONSTANT_STRING(L"\\Driver\\Disk");
     UNICODE_STRING sym = RTL_CONSTANT_STRING(L"IoDriverObjectType");
     POBJECT_TYPE* pType = (POBJECT_TYPE*)MmGetSystemRoutineAddress(&sym);
+    
     if (!pType || !*pType)
         return STATUS_NOT_SUPPORTED;
 
@@ -93,6 +94,7 @@ static NTSTATUS AttachDiskFilters(PDRIVER_OBJECT DriverObject)
         status = IoCreateDevice(DriverObject, 0, NULL, lower->DeviceType, lower->Characteristics, FALSE, &filter);
         if (!NT_SUCCESS(status))
             continue;
+        
         filter->Flags |= (lower->Flags & (DO_BUFFERED_IO | DO_DIRECT_IO | DO_POWER_PAGABLE));
         status = IoAttachDeviceToDeviceStackSafe(filter, lower, &attached);
         if (!NT_SUCCESS(status) || !attached) {
@@ -123,29 +125,29 @@ static NTSTATUS AttachFsFilters(PDRIVER_OBJECT DriverObject)
         UNICODE_STRING name;
         RtlInitUnicodeString(&name, g_AttachDisk[i]);
         PDEVICE_OBJECT fsCtl = NULL;
-        
+
         status = ObReferenceObjectByName(&name, OBJ_CASE_INSENSITIVE, NULL, 0, *pDevType, KernelMode, NULL, (PVOID*)&fsCtl);
         if (!NT_SUCCESS(status) || !fsCtl)
             continue;
-        
+
         PDRIVER_OBJECT fsDrv = fsCtl->DriverObject;
         if (fsDrv) {
             ULONG need = 0;
-            
+
             status = IoEnumerateDeviceObjectList(fsDrv, NULL, 0, &need);
             if (status == STATUS_BUFFER_TOO_SMALL || status == STATUS_SUCCESS) {
                 PDEVICE_OBJECT* list = (PDEVICE_OBJECT*)ExAllocatePool2(POOL_FLAG_NON_PAGED, need * sizeof(PDEVICE_OBJECT), 'fsTA');
                 if (list) {
-                    
+
                     status = IoEnumerateDeviceObjectList(fsDrv, list, need * sizeof(PDEVICE_OBJECT), &need);
                     if (NT_SUCCESS(status)) {
                         for (ULONG j = 0; j < need && g_MbrFilterCount < MAX_MBR_TARGETS; ++j) {
-                            
+
                             PDEVICE_OBJECT lower = list[j], filter, attached = NULL;
                             NTSTATUS s2 = IoCreateDevice(DriverObject, 0, NULL, lower->DeviceType, lower->Characteristics, FALSE, &filter);
                             if (!NT_SUCCESS(s2))
                                 continue;
-                            
+
                             filter->Flags |= (lower->Flags & (DO_BUFFERED_IO | DO_DIRECT_IO | DO_POWER_PAGABLE));
                             s2 = IoAttachDeviceToDeviceStackSafe(filter, lower, &attached);
                             if (!NT_SUCCESS(s2) || !attached) {
@@ -171,13 +173,13 @@ static NTSTATUS AttachFsFilters(PDRIVER_OBJECT DriverObject)
 NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
 {
     UNREFERENCED_PARAMETER(RegistryPath);
-    
+
     KeInitializeSpinLock(&g_ProtectLock);
     ExInitializeFastMutex(&HookMutex);
     KeInitializeEvent(&g_LogDrainEvent, NotificationEvent, TRUE);
     g_Unloading = FALSE;
     g_CmRegActive = FALSE;
-    
+
     InterlockedExchange(&g_LogWorkCount, 0);
     ExInitializeRundownProtection(&g_Rundown);
     {
@@ -196,10 +198,13 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
     NTSTATUS status = IoCreateDevice(DriverObject, 0, &g_DeviceName, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_ControlDeviceObject);
     if (!NT_SUCCESS(status))
         return status;
-    
+
     DriverObject->DriverUnload = DriverUnload;
     for (ULONG i = 0; i < IRP_MJ_MAXIMUM_FUNCTION; ++i)
         DriverObject->MajorFunction[i] = CombinedDispatch;
+
+    DriverObject->Flags |= 0x20;
+
     g_ControlDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
     IoDeleteSymbolicLink(&g_SymLink);
     {
@@ -208,7 +213,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
             status = IoCreateSymbolicLink(&g_SymLink, &g_DeviceName);
             if (NT_SUCCESS(status))
                 break;
-            
+
             LARGE_INTEGER d = { 0 };
             d.QuadPart = -10LL * 1000LL * 10LL;
             KeDelayExecutionThread(KernelMode, FALSE, &d);
@@ -228,7 +233,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
         LARGE_INTEGER t = KeQueryPerformanceCounter(NULL);
         RtlStringCchPrintfW(regAltBuf, RTL_NUMBER_OF(regAltBuf), L"385100.%I64x", t.QuadPart);
         RtlInitUnicodeString(&regAlt, regAltBuf);
-        
+
         status = CmRegisterCallbackEx(RegistryProtectCallback, &regAlt, DriverObject, NULL, &g_CmRegHandle, NULL);
         if (NT_SUCCESS(status))
             g_CmRegActive = TRUE;
@@ -272,8 +277,11 @@ VOID DriverUnload(PDRIVER_OBJECT DriverObject)
     UninitRemoteProtect();
     UninitScreenProtect();
     UninitProcessProtect();
-    ExWaitForRundownProtectionRelease(&g_Rundown);
 
+    ExWaitForRundownProtectionRelease(&g_Rundown);
+    if (InterlockedCompareExchange((volatile LONG*)&g_LogWorkCount, 0, 0) != 0) {
+        KeWaitForSingleObject(&g_LogDrainEvent, Executive, KernelMode, FALSE, NULL);
+    }
     if (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0) {
         KeResetEvent(&g_LogDrainEvent);
         while (InterlockedCompareExchange(&g_LogWorkCount, 0, 0) != 0)

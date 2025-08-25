@@ -110,7 +110,7 @@ class model_scanner:
         self.models = {}
         self.suffix = {
             ".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys",
-            ".bat", ".cmd", ".html", ".js", ".php", ".ps1", ".vbs", ".wsf", ".xml"}
+            ".bat", ".cmd", ".js", ".php", ".ps1", ".vbs", ".wsf"}
         self.labels = [
             "Pefile/White", "Script/White", "Pefile/General", "Script/General"]
         self.detect = {

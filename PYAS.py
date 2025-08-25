@@ -881,6 +881,7 @@ class MainWindow_Controller(QMainWindow):
         copy_action = menu.addAction(self.trans(lang, "複製路徑"))
         del_action = menu.addAction(self.trans(lang, "刪除檔案"))
         white_action = menu.addAction(self.trans(lang, "增加白名單"))
+        quarantine_action = menu.addAction(self.trans(lang, "增加隔離區"))
         act = menu.exec(widget.viewport().mapToGlobal(pos))
 
         text = item.text()
@@ -907,8 +908,24 @@ class MainWindow_Controller(QMainWindow):
         elif act == white_action:
             file_path = self.norm_path(path)
             if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
-                n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
-                self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
+                try:
+                    n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
+                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
+                    widget.takeItem(widget.row(item))
+                    self.virus_results.remove(file_path)
+                except:
+                    self.send_message(e, "warn", False)
+
+        elif act == quarantine_action:
+            file_path = self.norm_path(path)
+            if file_path and self.send_message("您確定要增加到隔離區嗎?", "quest"):
+                try:
+                    n = self.manage_named_list("quarantine", [file_path], action="add", with_hash=True, lock_func=self.lock_file)
+                    self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
+                    widget.takeItem(widget.row(item))
+                    self.virus_results.remove(file_path)
+                except:
+                    self.send_message(e, "warn", False)
 
 ####################################################################################################
 
@@ -990,6 +1007,7 @@ class MainWindow_Controller(QMainWindow):
         copy_action = menu.addAction(self.trans(lang, "複製路徑"))
         kill_action = menu.addAction(self.trans(lang, "結束進程"))
         white_action = menu.addAction(self.trans(lang, "增加白名單"))
+        quarantine_action = menu.addAction(self.trans(lang, "增加隔離區"))
         act = menu.exec(widget.viewport().mapToGlobal(pos))
 
         pid = self.proc_pid_map[idx.row()]
@@ -1002,10 +1020,22 @@ class MainWindow_Controller(QMainWindow):
             self.kill_process(pid)
 
         elif act == white_action:
+            file_path = self.norm_path(path)
             if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
-                file_path = self.norm_path(file_path or "")
-                n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
-                self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
+                try:
+                    n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
+                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
+                except:
+                    self.send_message(e, "warn", False)
+
+        elif act == quarantine_action:
+            file_path = self.norm_path(path)
+            if file_path and self.send_message("您確定要增加到隔離區嗎?", "quest"):
+                try:
+                    n = self.manage_named_list("quarantine", [file_path], action="add", with_hash=True, lock_func=self.lock_file)
+                    self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
+                except:
+                    self.send_message(e, "warn", False)
 
     def kill_process(self, pid):
         try:
@@ -1377,14 +1407,14 @@ class MainWindow_Controller(QMainWindow):
         files = self.send_message("選擇檔案", "files", True)
         if files and self.send_message("您確定要增加到白名單嗎?", "quest"):
             n = self.manage_named_list("white_list", files, action="add", with_hash=True)
-            self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info")
+            self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
 
     def whitelist_button_2(self):
         self.config_list("white_list")
         files = self.send_message("選擇檔案", "files", True)
         if files and self.send_message("您確定要移除白名單嗎?", "quest"):
             n = self.manage_named_list("white_list", files, action="remove", with_hash=True)
-            self.send_message(f"成功移除白名單，共 {n} 個檔案", "info")
+            self.send_message(f"成功移除白名單，共 {n} 個檔案", "info", True)
 
     def quarantine_button(self):
         self.config_list("quarantine")
@@ -1392,7 +1422,7 @@ class MainWindow_Controller(QMainWindow):
         if files and self.send_message("您確定要增加到隔離區嗎?", "quest"):
             n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
             if n > 0:
-                self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info")
+                self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
 
     def quarantine_button_2(self):
         self.config_list("quarantine")
@@ -1400,7 +1430,7 @@ class MainWindow_Controller(QMainWindow):
         files = self.send_message("選擇檔案", "files", True)
         if files and self.send_message("您確定要移除隔離區嗎?", "quest"):
             n = self.manage_named_list("quarantine", files, action="remove", with_hash=True, lock_func=self.lock_file)
-            self.send_message(f"成功移除隔離區，共 {n} 個檔案", "info")
+            self.send_message(f"成功移除隔離區，共 {n} 個檔案", "info", True)
 
     def add_to_quarantine(self, files):
         self.config_list("quarantine")

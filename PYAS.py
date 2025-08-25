@@ -694,8 +694,9 @@ class MainWindow_Controller(QMainWindow):
 
     @Slot()
     def slot_scan_reset(self):
+        count = len(self.virus_results)
+        self.widgets["solve_button"].setVisible(count > 0)
         self.widgets["virus_list"].clear()
-        self.widgets["solve_button"].hide()
         self.widgets["stop_button"].show()
         self.widgets["method_button"].hide()
         self.widgets["method_window"].hide()
@@ -846,7 +847,7 @@ class MainWindow_Controller(QMainWindow):
                     self.send_message(e, "warn", False)
                 QApplication.processEvents()
 
-        count = virus_list.count()
+        count = len(self.virus_results)
         self.widgets["solve_button"].setVisible(count > 0)
         elapsed = int(time.time() - start_ts)
         result = (
@@ -902,8 +903,6 @@ class MainWindow_Controller(QMainWindow):
                     self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(e, "warn", False)
-                count = len(self.virus_results)
-                self.widgets["solve_button"].setVisible(count > 0)
 
         elif act == white_action:
             file_path = self.norm_path(path)
@@ -926,6 +925,9 @@ class MainWindow_Controller(QMainWindow):
                     self.virus_results.remove(file_path)
                 except:
                     self.send_message(e, "warn", False)
+
+        count = len(self.virus_results)
+        self.widgets["solve_button"].setVisible(count > 0)
 
 ####################################################################################################
 
@@ -1421,8 +1423,7 @@ class MainWindow_Controller(QMainWindow):
         files = self.send_message("選擇檔案", "files", True)
         if files and self.send_message("您確定要增加到隔離區嗎?", "quest"):
             n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
-            if n > 0:
-                self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
+            self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
 
     def quarantine_button_2(self):
         self.config_list("quarantine")

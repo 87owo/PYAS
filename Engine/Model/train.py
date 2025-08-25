@@ -18,7 +18,7 @@ def get_file_list(directory):
                     labels.append(i)
     return file_paths, labels, class_indices
 
-def load_dataset(train_dir, val_dir, val_split=0.01, batch_size=128, color_mode="grayscale"):
+def load_dataset(train_dir, val_dir, val_split=0.00001, batch_size=64, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
     if train_dir == val_dir:
         file_paths, labels, class_indices = get_file_list(train_dir)

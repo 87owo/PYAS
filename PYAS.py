@@ -1451,36 +1451,36 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def manage_named_list(self, list_key, files, action="add", with_hash=True, lock_func=None):
-        target_list = self.config_list(list_key)
-        files = files or []
-        norm_paths = self.norm_path(files, must_exist=True)
+        norm_paths = self.norm_path(files or [], must_exist=True)
         if isinstance(norm_paths, str):
             norm_paths = [norm_paths] if norm_paths else []
 
         n = 0
         if action == "add":
             for path in norm_paths:
-                QApplication.processEvents()
                 file_hash = self.calc_file_hash(path) if with_hash else ""
-                if not any(self.norm_path(item["file"]) == path and (not with_hash or item.get("hash", "") == file_hash) for item in target_list):
+                if not any(self.norm_path(item["file"]) == path and
+                    (not with_hash or item.get("hash", "") == file_hash)
+                    for item in self.config_list(list_key)):
                     if lock_func:
                         try:
                             lock_func(path, True)
                         except Exception as e:
                             self.send_message(e, "warn", False)
-                    target_list.append({"file": path, "hash": file_hash})
+                    self.config_list(list_key).append({"file": path, "hash": file_hash})
                     n += 1
 
         elif action == "remove":
-            remove_list = [item for item in target_list if item["file"] in norm_paths]
-            for item in remove_list:
+            for item in [item for item in self.config_list(list_key)
+                if self.norm_path(item["file"]) in norm_paths]:
                 try:
                     if lock_func:
                         lock_func(item["file"], False)
-                    target_list.remove(item)
+                    self.config_list(list_key).remove(item)
                     n += 1
                 except Exception as e:
                     self.send_message(e, "warn", False)
+
         if n:
             self.save_config(self.file_config, self.pyas_config)
         return n

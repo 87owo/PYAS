@@ -18,36 +18,39 @@ def get_file_list(directory):
                     labels.append(i)
     return file_paths, labels, class_indices
 
-def load_dataset(train_dir, val_dir, val_split=0.00001, batch_size=64, color_mode="grayscale"):
+def parse_fn(filename, label, image_size, channels, num_classes):
+    img = tf.io.read_file(filename)
+    img = tf.image.decode_image(img, channels=channels, expand_animations=False)
+    img = tf.cond(
+        tf.reduce_all(tf.equal(tf.shape(img)[:2], image_size)),
+        lambda: tf.cast(img, tf.float32),
+        lambda: tf.image.resize(img, image_size))
+    img = tf.cast(img, tf.float32) / 255.0
+    label = tf.one_hot(label, depth=num_classes)
+    return img, label
+
+def load_dataset(data_dir, image_size=(224, 224), val_split=0.1, batch_size=64, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
-    if train_dir == val_dir:
-        file_paths, labels, class_indices = get_file_list(train_dir)
-        combined = list(zip(file_paths, labels))
-        random.shuffle(combined)
-        file_paths[:], labels[:] = zip(*combined)
-        num_val = int(val_split * len(file_paths))
-        train_files = file_paths[num_val:]
-        train_labels = labels[num_val:]
-        val_files = file_paths[:num_val]
-        val_labels = labels[:num_val]
-    else:
-        train_files, train_labels, class_indices = get_file_list(train_dir)
-        val_files, val_labels, _ = get_file_list(val_dir)
+    file_paths, labels, class_indices = get_file_list(data_dir)
+    combined = list(zip(file_paths, labels))
+    random.shuffle(combined)
+    file_paths[:], labels[:] = zip(*combined)
+
+    num_val = int(val_split * len(file_paths))
+    train_files = file_paths[num_val:]
+    train_labels = labels[num_val:]
+    val_files = file_paths[:num_val]
+    val_labels = labels[:num_val]
     num_classes = len(class_indices)
 
-    def parse_fn(filename, label):
-        img = tf.io.read_file(filename)
-        img = tf.image.decode_image(img, channels=channels, expand_animations=False)
-        img = tf.cast(img, tf.float32) / 255.0
-        label = tf.one_hot(label, depth=num_classes)
-        return img, label
-
     train_ds = tf.data.Dataset.from_tensor_slices((train_files, train_labels))
-    train_ds = train_ds.map(parse_fn, num_parallel_calls=tf.data.AUTOTUNE)
+    train_ds = train_ds.map(lambda f, l: parse_fn(f, l, image_size, channels, num_classes), num_parallel_calls=tf.data.AUTOTUNE)
     train_ds = train_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
     val_ds = tf.data.Dataset.from_tensor_slices((val_files, val_labels))
-    val_ds = val_ds.map(parse_fn, num_parallel_calls=tf.data.AUTOTUNE)
+    val_ds = val_ds.map(lambda f, l: parse_fn(f, l, image_size, channels, num_classes), num_parallel_calls=tf.data.AUTOTUNE)
     val_ds = val_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+
     train_ds.class_indices = class_indices
     return train_ds, val_ds
 
@@ -83,7 +86,7 @@ def build_model(input_shape, num_classes):
     return models.Model(i, o)
 
 def lr_scheduler(epoch, lr):
-    return 1e-3 * (0.7 ** epoch)
+    return 1e-4 * (0.95 ** epoch)
 
 class CustomModelCheckpoint(callbacks.Callback):
     def on_epoch_end(self, epoch, logs=False):
@@ -93,7 +96,7 @@ class CustomModelCheckpoint(callbacks.Callback):
         with open(f"PYAS_Model_Epoch_{epoch + 1}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
-train_ds, val_ds = load_dataset(r'./Image_File', r'./Image_File')
+train_ds, val_ds = load_dataset(r'./Image_File')
 for imgs, _ in train_ds.take(1):
     train_ds.image_shape = imgs.shape[1:]
     break

@@ -23,6 +23,7 @@ wchar_t* g_WhitelistExcept[] = {
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\diskpart.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\format.com",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\mountvol.exe",
+    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\ntoskrnl.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\wbadmin.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\bcdboot.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\dism.exe",
@@ -232,7 +233,7 @@ wchar_t* g_RemoteCmdIndicatorsHttp[] = {
 
 wchar_t* g_RemoteCmdIndicatorsGeneric[] = {
     L"-enc",
-    L" -e ",
+    L"-e",
     L"-encodedcommand",
     L"frombase64string(",
     L"iex(",

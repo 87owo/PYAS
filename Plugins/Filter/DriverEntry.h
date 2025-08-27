@@ -3,9 +3,9 @@
 #include <ntstrsafe.h>
 #include <ntdddisk.h>
 #include <ntddscsi.h>
+#include <fltKernel.h>
 
 #define PIPE_NAME L"\\??\\pipe\\PYAS_Output_Pipe"
-#define MAX_MBR_TARGETS 256
 
 #ifndef POOL_FLAG_NON_PAGED
 #define POOL_FLAG_NON_PAGED 0x00000001
@@ -32,7 +32,7 @@
 #define PROCESS_CREATE_PROCESS 0x0080
 #endif
 #ifndef PROCESS_SET_QUOTA
-#define PROCESS_SET_QUOTA 0x0100
+#define PROCESS_SET_QUota 0x0100
 #endif
 #ifndef PROCESS_SET_INFORMATION
 #define PROCESS_SET_INFORMATION 0x0200
@@ -73,22 +73,23 @@
 #ifndef UINT
 typedef unsigned int UINT;
 #endif
+#define MAX_MBR_TARGETS 64
 
 extern POBJECT_TYPE* PsJobType;
 extern volatile LONG g_LogWorkCount;
 extern BOOLEAN g_Unloading;
 extern KEVENT g_LogDrainEvent;
-extern PDEVICE_OBJECT g_MbrFilterTargets[MAX_MBR_TARGETS];
-extern ULONG g_MbrFilterCount;
 extern KSPIN_LOCK g_ProtectLock;
 extern LARGE_INTEGER g_CmRegHandle;
 extern POBJECT_TYPE* IoDriverObjectType;
 extern POBJECT_TYPE* IoFileObjectType;
 extern FAST_MUTEX HookMutex;
-extern PDRIVER_OBJECT DiskDrvObj;
-extern PCSTR PsGetProcessImageFileName(PEPROCESS Process);
 extern EX_RUNDOWN_REF g_Rundown;
 extern PDEVICE_OBJECT g_GuardDevice;
+extern PDRIVER_OBJECT g_DriverObject;
+extern PFLT_FILTER g_FilterHandle;
+
+NTSYSAPI PCSTR NTAPI PsGetProcessImageFileName(PEPROCESS Process);
 
 typedef PVOID(NTAPI* _pyas_ExAllocatePool2)(ULONG, SIZE_T, ULONG);
 typedef VOID(NTAPI* _pyas_ExFreePool2)(PVOID, ULONG, PVOID, ULONG);
@@ -147,6 +148,9 @@ VOID UninitInjectProtect(VOID);
 VOID UninitRemoteProtect(VOID);
 VOID UninitScreenProtect(VOID);
 VOID UninitProcessProtect(VOID);
+VOID UninitFileProtect(VOID);
+
+VOID LogAnsi3(PCSTR tag, ULONG upid, PUNICODE_STRING s1, PUNICODE_STRING s2);
 
 NTSYSAPI NTSTATUS NTAPI ZwQueryInformationProcess(
     _In_ HANDLE ProcessHandle,
@@ -167,12 +171,17 @@ NTSTATUS ObReferenceObjectByName(
     OUT PVOID* Object
 );
 
-NTSTATUS FileProtectDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp);
+NTSTATUS BootProtectDispatch(
+    PDEVICE_OBJECT DeviceObject,
+    PIRP Irp
+);
+
 NTSTATUS RegistryProtectCallback(PVOID ctx, PVOID arg1, PVOID arg2);
 NTSTATUS InitImageProtect(VOID);
 NTSTATUS InitInjectProtect(VOID);
 NTSTATUS InitRemoteProtect(VOID);
 NTSTATUS InitScreenProtect(VOID);
 NTSTATUS InitProcessProtect(VOID);
+NTSTATUS InitFileProtect(VOID);
 
 BOOLEAN GetProcessImagePathByPid(HANDLE pid, PUNICODE_STRING ProcessImagePath);

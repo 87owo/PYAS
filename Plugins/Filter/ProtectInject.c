@@ -6,19 +6,6 @@ static PVOID g_ObRegHandle = NULL;
 static POB_OPERATION_REGISTRATION g_ObOps = NULL;
 static OB_CALLBACK_REGISTRATION g_ObReg = { 0 };
 
-static VOID LogAnsi3(PCSTR tag, ULONG upid, PUNICODE_STRING s1, PUNICODE_STRING s2)
-{
-    ANSI_STRING a1 = { 0 }, a2 = { 0 };
-    CHAR buf[1024] = { 0 };
-    RtlUnicodeStringToAnsiString(&a1, s1, TRUE);
-    if (s2)
-        RtlUnicodeStringToAnsiString(&a2, s2, TRUE);
-    RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf), "%s | %u | %s | %s", tag, upid, a1.Buffer ? a1.Buffer : "", a2.Buffer ? a2.Buffer : "");
-    SendPipeLog(buf, strlen(buf));
-    RtlFreeAnsiString(&a1);
-    RtlFreeAnsiString(&a2);
-}
-
 static OB_PREOP_CALLBACK_STATUS PreProcessCallback(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info)
 {
     UNREFERENCED_PARAMETER(RegistrationContext);

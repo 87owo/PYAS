@@ -4,19 +4,6 @@
 
 static BOOLEAN g_RemoteNotifyEnabled = FALSE;
 
-static VOID LogAnsi3(PCSTR tag, ULONG upid, PUNICODE_STRING s1, PUNICODE_STRING s2)
-{
-    ANSI_STRING a1 = { 0 }, a2 = { 0 };
-    CHAR buf[1024] = { 0 };
-    RtlUnicodeStringToAnsiString(&a1, s1, TRUE);
-    if (s2)
-        RtlUnicodeStringToAnsiString(&a2, s2, TRUE);
-    RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf), "%s | %u | %s | %s", tag, upid, a1.Buffer ? a1.Buffer : "", a2.Buffer ? a2.Buffer : "");
-    SendPipeLog(buf, strlen(buf));
-    RtlFreeAnsiString(&a1);
-    RtlFreeAnsiString(&a2);
-}
-
 static VOID ProcessNotifyEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
 {
     UNREFERENCED_PARAMETER(Process);

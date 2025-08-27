@@ -1,4 +1,5 @@
 #include <ntifs.h>
+#include <ntstrsafe.h>
 #include "DriverEntry.h"
 
 extern PDEVICE_OBJECT g_ControlDeviceObject;
@@ -59,4 +60,21 @@ VOID SendPipeLog(PCSTR msg, SIZE_T len)
     }
     InterlockedIncrement(&g_LogWorkCount);
     IoQueueWorkItem(ctx->Item, PipeLogWork, DelayedWorkQueue, ctx);
+}
+
+VOID LogAnsi3(PCSTR tag, ULONG upid, PUNICODE_STRING s1, PUNICODE_STRING s2)
+{
+    ANSI_STRING a1 = { 0 }, a2 = { 0 };
+    CHAR buf[1024] = { 0 };
+
+    if (s1)
+        RtlUnicodeStringToAnsiString(&a1, s1, TRUE);
+    if (s2)
+        RtlUnicodeStringToAnsiString(&a2, s2, TRUE);
+
+    RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf), "%s | %u | %s | %s", tag, upid, a1.Buffer ? a1.Buffer : "",  a2.Buffer ? a2.Buffer : "");
+    SendPipeLog(buf, strlen(buf));
+
+    RtlFreeAnsiString(&a1);
+    RtlFreeAnsiString(&a2);
 }

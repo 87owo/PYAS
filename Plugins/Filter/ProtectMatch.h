@@ -3,9 +3,10 @@
 
 wchar_t* GetMatchedBlockRegRule(PUNICODE_STRING s);
 wchar_t* GetMatchedBlockFileRule(PUNICODE_STRING s);
+BOOLEAN GetProcessImagePathByPid(HANDLE pid, PUNICODE_STRING ProcessImagePath);
 
 BOOLEAN IsWhitelist(PUNICODE_STRING s);
-BOOLEAN GetProcessImagePathByPid(HANDLE pid, PUNICODE_STRING ProcessImagePath);
+BOOLEAN IsWhitelistExcept(PUNICODE_STRING img);
 
 BOOLEAN MatchBlockReg(PUNICODE_STRING s);
 BOOLEAN IsRegistryBlock(PUNICODE_STRING key, PUNICODE_STRING valueName, PUNICODE_STRING exe);

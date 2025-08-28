@@ -56,6 +56,21 @@ class SERVICE_STATUS(ctypes.Structure):
         ("dwCheckPoint", ctypes.wintypes.DWORD),
         ("dwWaitHint", ctypes.wintypes.DWORD),]
 
+class PROCESS_BASIC_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ("Reserved1", ctypes.wintypes.LPVOID),
+        ("PebBaseAddress", ctypes.wintypes.LPVOID),
+        ("Reserved2", ctypes.wintypes.LPVOID * 2),
+        ("UniqueProcessId", ctypes.wintypes.LPVOID),
+        ("Reserved3", ctypes.wintypes.LPVOID)
+    ]
+
+class UNICODE_STRING(ctypes.Structure):
+    _fields_ = [
+        ("Length", ctypes.wintypes.USHORT),
+        ("MaximumLength", ctypes.wintypes.USHORT),
+        ("Buffer", ctypes.c_void_p)]
+
 ####################################################################################################
 
 class MainWindow_Controller(QMainWindow):
@@ -171,7 +186,7 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def init_windll(self):
-        for name in ["ntdll", "Psapi", "user32", "kernel32", "advapi32", "iphlpapi"]:
+        for name in ["ntdll", "Psapi", "user32", "kernel32", "advapi32", "iphlpapi", "shell32"]:
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
@@ -202,6 +217,12 @@ class MainWindow_Controller(QMainWindow):
 
         self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
         self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
+
+        self.ntdll.NtQueryInformationProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.ULONG, ctypes.c_void_p, ctypes.wintypes.ULONG, ctypes.POINTER(ctypes.wintypes.ULONG)]
+        self.ntdll.NtQueryInformationProcess.restype = ctypes.wintypes.ULONG
+
+        self.shell32.CommandLineToArgvW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
+        self.shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.wintypes.LPWSTR)
 
 ####################################################################################################
 
@@ -1580,31 +1601,31 @@ class MainWindow_Controller(QMainWindow):
             except Exception as e:
                 self.send_message(e, "warn", False)
 
-    def get_process_list(self):
-        exist_process, pe = set(), self.get_process_entry()
-        hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        if self.kernel32.Process32First(hSnapshot, ctypes.byref(pe)):
-            while True:
-                exist_process.add(pe.th32ProcessID)
-                if not self.kernel32.Process32Next(hSnapshot, ctypes.byref(pe)):
-                    break
-        self.kernel32.CloseHandle(hSnapshot)
-        return exist_process
-
     def handle_new_process(self, pid):
         try:
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if not h:
                 return
 
-            file_path = self.norm_path(self.get_process_file(h))
-            if file_path and not self.is_in_whitelist(file_path):
-                self.suspend_process(h, True)
-                state = self.scan_engine(file_path)
-                if state:
+            self.suspend_process(h, True)
+            cmdline = self.get_process_cmdline(h)
+            paths = []
+            for arg in self.split_commandline(cmdline):
+                paths.extend(self.extract_paths_from_arg(arg))
+
+            seen = set()
+            paths = [p for p in paths if p and (p not in seen and not seen.add(p))]
+            for p in paths:
+                file_path = self.norm_path(self.device_path_to_drive(p)) if p else ""
+                if not file_path:
+                    continue
+                if self.is_in_whitelist(file_path):
+                    continue
+                if self.scan_engine(file_path):
                     self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | {file_path} | None", "notify", True)
-                self.suspend_process(h, False)
+
+            self.suspend_process(h, False)
             self.kernel32.CloseHandle(h)
         except Exception as e:
             self.send_message(e, "warn", False)
@@ -1622,6 +1643,19 @@ class MainWindow_Controller(QMainWindow):
                 self.ntdll.NtResumeProcess(h_process)
         except Exception as e:
             self.send_message(e, "warn", False)
+
+####################################################################################################
+
+    def get_process_list(self):
+        exist_process, pe = set(), self.get_process_entry()
+        hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        if self.kernel32.Process32First(hSnapshot, ctypes.byref(pe)):
+            while True:
+                exist_process.add(pe.th32ProcessID)
+                if not self.kernel32.Process32Next(hSnapshot, ctypes.byref(pe)):
+                    break
+        self.kernel32.CloseHandle(hSnapshot)
+        return exist_process
 
     def get_process_file(self, h_process):
         buf = ctypes.create_unicode_buffer(1024)
@@ -1646,6 +1680,73 @@ class MainWindow_Controller(QMainWindow):
                     name = os.path.basename(path)
             self.kernel32.CloseHandle(h)
         return name, file_path
+
+####################################################################################################
+
+    def get_process_cmdline(self, h):
+        pbi = PROCESS_BASIC_INFORMATION()
+        retlen = ctypes.wintypes.ULONG(0)
+        status = self.ntdll.NtQueryInformationProcess(h, 0, ctypes.byref(pbi), ctypes.sizeof(pbi), ctypes.byref(retlen))
+        if status != 0:
+            return ""
+
+        pointer_size = ctypes.sizeof(ctypes.c_void_p)
+        peb_address = int(pbi.PebBaseAddress) if pbi.PebBaseAddress else 0
+        read_buf = (ctypes.c_ubyte * pointer_size)()
+        lpNumberOfBytesRead = ctypes.c_size_t(0)
+        offset_process_parameters = 0x20 if pointer_size == 8 else 0x10
+        addr_pp = peb_address + offset_process_parameters
+        if not addr_pp:
+            return ""
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_pp), read_buf, pointer_size, ctypes.byref(lpNumberOfBytesRead)):
+            return ""
+
+        proc_params_address = ctypes.c_void_p.from_buffer_copy(read_buf).value
+        if not proc_params_address:
+            return ""
+
+        offset_command_line = 0x70 if pointer_size == 8 else 0x40
+        us = UNICODE_STRING()
+        addr_cmd = int(proc_params_address) + offset_command_line
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_cmd), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpNumberOfBytesRead)):
+            return ""
+        if not us.Buffer or us.Length == 0:
+            return ""
+
+        buf_len = int(us.Length // 2)
+        buf = (ctypes.c_wchar * buf_len)()
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(int(us.Buffer)), buf, us.Length, ctypes.byref(lpNumberOfBytesRead)):
+            return ""
+        return "".join(buf)
+
+    def split_commandline(self, cmdline):
+        if not cmdline:
+            return []
+
+        argc = ctypes.c_int(0)
+        argv = self.shell32.CommandLineToArgvW(cmdline, ctypes.byref(argc))
+        if not argv:
+            return []
+
+        args = [argv[i] for i in range(argc.value)]
+        self.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
+        return args
+
+    def extract_paths_from_arg(self, arg):
+        patterns = [
+            r'([A-Za-z]:\\[^"\']+)',
+            r'(\\\\[^"\']+)',
+            r'(\.\\[^"\']+)',
+            r'(\./[^"\']+)',
+            r'([A-Za-z]:/[^"\']+)',
+            r'([^\s]*\\[^\s]+)'
+        ]
+        found = []
+        for p in patterns:
+            for m in re.finditer(p, arg):
+                val = m.group(1).strip('"').strip("'")
+                found.append(val)
+        return list(dict.fromkeys(found))
 
 ####################################################################################################
 

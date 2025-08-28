@@ -29,7 +29,7 @@ def parse_fn(filename, label, image_size, channels, num_classes):
     label = tf.one_hot(label, depth=num_classes)
     return img, label
 
-def load_dataset(data_dir, image_size=(224, 224), val_split=0.1, batch_size=64, color_mode="grayscale"):
+def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=128, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
     file_paths, labels, class_indices = get_file_list(data_dir)
     combined = list(zip(file_paths, labels))
@@ -54,16 +54,19 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.1, batch_size=64, 
     train_ds.class_indices = class_indices
     return train_ds, val_ds
 
+def multi_conv(x, strides):
+    convs = []
+    for k in [1, 3, 5, 7]:
+        c = layers.DepthwiseConv2D(kernel_size=k, strides=strides, padding='same', activation='gelu')(x)
+        convs.append(c)
+    x = layers.Concatenate()(convs)
+    x = layers.BatchNormalization()(x)
+    return layers.Activation('gelu')(x)
+
 def gated_conv(x, strides):
     c = layers.DepthwiseConv2D(3, strides=strides, padding='same', activation='gelu')(x)
     g = layers.DepthwiseConv2D(3, strides=strides, padding='same', activation='sigmoid')(x)
     return layers.Multiply()([c, g])
-
-def multi_conv(x, strides):
-    convs = [layers.DepthwiseConv2D(kernel_size=k, strides=strides, padding='same')(x) for k in [1, 3, 5, 7]]
-    x = layers.Concatenate()(convs)
-    x = layers.BatchNormalization()(x)
-    return layers.Activation('gelu')(x)
 
 def se_block(x, reduction):
     filters = x.shape[-1]
@@ -81,7 +84,7 @@ def build_model(input_shape, num_classes):
     x = multi_conv(x, strides=2)
     x = multi_conv(x, strides=2)
     x = se_block(x, reduction=2)
-    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.GlobalMaxPooling2D()(x)
     o = layers.Dense(num_classes, activation='softmax', dtype='float32')(x)
     return models.Model(i, o)
 
@@ -96,7 +99,7 @@ class CustomModelCheckpoint(callbacks.Callback):
         with open(f"PYAS_Model_Epoch_{epoch + 1}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
-train_ds, val_ds = load_dataset(r'./Image_File')
+train_ds, val_ds = load_dataset(r'.\Image_File')
 for imgs, _ in train_ds.take(1):
     train_ds.image_shape = imgs.shape[1:]
     break

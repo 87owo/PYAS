@@ -68,8 +68,8 @@ static NTSTATUS RestartProtectedProcess(VOID)
 #endif
 
     HANDLE ph = NULL, th = NULL;
-    RTL_USER_PROCESS_PARAMETERS* params = NULL;
-    NTSTATUS st = RtlCreateProcessParametersEx(&params, &g_PyasImagePath,
+    RTL_USER_PROCESS_PARAMETERS* procParams = NULL;
+    NTSTATUS st = RtlCreateProcessParametersEx(&procParams, &g_PyasImagePath,
         NULL, NULL, &g_PyasImagePath, NULL, NULL, NULL, NULL, NULL,
         RTL_USER_PROC_PARAMS_NORMALIZED);
     if (!NT_SUCCESS(st))
@@ -80,9 +80,9 @@ static NTSTATUS RestartProtectedProcess(VOID)
     InitializeObjectAttributes(&toa, NULL, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     st = ZwCreateUserProcess(&ph, &th, PROCESS_ALL_ACCESS, THREAD_ALL_ACCESS,
-        &poa, &toa, 0, 0, params, NULL, NULL);
+        &poa, &toa, 0, 0, procParams, NULL, NULL);
 
-    RtlDestroyProcessParameters(params);
+    RtlDestroyProcessParameters(procParams);
 
     if (NT_SUCCESS(st)) {
         ZwClose(th);

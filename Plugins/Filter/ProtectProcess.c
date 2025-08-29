@@ -1,4 +1,5 @@
 #include <ntifs.h>
+#include <ntstrsafe.h>
 #include "DriverEntry.h"
 
 typedef union _PS_PROTECTION {
@@ -7,218 +8,118 @@ typedef union _PS_PROTECTION {
         UCHAR Type : 3;
         UCHAR Audit : 1;
         UCHAR Signer : 4;
-    }Flags;
-}PS_PROTECTION, * PPS_PROTECTION;
-
-typedef struct _OBCTX {
-    POBJECT_TYPE ProcessType;
-    POBJECT_TYPE ThreadType;
-}OBCTX, * POBCTX;
+    } Flags;
+} PS_PROTECTION, * PPS_PROTECTION;
 
 static PVOID g_PsSetProcessProtection = NULL;
-static BOOLEAN g_ProcNotifyEnabled = FALSE;
-static PVOID g_ObCookie = NULL;
-static OBCTX g_ObCtx = { 0 };
 static HANDLE g_ProtectedPid = NULL;
-static PWCH g_ObAltitudeBuf = NULL;
+static PVOID g_ObCookie = NULL;
 
-static BOOLEAN IsProcNameEq(PEPROCESS p, PCSTR name)
+static NTSTATUS SetPPL31(_In_ PEPROCESS proc)
 {
-    PCSTR img = PsGetProcessImageFileName(p);
-    if (!img || !name) 
-        return FALSE;
-    
-    ANSI_STRING a = { 0 }, b = { 0 };
-    RtlInitAnsiString(&a, img);
-    RtlInitAnsiString(&b, name);
-    return RtlEqualString(&a, &b, TRUE) ? TRUE : FALSE;
-}
-
-static NTSTATUS SetPPL31(PEPROCESS p)
-{
-    if (!g_PsSetProcessProtection) 
+    if (!proc || !g_PsSetProcessProtection)
         return STATUS_PROCEDURE_NOT_FOUND;
-    
-    PS_PROTECTION pr = { 0 };
-    pr.Level = 0x31;
-    ((VOID(NTAPI*)(PEPROCESS, PS_PROTECTION))g_PsSetProcessProtection)(p, pr);
+
+    PS_PROTECTION p = { 0 };
+    p.Level = 0x31;
+    ((VOID(NTAPI*)(PEPROCESS, PS_PROTECTION))g_PsSetProcessProtection)(proc, p);
     return STATUS_SUCCESS;
 }
 
-static VOID LogSet(HANDLE pid, NTSTATUS st)
-{
-    CHAR b[128] = { 0 };
-    RtlStringCchPrintfA(b, RTL_NUMBER_OF(b), "PROC_PPL_SET | %u | 0x31 | 0x%08X", (ULONG)(ULONG_PTR)pid, st);
-    SendPipeLog(b, strlen(b));
-}
-
-static VOID UpdateProtectedPid(HANDLE pid)
-{
-    InterlockedExchangePointer((PVOID*)&g_ProtectedPid, pid);
-}
-
-static VOID BootstrapExisting(VOID)
-{
-    typedef PEPROCESS(NTAPI* PFN_PsGetNextProcess)(PEPROCESS);
-    UNICODE_STRING n = RTL_CONSTANT_STRING(L"PsGetNextProcess");
-    PFN_PsGetNextProcess fp = (PFN_PsGetNextProcess)MmGetSystemRoutineAddress(&n);
-    if (!fp) 
-        return;
-    
-    PEPROCESS p = fp(NULL);
-    while (p) {
-        if (IsProcNameEq(p, "PYAS.exe")) {
-            HANDLE pid = PsGetProcessId(p);
-            NTSTATUS s = SetPPL31(p);
-            UpdateProtectedPid(pid);
-            LogSet(pid, s);
-        }
-        PEPROCESS nx = fp(p);
-        ObDereferenceObject(p);
-        p = nx;
-    }
-}
-
-static VOID StripProcessAccess(POB_PRE_OPERATION_INFORMATION Info) 
-{
-    ACCESS_MASK d = PROCESS_TERMINATE | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_CREATE_THREAD | PROCESS_SET_INFORMATION | PROCESS_SET_LIMITED_INFORMATION | PROCESS_SUSPEND_RESUME | PROCESS_DUP_HANDLE;
-    if (Info->Operation == OB_OPERATION_HANDLE_CREATE) {
-        Info->Parameters->CreateHandleInformation.DesiredAccess &= ~d;
-    }
-    else {
-        Info->Parameters->DuplicateHandleInformation.DesiredAccess &= ~d;
-    }
-}
-
-static VOID StripThreadAccess(POB_PRE_OPERATION_INFORMATION Info)
-{
-    ACCESS_MASK d = THREAD_TERMINATE | THREAD_SUSPEND_RESUME | THREAD_SET_CONTEXT | THREAD_IMPERSONATE | THREAD_DIRECT_IMPERSONATION;
-    if (Info->Operation == OB_OPERATION_HANDLE_CREATE) {
-        Info->Parameters->CreateHandleInformation.DesiredAccess &= ~d;
-    }
-    else {
-        Info->Parameters->DuplicateHandleInformation.DesiredAccess &= ~d;
-    }
-}
-
-static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info)
+static OB_PREOP_CALLBACK_STATUS ObPreOperation(
+    _In_ PVOID RegistrationContext,
+    _Inout_ POB_PRE_OPERATION_INFORMATION info
+)
 {
     UNREFERENCED_PARAMETER(RegistrationContext);
-    
-    if (g_Unloading) 
+
+    if (!info || info->KernelHandle)
         return OB_PREOP_SUCCESS;
-    if (!Info || Info->KernelHandle) 
-        return OB_PREOP_SUCCESS;
-    if (!ExAcquireRundownProtection(&g_Rundown)) 
-        return OB_PREOP_SUCCESS;
-    
-    if (Info->ObjectType == g_ObCtx.ProcessType) {
-        PEPROCESS pe = (PEPROCESS)Info->Object;
-        HANDLE tpid = PsGetProcessId(pe);
-        if (g_ProtectedPid && tpid == g_ProtectedPid) {
-            if (PsGetCurrentProcessId() != g_ProtectedPid) StripProcessAccess(Info);
+
+    if (info->ObjectType == *PsProcessType) {
+        PEPROCESS proc = (PEPROCESS)info->Object;
+        HANDLE pid = PsGetProcessId(proc);
+        if (g_ProtectedPid && pid == g_ProtectedPid && PsGetCurrentProcessId() != g_ProtectedPid) {
+            ACCESS_MASK* mask = (info->Operation == OB_OPERATION_HANDLE_CREATE)
+                ? &info->Parameters->CreateHandleInformation.DesiredAccess
+                : &info->Parameters->DuplicateHandleInformation.DesiredAccess;
+
+            if (*mask & PROCESS_TERMINATE) {
+                LogAnsi3("KILL_ATTEMPT",
+                    (ULONG)(ULONG_PTR)PsGetCurrentProcessId(),
+                    NULL, NULL);
+                *mask &= ~(PROCESS_TERMINATE | PROCESS_VM_WRITE | PROCESS_CREATE_THREAD);
+            }
         }
     }
-    else if (Info->ObjectType == g_ObCtx.ThreadType) {
-        PETHREAD th = (PETHREAD)Info->Object;
-        HANDLE owner = PsGetThreadProcessId(th);
-        if (g_ProtectedPid && owner == g_ProtectedPid) {
-            if (PsGetCurrentProcessId() != g_ProtectedPid) StripThreadAccess(Info);
-        }
-    }
-    ExReleaseRundownProtection(&g_Rundown);
     return OB_PREOP_SUCCESS;
 }
 
-static NTSTATUS InitObCallbacks(VOID) 
+static VOID ProcessNotify(
+    _In_opt_ PEPROCESS Process,
+    _In_ HANDLE Pid,
+    _In_opt_ PPS_CREATE_NOTIFY_INFO CreateInfo
+)
 {
-    g_ObCtx.ProcessType = *PsProcessType;
-    g_ObCtx.ThreadType = *PsThreadType;
-
-    static OB_OPERATION_REGISTRATION ops[2];
-    RtlZeroMemory(ops, sizeof(ops));
-    ops[0].ObjectType = PsProcessType;
-    ops[0].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
-    ops[0].PreOperation = ObPreOperation;
-    ops[1].ObjectType = PsThreadType;
-    ops[1].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
-    ops[1].PreOperation = ObPreOperation;
-
-    const WCHAR* altStatic = L"321000";
-    USHORT alen = (USHORT)(wcslen(altStatic) * sizeof(WCHAR));
-    g_ObAltitudeBuf = (PWCH)ExAllocatePool2(POOL_FLAG_NON_PAGED, alen + sizeof(WCHAR), 'tlaO');
-    if (!g_ObAltitudeBuf)
-        return STATUS_INSUFFICIENT_RESOURCES;
-    RtlCopyMemory(g_ObAltitudeBuf, altStatic, alen);
-    g_ObAltitudeBuf[alen / sizeof(WCHAR)] = 0;
-
-    UNICODE_STRING alt = { 0 };
-    alt.Buffer = g_ObAltitudeBuf;
-    alt.Length = alen;
-    alt.MaximumLength = alen;
-
-    OB_CALLBACK_REGISTRATION reg = { 0 };
-    reg.Version = OB_FLT_REGISTRATION_VERSION;
-    reg.OperationRegistrationCount = 2;
-    reg.RegistrationContext = g_ObAltitudeBuf;
-    reg.Altitude = alt;
-    reg.OperationRegistration = ops;
-
-    NTSTATUS s = ObRegisterCallbacks(&reg, &g_ObCookie);
-    if (!NT_SUCCESS(s)) {
-        ExFreePool2(g_ObAltitudeBuf, 'tlaO', NULL, 0);
-        g_ObAltitudeBuf = NULL;
-    }
-    return s;
-}
-
-static VOID ProcessNotifyEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
-{
-    if (g_Unloading)
-        return;
-    if (!ExAcquireRundownProtection(&g_Rundown))
-        return;
+    UNICODE_STRING target = RTL_CONSTANT_STRING(L"\\??\\C:\\PYAS.exe");
     if (CreateInfo) {
-        if (IsProcNameEq(Process, "PYAS.exe")) {
-            NTSTATUS s = SetPPL31(Process);
-            UpdateProtectedPid(ProcessId);
-            LogSet(ProcessId, s);
+        if (Process && CreateInfo->ImageFileName &&
+            RtlEqualUnicodeString(CreateInfo->ImageFileName, &target, TRUE)) {
+
+            NTSTATUS st = SetPPL31(Process);
+            UNREFERENCED_PARAMETER(st);
+
+            InterlockedExchangePointer((PVOID*)&g_ProtectedPid, Pid);
+            LogAnsi3("PROC_PPL", (ULONG)(ULONG_PTR)Pid, (PUNICODE_STRING)CreateInfo->ImageFileName, NULL);
         }
     }
     else {
-        if (g_ProtectedPid && ProcessId == g_ProtectedPid) UpdateProtectedPid(NULL);
+        if (g_ProtectedPid && Pid == g_ProtectedPid) {
+            InterlockedExchangePointer((PVOID*)&g_ProtectedPid, NULL);
+        }
     }
-    ExReleaseRundownProtection(&g_Rundown);
 }
 
 NTSTATUS InitProcessProtect(VOID)
 {
     UNICODE_STRING n = RTL_CONSTANT_STRING(L"PsSetProcessProtection");
     g_PsSetProcessProtection = MmGetSystemRoutineAddress(&n);
-    
-    NTSTATUS s = InitObCallbacks();
-    if (!NT_SUCCESS(s)) 
+
+    static OB_OPERATION_REGISTRATION ops[1];
+    RtlZeroMemory(ops, sizeof(ops));
+    ops[0].ObjectType = PsProcessType;
+    ops[0].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
+    ops[0].PreOperation = ObPreOperation;
+    ops[0].PostOperation = NULL;
+
+    UNICODE_STRING alt = RTL_CONSTANT_STRING(L"321000");
+    OB_CALLBACK_REGISTRATION reg;
+    RtlZeroMemory(&reg, sizeof(reg));
+    reg.Version = OB_FLT_REGISTRATION_VERSION;
+    reg.OperationRegistrationCount = 1;
+    reg.OperationRegistration = ops;
+    reg.RegistrationContext = NULL;
+    reg.Altitude = alt;
+
+    NTSTATUS s = ObRegisterCallbacks(&reg, &g_ObCookie);
+    if (!NT_SUCCESS(s)) {
+        g_ObCookie = NULL;
         return s;
-    
-    s = PsSetCreateProcessNotifyRoutineEx(ProcessNotifyEx, FALSE);
-    if (NT_SUCCESS(s)) 
-        g_ProcNotifyEnabled = TRUE;
-    BootstrapExisting();
+    }
+    s = PsSetCreateProcessNotifyRoutineEx(ProcessNotify, FALSE);
+    if (!NT_SUCCESS(s)) {
+        ObUnRegisterCallbacks(g_ObCookie);
+        g_ObCookie = NULL;
+        return s;
+    }
     return STATUS_SUCCESS;
 }
 
 VOID UninitProcessProtect(VOID)
 {
-    if (g_ProcNotifyEnabled) {
-        PsSetCreateProcessNotifyRoutineEx(ProcessNotifyEx, TRUE);
-        g_ProcNotifyEnabled = FALSE;
-    }
     if (g_ObCookie) {
         ObUnRegisterCallbacks(g_ObCookie);
         g_ObCookie = NULL;
     }
-    if (g_ObAltitudeBuf) {
-        ExFreePool2(g_ObAltitudeBuf, 'tlaO', NULL, 0);
-        g_ObAltitudeBuf = NULL;
-    }
+    PsSetCreateProcessNotifyRoutineEx(ProcessNotify, TRUE);
 }

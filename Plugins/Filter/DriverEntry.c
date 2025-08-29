@@ -31,6 +31,18 @@ static NTSTATUS CombinedDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             Irp->IoStatus.Information = 0;
             IoCompleteRequest(Irp, IO_NO_INCREMENT);
             return STATUS_SUCCESS;
+        } else if (s->MajorFunction == IRP_MJ_DEVICE_CONTROL) {
+            NTSTATUS st = STATUS_INVALID_DEVICE_REQUEST;
+            ULONG code = s->Parameters.DeviceIoControl.IoControlCode;
+            if (code == IOCTL_PYAS_ADD_PROTECTED_PID &&
+                s->Parameters.DeviceIoControl.InputBufferLength >= sizeof(ULONG)) {
+                HANDLE pid = (HANDLE)(ULONG_PTR)*(ULONG*)Irp->AssociatedIrp.SystemBuffer;
+                st = AddProtectedPid(pid);
+            }
+            Irp->IoStatus.Status = st;
+            Irp->IoStatus.Information = 0;
+            IoCompleteRequest(Irp, IO_NO_INCREMENT);
+            return st;
         }
         Irp->IoStatus.Status = STATUS_INVALID_DEVICE_REQUEST;
         Irp->IoStatus.Information = 0;

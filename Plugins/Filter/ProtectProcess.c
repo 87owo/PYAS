@@ -224,9 +224,10 @@ static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PR
                     Info->Parameters->DuplicateHandleInformation.DesiredAccess;
                 if (da & PROCESS_TERMINATE) {
                     CHAR buf[128] = { 0 };
+                    PCSTR img = PsGetProcessImageFileName(PsGetCurrentProcess());
                     RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf),
-                        "PROC_KILL_ATTEMPT | %u | %u", (ULONG)(ULONG_PTR)cur,
-                        (ULONG)(ULONG_PTR)tpid);
+                        "PROC_KILL_ATTEMPT | %u | %u | %s", (ULONG)(ULONG_PTR)cur,
+                        (ULONG)(ULONG_PTR)tpid, img ? img : "");
                     SendPipeLog(buf, strlen(buf));
                     PsSuspendProcess(PsGetCurrentProcess());
                     RestartProtectedProcess();

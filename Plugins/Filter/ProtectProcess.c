@@ -1,6 +1,41 @@
 #include <ntifs.h>
 #include "DriverEntry.h"
 
+typedef struct _RTL_USER_PROCESS_PARAMETERS RTL_USER_PROCESS_PARAMETERS, *PRTL_USER_PROCESS_PARAMETERS;
+typedef struct _PS_CREATE_INFO PS_CREATE_INFO, *PPS_CREATE_INFO;
+typedef struct _PS_ATTRIBUTE_LIST PS_ATTRIBUTE_LIST, *PPS_ATTRIBUTE_LIST;
+
+NTSYSAPI NTSTATUS NTAPI RtlCreateProcessParametersEx(
+    PRTL_USER_PROCESS_PARAMETERS *ProcessParameters,
+    PUNICODE_STRING ImagePathName,
+    PUNICODE_STRING DllPath,
+    PUNICODE_STRING CurrentDirectory,
+    PUNICODE_STRING CommandLine,
+    PVOID Environment,
+    PUNICODE_STRING WindowTitle,
+    PUNICODE_STRING DesktopInfo,
+    PUNICODE_STRING ShellInfo,
+    PUNICODE_STRING RuntimeData,
+    ULONG Flags);
+
+NTSYSAPI NTSTATUS NTAPI RtlDestroyProcessParameters(
+    PRTL_USER_PROCESS_PARAMETERS ProcessParameters);
+
+NTSYSAPI NTSTATUS NTAPI ZwCreateUserProcess(
+    PHANDLE ProcessHandle,
+    PHANDLE ThreadHandle,
+    ACCESS_MASK ProcessDesiredAccess,
+    ACCESS_MASK ThreadDesiredAccess,
+    POBJECT_ATTRIBUTES ProcessObjectAttributes,
+    POBJECT_ATTRIBUTES ThreadObjectAttributes,
+    ULONG ProcessFlags,
+    ULONG ThreadFlags,
+    PRTL_USER_PROCESS_PARAMETERS ProcessParameters,
+    PPS_CREATE_INFO CreateInfo,
+    PPS_ATTRIBUTE_LIST AttributeList);
+
+NTSYSAPI NTSTATUS NTAPI PsSuspendProcess(PEPROCESS Process);
+
 typedef union _PS_PROTECTION {
     UCHAR Level;
     struct {

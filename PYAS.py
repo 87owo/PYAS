@@ -1915,7 +1915,11 @@ class MainWindow_Controller(QMainWindow):
                         continue
 
                     msg = buf.raw[:bytes_read.value].decode("utf-8", errors="ignore")
-                    parts = [p.strip() for p in msg.split("|", 3)]
+                    parts = [p.strip() for p in msg.split("|")]
+                    if parts and parts[0] == "PROC_KILL_ATTEMPT" and len(parts) >= 3:
+                        _, pid, target = parts[:3]
+                        self.send_message(f"驅動防護 | PROC_KILL_ATTEMPT | {pid} | {target}", "notify", True)
+                        continue
                     if len(parts) == 4:
                         rules, pid, raw_path, target = parts
                         for old, new in self.block_replace.items():

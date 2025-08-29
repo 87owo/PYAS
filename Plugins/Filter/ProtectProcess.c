@@ -21,6 +21,7 @@ static PVOID g_ObCookie = NULL;
 static OBCTX g_ObCtx = { 0 };
 static HANDLE g_ProtectedPid = NULL;
 static PWCH g_ObAltitudeBuf = NULL;
+static UNICODE_STRING g_PyasImagePath = { 0 };
 
 static BOOLEAN IsProcNameEq(PEPROCESS p, PCSTR name)
 {
@@ -55,6 +56,40 @@ static VOID LogSet(HANDLE pid, NTSTATUS st)
 static VOID UpdateProtectedPid(HANDLE pid)
 {
     InterlockedExchangePointer((PVOID*)&g_ProtectedPid, pid);
+}
+
+static NTSTATUS RestartProtectedProcess(VOID)
+{
+    if (!g_PyasImagePath.Buffer)
+        return STATUS_INVALID_PARAMETER;
+
+#ifndef RTL_USER_PROC_PARAMS_NORMALIZED
+#define RTL_USER_PROC_PARAMS_NORMALIZED 0x01
+#endif
+
+    HANDLE ph = NULL, th = NULL;
+    RTL_USER_PROCESS_PARAMETERS* params = NULL;
+    NTSTATUS st = RtlCreateProcessParametersEx(&params, &g_PyasImagePath,
+        NULL, NULL, &g_PyasImagePath, NULL, NULL, NULL, NULL, NULL,
+        RTL_USER_PROC_PARAMS_NORMALIZED);
+    if (!NT_SUCCESS(st))
+        return st;
+
+    OBJECT_ATTRIBUTES poa, toa;
+    InitializeObjectAttributes(&poa, NULL, OBJ_CASE_INSENSITIVE, NULL, NULL);
+    InitializeObjectAttributes(&toa, NULL, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    st = ZwCreateUserProcess(&ph, &th, PROCESS_ALL_ACCESS, THREAD_ALL_ACCESS,
+        &poa, &toa, 0, 0, params, NULL, NULL);
+
+    RtlDestroyProcessParameters(params);
+
+    if (NT_SUCCESS(st)) {
+        ZwClose(th);
+        ZwClose(ph);
+    }
+
+    return st;
 }
 
 static VOID BootstrapExisting(VOID)
@@ -116,7 +151,22 @@ static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PR
         PEPROCESS pe = (PEPROCESS)Info->Object;
         HANDLE tpid = PsGetProcessId(pe);
         if (g_ProtectedPid && tpid == g_ProtectedPid) {
-            if (PsGetCurrentProcessId() != g_ProtectedPid) StripProcessAccess(Info);
+            HANDLE cur = PsGetCurrentProcessId();
+            if (cur != g_ProtectedPid) {
+                ACCESS_MASK da = (Info->Operation == OB_OPERATION_HANDLE_CREATE) ?
+                    Info->Parameters->CreateHandleInformation.DesiredAccess :
+                    Info->Parameters->DuplicateHandleInformation.DesiredAccess;
+                if (da & PROCESS_TERMINATE) {
+                    CHAR buf[128] = { 0 };
+                    RtlStringCchPrintfA(buf, RTL_NUMBER_OF(buf),
+                        "PROC_KILL_ATTEMPT | %u | %u", (ULONG)(ULONG_PTR)cur,
+                        (ULONG)(ULONG_PTR)tpid);
+                    SendPipeLog(buf, strlen(buf));
+                    PsSuspendProcess(PsGetCurrentProcess());
+                    RestartProtectedProcess();
+                }
+                StripProcessAccess(Info);
+            }
         }
     }
     else if (Info->ObjectType == g_ObCtx.ThreadType) {
@@ -180,13 +230,29 @@ static VOID ProcessNotifyEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTI
         return;
     if (CreateInfo) {
         if (IsProcNameEq(Process, "PYAS.exe")) {
+            if (CreateInfo->ImageFileName && CreateInfo->ImageFileName->Buffer) {
+                SIZE_T len = CreateInfo->ImageFileName->Length;
+                PWCH buf = (PWCH)ExAllocatePool2(POOL_FLAG_NON_PAGED, len + sizeof(WCHAR), 'apyP');
+                if (buf) {
+                    RtlCopyMemory(buf, CreateInfo->ImageFileName->Buffer, len);
+                    buf[len / sizeof(WCHAR)] = L'\0';
+                    if (g_PyasImagePath.Buffer)
+                        ExFreePool2(g_PyasImagePath.Buffer, 'apyP', NULL, 0);
+                    g_PyasImagePath.Buffer = buf;
+                    g_PyasImagePath.Length = (USHORT)len;
+                    g_PyasImagePath.MaximumLength = (USHORT)(len + sizeof(WCHAR));
+                }
+            }
             NTSTATUS s = SetPPL31(Process);
             UpdateProtectedPid(ProcessId);
             LogSet(ProcessId, s);
         }
     }
     else {
-        if (g_ProtectedPid && ProcessId == g_ProtectedPid) UpdateProtectedPid(NULL);
+        if (g_ProtectedPid && ProcessId == g_ProtectedPid) {
+            UpdateProtectedPid(NULL);
+            RestartProtectedProcess();
+        }
     }
     ExReleaseRundownProtection(&g_Rundown);
 }
@@ -220,5 +286,10 @@ VOID UninitProcessProtect(VOID)
     if (g_ObAltitudeBuf) {
         ExFreePool2(g_ObAltitudeBuf, 'tlaO', NULL, 0);
         g_ObAltitudeBuf = NULL;
+    }
+    if (g_PyasImagePath.Buffer) {
+        ExFreePool2(g_PyasImagePath.Buffer, 'apyP', NULL, 0);
+        g_PyasImagePath.Buffer = NULL;
+        g_PyasImagePath.Length = g_PyasImagePath.MaximumLength = 0;
     }
 }

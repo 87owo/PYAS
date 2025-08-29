@@ -129,7 +129,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.5",
+            "version": "3.3.6",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -159,6 +159,7 @@ class MainWindow_Controller(QMainWindow):
             "PROC_BLOCK": "進程行為攔截",
             "REMOTE_BLOCK": "遠控行為攔截",
             "SCREEN_BLOCK": "監控行為攔截",
+            "KILL_ATTEMPT": "終止行為攔截",
         }
 
 ####################################################################################################

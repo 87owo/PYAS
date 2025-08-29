@@ -1,12 +1,10 @@
 #include <ntifs.h>
 #include "DriverEntry.h"
 
-typedef struct _RTL_USER_PROCESS_PARAMETERS RTL_USER_PROCESS_PARAMETERS, *PRTL_USER_PROCESS_PARAMETERS;
-typedef struct _PS_CREATE_INFO PS_CREATE_INFO, *PPS_CREATE_INFO;
-typedef struct _PS_ATTRIBUTE_LIST PS_ATTRIBUTE_LIST, *PPS_ATTRIBUTE_LIST;
+typedef struct _RTL_USER_PROCESS_PARAMETERS RTL_USER_PROCESS_PARAMETERS, * PRTL_USER_PROCESS_PARAMETERS;
 
-NTSYSAPI NTSTATUS NTAPI RtlCreateProcessParametersEx(
-    PRTL_USER_PROCESS_PARAMETERS *ProcessParameters,
+typedef NTSTATUS(NTAPI* PFN_RtlCreateProcessParametersEx)(
+    PRTL_USER_PROCESS_PARAMETERS* pProcessParameters,
     PUNICODE_STRING ImagePathName,
     PUNICODE_STRING DllPath,
     PUNICODE_STRING CurrentDirectory,
@@ -16,25 +14,30 @@ NTSYSAPI NTSTATUS NTAPI RtlCreateProcessParametersEx(
     PUNICODE_STRING DesktopInfo,
     PUNICODE_STRING ShellInfo,
     PUNICODE_STRING RuntimeData,
-    ULONG Flags);
+    ULONG Flags
+    );
 
-NTSYSAPI NTSTATUS NTAPI RtlDestroyProcessParameters(
-    PRTL_USER_PROCESS_PARAMETERS ProcessParameters);
+typedef NTSTATUS(NTAPI* PFN_RtlDestroyProcessParameters)(
+    PRTL_USER_PROCESS_PARAMETERS ProcessParameters
+    );
 
-NTSYSAPI NTSTATUS NTAPI ZwCreateUserProcess(
+extern NTSTATUS NTAPI ZwCreateUserProcess(
     PHANDLE ProcessHandle,
     PHANDLE ThreadHandle,
     ACCESS_MASK ProcessDesiredAccess,
     ACCESS_MASK ThreadDesiredAccess,
     POBJECT_ATTRIBUTES ProcessObjectAttributes,
     POBJECT_ATTRIBUTES ThreadObjectAttributes,
-    ULONG ProcessFlags,
-    ULONG ThreadFlags,
+    ULONG ProcessCreateFlags,
+    ULONG ThreadCreateFlags,
     PRTL_USER_PROCESS_PARAMETERS ProcessParameters,
-    PPS_CREATE_INFO CreateInfo,
-    PPS_ATTRIBUTE_LIST AttributeList);
+    PVOID CreateInfo,
+    PVOID AttributeList
+);
 
-NTSYSAPI NTSTATUS NTAPI PsSuspendProcess(PEPROCESS Process);
+extern NTSTATUS NTAPI PsSuspendProcess(
+    PEPROCESS Process
+);
 
 typedef union _PS_PROTECTION {
     UCHAR Level;
@@ -51,6 +54,8 @@ typedef struct _OBCTX {
 }OBCTX, * POBCTX;
 
 static PVOID g_PsSetProcessProtection = NULL;
+static PFN_RtlCreateProcessParametersEx g_RtlCreateProcessParametersEx = NULL;
+static PFN_RtlDestroyProcessParameters g_RtlDestroyProcessParameters = NULL;
 static BOOLEAN g_ProcNotifyEnabled = FALSE;
 static PVOID g_ObCookie = NULL;
 static OBCTX g_ObCtx = { 0 };
@@ -61,9 +66,9 @@ static UNICODE_STRING g_PyasImagePath = { 0 };
 static BOOLEAN IsProcNameEq(PEPROCESS p, PCSTR name)
 {
     PCSTR img = PsGetProcessImageFileName(p);
-    if (!img || !name) 
+    if (!img || !name)
         return FALSE;
-    
+
     ANSI_STRING a = { 0 }, b = { 0 };
     RtlInitAnsiString(&a, img);
     RtlInitAnsiString(&b, name);
@@ -72,9 +77,9 @@ static BOOLEAN IsProcNameEq(PEPROCESS p, PCSTR name)
 
 static NTSTATUS SetPPL31(PEPROCESS p)
 {
-    if (!g_PsSetProcessProtection) 
+    if (!g_PsSetProcessProtection)
         return STATUS_PROCEDURE_NOT_FOUND;
-    
+
     PS_PROTECTION pr = { 0 };
     pr.Level = 0x31;
     ((VOID(NTAPI*)(PEPROCESS, PS_PROTECTION))g_PsSetProcessProtection)(p, pr);
@@ -102,22 +107,26 @@ static NTSTATUS RestartProtectedProcess(VOID)
 #define RTL_USER_PROC_PARAMS_NORMALIZED 0x01
 #endif
 
+    if (!g_RtlCreateProcessParametersEx || !g_RtlDestroyProcessParameters)
+        return STATUS_PROCEDURE_NOT_FOUND;
+
     HANDLE ph = NULL, th = NULL;
     RTL_USER_PROCESS_PARAMETERS* procParams = NULL;
-    NTSTATUS st = RtlCreateProcessParametersEx(&procParams, &g_PyasImagePath,
+    NTSTATUS st = g_RtlCreateProcessParametersEx(&procParams, &g_PyasImagePath,
         NULL, NULL, &g_PyasImagePath, NULL, NULL, NULL, NULL, NULL,
         RTL_USER_PROC_PARAMS_NORMALIZED);
     if (!NT_SUCCESS(st))
         return st;
 
-    OBJECT_ATTRIBUTES poa, toa;
+    OBJECT_ATTRIBUTES poa = { 0 };
+    OBJECT_ATTRIBUTES toa = { 0 };
     InitializeObjectAttributes(&poa, NULL, OBJ_CASE_INSENSITIVE, NULL, NULL);
     InitializeObjectAttributes(&toa, NULL, OBJ_CASE_INSENSITIVE, NULL, NULL);
 
     st = ZwCreateUserProcess(&ph, &th, PROCESS_ALL_ACCESS, THREAD_ALL_ACCESS,
         &poa, &toa, 0, 0, procParams, NULL, NULL);
 
-    RtlDestroyProcessParameters(procParams);
+    g_RtlDestroyProcessParameters(procParams);
 
     if (NT_SUCCESS(st)) {
         ZwClose(th);
@@ -132,9 +141,9 @@ static VOID BootstrapExisting(VOID)
     typedef PEPROCESS(NTAPI* PFN_PsGetNextProcess)(PEPROCESS);
     UNICODE_STRING n = RTL_CONSTANT_STRING(L"PsGetNextProcess");
     PFN_PsGetNextProcess fp = (PFN_PsGetNextProcess)MmGetSystemRoutineAddress(&n);
-    if (!fp) 
+    if (!fp)
         return;
-    
+
     PEPROCESS p = fp(NULL);
     while (p) {
         if (IsProcNameEq(p, "PYAS.exe")) {
@@ -149,7 +158,7 @@ static VOID BootstrapExisting(VOID)
     }
 }
 
-static VOID StripProcessAccess(POB_PRE_OPERATION_INFORMATION Info) 
+static VOID StripProcessAccess(POB_PRE_OPERATION_INFORMATION Info)
 {
     ACCESS_MASK d = PROCESS_TERMINATE | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_CREATE_THREAD | PROCESS_SET_INFORMATION | PROCESS_SET_LIMITED_INFORMATION | PROCESS_SUSPEND_RESUME | PROCESS_DUP_HANDLE;
     if (Info->Operation == OB_OPERATION_HANDLE_CREATE) {
@@ -174,14 +183,14 @@ static VOID StripThreadAccess(POB_PRE_OPERATION_INFORMATION Info)
 static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION Info)
 {
     UNREFERENCED_PARAMETER(RegistrationContext);
-    
-    if (g_Unloading) 
+
+    if (g_Unloading)
         return OB_PREOP_SUCCESS;
-    if (!Info || Info->KernelHandle) 
+    if (!Info || Info->KernelHandle)
         return OB_PREOP_SUCCESS;
-    if (!ExAcquireRundownProtection(&g_Rundown)) 
+    if (!ExAcquireRundownProtection(&g_Rundown))
         return OB_PREOP_SUCCESS;
-    
+
     if (Info->ObjectType == g_ObCtx.ProcessType) {
         PEPROCESS pe = (PEPROCESS)Info->Object;
         HANDLE tpid = PsGetProcessId(pe);
@@ -215,7 +224,7 @@ static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PR
     return OB_PREOP_SUCCESS;
 }
 
-static NTSTATUS InitObCallbacks(VOID) 
+static NTSTATUS InitObCallbacks(VOID)
 {
     g_ObCtx.ProcessType = *PsProcessType;
     g_ObCtx.ThreadType = *PsThreadType;
@@ -296,13 +305,18 @@ NTSTATUS InitProcessProtect(VOID)
 {
     UNICODE_STRING n = RTL_CONSTANT_STRING(L"PsSetProcessProtection");
     g_PsSetProcessProtection = MmGetSystemRoutineAddress(&n);
-    
+
+    UNICODE_STRING n1 = RTL_CONSTANT_STRING(L"RtlCreateProcessParametersEx");
+    g_RtlCreateProcessParametersEx = (PFN_RtlCreateProcessParametersEx)MmGetSystemRoutineAddress(&n1);
+    UNICODE_STRING n2 = RTL_CONSTANT_STRING(L"RtlDestroyProcessParameters");
+    g_RtlDestroyProcessParameters = (PFN_RtlDestroyProcessParameters)MmGetSystemRoutineAddress(&n2);
+
     NTSTATUS s = InitObCallbacks();
-    if (!NT_SUCCESS(s)) 
+    if (!NT_SUCCESS(s))
         return s;
-    
+
     s = PsSetCreateProcessNotifyRoutineEx(ProcessNotifyEx, FALSE);
-    if (NT_SUCCESS(s)) 
+    if (NT_SUCCESS(s))
         g_ProcNotifyEnabled = TRUE;
     BootstrapExisting();
     return STATUS_SUCCESS;

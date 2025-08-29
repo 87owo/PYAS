@@ -59,7 +59,9 @@ static PFN_RtlDestroyProcessParameters g_RtlDestroyProcessParameters = NULL;
 static BOOLEAN g_ProcNotifyEnabled = FALSE;
 static PVOID g_ObCookie = NULL;
 static OBCTX g_ObCtx = { 0 };
-static HANDLE g_ProtectedPid = NULL;
+
+#define MAX_PROTECTED_PIDS 4
+static HANDLE g_ProtectedPids[MAX_PROTECTED_PIDS] = { 0 };
 static PWCH g_ObAltitudeBuf = NULL;
 static UNICODE_STRING g_PyasImagePath = { 0 };
 
@@ -93,9 +95,29 @@ static VOID LogSet(HANDLE pid, NTSTATUS st)
     SendPipeLog(b, strlen(b));
 }
 
-static VOID UpdateProtectedPid(HANDLE pid)
+static BOOLEAN IsPidProtected(HANDLE pid)
 {
-    InterlockedExchangePointer((PVOID*)&g_ProtectedPid, pid);
+    for (int i = 0; i < MAX_PROTECTED_PIDS; ++i) {
+        if (g_ProtectedPids[i] == pid)
+            return TRUE;
+    }
+    return FALSE;
+}
+
+NTSTATUS AddProtectedPid(HANDLE pid)
+{
+    for (int i = 0; i < MAX_PROTECTED_PIDS; ++i) {
+        if (InterlockedCompareExchangePointer((PVOID*)&g_ProtectedPids[i], pid, NULL) == NULL)
+            return STATUS_SUCCESS;
+    }
+    return STATUS_INSUFFICIENT_RESOURCES;
+}
+
+VOID RemoveProtectedPid(HANDLE pid)
+{
+    for (int i = 0; i < MAX_PROTECTED_PIDS; ++i) {
+        InterlockedCompareExchangePointer((PVOID*)&g_ProtectedPids[i], NULL, pid);
+    }
 }
 
 static NTSTATUS RestartProtectedProcess(VOID)
@@ -149,7 +171,7 @@ static VOID BootstrapExisting(VOID)
         if (IsProcNameEq(p, "PYAS.exe")) {
             HANDLE pid = PsGetProcessId(p);
             NTSTATUS s = SetPPL31(p);
-            UpdateProtectedPid(pid);
+            AddProtectedPid(pid);
             LogSet(pid, s);
         }
         PEPROCESS nx = fp(p);
@@ -194,9 +216,9 @@ static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PR
     if (Info->ObjectType == g_ObCtx.ProcessType) {
         PEPROCESS pe = (PEPROCESS)Info->Object;
         HANDLE tpid = PsGetProcessId(pe);
-        if (g_ProtectedPid && tpid == g_ProtectedPid) {
+        if (IsPidProtected(tpid)) {
             HANDLE cur = PsGetCurrentProcessId();
-            if (cur != g_ProtectedPid) {
+            if (!IsPidProtected(cur)) {
                 ACCESS_MASK da = (Info->Operation == OB_OPERATION_HANDLE_CREATE) ?
                     Info->Parameters->CreateHandleInformation.DesiredAccess :
                     Info->Parameters->DuplicateHandleInformation.DesiredAccess;
@@ -216,8 +238,8 @@ static OB_PREOP_CALLBACK_STATUS ObPreOperation(PVOID RegistrationContext, POB_PR
     else if (Info->ObjectType == g_ObCtx.ThreadType) {
         PETHREAD th = (PETHREAD)Info->Object;
         HANDLE owner = PsGetThreadProcessId(th);
-        if (g_ProtectedPid && owner == g_ProtectedPid) {
-            if (PsGetCurrentProcessId() != g_ProtectedPid) StripThreadAccess(Info);
+        if (IsPidProtected(owner)) {
+            if (!IsPidProtected(PsGetCurrentProcessId())) StripThreadAccess(Info);
         }
     }
     ExReleaseRundownProtection(&g_Rundown);
@@ -288,13 +310,13 @@ static VOID ProcessNotifyEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTI
                 }
             }
             NTSTATUS s = SetPPL31(Process);
-            UpdateProtectedPid(ProcessId);
+            AddProtectedPid(ProcessId);
             LogSet(ProcessId, s);
         }
     }
     else {
-        if (g_ProtectedPid && ProcessId == g_ProtectedPid) {
-            UpdateProtectedPid(NULL);
+        if (IsPidProtected(ProcessId)) {
+            RemoveProtectedPid(ProcessId);
             RestartProtectedProcess();
         }
     }
@@ -341,4 +363,5 @@ VOID UninitProcessProtect(VOID)
         g_PyasImagePath.Buffer = NULL;
         g_PyasImagePath.Length = g_PyasImagePath.MaximumLength = 0;
     }
+    RtlZeroMemory(g_ProtectedPids, sizeof(g_ProtectedPids));
 }

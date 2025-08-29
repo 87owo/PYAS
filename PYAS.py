@@ -224,6 +224,18 @@ class MainWindow_Controller(QMainWindow):
         self.shell32.CommandLineToArgvW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
         self.shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.wintypes.LPWSTR)
 
+        self.kernel32.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.wintypes.DWORD,
+                                             ctypes.wintypes.DWORD, ctypes.c_void_p,
+                                             ctypes.wintypes.DWORD, ctypes.wintypes.DWORD,
+                                             ctypes.wintypes.HANDLE]
+        self.kernel32.CreateFileW.restype = ctypes.wintypes.HANDLE
+        self.kernel32.DeviceIoControl.argtypes = [
+            ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD,
+            ctypes.c_void_p, ctypes.wintypes.DWORD,
+            ctypes.c_void_p, ctypes.wintypes.DWORD,
+            ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_void_p]
+        self.kernel32.DeviceIoControl.restype = ctypes.wintypes.BOOL
+
 ####################################################################################################
 
     def save_config(self, file_path, config):
@@ -372,6 +384,7 @@ class MainWindow_Controller(QMainWindow):
             if not checked:
                 self.stop_system_driver()
             elif self.install_system_driver():
+                self.register_driver_pid()
                 self.start_daemon_thread(self.pipe_server_thread)
             else:
                 self.send_message("驅動防護啟用失敗，請重啟裝置來修復錯誤", "warn", True)
@@ -1889,12 +1902,29 @@ class MainWindow_Controller(QMainWindow):
         self.advapi32.CloseServiceHandle(scm)
         return True
 
+    def register_driver_pid(self):
+        try:
+            handle = self.kernel32.CreateFileW(r"\\.\\PYAS_Driver", 0xC0000000, 0, None, 3, 0, None)
+            if handle == ctypes.c_void_p(-1).value:
+                return False
+            IOCTL_ADD_PID = 0x222000
+            pid = ctypes.wintypes.DWORD(os.getpid())
+            br = ctypes.wintypes.DWORD()
+            self.kernel32.DeviceIoControl(handle, IOCTL_ADD_PID,
+                                          ctypes.byref(pid), ctypes.sizeof(pid),
+                                          None, 0, ctypes.byref(br), None)
+            self.kernel32.CloseHandle(handle)
+            return True
+        except Exception as e:
+            self.send_message(e, "warn", False)
+            return False
+
 ####################################################################################################
 
     def pipe_server_thread(self):
         pipe_path = r"\\.\pipe\PYAS_Output_Pipe"
         PIPE_BUF_SIZE = 65536
-
+        self.register_driver_pid()
         while self.pyas_config.get("driver_switch", False):
             try:
                 hPipe = self.kernel32.CreateNamedPipeW(pipe_path, 0x00000001, 0x00000004 | 0x00000002, 1, PIPE_BUF_SIZE, PIPE_BUF_SIZE, 0, None)
@@ -1916,9 +1946,13 @@ class MainWindow_Controller(QMainWindow):
 
                     msg = buf.raw[:bytes_read.value].decode("utf-8", errors="ignore")
                     parts = [p.strip() for p in msg.split("|")]
-                    if parts and parts[0] == "PROC_KILL_ATTEMPT" and len(parts) >= 3:
-                        _, pid, target = parts[:3]
-                        self.send_message(f"驅動防護 | PROC_KILL_ATTEMPT | {pid} | {target}", "notify", True)
+                    if parts and parts[0] == "PROC_KILL_ATTEMPT":
+                        if len(parts) >= 4:
+                            _, pid, target, name = parts[:4]
+                            self.send_message(f"驅動防護 | PROC_KILL_ATTEMPT | {pid} | {target} | {name}", "notify", True)
+                        elif len(parts) >= 3:
+                            _, pid, target = parts[:3]
+                            self.send_message(f"驅動防護 | PROC_KILL_ATTEMPT | {pid} | {target}", "notify", True)
                         continue
                     if len(parts) == 4:
                         rules, pid, raw_path, target = parts

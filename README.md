@@ -4,14 +4,6 @@ Antivirus software written in Python and C that blocks threats through deep lear
 
 <img width="2245" height="1477" alt="PYAS_UI" src="https://github.com/user-attachments/assets/87d40261-7655-49ad-a19c-1ffcca60584f" />
 
-## Readme Language
-
-English : https://github.com/87owo/PYAS/blob/main/README.md
-
-繁體中文 : https://github.com/87owo/PYAS/blob/main/README_zh_TW.md
-
-简体中文 : https://github.com/87owo/PYAS/blob/main/README_zh_CN.md
-
 ## Requirements
 
 Python 3.10 is recommended. Other Python versions may require different pip commands.

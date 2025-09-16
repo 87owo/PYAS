@@ -3,8 +3,12 @@ import os, tf2onnx, numpy, random
 from PIL import Image
 from tensorflow.keras import *
 
+####################################################################################################
+
 Image.MAX_IMAGE_PIXELS = None
 tf.keras.mixed_precision.set_global_policy('mixed_float16')
+
+####################################################################################################
 
 def get_file_list(directory):
     file_paths, labels, class_indices = [], [], {}
@@ -18,6 +22,8 @@ def get_file_list(directory):
                     labels.append(i)
     return file_paths, labels, class_indices
 
+####################################################################################################
+
 def parse_fn(filename, label, image_size, channels, num_classes):
     img = tf.io.read_file(filename)
     img = tf.image.decode_image(img, channels=channels, expand_animations=False)
@@ -28,6 +34,8 @@ def parse_fn(filename, label, image_size, channels, num_classes):
     img = tf.cast(img, tf.float32) / 255.0
     label = tf.one_hot(label, depth=num_classes)
     return img, label
+
+####################################################################################################
 
 def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=128, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
@@ -54,6 +62,8 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=
     train_ds.class_indices = class_indices
     return train_ds, val_ds
 
+####################################################################################################
+
 def multi_conv(x, strides):
     convs = []
     for k in [1, 3, 5, 7]:
@@ -78,8 +88,8 @@ def se_block(x, reduction):
 def build_model(input_shape, num_classes):
     i = layers.Input(shape=input_shape)
     x = multi_conv(i, strides=1)
-    x = multi_conv(x, strides=2)
     x = gated_conv(x, strides=2)
+    x = multi_conv(x, strides=2)
     x = multi_conv(x, strides=2)
     x = multi_conv(x, strides=2)
     x = multi_conv(x, strides=2)
@@ -87,6 +97,8 @@ def build_model(input_shape, num_classes):
     x = layers.GlobalMaxPooling2D()(x)
     o = layers.Dense(num_classes, activation='softmax', dtype='float32')(x)
     return models.Model(i, o)
+
+####################################################################################################
 
 def lr_scheduler(epoch, lr):
     return 1e-4 * (0.95 ** epoch)
@@ -98,6 +110,8 @@ class CustomModelCheckpoint(callbacks.Callback):
         model_proto, _ = tf2onnx.convert.from_keras(self.model, input_signature=spec, opset=18)
         with open(f"PYAS_Model_Epoch_{epoch + 1}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
+
+####################################################################################################
 
 train_ds, val_ds = load_dataset(r'.\Image_File')
 for imgs, _ in train_ds.take(1):
@@ -115,4 +129,4 @@ with strategy.scope():
     print(f"Total parameters: {model.count_params()}")
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
-input("Training complete.")
+input('Training Complete')

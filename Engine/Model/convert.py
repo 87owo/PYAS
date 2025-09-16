@@ -1,73 +1,73 @@
 from PIL import Image
 import numpy, pefile, os
 
-def file_to_images(file_data, output_dir, file_name, target_size=(224, 224)):#
-    wah = int(numpy.ceil(numpy.sqrt(len(file_data))))
-    file_data = numpy.frombuffer(file_data, dtype=numpy.uint8)
-    image_array = numpy.zeros((wah * wah,), dtype=numpy.uint8)
-    image_array[:len(file_data)] = file_data
-    image = Image.fromarray(image_array.reshape((wah, wah)), 'L')
-    image = image.resize(target_size, Image.Resampling.NEAREST)
-    image.save(os.path.join(output_dir, f"{file_name}.png"))
+####################################################################################################
 
-def check_file_type(file_path):
+def preprocess_image(file_data, size, channels=1):
+    width, height = size
+    wah = int(numpy.ceil(numpy.sqrt(len(file_data) / channels)))
+    arr = numpy.frombuffer(file_data, dtype=numpy.uint8)
+    img = numpy.zeros(wah*wah*channels, dtype=numpy.uint8)
+    img[:len(file_data)] = arr
+
+    if channels == 1:
+        image = Image.fromarray(img.reshape((wah, wah)), 'L')
+    else:
+        image = Image.fromarray(img.reshape((wah, wah, channels)), 'RGB')
+    return image.resize((width, height), Image.Resampling.NEAREST)
+
+####################################################################################################
+
+def is_text_file(self, content, sample_size=1024):
+    raw = content[:sample_size]
+    if not raw:
+        return False
+    text_char = set(range(32, 127)) | {9, 10, 13}
+    nontext = sum(b not in text_char for b in raw)
+    return nontext / len(raw) < 0.15
+
+def get_type(file_path):
+    self.suffix = {
+        ".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys",
+        ".bat", ".cmd", ".js", ".php", ".ps1", ".vbs", ".wsf"}
+
+    match_data = {}
+    if not os.path.splitext(file_path)[-1].lower() in self.suffix:
+        return match_data
     try:
-        shell_section = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", 
-        "cry", "tvm", "dec", "enc", "vmp", "upx", "aes", "lzma", "press", 
-        "pack", "enigma", "protect", "secur"]
+        with pefile.PE(file_path, fast_load=True) as pe:
+            for section in pe.sections:
+                name = section.Name.rstrip(b'\x00').decode('latin1').lower()
+                if section.Characteristics & 0x00000020:
+                    match_data[name] = section.get_data()
+    except pefile.PEFormatError:
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+        if self.is_text_file(file_content):
+            match_data[os.path.splitext(file_path)[-1].lower()] = file_content
+    return match_data
 
-        unknown_section = ["asmstub", "base", "bss", "clr_uef", "cursors", 
-        "engine", "fio", "fothk", "h~;", "icapsec", "malloc_h", "miniex", 
-        "mssmixer", "ndr64", "nsys_wr", "obr", "wow", "wow64svc", "wpp_sf",
-        "pad", "pgae", "poolmi", "proxy", "qihoo", "res", "retpol", "uedbg",
-        "rwexec", "rygs", "s:@", "sanontcp", "segm", "test", "tracesup",
-        "transit", "trs_age", "wisevec"]
+####################################################################################################
 
-        unimportant_section = ["viahwaes", "orpc", "nep", "ace", "extjmp", 
-        "no_bbt", "data", "page", "hexpthk"]
-
-        shells = shell_section + unimportant_section + unknown_section
-        
-        ftype = str(f".{file_path.split('.')[-1]}").lower()
-
-        if ftype in [".bat", ".cmd", ".ps1", ".vbs", ".wsf", ".js", ".html"]:
-            with open(file_path, 'rb') as f:
-                return [f.read()]
-
-        match_data = []
-        if ftype in [".com", ".exe", ".dll", ".sys", ".scr"]:
-            with pefile.PE(file_path, fast_load=True) as pe:
-                for section in pe.sections:
-                    section_name = section.Name.rstrip(b'\x00').decode('latin1')
-                    #if (section.Characteristics & 0x00000020 and not
-                    #any(shell in section_name.lower() for shell in shells)):
-                    if section.Characteristics & 0x00000020:
-                        match_data.append(section.get_data())
-                return match_data
-        return False
-    except Exception as e:
-        print(e)
-        return False
-
-def batch_file_to_images(input_dir, output_dir):
+def file_to_images(input_dir, output_dir):
     for root, dirs, files in os.walk(input_dir):
         for file in files:
             try:
                 file_path = os.path.join(root, file)
-                file_data = check_file_type(file_path)
-                if file_data:
-                    for i, data in enumerate(file_data, 1):
-                        print(i, file_path)
-                        relative_path = os.path.relpath(root, input_dir)
-                        output_path_dir = os.path.join(output_dir, relative_path)
-                        if not os.path.exists(output_path_dir):
-                            os.makedirs(output_path_dir)
-                        file_to_images(data, output_path_dir, f"{i}_{file}")
+                for name, data in get_type(file_path):
+                    print(name, file_path)
+                    relative_path = os.path.relpath(root, input_dir)
+                    output_path_dir = os.path.join(output_dir, relative_path)
+                    if not os.path.exists(output_path_dir):
+                        os.makedirs(output_path_dir)
+                    image = preprocess_image(data, (224, 224))
+                    image.save(os.path.join(output_path_dir, f"{name}_{file}.png"))
             except Exception as e:
                 print(e)
-                pass
+
+####################################################################################################
 
 input_directory = input('Enter the folder path: ')
 output_directory = "./Image_File"
-batch_file_to_images(input_directory, output_directory)
+file_to_images(input_directory, output_directory)
 input('Conversion Complete')

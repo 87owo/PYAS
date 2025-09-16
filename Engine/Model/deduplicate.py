@@ -1,5 +1,7 @@
 import os, hashlib
 
+####################################################################################################
+
 def calc_sha256(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).digest()
@@ -25,5 +27,8 @@ def dedup_realtime(root):
                 seen.add(h)
     print(f"deleted {deleted}")
 
+####################################################################################################
+
 if __name__ == "__main__":
     dedup_realtime(r".\Image_File")
+input('Deduplicate Complete')

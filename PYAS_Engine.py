@@ -194,9 +194,6 @@ class model_scanner:
             return match_data
         try:
             with pefile.PE(file_path, fast_load=True) as pe:
-                sec = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-                if bool(sec.VirtualAddress and sec.Size):
-                    return {}
                 for section in pe.sections:
                     name = section.Name.rstrip(b'\x00').decode('latin1').lower()
                     if section.Characteristics & 0x00000020:

@@ -18,7 +18,7 @@ def preprocess_image(file_data, size, channels=1):
 
 ####################################################################################################
 
-def is_text_file(self, content, sample_size=1024):
+def is_text_file(content, sample_size=1024):
     raw = content[:sample_size]
     if not raw:
         return False
@@ -27,12 +27,12 @@ def is_text_file(self, content, sample_size=1024):
     return nontext / len(raw) < 0.15
 
 def get_type(file_path):
-    self.suffix = {
+    suffix = {
         ".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys",
         ".bat", ".cmd", ".js", ".php", ".ps1", ".vbs", ".wsf"}
 
     match_data = {}
-    if not os.path.splitext(file_path)[-1].lower() in self.suffix:
+    if not os.path.splitext(file_path)[-1].lower() in suffix:
         return match_data
     try:
         with pefile.PE(file_path, fast_load=True) as pe:
@@ -43,7 +43,7 @@ def get_type(file_path):
     except pefile.PEFormatError:
         with open(file_path, 'rb') as f:
             file_content = f.read()
-        if self.is_text_file(file_content):
+        if is_text_file(file_content):
             match_data[os.path.splitext(file_path)[-1].lower()] = file_content
     return match_data
 
@@ -54,7 +54,7 @@ def file_to_images(input_dir, output_dir):
         for file in files:
             try:
                 file_path = os.path.join(root, file)
-                for name, data in get_type(file_path):
+                for name, data in get_type(file_path).items():
                     print(name, file_path)
                     relative_path = os.path.relpath(root, input_dir)
                     output_path_dir = os.path.join(output_dir, relative_path)

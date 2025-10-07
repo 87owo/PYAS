@@ -127,9 +127,6 @@ class model_scanner:
                 return False
 
     def model_scan(self, file_path, full_output=False):
-        if not self.model or not file_path.exists():
-            return (False, False) if not full_output else ([], str(file_path), None)
-
         sections = self.extract_sections(file_path)
         if not sections:
             return (False, False) if not full_output else ([], str(file_path), None)

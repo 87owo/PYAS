@@ -2,6 +2,7 @@ import os, yara, numpy, base64, onnxruntime
 import ctypes, ctypes.wintypes, pefile
 from PIL import Image
 from io import BytesIO
+from pathlib import Path
 
 ####################################################################################################
 
@@ -129,10 +130,10 @@ class model_scanner:
     def model_scan(self, file_path, full_output=False):
         sections = self.extract_sections(file_path)
         if not sections:
-            return (False, False) if not full_output else ([], str(file_path), None)
+            return (False, False) if not full_output else ([], file_path, None)
         images = [self.preprocess_image(data, self.resize) for data in sections.values()]
         if not images:
-            return (False, False) if not full_output else ([], str(file_path), None)
+            return (False, False) if not full_output else ([], file_path, None)
 
         arr = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in images])[:, :, :, None]
         input_shape = self.model.get_inputs()[0].shape
@@ -143,7 +144,6 @@ class model_scanner:
         preds = self.model.run(None, {input_name: arr})[0]
         exp = numpy.exp(preds - numpy.max(preds, axis=1, keepdims=True))
         probs = exp / numpy.sum(exp, axis=1, keepdims=True)
-
         max_overall = max(numpy.max(row) for row in probs)
 
         results = []
@@ -159,8 +159,7 @@ class model_scanner:
         if full_output:
             malicious_count = sum(1 for _, lbl, _, _ in results if lbl in self.detect_set)
             total = len(results)
-            status = f"{malicious_count}/{total}"
-            return results, str(file_path), status
+            return results, file_path, f"{malicious_count}/{total}"
         return False, False
 
     def pil_to_base64(self, img):
@@ -193,10 +192,10 @@ class model_scanner:
                     name = section.Name.rstrip(b'\x00').decode('latin1').lower()
                     if section.Characteristics & 0x00000020:
                         match_data[name] = section.get_data()
-        except Exception:
+        except pefile.PEFormatError:
             with open(file_path, 'rb') as f:
                 content = f.read()
-            ext = file_path.suffix.lower()
+            ext = os.path.splitext(file_path)[-1].lower()
             if ext in self.suffix or self.is_text_file(content):
                 match_data[ext] = content
         return match_data

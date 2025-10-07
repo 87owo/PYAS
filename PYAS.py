@@ -1527,6 +1527,14 @@ class MainWindow_Controller(QMainWindow):
             self.send_message(e, "warn", False)
             return False
 
+    def cloud_button(self):
+        try:
+            webbrowser.open("http://27.147.29.22:6/upload")
+            return True
+        except Exception as e:
+            self.send_message(e, "warn", False)
+            return False
+
     def update_button(self):
         try:
             current = str(self.pyas_config.get("version", "")).strip()

@@ -186,6 +186,8 @@ class model_scanner:
 
     def extract_sections(self, file_path):
         match_data = {}
+        if not file_path or not os.path.isfile(file_path):
+            return match_data
         try:
             with pefile.PE(file_path, fast_load=True) as pe:
                 for section in pe.sections:
@@ -196,6 +198,8 @@ class model_scanner:
             with open(file_path, 'rb') as f:
                 content = f.read()
             ext = os.path.splitext(file_path)[-1].lower()
-            if ext in self.suffix or self.is_text_file(content):
+            if ext in self.suffix and self.is_text_file(content):
                 match_data[ext] = content
+        except Exception:
+            pass
         return match_data

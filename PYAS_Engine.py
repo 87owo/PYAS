@@ -186,7 +186,8 @@ class model_scanner:
 
     def extract_sections(self, file_path):
         match_data = {}
-        if not file_path or not os.path.isfile(file_path):
+        ext = os.path.splitext(file_path)[-1].lower()
+        if not ext in self.suffix:
             return match_data
         try:
             with pefile.PE(file_path, fast_load=True) as pe:
@@ -194,12 +195,10 @@ class model_scanner:
                     name = section.Name.rstrip(b'\x00').decode('latin1').lower()
                     if section.Characteristics & 0x00000020:
                         match_data[name] = section.get_data()
+
         except pefile.PEFormatError:
             with open(file_path, 'rb') as f:
-                content = f.read()
-            ext = os.path.splitext(file_path)[-1].lower()
-            if ext in self.suffix and self.is_text_file(content):
-                match_data[ext] = content
-        except Exception:
-            pass
+                file_content = f.read()
+            if self.is_text_file(file_content):
+                match_data[ext] = file_content
         return match_data

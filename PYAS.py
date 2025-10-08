@@ -1768,17 +1768,20 @@ class MainWindow_Controller(QMainWindow):
                 bytes_returned = ctypes.wintypes.DWORD()
                 res = self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True,
                     0x0000001F, ctypes.byref(bytes_returned), None, None)
+                if not res:
+                    continue
 
-                if res:
-                    notify = FILE_NOTIFY_INFORMATION.from_buffer_copy(buffer)
-                    raw_filename = notify.FileName[:notify.FileNameLength // 2]
-                    file_path = self.norm_path(os.path.join(self.path_user, raw_filename))
+                notify = FILE_NOTIFY_INFORMATION.from_buffer_copy(buffer)
+                raw_filename = notify.FileName[:notify.FileNameLength // 2]
+                if not raw_filename:
+                    continue
 
-                    if notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
-                        state = self.scan_engine(file_path)
-                        if state:
-                            self.add_to_quarantine([file_path])
-                            self.send_message(f"檔案防護 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
+                file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=False)
+                if notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
+                    state = self.scan_engine(file_path)
+                    if state:
+                        self.add_to_quarantine([file_path])
+                        self.send_message(f"檔案防護 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
             except Exception as e:
                 self.send_message(e, "warn", False)
         self.kernel32.CloseHandle(hDir)

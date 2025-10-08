@@ -2,7 +2,6 @@ import os, yara, numpy, base64, onnxruntime
 import ctypes, ctypes.wintypes, pefile
 from PIL import Image
 from io import BytesIO
-from pathlib import Path
 
 ####################################################################################################
 

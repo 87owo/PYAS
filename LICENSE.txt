@@ -19,4 +19,4 @@ Last updated: 2025-09-09
    – This software or code is provided "as is" without warranty of any kind.
    – In no event will we be liable for any direct or indirect damages.
 
-© 2020–2025 87owo (PYAS Security). All rights reserved.
+© 2020-2026 87owo (PYAS Security). All rights reserved.

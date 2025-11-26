@@ -107,7 +107,7 @@ class CustomModelCheckpoint(callbacks.Callback):
     def on_epoch_end(self, epoch, logs=False):
         models.save_model(self.model, f"PYAS_Model_Epoch_{epoch + 1}.h5")
         spec = (tf.TensorSpec((None,) + train_ds.image_shape, tf.float32),)
-        model_proto, _ = tf2onnx.convert.from_keras(self.model, input_signature=spec, opset=18)
+        model_proto, _ = tf2onnx.convert.from_keras(self.model, input_signature=spec, opset=17)
         with open(f"PYAS_Model_Epoch_{epoch + 1}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
 
@@ -130,3 +130,4 @@ with strategy.scope():
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
 input('Training Complete')
+

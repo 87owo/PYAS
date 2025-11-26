@@ -127,7 +127,7 @@ with strategy.scope():
         print("Creating a new model")
         model = build_model(train_ds.image_shape, len(train_ds.class_indices))
     print(f"Total parameters: {model.count_params()}")
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy', tf.keras.metrics.Recall()])
+
 model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
 input('Training Complete')
-

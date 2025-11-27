@@ -129,10 +129,10 @@ class model_scanner:
     def model_scan(self, file_path, full_output=False):
         sections = self.extract_sections(file_path)
         if not sections:
-            return (False, False) if not full_output else ([], file_path, None)
+            return (False, False) if not full_output else ([], str(file_path), None)
         images = [self.preprocess_image(data, self.resize) for data in sections.values()]
         if not images:
-            return (False, False) if not full_output else ([], file_path, None)
+            return (False, False) if not full_output else ([], str(file_path), None)
 
         arr = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in images])[:, :, :, None]
         input_shape = self.model.get_inputs()[0].shape
@@ -140,16 +140,14 @@ class model_scanner:
             arr = arr.transpose(0, 3, 1, 2)
 
         input_name = self.model.get_inputs()[0].name
-        preds = self.model.run(None, {input_name: arr})[0]
-        exp = numpy.exp(preds - numpy.max(preds, axis=1, keepdims=True))
-        probs = exp / numpy.sum(exp, axis=1, keepdims=True)
-        max_overall = max(numpy.max(row) for row in probs)
+        probs = self.model.run(None, {input_name: arr})[0]
 
         results = []
         for name, pred, img in zip(sections.keys(), probs, images):
             idx = int(numpy.argmax(pred))
             label = self.labels[idx]
-            conf = round((pred[idx] / max_overall) * 100, 2)
+            conf = round(pred[idx] * 100, 2)
+
             if full_output:
                 results.append((name, label, conf, self.pil_to_base64(img)))
             elif label in self.detect_set:

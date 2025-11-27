@@ -40,6 +40,13 @@ def parse_fn(filename, label, image_size, channels, num_classes):
 def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=128, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
     file_paths, labels, class_indices = get_file_list(data_dir)
+
+    sample_counts = {}
+    for _, lbl in zip(file_paths, labels):
+        sample_counts[lbl] = sample_counts.get(lbl, 0) + 1
+    total = sum(sample_counts.values())
+    class_weights = {k: total / (len(sample_counts) * v) for k, v in sample_counts.items()}
+
     combined = list(zip(file_paths, labels))
     random.shuffle(combined)
     file_paths[:], labels[:] = zip(*combined)
@@ -60,6 +67,7 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=
     val_ds = val_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
     train_ds.class_indices = class_indices
+    train_ds.class_weights = class_weights
     return train_ds, val_ds
 
 ####################################################################################################
@@ -100,6 +108,15 @@ def build_model(input_shape, num_classes):
 
 ####################################################################################################
 
+def categorical_focal_loss(alpha, gamma=2.0):
+    alpha = tf.constant(alpha, dtype=tf.float32)
+    def loss(y_true, y_pred):
+        y_pred = tf.clip_by_value(y_pred, 1e-9, 1.0)
+        ce = -y_true * tf.math.log(y_pred)
+        fl = alpha * tf.pow(1 - y_pred, gamma) * ce
+        return tf.reduce_sum(fl, axis=-1)
+    return loss
+
 def lr_scheduler(epoch, lr):
     return 1e-4 * (0.95 ** epoch)
 
@@ -118,6 +135,8 @@ for imgs, _ in train_ds.take(1):
     train_ds.image_shape = imgs.shape[1:]
     break
 
+alpha_list = [train_ds.class_weights[i] for i in range(len(train_ds.class_weights))]
+
 strategy = tf.distribute.MirroredStrategy(cross_device_ops=tf.distribute.HierarchicalCopyAllReduce())
 with strategy.scope():
     try:
@@ -127,7 +146,7 @@ with strategy.scope():
         print("Creating a new model")
         model = build_model(train_ds.image_shape, len(train_ds.class_indices))
     print(f"Total parameters: {model.count_params()}")
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy', tf.keras.metrics.Recall()])
+    model.compile(optimizer='adam', loss=categorical_focal_loss(alpha_list), metrics=['accuracy', tf.keras.metrics.Recall()])
 
 model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
 input('Training Complete')

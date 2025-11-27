@@ -129,7 +129,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.6",
+            "version": "3.3.7",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -137,7 +137,7 @@ class MainWindow_Controller(QMainWindow):
             "process_switch": True,
             "document_switch": True,
             "system_switch": True,
-            "driver_switch": True,
+            "driver_switch": False,
             "network_switch": True,
             "custom_rule": [],
         }
@@ -1776,7 +1776,7 @@ class MainWindow_Controller(QMainWindow):
                 if not raw_filename:
                     continue
 
-                file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=False)
+                file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                 if notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
                     state = self.scan_engine(file_path)
                     if state:

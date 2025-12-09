@@ -1,5 +1,5 @@
 87owo software and source code Development License Agreement
-Last updated: 2025-09-09
+Last updated: 2025-12-09
 
 1. License and Ownership
    – A single device key may be required to activate the software or source code.
@@ -11,11 +11,16 @@ Last updated: 2025-09-09
    – Personal internal use or modification of the source code is permitted.
    – Redistribution, etc. requires prior authorization from the original author.
 
-3. Updates and Terms
+3. Data and Privacy
+   – This software may collect specific data for security analysis and improvement.
+   – This information may include suspicious files, suspicious websites, etc.
+   – All collected data will be anonymized to protect user privacy and data security.
+
+4. Updates and Terms
    – New versions and updates may include patches, enhancements, or modifications.
    – Continued use constitutes your acceptance of these features or license.
 
-4. Warranty and Liability
+5. Warranty and Liability
    – This software or code is provided "as is" without warranty of any kind.
    – In no event will we be liable for any direct or indirect damages.
 

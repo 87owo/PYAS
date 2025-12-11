@@ -1,5 +1,5 @@
 87owo software and source code Development License Agreement
-Last updated: 2025-12-09
+Last updated: 2025-12-11
 
 1. License and Ownership
    – A single device key may be required to activate the software or source code.

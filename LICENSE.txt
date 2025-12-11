@@ -12,8 +12,7 @@ Last updated: 2025-12-09
    – Redistribution, etc. requires prior authorization from the original author.
 
 3. Data and Privacy
-   – This software may collect specific data for security analysis and improvement.
-   – This information may include suspicious files, suspicious websites, etc.
+   – This project may collect specific data for analysis and improvement.
    – All collected data will be anonymized to protect user privacy and data security.
 
 4. Updates and Terms

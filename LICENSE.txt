@@ -2,9 +2,9 @@
 Last updated: 2025-12-19
 
 1. License and Ownership
-   - This software and its source code are source-available for public view.
+   - This software and its source code are source available for public view.
    - Access or execution of certain features may require an activation key.
-   - 87owo reserves all legal rights; no intellectual property is transferred.
+   - 87owo reserves all legal rights, no intellectual property is transferred.
    - All project archives, source code, and binaries remain fully proprietary.
 
 2. Use and Prohibitions

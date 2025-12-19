@@ -1,29 +1,31 @@
-87owo Software, Source Code, and Web Service License Agreement
-Last updated: 2025-12-18
+87owo Publicly Available Source Code License Agreement
+Last updated: 2025-12-19
 
 1. License and Ownership
-   – Access to software, code, or web services may require a unique activation key.
-   – 87owo reserves all legal rights; no intellectual property is hereby transferred.
-   – All project archives, executable binaries, and web assets remain proprietary.
+   - This software and its source code are source-available for public view.
+   - Access or execution of certain features may require an activation key.
+   - 87owo reserves all legal rights; no intellectual property is transferred.
+   - All project archives, source code, and binaries remain fully proprietary.
 
 2. Use and Prohibitions
-   – Reverse engineering, license removal, or any illegal application is prohibited.
-   – Internal personal use or local modification of the source code is permitted.
-   – Redistribution or commercial hosting requires prior consent from the author.
+   - You may view, download, and modify the code for local and personal use.
+   - Redistribution of any original or modified code requires prior consent.
+   - Commercial hosting or SaaS deployment is prohibited without permission.
+   - Reverse engineering, license removal, or illegal use is strictly barred.
 
 3. Data and Privacy
-   – This project may collect operational data for system analysis and optimization.
-   – All collected data is strictly anonymized to ensure user privacy and security.
-   – Transmission of information is encrypted to prevent unauthorized data access.
+   - This project may collect operational data for optimization and analysis.
+   - All collected data is strictly anonymized to ensure the user's privacy.
+   - Transmission of information is encrypted to prevent unauthorized access.
 
 4. Updates and Terms
-   – New releases may include critical patches, enhancements, or UI modifications.
-   – Continued use of these services constitutes full acceptance of updated terms.
-   – The author reserves the right to modify these license terms at any given time.
+   - New releases may include critical patches, enhancements, or UI changes.
+   - Continued use of these services constitutes acceptance of updated terms.
+   - The author reserves the right to modify these license terms at any time.
 
 5. Warranty and Liability
-   – All services and assets are provided "as is" without any form of warranty.
-   – We are not liable for any direct or indirect damages from the use of software.
-   – Users assume all risks regarding performance, data integrity, and reliability.
+   - All services and assets are provided "as is" without any form of warranty.
+   - 87owo is not liable for any direct or indirect damages from software use.
+   - Users assume all risks regarding performance, data, and system integrity.
 
 © 2020-2026 87owo (PYAS Security). All rights reserved.

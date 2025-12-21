@@ -82,5 +82,6 @@ Source Available : https://github.com/87owo/PYAS
 
 For any questions or needs, please contact us at the following URL:
 
-https://github.com/87owo/PYAS/issues
-mailto:service.pyas@gmail.com
+Source Issues : https://github.com/87owo/PYAS/issues
+
+Official Email : mailto:service.pyas@gmail.com

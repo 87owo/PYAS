@@ -80,6 +80,7 @@ Source Available : https://github.com/87owo/PYAS
 
 ## Project License
 
-For any questions or needs, please submit your application to Github issues or contact service.pyas@gmail.com
+For any questions or needs, please contact us at the following URL:
 
-https://github.com/87owo/PYAS/blob/main/LICENSE.txt
+https://github.com/87owo/PYAS/issues
+mailto:service.pyas@gmail.com

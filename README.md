@@ -72,9 +72,9 @@ Packaged Download: https://github.com/87owo/PYAS/releases
 
 If you are interested in this project, you can visit the website to see other related content.
 
-Official Website : https://pyas-security.com/antivirus
-
 Source Available : https://github.com/87owo/PYAS
+
+Official Website : https://pyas-security.com/antivirus
 
 ## Project License
 

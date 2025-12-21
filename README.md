@@ -55,16 +55,6 @@ PYAS/
 └── ...                              # Other supplementary folders and files
 ```
 
-## Program Architecture
-
-PYAS antivirus software complete program flow architecture diagram.
-
-<img width="23000" height="6000" alt="PYAS_Architecture" src="https://github.com/user-attachments/assets/3a7ce637-c2b3-4719-9658-07f286cfa879" />
-
-## Packaged Releases
-
-Packaged Releases Download: https://github.com/87owo/PYAS/releases
-
 ## Support System
 
 | Config    | Permissions   | System version       | Processor | Memory | Storage |
@@ -72,7 +62,15 @@ Packaged Releases Download: https://github.com/87owo/PYAS/releases
 | Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 200MB  | 100MB   |
 | Recommend | Administrator | >= Windows 10 (21H2) | 3 GHz     | 500MB  | 200MB   |
 
+## Packaged Releases
+
+Download the installer. If it is incompatible with your system, you can repackage it yourself.
+
+Packaged Download: https://github.com/87owo/PYAS/releases
+
 ## Official Website
+
+If you are interested in this project, you can visit the website to see other related content.
 
 Official Website : https://pyas-security.com/antivirus
 
@@ -80,7 +78,7 @@ Source Available : https://github.com/87owo/PYAS
 
 ## Project License
 
-For any questions or needs, please contact us at the following URL:
+For any questions, needs, or bug feedback, please contact us through the following website.
 
 Source Issues : https://github.com/87owo/PYAS/issues
 

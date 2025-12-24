@@ -55,7 +55,7 @@ PYAS/
 └── ...                              # Other supplementary folders and files
 ```
 
-## File Information
+## Architecture diagram
 
 PYAS Security antivirus software general architecture diagram.
 

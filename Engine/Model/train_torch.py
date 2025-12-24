@@ -73,7 +73,7 @@ class MultiConv(nn.Module):
     def __init__(self, in_channels, out_channels, strides):
         super().__init__()
         self.convs = nn.ModuleList()
-        kernel_sizes = [(1, 7), (3, 7), (1, 1), (3, 3)]
+        kernel_sizes = [(1, 7), (7, 1), (1, 1), (3, 3), (5, 5)]
         for h, w in kernel_sizes:
             pad_h = (h - 1) // 2
             pad_w = (w - 1) // 2
@@ -182,17 +182,17 @@ class PYASModel(nn.Module):
         super().__init__()
         c_in = input_shape[-1]
 
-        self.layer1 = ResidualBlock(c_in, 16, strides=1)
-        self.layer2 = ResidualBlock(16, 32, strides=2)
-        self.layer3 = ResidualBlock(32, 64, strides=2)
-        self.layer4 = ResidualBlock(64, 128, strides=2)
-        self.layer5 = ResidualBlock(128, 256, strides=2)
-        self.layer6 = ResidualBlock(256, 512, strides=2)
+        self.layer1 = ResidualBlock(c_in, 32, strides=1)
+        self.layer2 = ResidualBlock(32, 64, strides=2)
+        self.layer3 = ResidualBlock(64, 128, strides=2)
+        self.layer4 = ResidualBlock(128, 256, strides=2)
+        self.layer5 = ResidualBlock(256, 512, strides=2)
+        self.layer6 = ResidualBlock(512, 1024, strides=2)
 
-        self.se = SEBlock(512, reduction=4)
+        self.se = SEBlock(1024, reduction=4)
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.gmp = nn.AdaptiveMaxPool2d(1)
-        self.head = nn.Sequential(nn.Linear(1024, 1024), nn.GELU(), nn.Linear(1024, num_classes))
+        self.head = nn.Sequential(nn.Linear(2048, 1024), nn.GELU(), nn.Linear(1024, num_classes))
 
     def forward(self, x):
         x = self.layer1(x)
@@ -221,24 +221,32 @@ class ONNXExportWrapper(nn.Module):
 ####################################################################################################
 
 class CategoricalFocalLoss(nn.Module):
-    def __init__(self, alpha, gamma=2.0):
+    def __init__(self, alpha, gamma=2.0, smoothing=0.1):
         super().__init__()
         self.register_buffer('alpha', torch.tensor(alpha))
         self.gamma = gamma
+        self.smoothing = smoothing
 
     def forward(self, inputs, targets):
-        ce_loss = F.cross_entropy(inputs, targets, reduction='none')
-        pt = torch.exp(-ce_loss)
-        alpha_t = self.alpha[targets]
-        focal_loss = alpha_t * (1 - pt) ** self.gamma * ce_loss
-        return focal_loss.mean()
+        num_classes = inputs.size(-1)
+        log_pt = F.log_softmax(inputs, dim=-1)
+        
+        with torch.no_grad():
+            true_dist = torch.zeros_like(log_pt)
+            true_dist.fill_(self.smoothing / (num_classes - 1))
+            true_dist.scatter_(1, targets.data.unsqueeze(1), 1.0 - self.smoothing)
+        
+        pt = torch.exp(log_pt)
+        focal_weight = self.alpha[targets].unsqueeze(1) * (1 - pt) ** self.gamma
+        loss = (-true_dist * log_pt * focal_weight).sum(dim=-1)
+        return loss.mean()
 
 ####################################################################################################
 
 def train():
     data_dir = r'.\Image_File_Pefile'
     image_size = (224, 224)
-    batch_size = 128
+    batch_size = 64
     val_split = 0.00001
     total_epochs = 30
     lr_start = 1e-3

@@ -133,7 +133,7 @@ class MainWindow_Controller(QMainWindow):
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
-            "sensitive": 95,
+            "sensitive": 90,
             "process_switch": True,
             "document_switch": True,
             "system_switch": True,
@@ -297,7 +297,7 @@ class MainWindow_Controller(QMainWindow):
     def create_shadow(self):
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setOffset(0, 0)
-        shadow.setBlurRadius(20)
+        shadow.setBlurRadius(15)
         shadow.setColor(QColor(175, 175, 175))
         return shadow
 
@@ -357,7 +357,7 @@ class MainWindow_Controller(QMainWindow):
     def save_state(self, name, checked):
         self.pyas_config[name] = bool(checked)
         if name == "sensitive_switch":
-            self.pyas_config["sensitive"] = 0 if checked else 95
+            self.pyas_config["sensitive"] = 0 if checked else 90
         elif name == "extension_switch":
             pass
         elif name == "process_switch":
@@ -833,7 +833,7 @@ class MainWindow_Controller(QMainWindow):
                 return False
 
             label, level = self.model.model_scan(file_path)
-            if label and level >= self.pyas_config.get("sensitive", 95):
+            if label and level >= self.pyas_config.get("sensitive", 90):
                 return f"{label}.{level}"
 
             if self.pyas_config.get("extension_switch", False):
@@ -1521,7 +1521,7 @@ class MainWindow_Controller(QMainWindow):
 
     def website_button(self):
         try:
-            webbrowser.open("https://github.com/87owo/PYAS")
+            webbrowser.open("https://pyas-security.com/antivirus")
             return True
         except Exception as e:
             self.send_message(e, "warn", False)
@@ -1529,7 +1529,7 @@ class MainWindow_Controller(QMainWindow):
 
     def cloud_button(self):
         try:
-            webbrowser.open("http://27.147.29.22:6/upload")
+            webbrowser.open("https://pyas-security.com/analyze")
             return True
         except Exception as e:
             self.send_message(e, "warn", False)
@@ -1777,7 +1777,7 @@ class MainWindow_Controller(QMainWindow):
                     continue
 
                 file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
-                if notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
+                if file_path and notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
                     state = self.scan_engine(file_path)
                     if state:
                         self.add_to_quarantine([file_path])

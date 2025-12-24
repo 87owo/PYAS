@@ -69,40 +69,13 @@ class CustomImageDataset(Dataset):
 
 ####################################################################################################
 
-class MultiConv(nn.Module):
-    def __init__(self, in_channels, out_channels, strides):
-        super().__init__()
-        self.convs = nn.ModuleList()
-        kernel_sizes = [(1, 7), (7, 1), (1, 1), (3, 3), (5, 5)]
-        for h, w in kernel_sizes:
-            pad_h = (h - 1) // 2
-            pad_w = (w - 1) // 2
-
-            self.convs.append(nn.Sequential(
-                nn.Conv2d(in_channels, in_channels, kernel_size=(h, w), stride=strides, 
-                padding=(pad_h, pad_w), dilation=1, groups=in_channels, bias=False), 
-                nn.GELU(),
-                nn.BatchNorm2d(in_channels, eps=1e-3, momentum=0.01)))
-
-        self.concat_conv = nn.Conv2d(in_channels * len(kernel_sizes), out_channels, kernel_size=1, padding=0, bias=True)
-        self.act = nn.GELU()
-        self.bn = nn.BatchNorm2d(out_channels, eps=1e-3, momentum=0.01)
-
-    def forward(self, x):
-        outs = [conv(x) for conv in self.convs]
-        x = torch.cat(outs, dim=1)
-        x = self.concat_conv(x)
-        x = self.act(x)
-        x = self.bn(x)
-        return x
-
 class CoordinateAttention(nn.Module):
     def __init__(self, in_channels, reduction=4):
         super().__init__()
         mip = max(8, in_channels // reduction)
         self.conv1 = nn.Conv2d(in_channels, mip, kernel_size=1, bias=True)
         self.bn1 = nn.BatchNorm2d(mip)
-        self.act = nn.GELU()
+        self.act = nn.Hardswish()
         self.conv_h = nn.Conv2d(mip, in_channels, kernel_size=1, bias=True)
         self.conv_w = nn.Conv2d(mip, in_channels, kernel_size=1, bias=True)
 
@@ -120,13 +93,34 @@ class CoordinateAttention(nn.Module):
         y = self.act(y)
 
         x_h_prime, x_w_prime = torch.split(y, [h, w], dim=2)
-        
         x_w_prime = x_w_prime.permute(0, 1, 3, 2)
         
         a_h = torch.sigmoid(self.conv_h(x_h_prime))
         a_w = torch.sigmoid(self.conv_w(x_w_prime))
-        
         return identity * a_h * a_w
+
+####################################################################################################
+
+class MixKernelDepthwise(nn.Module):
+    def __init__(self, channels, stride):
+        super().__init__()
+        self.groups = 3
+        c_per_group = channels // self.groups
+        c_last = channels - c_per_group * (self.groups - 1)
+        self.splits = [c_per_group] * (self.groups - 1) + [c_last]
+        
+        self.conv3x3 = nn.Conv2d(self.splits[0], self.splits[0], 3, stride, 1, groups=self.splits[0], bias=False)
+        self.conv1x7 = nn.Conv2d(self.splits[1], self.splits[1], (1, 7), stride, (0, 3), groups=self.splits[1], bias=False)
+        self.conv7x1 = nn.Conv2d(self.splits[2], self.splits[2], (7, 1), stride, (3, 0), groups=self.splits[2], bias=False)
+
+    def forward(self, x):
+        x_split = torch.split(x, self.splits, dim=1)
+        x0 = self.conv3x3(x_split[0])
+        x1 = self.conv1x7(x_split[1])
+        x2 = self.conv7x1(x_split[2])
+        return torch.cat([x0, x1, x2], dim=1)
+
+####################################################################################################
 
 class SEBlock(nn.Module):
     def __init__(self, in_channels, reduction=4):
@@ -145,68 +139,71 @@ class SEBlock(nn.Module):
         y = self.act2(y)
         return x * y
 
-class ResidualBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, strides):
+####################################################################################################
+
+class MBConvBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride, expand_ratio, use_se=True):
         super().__init__()
-        self.use_shortcut = (strides > 1) or (in_channels != out_channels)
+        self.use_shortcut = (stride == 1 and in_channels == out_channels)
+        hidden_dim = int(round(in_channels * expand_ratio))
 
-        if self.use_shortcut:
-            self.shortcut_pool = nn.MaxPool2d(kernel_size=strides, stride=strides) if strides > 1 else nn.Identity()
-            if in_channels != out_channels:
-                self.shortcut_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
-                self.shortcut_bn = nn.BatchNorm2d(out_channels)
-            else:
-                self.shortcut_conv = nn.Identity()
-                self.shortcut_bn = nn.Identity()
+        layers = []
+        if expand_ratio != 1:
+            layers.extend([nn.Conv2d(in_channels, hidden_dim, 1, bias=False), nn.BatchNorm2d(hidden_dim), nn.GELU()])
 
-        self.multi_conv = MultiConv(in_channels, out_channels, strides)
-        self.coord_attn = CoordinateAttention(out_channels, reduction=4)
-        self.bn = nn.BatchNorm2d(out_channels)
-        self.final_act = nn.GELU()
+        layers.extend([MixKernelDepthwise(hidden_dim, stride), nn.BatchNorm2d(hidden_dim), nn.GELU()])
+
+        if use_se:
+            layers.append(CoordinateAttention(hidden_dim, reduction=4))
+
+        layers.extend([nn.Conv2d(hidden_dim, out_channels, 1, bias=False), nn.BatchNorm2d(out_channels)])
+        self.block = nn.Sequential(*layers)
 
     def forward(self, x):
-        shortcut = x
         if self.use_shortcut:
-            shortcut = self.shortcut_pool(shortcut)
-            shortcut = self.shortcut_conv(shortcut)
-            shortcut = self.shortcut_bn(shortcut)
+            return x + self.block(x)
+        return self.block(x)
 
-        x = self.multi_conv(x)
-        x = self.coord_attn(x)
-        x = self.bn(x)
-        x = x + shortcut
-        return self.final_act(x)
+####################################################################################################
 
 class PYASModel(nn.Module):
     def __init__(self, input_shape, num_classes):
         super().__init__()
         c_in = input_shape[-1]
+        self.stem = nn.Sequential(nn.Conv2d(c_in, 32, 3, 2, 1, bias=False), nn.BatchNorm2d(32), nn.GELU())
 
-        self.layer1 = ResidualBlock(c_in, 32, strides=1)
-        self.layer2 = ResidualBlock(32, 64, strides=2)
-        self.layer3 = ResidualBlock(64, 128, strides=2)
-        self.layer4 = ResidualBlock(128, 256, strides=2)
-        self.layer5 = ResidualBlock(256, 512, strides=2)
-        self.layer6 = ResidualBlock(512, 1024, strides=2)
+        config = [
+            [32,  48, 1, 3],
+            [48,  80, 2, 3],
+            [80, 112, 2, 3],
+            [112, 160, 2, 3],
+            [160, 192, 2, 3],
+            [192, 256, 2, 3]]
 
-        self.se = SEBlock(1024, reduction=4)
+        layers = []
+        for in_c, out_c, s, ex in config:
+            layers.append(MBConvBlock(in_c, out_c, s, ex))
+        self.features = nn.Sequential(*layers)
+
+        self.last_conv = nn.Sequential(nn.Conv2d(256, 512, 1, bias=False), nn.BatchNorm2d(512), nn.GELU(), SEBlock(512, reduction=4))
+
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.gmp = nn.AdaptiveMaxPool2d(1)
-        self.head = nn.Sequential(nn.Linear(2048, 1024), nn.GELU(), nn.Linear(1024, num_classes))
+
+        self.classifier = nn.Sequential(nn.Linear(1024, 256), nn.GELU(), nn.Dropout(0.1), nn.Linear(256, num_classes))
 
     def forward(self, x):
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-        x = self.layer5(x)
-        x = self.layer6(x)
-        x = self.se(x)
-        gap = torch.flatten(self.gap(x), 1)
-        gmp = torch.flatten(self.gmp(x), 1)
-        x = torch.cat([gap, gmp], dim=1)
-        x = self.head(x)
-        return x
+        x = self.stem(x)
+        x = self.features(x)
+        x = self.last_conv(x)
+
+        v_gap = torch.flatten(self.gap(x), 1)
+        v_gmp = torch.flatten(self.gmp(x), 1)
+        feat = torch.cat([v_gap, v_gmp], dim=1) 
+
+        return self.classifier(feat)
+
+####################################################################################################
 
 class ONNXExportWrapper(nn.Module):
     def __init__(self, model):
@@ -241,17 +238,20 @@ class CategoricalFocalLoss(nn.Module):
         loss = (-true_dist * log_pt * focal_weight).sum(dim=-1)
         return loss.mean()
 
+def calculate_lr_cosine_sq(epoch, total_epochs, lr_start, lr_end):
+    cos_val = 0.5 * (1 + np.cos(epoch / total_epochs * np.pi))
+    return lr_end + (lr_start - lr_end) * (cos_val ** 2)
+
 ####################################################################################################
 
 def train():
     data_dir = r'.\Image_File_Pefile'
     image_size = (224, 224)
     batch_size = 64
-    val_split = 0.00001
+    val_split = 0.025
     total_epochs = 30
     lr_start = 1e-3
     lr_end = 1e-6
-    power = 2.5
     color_mode = "grayscale"
 
     file_paths, labels, class_indices = get_file_list(data_dir)
@@ -292,15 +292,14 @@ def train():
         model = nn.DataParallel(model)
     print(f"Total parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
-    optimizer = optim.AdamW(model.parameters(), lr=lr_start, weight_decay=1e-4, amsgrad=True)
+    optimizer = optim.AdamW(model.parameters(), lr=lr_start, weight_decay=1e-2, amsgrad=True)
     criterion = CategoricalFocalLoss(alpha_list, gamma=2.0).to(device)
     scaler = torch.amp.GradScaler('cuda')
 
     for epoch in range(total_epochs):
         model.train()
 
-        remain_ratio = max(0, 1 - (epoch / total_epochs))
-        current_lr = lr_end + (lr_start - lr_end) * (remain_ratio ** power)
+        current_lr = calculate_lr_cosine_sq(epoch, total_epochs, lr_start, lr_end)
         for param_group in optimizer.param_groups:
             param_group['lr'] = current_lr
 
@@ -349,12 +348,12 @@ def train():
             mem = torch.cuda.memory_reserved(device) / (1024**3) if torch.cuda.is_available() else 0
 
             pbar.set_postfix({
-                'loss': f'{avg_loss:.8f}', 
-                'acc': f'{acc:.8f}', 
-                'prec': f'{macro_prec:.8f}',
-                'f1': f'{macro_f1:.8f}',
+                'loss': f'{avg_loss:.6f}', 
+                'acc': f'{acc:.6f}', 
+                'prec': f'{macro_prec:.6f}',
+                'f1': f'{macro_f1:.6f}',
                 'mem': f'{mem:.2f}G',
-                'lr': f'{current_lr:.8f}'
+                'lr': f'{current_lr:.6f}'
             })
 
         model.eval()
@@ -397,12 +396,11 @@ def train():
                 v_mem = torch.cuda.memory_reserved(device) / (1024**3) if torch.cuda.is_available() else 0
 
                 val_pbar.set_postfix({
-                    'v_loss': f'{avg_val_loss:.8f}',
-                    'v_acc': f'{val_acc:.8f}',
-                    'v_prec': f'{val_macro_prec:.8f}',
-                    'v_f1': f'{val_macro_f1:.8f}',
-                    'v_mem': f'{v_mem:.2f}G',
-                    'v_lr': f'{current_lr:.8f}'
+                    'v_loss': f'{avg_val_loss:.6f}',
+                    'v_acc': f'{val_acc:.6f}',
+                    'v_prec': f'{val_macro_prec:.6f}',
+                    'v_f1': f'{val_macro_f1:.6f}',
+                    'v_mem': f'{v_mem:.2f}G'
                 })
 
         model_to_save = model.module if isinstance(model, nn.DataParallel) else model

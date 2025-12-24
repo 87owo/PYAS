@@ -109,9 +109,9 @@ class rule_scanner:
 class model_scanner:
     def __init__(self):
         self.model = None
-        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".bat", ".cmd", ".js", ".php", ".ps1", ".vbs", ".wsf"}
-        self.labels = ["Pefile/White", "Script/White", "Pefile/General", "Script/General"]
-        self.detect_set = {"Pefile/General", "Script/General"}
+        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys"}
+        self.labels = ["Pefile/White", "Pefile/General"]
+        self.detect_set = {"Pefile/General"}
         self.resize = (224, 224)
 
     def load_path(self, path):
@@ -143,20 +143,27 @@ class model_scanner:
         probs = self.model.run(None, {input_name: arr})[0]
 
         results = []
+        best_malicious = None
+
         for name, pred, img in zip(sections.keys(), probs, images):
             idx = int(numpy.argmax(pred))
             label = self.labels[idx]
             conf = round(pred[idx] * 100, 2)
 
-            if full_output:
-                results.append((name, label, conf, self.pil_to_base64(img)))
-            elif label in self.detect_set:
-                return label, int(conf)
+            results.append((name, label, conf, self.pil_to_base64(img)))
+
+            if label in self.detect_set:
+                if best_malicious is None or conf > best_malicious[1]:
+                    best_malicious = (label, int(conf))
 
         if full_output:
+            results.sort(key=lambda x: (x[1] not in self.detect_set, -x[2]))
             malicious_count = sum(1 for _, lbl, _, _ in results if lbl in self.detect_set)
             total = len(results)
             return results, file_path, f"{malicious_count}/{total}"
+
+        if best_malicious:
+            return best_malicious
         return False, False
 
     def pil_to_base64(self, img):

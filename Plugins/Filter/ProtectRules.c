@@ -2,7 +2,6 @@
 #include "ProtectRules.h"
 
 wchar_t* g_Whitelist[] = {
-    L"\\Device\\HarddiskVolume*\\Windows\\**",
     L"\\Device\\HarddiskVolume*\\Program*\\**",
     L"\\Device\\HarddiskVolume*\\Users\\*\\AppData\\**",
     L"**\\PYAS*.exe",
@@ -14,26 +13,18 @@ wchar_t* g_Whitelist[] = {
 wchar_t* g_WhitelistExcept[] = {
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\vds.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\bcdedit.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\reg.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\cmd.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\mshta.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\wscript.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\cscript.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\schtasks.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\diskpart.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\format.com",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\mountvol.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\ntoskrnl.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\wbadmin.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\bcdboot.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\dism.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\bootsect.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\cipher.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\net.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\net1.exe",
     L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\msiexec.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\WindowsPowerShell\\*\\powershell.exe",
-    L"\\Device\\HarddiskVolume*\\Program*\\PowerShell\\*\\pwsh.exe",
+    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\lsass.exe",
+    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\csrss.exe",
+    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\smss.exe",
+    L"\\Device\\HarddiskVolume*\\Windows\\Sys*\\wininit.exe",
     NULL
 };
 
@@ -58,7 +49,6 @@ wchar_t* g_BlockFile[] = {
     L"\\Device\\HarddiskVolume*\\$*\\**",
     L"\\Device\\HarddiskVolume*\\ProgramData\\PYAS\\**",
     L"**\\PYAS.exe",
-    
     L"**\\CON**",
     L"**\\PRN**",
     L"**\\AUX**",
@@ -77,6 +67,7 @@ wchar_t* g_BlockRansom[] = {
     L"\\Device\\HarddiskVolume*\\Users\\*\\Music\\**",
     L"\\Device\\HarddiskVolume*\\Users\\*\\Pictures\\**",
     L"\\Device\\HarddiskVolume*\\Users\\*\\Videos\\**",
+    L"\\Device\\HarddiskVolume*\\Users\\*\\OneDrive\\**",
     NULL
 };
 
@@ -97,30 +88,10 @@ wchar_t* g_BlockReg[] = {
     L"\\REGISTRY\\MACHINE\\BCD00000000\\**",
     L"\\REGISTRY\\MACHINE\\SAM\\**",
     L"\\REGISTRY\\MACHINE\\SECURITY\\**",
-
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Control\\**",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Enum\\**",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Services\\**",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\MountedDevices\\**",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\Setup\\**",
-
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Classes\\**",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Policies\\Microsoft\\MMC\\**",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Policies\\Microsoft\\Windows\\System\\**",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Wow6432Node\\**",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Cryptography\\MachineGuid",
-    L"\\REGISTRY\\MACHINE\\**\\Microsoft\\Windows Defender\\**",
-
-    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\*\\StubPath",
-    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Windows*\\CurrentVersion\\**",
-    L"\\REGISTRY\\**\\SOFTWARE\\Microsoft\\Windows Script Host\\Settings\\**",
-
     L"\\REGISTRY\\USER\\*_Classes\\*\\shell\\open\\command\\**",
-    L"\\REGISTRY\\USER\\*_Classes\\CLSID\\{fdb00e52-a214-4aa1-8fba-4357bb0072ec}\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\**",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\**",
-
     L"DisableAntiSpyware",
     L"DisableWindowsUpdateAccess",
     L"EnableLUA",
@@ -195,7 +166,6 @@ wchar_t* g_BlockReg[] = {
     L"CmdLine",
     L"SetupType",
     L"AutoReboot",
-    L"Shell",
     L"Userinit",
     L"UIHost",
     L"Debugger",

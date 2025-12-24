@@ -119,36 +119,38 @@ static BOOLEAN EndsWithNameUS(PUNICODE_STRING s, const wchar_t* name)
     return n >= m && _wcsnicmp(s->Buffer + (n - m), name, m) == 0;
 }
 
-BOOLEAN IsRegistryBlock(PUNICODE_STRING key, PUNICODE_STRING valueName, PUNICODE_STRING exe) 
+BOOLEAN IsRegistryBlock(PUNICODE_STRING key, PUNICODE_STRING valueName, PUNICODE_STRING exe)
 {
-    if (USOK(key) && WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\MACHINE\\SYSTEM\\ControlSet001\\Services\\**")) 
+    if (USOK(key) && WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\MACHINE\\SYSTEM\\ControlSet001\\Services\\**"))
         return FALSE;
-    
+
     if (USOK(exe) && IsWhitelist(exe))
         return FALSE;
-    
+
     if (USOK(exe) && USOK(key)) {
-        if ((EndsWithNameUS(exe, L"services.exe") || EndsWithNameUS(exe, L"svchost.exe") || EndsWithNameUS(exe, L"sc.exe")) && 
-            WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**")) 
+        if ((EndsWithNameUS(exe, L"services.exe") || EndsWithNameUS(exe, L"svchost.exe") || EndsWithNameUS(exe, L"sc.exe")) &&
+            WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**"))
             return FALSE;
-        
+
         if ((EndsWithNameUS(exe, L"powershell.exe") || EndsWithNameUS(exe, L"pwsh.exe")) &&
-            (WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap\\**") || 
-             WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Notifications\\Data\\**"))) 
+            (WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap\\**") ||
+                WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Internet Settings\\ZoneMap") ||
+                WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Notifications\\Data\\**") ||
+                WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Notifications\\Data")))
             return FALSE;
-        
+
         if ((EndsWithNameUS(exe, L"msiexec.exe") || EndsWithNameUS(exe, L"TrustedInstaller.exe")) &&
-            (WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Installer\\**") || 
-             WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Uninstall\\**") ||
-             WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**"))) 
+            (WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Installer\\**") ||
+                WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\CurrentVersion\\Uninstall\\**") ||
+                WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\SYSTEM\\CurrentControlSet\\Services\\**")))
             return FALSE;
-        
-        if (EndsWithNameUS(exe, L"schtasks.exe") && WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\**")) 
+
+        if (EndsWithNameUS(exe, L"schtasks.exe") && WildMatchN(key->Buffer, key->Length / sizeof(WCHAR), L"\\REGISTRY\\**\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\**"))
             return FALSE;
     }
     if (USOK(key) && MatchBlockReg(key))
         return TRUE;
-    
+
     if (USOK(valueName)) {
         for (SIZE_T i = 0; g_BlockReg[i]; ++i) {
             wchar_t* pat = g_BlockReg[i];

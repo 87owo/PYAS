@@ -2,6 +2,8 @@
 #include "DriverEntry.h"
 #include "ProtectMatch.h"
 
+#define PROTECTED_BOOT_AREA_SIZE (34 * 512)
+
 static VOID GetExeNameForLog(HANDLE pid, PUNICODE_STRING exe)
 {
     if (!exe || !exe->Buffer || exe->MaximumLength == 0)
@@ -24,6 +26,9 @@ static VOID GetExeNameForLog(HANDLE pid, PUNICODE_STRING exe)
 
 static BOOLEAN QueryDevName(PDEVICE_OBJECT dev, PUNICODE_STRING out)
 {
+    if (KeGetCurrentIrql() > APC_LEVEL)
+        return FALSE;
+
     if (!dev || !out || !out->Buffer || out->MaximumLength == 0)
         return FALSE;
 
@@ -48,37 +53,30 @@ static BOOLEAN QueryDevName(PDEVICE_OBJECT dev, PUNICODE_STRING out)
     return ok;
 }
 
-static BOOLEAN IsDASDRoot(PFILE_OBJECT fo)
+static BOOLEAN IsDangerousDiskIo(PIO_STACK_LOCATION s)
 {
-    if (!fo)
-        return TRUE;
-    if (fo->FileName.Length == 0 && fo->RelatedFileObject == NULL)
-        return TRUE;
+    if (!s) return FALSE;
+
+    if (s->MajorFunction == IRP_MJ_DEVICE_CONTROL || s->MajorFunction == IRP_MJ_INTERNAL_DEVICE_CONTROL) {
+        ULONG code = s->Parameters.DeviceIoControl.IoControlCode;
+        if (code == IOCTL_DISK_SET_DRIVE_LAYOUT || code == IOCTL_DISK_SET_DRIVE_LAYOUT_EX) return TRUE;
+        if (code == IOCTL_DISK_DELETE_DRIVE_LAYOUT) return TRUE;
+        if (code == IOCTL_DISK_FORMAT_TRACKS || code == IOCTL_DISK_FORMAT_TRACKS_EX) return TRUE;
+        if (code == IOCTL_DISK_SET_PARTITION_INFO || code == IOCTL_DISK_SET_PARTITION_INFO_EX) return TRUE;
+        if (code == IOCTL_SCSI_PASS_THROUGH || code == IOCTL_SCSI_PASS_THROUGH_DIRECT) return TRUE;
+    }
+
     return FALSE;
 }
 
-static BOOLEAN IsDangerousDiskIo(PIO_STACK_LOCATION s)
+static BOOLEAN IsBootSectorWrite(PIO_STACK_LOCATION s)
 {
-    if (!s)
-        return FALSE;
-    if (s->MajorFunction == IRP_MJ_DEVICE_CONTROL || s->MajorFunction == IRP_MJ_INTERNAL_DEVICE_CONTROL) {
-        ULONG code = s->Parameters.DeviceIoControl.IoControlCode;
-        if (code == IOCTL_SCSI_PASS_THROUGH || code == IOCTL_SCSI_PASS_THROUGH_DIRECT)
+    if (s->MajorFunction == IRP_MJ_WRITE) {
+        LARGE_INTEGER offset = s->Parameters.Write.ByteOffset;
+        if (offset.QuadPart < PROTECTED_BOOT_AREA_SIZE) {
             return TRUE;
-        if (code == IOCTL_DISK_SET_DRIVE_LAYOUT || code == IOCTL_DISK_SET_DRIVE_LAYOUT_EX)
-            return TRUE;
-        if (code == IOCTL_DISK_DELETE_DRIVE_LAYOUT)
-            return TRUE;
-        if (code == IOCTL_DISK_FORMAT_TRACKS || code == IOCTL_DISK_FORMAT_TRACKS_EX)
-            return TRUE;
-        if (code == IOCTL_DISK_SET_PARTITION_INFO || code == IOCTL_DISK_SET_PARTITION_INFO_EX)
-            return TRUE;
-        return FALSE;
+        }
     }
-    if (s->MajorFunction == IRP_MJ_SCSI)
-        return TRUE;
-    if (s->MajorFunction == IRP_MJ_WRITE || s->MajorFunction == IRP_MJ_FLUSH_BUFFERS)
-        return TRUE;
     return FALSE;
 }
 
@@ -91,17 +89,21 @@ NTSTATUS BootProtectDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         IoCompleteRequest(Irp, IO_NO_INCREMENT);
         return STATUS_INVALID_DEVICE_REQUEST;
     }
+
     if (!ExAcquireRundownProtection(&g_Rundown)) {
         IoSkipCurrentIrpStackLocation(Irp);
         return IoCallDriver(lower, Irp);
     }
+
     if (g_Unloading) {
         IoSkipCurrentIrpStackLocation(Irp);
         NTSTATUS rs = IoCallDriver(lower, Irp);
         ExReleaseRundownProtection(&g_Rundown);
         return rs;
     }
+
     PIO_STACK_LOCATION s = IoGetCurrentIrpStackLocation(Irp);
+
     if (s->MajorFunction == IRP_MJ_POWER) {
         PoStartNextPowerIrp(Irp);
         IoSkipCurrentIrpStackLocation(Irp);
@@ -109,14 +111,17 @@ NTSTATUS BootProtectDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         ExReleaseRundownProtection(&g_Rundown);
         return ps;
     }
+
     HANDLE pid = PsGetCurrentProcessId();
     ULONG upid = (ULONG)(ULONG_PTR)pid;
+
     if (upid == 0 || upid == 4) {
         IoSkipCurrentIrpStackLocation(Irp);
         NTSTATUS ns = IoCallDriver(lower, Irp);
         ExReleaseRundownProtection(&g_Rundown);
         return ns;
     }
+
     BOOLEAN blocked = FALSE;
     WCHAR eb[512] = { 0 };
     UNICODE_STRING exe = { 0 };
@@ -132,28 +137,24 @@ NTSTATUS BootProtectDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             return ns2;
         }
     }
+
     if (lower->DeviceType == FILE_DEVICE_DISK) {
         if (IsDangerousDiskIo(s)) {
-            BOOLEAN hit = FALSE;
-            WCHAR db[512] = { 0 };
-            UNICODE_STRING dev = { 0 };
-            dev.Buffer = db;
-            dev.MaximumLength = sizeof(db);
+            blocked = TRUE;
+        }
 
-            if (QueryDevName(lower, &dev)) {
-                if (MatchBlockFile(&dev))
-                    hit = TRUE;
-            }
-            else {
-                hit = TRUE;
-            }
-            if (!hit && s->MajorFunction == IRP_MJ_WRITE && s->FileObject && IsDASDRoot(s->FileObject))
-                hit = TRUE;
+        if (!blocked && IsBootSectorWrite(s)) {
+            blocked = TRUE;
+        }
 
-            if (hit) {
-                blocked = TRUE;
-                if (dev.Length == 0)
-                    QueryDevName(lower, &dev);
+        if (blocked) {
+            if (KeGetCurrentIrql() <= APC_LEVEL) {
+                WCHAR db[512] = { 0 };
+                UNICODE_STRING dev = { 0 };
+                dev.Buffer = db;
+                dev.MaximumLength = sizeof(db);
+                QueryDevName(lower, &dev);
+
                 LogAnsi3("BOOT_BLOCK", upid, &exe, dev.Length ? &dev : &exe);
             }
         }
@@ -166,6 +167,7 @@ NTSTATUS BootProtectDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
         ExReleaseRundownProtection(&g_Rundown);
         return STATUS_ACCESS_DENIED;
     }
+
     IoSkipCurrentIrpStackLocation(Irp);
     NTSTATUS rs2 = IoCallDriver(lower, Irp);
     ExReleaseRundownProtection(&g_Rundown);

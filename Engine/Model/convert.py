@@ -9,11 +9,7 @@ def preprocess_image(file_data, size, channels=1):
     arr = numpy.frombuffer(file_data, dtype=numpy.uint8)
     img = numpy.zeros(wah*wah*channels, dtype=numpy.uint8)
     img[:len(file_data)] = arr
-
-    if channels == 1:
-        image = Image.fromarray(img.reshape((wah, wah)), 'L')
-    else:
-        image = Image.fromarray(img.reshape((wah, wah, channels)), 'RGB')
+    image = Image.fromarray(img.reshape((wah, wah)), 'L')
     return image.resize((width, height), Image.Resampling.NEAREST)
 
 ####################################################################################################
@@ -38,7 +34,8 @@ def get_type(file_path):
         with pefile.PE(file_path, fast_load=True) as pe:
             for section in pe.sections:
                 name = section.Name.rstrip(b'\x00').decode('latin1').lower()
-                if section.Characteristics & 0x00000020:
+                data = section.get_data()
+                if data:
                     match_data[name] = section.get_data()
     except pefile.PEFormatError:
         with open(file_path, 'rb') as f:
@@ -68,6 +65,6 @@ def file_to_images(input_dir, output_dir):
 ####################################################################################################
 
 input_directory = input('Enter the folder path: ')
-output_directory = "./Image_File"
+output_directory = "./Image_Output"
 file_to_images(input_directory, output_directory)
 input('Conversion Complete')

@@ -30,5 +30,5 @@ def dedup_realtime(root):
 ####################################################################################################
 
 if __name__ == "__main__":
-    dedup_realtime(r".\Image_File")
+    dedup_realtime(input("Input file path: "))
 input('Deduplicate Complete')

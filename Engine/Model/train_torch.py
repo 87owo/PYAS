@@ -191,6 +191,22 @@ class PYASModel(nn.Module):
         self.gmp = nn.AdaptiveMaxPool2d(1)
 
         self.classifier = nn.Sequential(nn.Linear(1024, 256), nn.GELU(), nn.Dropout(0.1), nn.Linear(256, num_classes))
+        
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.ones_(m.weight)
+                nn.init.zeros_(m.bias)
+            elif isinstance(m, nn.Linear):
+                nn.init.normal_(m.weight, 0, 0.01)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
     def forward(self, x):
         x = self.stem(x)
@@ -248,8 +264,8 @@ def train():
     data_dir = r'.\Image_File_Pefile'
     image_size = (224, 224)
     batch_size = 64
-    val_split = 0.025
-    total_epochs = 30
+    val_split = 0.00001
+    total_epochs = 25
     lr_start = 1e-3
     lr_end = 1e-6
     color_mode = "grayscale"
@@ -292,7 +308,21 @@ def train():
         model = nn.DataParallel(model)
     print(f"Total parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad)}")
 
-    optimizer = optim.AdamW(model.parameters(), lr=lr_start, weight_decay=1e-2, amsgrad=True)
+    params_decay = []
+    params_no_decay = []
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        if len(param.shape) == 1 or name.endswith(".bias"):
+            params_no_decay.append(param)
+        else:
+            params_decay.append(param)
+
+    optimizer = optim.AdamW([
+        {'params': params_decay, 'weight_decay': 1e-2},
+        {'params': params_no_decay, 'weight_decay': 0.0}
+    ], lr=lr_start, amsgrad=True)
+
     criterion = CategoricalFocalLoss(alpha_list, gamma=2.0).to(device)
     scaler = torch.amp.GradScaler('cuda')
 

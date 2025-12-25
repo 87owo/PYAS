@@ -23,9 +23,7 @@ def is_text_file(content, sample_size=1024):
     return nontext / len(raw) < 0.15
 
 def get_type(file_path):
-    suffix = {
-        ".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys",
-        ".bat", ".cmd", ".js", ".php", ".ps1", ".vbs", ".wsf"}
+    suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui", ".cpl"}
 
     match_data = {}
     if not os.path.splitext(file_path)[-1].lower() in suffix:

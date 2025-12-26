@@ -122,36 +122,49 @@ class model_scanner:
     def load_file(self, file):
         if file.lower().endswith('.onnx'):
             try:
-                self.model = onnxruntime.InferenceSession(file)
+                self.model = onnxruntime.InferenceSession(file, providers=['CPUExecutionProvider'])
             except Exception:
                 return False
 
     def model_scan(self, file_path, full_output=False):
+        if not self.model:
+            return (False, False) if not full_output else ([], str(file_path), None)
+
         sections = self.extract_sections(file_path)
         if not sections:
             return (False, False) if not full_output else ([], str(file_path), None)
+            
         images = [self.preprocess_image(data, self.resize) for data in sections.values()]
         if not images:
             return (False, False) if not full_output else ([], str(file_path), None)
 
-        arr = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in images])[:, :, :, None]
-        input_shape = self.model.get_inputs()[0].shape
-        if len(input_shape) == 4 and input_shape[1] in (1, 3):
-            arr = arr.transpose(0, 3, 1, 2)
+        arr = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in images])
+        if arr.ndim == 3:
+            arr = numpy.expand_dims(arr, axis=-1)
 
-        input_name = self.model.get_inputs()[0].name
-        probs = self.model.run(None, {input_name: arr})[0]
+        input_meta = self.model.get_inputs()[0]
+        input_name = input_meta.name
+        input_shape = input_meta.shape
+
+        if len(input_shape) == 4:
+            if input_shape[1] in (1, 3) and input_shape[3] not in (1, 3):
+                arr = arr.transpose(0, 3, 1, 2)
+        try:
+            probs = self.model.run(None, {input_name: arr})[0]
+        except Exception:
+            return (False, False) if not full_output else ([], str(file_path), None)
 
         results = []
         best_malicious = None
 
         for name, pred, img in zip(sections.keys(), probs, images):
             idx = int(numpy.argmax(pred))
-            label = self.labels[idx]
-            conf = round(pred[idx] * 100, 2)
+            label = self.labels[idx] if idx < len(self.labels) else f"Class_{idx}"
+            conf = round(float(pred[idx]) * 100, 2)
+            print(f"Section: {name} | Label: {label} | Confidence: {conf}%")
 
-            results.append((name, label, conf, self.pil_to_base64(img)))
-
+            if full_output:
+                results.append((name, label, conf, self.pil_to_base64(img)))
             if label in self.detect_set:
                 if best_malicious is None or conf > best_malicious[1]:
                     best_malicious = (label, int(conf))
@@ -160,11 +173,9 @@ class model_scanner:
             results.sort(key=lambda x: (x[1] not in self.detect_set, -x[2]))
             malicious_count = sum(1 for _, lbl, _, _ in results if lbl in self.detect_set)
             total = len(results)
-            return results, file_path, f"{malicious_count}/{total}"
+            return results, str(file_path), f"{malicious_count}/{total}"
 
-        if best_malicious:
-            return best_malicious
-        return False, False
+        return best_malicious if best_malicious else (False, False)
 
     def pil_to_base64(self, img):
         buf = BytesIO()
@@ -180,30 +191,17 @@ class model_scanner:
         image = Image.fromarray(imgbuf.reshape((wah, wah)), 'L')
         return image.resize((width, height), Image.Resampling.NEAREST)
 
-    def is_text_file(self, content, sample_size=1024):
-        raw = content[:sample_size]
-        if not raw:
-            return False
-        text_char = set(range(32, 127)) | {9, 10, 13}
-        nontext = sum(b not in text_char for b in raw)
-        return nontext / len(raw) < 0.15
-
     def extract_sections(self, file_path):
         match_data = {}
-        ext = os.path.splitext(file_path)[-1].lower()
-        if not ext in self.suffix:
-            return match_data
+        fpath_str = str(file_path)
+        ext = os.path.splitext(fpath_str)[-1].lower()
         try:
-            with pefile.PE(file_path, fast_load=True) as pe:
+            with pefile.PE(fpath_str, fast_load=True) as pe:
                 for section in pe.sections:
-                    name = section.Name.rstrip(b'\x00').decode('latin1').lower()
+                    name = section.Name.rstrip(b'\x00').decode('latin1', errors='ignore').lower()
                     data = section.get_data()
                     if data:
                         match_data[name] = data
-
-        except pefile.PEFormatError:
-            with open(file_path, 'rb') as f:
-                file_content = f.read()
-            if self.is_text_file(file_content):
-                match_data[ext] = file_content
+        except Exception:
+            pass
         return match_data

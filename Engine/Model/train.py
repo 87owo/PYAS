@@ -15,8 +15,6 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.01, batch_size=256
     channels = 1 if color_mode == "grayscale" else 3
     file_paths, labels, class_indices = get_file_list(data_dir)
     
-    class_weights = calculate_class_weights(labels)
-
     combined = list(zip(file_paths, labels))
     random.shuffle(combined)
     file_paths[:], labels[:] = zip(*combined)
@@ -37,7 +35,6 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.01, batch_size=256
     val_ds = val_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
     train_ds.class_indices = class_indices
-    train_ds.class_weights = class_weights
     return train_ds, val_ds
 
 ####################################################################################################
@@ -156,7 +153,6 @@ with strategy.scope():
     metrics=['accuracy', metrics.Precision(name='precision'), metrics.Recall(name='recall')])
 
 model.fit(train_ds, epochs=25, callbacks=[CustomModelCheckpoint(),
-    callbacks.LearningRateScheduler(lr_scheduler)],
-    validation_data=val_ds, class_weight=train_ds.class_weights)
+    callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
 
 input('Training Complete')

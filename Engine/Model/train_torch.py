@@ -39,7 +39,17 @@ class CustomImageDataset(Dataset):
         self.labels = labels
         self.image_size = image_size
         self.color_mode = color_mode
-        self.transform = transforms.Resize(image_size)
+        
+        if color_mode == "grayscale":
+            mean, std = [0.5], [0.5]
+        else:
+            mean, std = [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]
+
+        self.transform = transforms.Compose([
+            transforms.Resize(image_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std)
+        ])
 
     def __len__(self):
         return len(self.file_paths)
@@ -54,13 +64,7 @@ class CustomImageDataset(Dataset):
             else:
                 img = img.convert("RGB")
 
-            img = self.transform(img)
-            img_np = np.array(img).astype(np.float32) / 255.0
-            img_t = torch.from_numpy(img_np)
-            if img_t.ndim == 2:
-                img_t = img_t.unsqueeze(0)
-            elif img_t.ndim == 3:
-                img_t = img_t.permute(2, 0, 1)
+            img_t = self.transform(img)
 
         except Exception:
             c = 1 if self.color_mode == "grayscale" else 3
@@ -127,7 +131,7 @@ class SEBlock(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(in_channels, in_channels // reduction, kernel_size=1, bias=True)
         self.act1 = nn.GELU()
-        self.bn1 = nn.BatchNorm2d(in_channels // reduction, eps=1e-3, momentum=0.01)
+        self.bn1 = nn.BatchNorm2d(in_channels // reduction, eps=1e-3, momentum=0.05)
         self.conv2 = nn.Conv2d(in_channels // reduction, in_channels, kernel_size=1, bias=True)
         self.act2 = nn.Sigmoid()
 
@@ -173,24 +177,25 @@ class PYASModel(nn.Module):
         self.stem = nn.Sequential(nn.Conv2d(c_in, 32, 3, 2, 1, bias=False), nn.BatchNorm2d(32), nn.GELU())
 
         config = [
-            [32,  48, 1, 3],
-            [48,  80, 2, 3],
-            [80, 112, 2, 3],
-            [112, 160, 2, 3],
-            [160, 192, 2, 3],
-            [192, 256, 2, 3]]
+            [32,  64,  1, 3],
+            [64,  128, 2, 3],
+            [128, 256, 2, 3],
+            [256, 320, 2, 3],
+            [320, 448, 2, 3],
+            [448, 512, 2, 3]
+        ]
 
         layers = []
         for in_c, out_c, s, ex in config:
             layers.append(MBConvBlock(in_c, out_c, s, ex))
         self.features = nn.Sequential(*layers)
 
-        self.last_conv = nn.Sequential(nn.Conv2d(256, 512, 1, bias=False), nn.BatchNorm2d(512), nn.GELU(), SEBlock(512, reduction=4))
+        self.last_conv = nn.Sequential(nn.Conv2d(512, 1024, 1, bias=False), nn.BatchNorm2d(1024), nn.GELU(), SEBlock(1024, reduction=4))
 
         self.gap = nn.AdaptiveAvgPool2d(1)
         self.gmp = nn.AdaptiveMaxPool2d(1)
 
-        self.classifier = nn.Sequential(nn.Linear(1024, 256), nn.GELU(), nn.Dropout(0.1), nn.Linear(256, num_classes))
+        self.classifier = nn.Sequential(nn.Linear(2048, 512), nn.GELU(), nn.Dropout(0.1), nn.Linear(512, num_classes))
         
         self._initialize_weights()
 
@@ -264,9 +269,9 @@ def train():
     data_dir = r'.\Image_File_Pefile'
     image_size = (224, 224)
     batch_size = 64
-    val_split = 0.00001
-    total_epochs = 25
-    lr_start = 1e-3
+    val_split = 0.01
+    total_epochs = 30
+    lr_start = 5e-4
     lr_end = 1e-6
     color_mode = "grayscale"
 

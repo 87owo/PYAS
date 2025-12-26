@@ -118,12 +118,12 @@ def build_model(input_shape, num_classes):
 
 ####################################################################################################
 
-def calculate_lr_cosine_sq(epoch, total_epochs, lr_start=1e-3, lr_end=1e-6):
+def calculate_lr_cosine_sq(epoch, total_epochs=25, lr_start=5e-4, lr_end=1e-6):
     cos_val = 0.5 * (1 + numpy.cos(epoch / total_epochs * numpy.pi))
     return lr_end + (lr_start - lr_end) * (cos_val ** 2)
 
 def lr_scheduler(epoch):
-    return calculate_lr_cosine_sq(epoch, 30)
+    return calculate_lr_cosine_sq(epoch)
 
 class CustomModelCheckpoint(callbacks.Callback):
     def on_epoch_end(self, epoch, logs=False):

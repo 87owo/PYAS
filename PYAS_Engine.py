@@ -122,7 +122,7 @@ class model_scanner:
     def load_file(self, file):
         if file.lower().endswith('.onnx'):
             try:
-                self.model = onnxruntime.InferenceSession(file, providers=['CPUExecutionProvider'])
+                self.model = onnxruntime.InferenceSession(file)
             except Exception:
                 return False
 

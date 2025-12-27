@@ -195,13 +195,14 @@ class model_scanner:
         match_data = {}
         fpath_str = str(file_path)
         ext = os.path.splitext(fpath_str)[-1].lower()
-        try:
-            with pefile.PE(fpath_str, fast_load=True) as pe:
-                for section in pe.sections:
-                    name = section.Name.rstrip(b'\x00').decode('latin1', errors='ignore').lower()
-                    data = section.get_data()
-                    if data:
-                        match_data[name] = data
-        except Exception:
-            pass
+        if ext in self.suffix:
+            try:
+                with pefile.PE(fpath_str, fast_load=True) as pe:
+                    for section in pe.sections:
+                        name = section.Name.rstrip(b'\x00').decode('latin1', errors='ignore').lower()
+                        data = section.get_data()
+                        if data:
+                            match_data[name] = data
+            except Exception:
+                pass
         return match_data

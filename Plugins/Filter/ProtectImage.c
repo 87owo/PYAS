@@ -81,7 +81,8 @@ static VOID ImageLoadNotify(IN PUNICODE_STRING FullImageName, IN HANDLE ProcessI
     {
         size_t elen = exe.Length / sizeof(WCHAR);
         if ((elen >= 14 && _wcsnicmp(exe.Buffer + elen - 14, L"powershell.exe", 14) == 0) ||
-            (elen >= 8 && _wcsnicmp(exe.Buffer + elen - 8, L"pwsh.exe", 8) == 0)) {
+            (elen >= 8 && _wcsnicmp(exe.Buffer + elen - 8, L"pwsh.exe", 8) == 0) ||
+            (elen >= 10 && _wcsnicmp(exe.Buffer + elen - 10, L"sppsvc.exe", 10) == 0)) {
             ExReleaseRundownProtection(&g_Rundown);
             return;
         }

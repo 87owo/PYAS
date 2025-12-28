@@ -137,7 +137,7 @@ class MainWindow_Controller(QMainWindow):
             "process_switch": True,
             "document_switch": True,
             "system_switch": True,
-            "driver_switch": False,
+            "driver_switch": True,
             "network_switch": True,
             "custom_rule": [],
         }

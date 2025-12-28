@@ -614,14 +614,7 @@ class MainWindow_Controller(QMainWindow):
     def reset_button(self):
         if self.send_message("您確定要重置所有設定嗎?", "quest", True):
             self.pyas_config = self.pyas_default.copy()
-            self.restart_button()
-
-    def restart_button(self):
-        self.save_config(self.file_config, self.pyas_config)
-        self.minimize_button()
-        while self.isVisible():
-            QApplication.processEvents()
-        os.execl(self.python, self.python, *sys.argv)
+            self.close_button()
 
     def singleton_mutex(self, name):
         mutex = self.kernel32.CreateMutexW(None, False, name)

@@ -133,7 +133,7 @@ class MainWindow_Controller(QMainWindow):
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
-            "sensitive": 90,
+            "sensitive": 95,
             "process_switch": True,
             "document_switch": True,
             "system_switch": True,
@@ -357,7 +357,7 @@ class MainWindow_Controller(QMainWindow):
     def save_state(self, name, checked):
         self.pyas_config[name] = bool(checked)
         if name == "sensitive_switch":
-            self.pyas_config["sensitive"] = 0 if checked else 90
+            self.pyas_config["sensitive"] = 0 if checked else 95
         elif name == "extension_switch":
             pass
         elif name == "process_switch":
@@ -826,7 +826,7 @@ class MainWindow_Controller(QMainWindow):
                 return False
 
             label, level = self.model.model_scan(file_path)
-            if label and level >= self.pyas_config.get("sensitive", 90):
+            if label and level >= self.pyas_config.get("sensitive", 95):
                 return f"{label}.{level}"
 
             if self.pyas_config.get("extension_switch", False):

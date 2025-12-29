@@ -70,36 +70,65 @@ class sign_scanner:
 
 class rule_scanner:
     def __init__(self):
-        self.rules = {}
+        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys"}
+        self.rules = None
         self.network = []
 
-    def load_path(self, path):
+    def load_path(self, path, callback=None):
+        yara_files = {}
         for root, _, files in os.walk(path):
             for file in files:
-                self.load_file(os.path.join(root, file))
+                full_path = os.path.join(root, file)
+                if callback:
+                    callback(full_path)
+                ext = os.path.splitext(file)[1].lower()
+                if ext in ('.yara', '.yar'):
+                    namespace = os.path.relpath(full_path, path).replace(os.sep, '_')
+                    yara_files[namespace] = full_path
+                elif ext in ('.yc', '.yrc'):
+                    self.load_compiled_rule(full_path)
+                elif ext in ('.ip', '.txt'):
+                    self.load_network_list(full_path)
 
-    def load_file(self, file):
-        ext = os.path.splitext(file)[1].lower()
+        if yara_files:
+            self.compile_all_rules(yara_files)
+
+    def load_compiled_rule(self, file):
         try:
-            if ext in ('.yara', '.yar'):
-                self.rules[file] = yara.compile(file)
-            elif ext in ('.yc', '.yrc'):
-                self.rules[file] = yara.load(file)
-            elif ext in ('.ip', '.txt'):
-                with open(file, "r", encoding="utf-8", errors="ignore") as f:
-                    self.network.extend(line.strip() for line in f if line.strip())
-        except Exception:
-            return False
+            self.rules = yara.load(file)
+        except Exception as e:
+            print(e)
+
+    def load_network_list(self, file):
+        try:
+            with open(file, "r", encoding="utf-8", errors="ignore") as f:
+                self.network.extend(line.strip() for line in f if line.strip())
+        except Exception as e:
+            print(e)
+
+    def compile_all_rules(self, file_map):
+        try:
+            self.rules = yara.compile(filepaths=file_map)
+        except Exception as e:
+            print(e)
 
     def yara_scan(self, file_path):
         try:
-            for rules in self.rules.values():
-                matches = rules.match(filepath=file_path)
-                if matches:
-                    rule_name = str(matches[0])
-                    label = rule_name.split("_")[0]
-                    level = rule_name.split("_")[-1]
-                    return f"Rules/{label}", level
+            if not self.rules:
+                return False, False
+
+            fpath_str = str(file_path)
+            ext = os.path.splitext(fpath_str)[-1].lower()
+            if ext not in self.suffix:
+                return False, False
+
+            matches = self.rules.match(filepath=file_path)
+            if matches:
+                rule_name = str(matches[0])
+                types = rule_name.split("_")[0]
+                label = rule_name.split("_")[1]
+                level = rule_name.split("_")[2]
+                return f"{types}/{label}", level
             return False, False
         except Exception:
             return False, False
@@ -108,26 +137,30 @@ class rule_scanner:
 
 class model_scanner:
     def __init__(self):
-        self.model = None
+        self.models = []
         self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys"}
         self.labels = ["Pefile/White", "Pefile/General"]
         self.detect_set = {"Pefile/General"}
         self.resize = (224, 224)
 
-    def load_path(self, path):
+    def load_path(self, path, callback=None):
         for root, _, files in os.walk(path):
             for file in files:
-                self.load_file(os.path.join(root, file))
+                full_path = os.path.join(root, file)
+                if callback:
+                    callback(full_path)
+                self.load_file(full_path)
 
     def load_file(self, file):
         if file.lower().endswith('.onnx'):
             try:
-                self.model = onnxruntime.InferenceSession(file)
+                session = onnxruntime.InferenceSession(file)
+                self.models.append(session)
             except Exception:
                 return False
 
     def model_scan(self, file_path, full_output=False):
-        if not self.model:
+        if not self.models:
             return (False, False) if not full_output else ([], str(file_path), None)
 
         sections = self.extract_sections(file_path)
@@ -142,32 +175,35 @@ class model_scanner:
         if arr.ndim == 3:
             arr = numpy.expand_dims(arr, axis=-1)
 
-        input_meta = self.model.get_inputs()[0]
-        input_name = input_meta.name
-        input_shape = input_meta.shape
-
-        if len(input_shape) == 4:
-            if input_shape[1] in (1, 3) and input_shape[3] not in (1, 3):
-                arr = arr.transpose(0, 3, 1, 2)
-        try:
-            probs = self.model.run(None, {input_name: arr})[0]
-        except Exception:
-            return (False, False) if not full_output else ([], str(file_path), None)
-
         results = []
         best_malicious = None
 
-        for name, pred, img in zip(sections.keys(), probs, images):
-            idx = int(numpy.argmax(pred))
-            label = self.labels[idx] if idx < len(self.labels) else f"Class_{idx}"
-            conf = round(float(pred[idx]) * 100, 2)
-            print(f"Section: {name} | Label: {label} | Confidence: {conf}%")
+        for model in self.models:
+            input_meta = model.get_inputs()[0]
+            input_name = input_meta.name
+            input_shape = input_meta.shape
+            
+            curr_arr = arr.copy()
+            if len(input_shape) == 4:
+                if input_shape[1] in (1, 3) and input_shape[3] not in (1, 3):
+                    curr_arr = curr_arr.transpose(0, 3, 1, 2)
+            
+            try:
+                probs = model.run(None, {input_name: curr_arr})[0]
+            except Exception:
+                continue
 
-            if full_output:
-                results.append((name, label, conf, self.pil_to_base64(img)))
-            if label in self.detect_set:
-                if best_malicious is None or conf > best_malicious[1]:
-                    best_malicious = (label, int(conf))
+            for name, pred, img in zip(sections.keys(), probs, images):
+                idx = int(numpy.argmax(pred))
+                label = self.labels[idx] if idx < len(self.labels) else f"Class_{idx}"
+                conf = round(float(pred[idx]) * 100, 2)
+
+                if full_output:
+                    results.append((name, label, conf, self.pil_to_base64(img)))
+                
+                if label in self.detect_set:
+                    if best_malicious is None or conf > best_malicious[1]:
+                        best_malicious = (label, int(conf))
 
         if full_output:
             results.sort(key=lambda x: (x[1] not in self.detect_set, -x[2]))

@@ -24,7 +24,7 @@ translate_dict = {
 
     "english_switch": {"開啟":"On","關閉":"Off","开启":"On","关闭":"Off","，":", ",
               "立即刪除":"Delete Now","安全模式":"Safe Mode","官方網站":"Official Website ",
-              "腳本":"Script ","鏈式":"Chain ","記憶體":"Memory ","加載":"Load ",
+              "腳本":"Script ","鏈式":"Chain ","記憶體":"Memory ","正在加載":"Loading ","加載":"Load ",
               "行為":"Behavior ","可疑":"Suspicious ","勒索":"Ransom ","主要":"Main ",
               "許可條款":"License Terms ","惡意":"Malicious", "開發":"Developers ",
               "啟用":"Enable ","禁用":"Disable ","正在初始化中":"Initializing ",

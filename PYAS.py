@@ -79,6 +79,7 @@ class MainWindow_Controller(QMainWindow):
     scan_result_signal = Signal(str)
     scan_reset_signal = Signal()
     progress_title_signal = Signal(str)
+    init_log_signal = Signal(str)
 
     def __init__(self):
         super().__init__()
@@ -107,9 +108,7 @@ class MainWindow_Controller(QMainWindow):
         self.sign = sign_scanner()
         self.sign.init_windll(["wintrust"])
         self.model = model_scanner()
-        self.model.load_path(self.path_models)
         self.rule = rule_scanner()
-        self.rule.load_path(self.path_rules)
 
         self.mouse_flag = 0
         self.mouse_pos = 0
@@ -272,6 +271,16 @@ class MainWindow_Controller(QMainWindow):
 
 ####################################################################################################
 
+    def init_engine_thread(self):
+        try:
+            self.rule.load_path(self.path_rules, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
+            self.model.load_path(self.path_models, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
+            self.init_log_signal.emit("引擎加載完成")
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+####################################################################################################
+
     def init_interface(self):
         self.widgets = {k: v for k, v in self.ui.__dict__.items() if isinstance(v, QWidget)}
 
@@ -314,6 +323,7 @@ class MainWindow_Controller(QMainWindow):
         self.scan_result_signal.connect(self.slot_scan_result)
         self.scan_reset_signal.connect(self.slot_scan_reset)
         self.progress_title_signal.connect(self.slot_progress_title)
+        self.init_log_signal.connect(self.slot_init_log)
 
         for name, widget in self.widgets.items():
             if hasattr(widget, "setCheckable") and widget.isCheckable():
@@ -578,6 +588,7 @@ class MainWindow_Controller(QMainWindow):
                 if "-h" not in param:
                     self.show_button()
                 self.apply_settings()
+                self.start_daemon_thread(self.init_engine_thread)
             else:
                 sys.exit(0)
         except Exception as e:
@@ -740,6 +751,10 @@ class MainWindow_Controller(QMainWindow):
         self.widgets["method_button"].show()
         self.send_message(msg, "notify", True)
 
+    @Slot(str)
+    def slot_init_log(self, text):
+        self.send_message(text, "load", True)
+
 ####################################################################################################
 
     def init_scan(self):
@@ -822,21 +837,18 @@ class MainWindow_Controller(QMainWindow):
 
     def scan_engine(self, file_path):
         try:
-            if self.sign.sign_verify(file_path):
-                return False
-
             label, level = self.model.model_scan(file_path)
             if label and level >= self.pyas_config.get("sensitive", 95):
-                return f"{label}.{level}"
+                if not self.sign.sign_verify(file_path):
+                    return f"{label}.{level}"
 
             if self.pyas_config.get("extension_switch", False):
-                label, level = self.rule.yara_scan(file_path)
-                if label and level:
-                    return f"{label}.{level}"
-            return False
+                types, detail = self.rule.yara_scan(file_path)
+                if types and detail:
+                    return f"{types}.{detail}"
         except Exception as e:
             self.send_message(e, "warn", False)
-            return None
+        return False
 
 ####################################################################################################
 

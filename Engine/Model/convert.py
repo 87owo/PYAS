@@ -35,6 +35,7 @@ def get_type(file_path):
                 data = section.get_data()
                 if data:
                     match_data[name] = section.get_data()
+
     except pefile.PEFormatError:
         with open(file_path, 'rb') as f:
             file_content = f.read()
@@ -53,10 +54,12 @@ def file_to_images(input_dir, output_dir):
                     print(name, file_path)
                     relative_path = os.path.relpath(root, input_dir)
                     output_path_dir = os.path.join(output_dir, relative_path)
+
                     if not os.path.exists(output_path_dir):
                         os.makedirs(output_path_dir)
                     image = preprocess_image(data, (224, 224))
-                    image.save(os.path.join(output_path_dir, f"{name}_{file}.png"))
+                    safe_name = name.replace('/', '_').replace('\\', '_')
+                    image.save(os.path.join(output_path_dir, f"{safe_name}_{file}.png"))
             except Exception as e:
                 print(e)
 

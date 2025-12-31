@@ -1,27 +1,52 @@
 [Version]
 Signature   = "$WINDOWS NT$"
-Class       = System 
-ClassGuid   = {4d36e97d-e325-11ce-bfc1-08002be10318}
+Class       = ActivityMonitor
+ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider    = %ManufacturerName%
+DriverVer   = 12/29/2025,1.0.0.0
 CatalogFile = PYAS_Driver.cat
 PnpLockdown = 1
-DriverVer   = 
 
 [DestinationDirs]
-DefaultDestDir = 13
-
-[DefaultInstall.ntamd64]
-CopyFiles = @PYAS_Driver.sys
-AddService = PYAS_Driver,0x00000002
-
-[SourceDisksFiles]
-PYAS_Driver.sys = 1
+DefaultDestDir          = 12
+PYAS_Driver.DriverFiles = 12
 
 [SourceDisksNames]
 1 = %DiskName%,,,""
 
+[SourceDisksFiles]
+PYAS_Driver.sys = 1,,
+
+[DefaultInstall.NTamd64]
+OptionDesc = %ServiceDescription%
+CopyFiles  = PYAS_Driver.DriverFiles
+
+[DefaultInstall.NTamd64.Services]
+AddService = %ServiceName%,,PYAS_Driver.Service
+
+[PYAS_Driver.DriverFiles]
+PYAS_Driver.sys
+
+[PYAS_Driver.Service]
+DisplayName      = %ServiceName%
+Description      = %ServiceDescription%
+ServiceBinary    = %12%\PYAS_Driver.sys
+Dependencies     = FltMgr
+ServiceType      = 2
+StartType        = 3
+ErrorControl     = 1
+LoadOrderGroup   = "FSFilter Activity Monitor"
+AddReg           = PYAS_Driver.AddReg
+
+[PYAS_Driver.AddReg]
+HKR,"Parameters","DebugFlags",0x00010001,0x0
+HKR,"Parameters","SupportedFeatures",0x00010001,0x3
+HKR,"Parameters\Instances","DefaultInstance",0x00000000,"PYAS Instance"
+HKR,"Parameters\Instances\PYAS Instance","Altitude",0x00000000,"320000"
+HKR,"Parameters\Instances\PYAS Instance","Flags",0x00010001,0x0
+
 [Strings]
-ManufacturerName = "PYAS_Driver"
-DiskName = "PYAS_Driver"
-ServiceName="PYAS_Driver"
-ServiceDisplayName="PYAS_Driver"
+ManufacturerName   = "PYAS Security"
+DiskName           = "PYAS_Driver Source Disk"
+ServiceName        = "PYAS_Driver"
+ServiceDescription = "PYAS Security Driver"

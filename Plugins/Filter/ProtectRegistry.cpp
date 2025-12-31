@@ -1,0 +1,44 @@
+#include "DriverCommon.h"
+
+LARGE_INTEGER Cookie;
+
+static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID Argument2) {
+    UNREFERENCED_PARAMETER(CallbackContext);
+
+    REG_NOTIFY_CLASS Class = (REG_NOTIFY_CLASS)(ULONG_PTR)Argument1;
+
+    if (Class == RegNtPreSetValueKey || Class == RegNtPreDeleteKey || Class == RegNtPreCreateKey) {
+        REG_SET_VALUE_KEY_INFORMATION* Info = (REG_SET_VALUE_KEY_INFORMATION*)Argument2;
+        PCUNICODE_STRING KeyName;
+
+        if (!NT_SUCCESS(CmCallbackGetKeyObjectIDEx(&Cookie, Info->Object, NULL, &KeyName, 0))) {
+            return STATUS_SUCCESS;
+        }
+
+        if (CheckRegistryRule(KeyName)) {
+            HANDLE Pid = PsGetCurrentProcessId();
+            if (!IsProcessTrusted(Pid)) {
+                if (!IsInstallerProcess(Pid)) {
+                    SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer);
+                    CmCallbackReleaseKeyObjectIDEx(KeyName);
+                    return STATUS_ACCESS_DENIED;
+                }
+            }
+        }
+        CmCallbackReleaseKeyObjectIDEx(KeyName);
+    }
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject) {
+    UNICODE_STRING Altitude;
+    RtlInitUnicodeString(&Altitude, L"320000");
+    return CmRegisterCallbackEx(RegistryCallback, &Altitude, DriverObject, NULL, &Cookie, NULL);
+}
+
+VOID UninitializeRegistryProtection() {
+    if (Cookie.QuadPart != 0) {
+        CmUnRegisterCallback(Cookie);
+        Cookie.QuadPart = 0;
+    }
+}

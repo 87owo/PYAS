@@ -1,7 +1,7 @@
 import os, gc, re, sys, time, json, shutil
 import ctypes, ctypes.wintypes, threading
 import requests, webbrowser, winreg, msvcrt
-import traceback, hashlib
+import traceback, hashlib, subprocess
 
 from PYAS_Config import *
 from PYAS_Engine import *
@@ -62,14 +62,29 @@ class PROCESS_BASIC_INFORMATION(ctypes.Structure):
         ("PebBaseAddress", ctypes.wintypes.LPVOID),
         ("Reserved2", ctypes.wintypes.LPVOID * 2),
         ("UniqueProcessId", ctypes.wintypes.LPVOID),
-        ("Reserved3", ctypes.wintypes.LPVOID)
-    ]
+        ("Reserved3", ctypes.wintypes.LPVOID)]
 
 class UNICODE_STRING(ctypes.Structure):
     _fields_ = [
         ("Length", ctypes.wintypes.USHORT),
         ("MaximumLength", ctypes.wintypes.USHORT),
         ("Buffer", ctypes.c_void_p)]
+
+class FILTER_MESSAGE_HEADER(ctypes.Structure):
+    _fields_ = [
+        ("ReplyLength", ctypes.wintypes.ULONG),
+        ("MessageId", ctypes.c_uint64)]
+
+class PYAS_MESSAGE(ctypes.Structure):
+    _fields_ = [
+        ("MessageCode", ctypes.wintypes.ULONG),
+        ("ProcessId", ctypes.wintypes.ULONG),
+        ("Path", ctypes.wintypes.WCHAR * 1024)]
+
+class PYAS_FULL_MESSAGE(ctypes.Structure):
+    _fields_ = [
+        ("Header", FILTER_MESSAGE_HEADER),
+        ("Data", PYAS_MESSAGE)]
 
 ####################################################################################################
 
@@ -128,7 +143,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.7",
+            "version": "3.3.8",
             "product": "00000-00000-00000-00000-00000",
             "language": "english_switch",
             "theme": "white_switch",
@@ -186,7 +201,7 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def init_windll(self):
-        for name in ["ntdll", "Psapi", "user32", "kernel32", "advapi32", "iphlpapi", "shell32"]:
+        for name in ["ntdll", "Psapi", "user32", "kernel32", "advapi32", "iphlpapi", "shell32", "fltlib"]:
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
@@ -199,8 +214,7 @@ class MainWindow_Controller(QMainWindow):
             ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD,
             ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_wchar_p,
             ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_wchar_p, ctypes.c_wchar_p,
-            ctypes.c_wchar_p
-        ]
+            ctypes.c_wchar_p]
         self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
 
         self.advapi32.OpenServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
@@ -223,6 +237,11 @@ class MainWindow_Controller(QMainWindow):
 
         self.shell32.CommandLineToArgvW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
         self.shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.wintypes.LPWSTR)
+
+        self.fltlib.FilterConnectCommunicationPort.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.HANDLE)]
+        self.fltlib.FilterConnectCommunicationPort.restype = ctypes.c_long
+        self.fltlib.FilterGetMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p]
+        self.fltlib.FilterGetMessage.restype = ctypes.c_long
 
 ####################################################################################################
 
@@ -1870,90 +1889,92 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def install_system_driver(self):
-        service_name = "PYAS_Driver"
-        scm = self.advapi32.OpenSCManagerW(None, None, 0xF003F)
-        if not scm:
+        try:
+            service_name = "PYAS_Driver"
+            bin_path = self.path_drivers
+            cmd = [
+                "sc", "create", service_name,
+                f"binPath={bin_path}",
+                "type=kernel",
+                "start=demand",
+                "error=normal",
+                "depend=FltMgr",
+                "group=\"FSFilter Activity Monitor\""]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+
+            key_path = r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances"
+            with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                winreg.SetValueEx(key, "DefaultInstance", 0, winreg.REG_SZ, "PYAS Instance")
+
+            with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, rf"{key_path}\PYAS Instance") as key:
+                winreg.SetValueEx(key, "Altitude", 0, winreg.REG_SZ, "320000")
+                winreg.SetValueEx(key, "Flags", 0, winreg.REG_DWORD, 0)
+
+            subprocess.run(["sc", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            return True
+        except Exception as e:
+            self.send_message(e, "warn", False)
             return False
-
-        svc = self.advapi32.CreateServiceW(scm, service_name, service_name, 0xF01FF, 
-            0x00000001, 0x00000003, 0x00000001, self.path_drivers, None, None, None, None, None)
-        if not svc:
-            svc = self.advapi32.OpenServiceW(scm, service_name, 0xF01FF)
-            if not svc:
-                self.advapi32.CloseServiceHandle(scm)
-                return False
-
-        res = self.advapi32.StartServiceW(svc,0,None)
-        self.advapi32.CloseServiceHandle(svc)
-        self.advapi32.CloseServiceHandle(scm)
-        return bool(res)
 
     def stop_system_driver(self):
-        service_name = "PYAS_Driver"
-        scm = self.advapi32.OpenSCManagerW(None, None, 0xF003F)
-        if not scm:
+        try:
+            service_name = "PYAS_Driver"
+            subprocess.run(["sc", "stop", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            subprocess.run(["sc", "delete", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            return True
+        except Exception:
             return False
-
-        svc = self.advapi32.OpenServiceW(scm, service_name, 0xF01FF)
-        if not svc:
-            self.advapi32.CloseServiceHandle(scm)
-            return False
-
-        status = SERVICE_STATUS()
-        self.advapi32.ControlService(svc, 0x00000001, ctypes.byref(status))
-        self.advapi32.DeleteService(svc)
-        self.advapi32.CloseServiceHandle(svc)
-        self.advapi32.CloseServiceHandle(scm)
-        return True
 
 ####################################################################################################
 
     def pipe_server_thread(self):
-        pipe_path = r"\\.\pipe\PYAS_Output_Pipe"
-        PIPE_BUF_SIZE = 65536
+        try:
+            port_name = "\\PYAS_Output_Pipe"
+            h_port = ctypes.wintypes.HANDLE()
 
-        while self.pyas_config.get("driver_switch", False):
-            try:
-                hPipe = self.kernel32.CreateNamedPipeW(pipe_path, 0x00000001, 0x00000004 | 0x00000002, 1, PIPE_BUF_SIZE, PIPE_BUF_SIZE, 0, None)
-                if hPipe == ctypes.c_void_p(-1).value:
-                    time.sleep(0.2)
-                    continue
+            while self.pyas_config.get("driver_switch", False):
+                hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(h_port))
+                if hr == 0:
+                    message = PYAS_FULL_MESSAGE()
 
-                while self.pyas_config.get("driver_switch", False):
-                    if not self.kernel32.ConnectNamedPipe(hPipe, None) and self.kernel32.GetLastError() != 535:
-                        time.sleep(0.2)
-                        continue
+                    while self.pyas_config.get("driver_switch", False):
+                        hr_get = self.fltlib.FilterGetMessage(h_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None)
+                        if hr_get == 0:
+                            code = message.Data.MessageCode
+                            pid = message.Data.ProcessId
+                            raw_path = self.get_exe_info(pid)[1]
+                            target = message.Data.Path
 
-                    buf = ctypes.create_string_buffer(PIPE_BUF_SIZE)
-                    bytes_read = ctypes.c_ulong(0)
-                    if not self.kernel32.ReadFile(hPipe, buf, PIPE_BUF_SIZE, ctypes.byref(bytes_read), None) or bytes_read.value == 0:
-                        self.kernel32.DisconnectNamedPipe(hPipe)
-                        time.sleep(0.2)
-                        continue
+                            rule_name = "Unknown"
+                            if code == 2001:
+                                rule_name = "FILE_BLOCK"
+                            elif code == 3001:
+                                rule_name = "REG_BLOCK"
+                            elif code == 4001:
+                                rule_name = "BOOT_BLOCK"
+                            elif code == 5001:
+                                rule_name = "RANSOM_BLOCK"
+                            elif code == 6001:
+                                rule_name = "INJECT_BLOCK"
 
-                    msg = buf.raw[:bytes_read.value].decode("utf-8", errors="ignore")
-                    parts = [p.strip() for p in msg.split("|", 3)]
-                    if len(parts) == 4:
-                        rules, pid, raw_path, target = parts
-                        for old, new in self.block_replace.items():
-                            rules = rules.replace(old, new)
-                        self.send_message(f"驅動防護 | {rules} | {pid} | {raw_path} | {target}", "notify", True)
+                            display_rule = self.block_replace.get(rule_name, rule_name)
+                            self.send_message(f"驅動防護 | {display_rule} | {pid} | {raw_path} | {target}", "notify", True)
+                            
 
-                        file_path = self.norm_path(self.device_path_to_drive(raw_path))
-                        if not self.is_in_whitelist(file_path) and not self.sign.sign_verify(file_path):
-                            try:
-                                h = self.kernel32.OpenProcess(0x1F0FFF, False, int(pid.strip()))
-                                if h:
-                                    self.kernel32.TerminateProcess(h, 0)
-                                    self.kernel32.CloseHandle(h)
-                            except Exception as e:
-                                self.send_message(e, "warn", False)
-
-                    self.kernel32.DisconnectNamedPipe(hPipe)
-                self.kernel32.CloseHandle(hPipe)
-            except Exception as e:
-                self.send_message(e, "warn", False)
-                time.sleep(0.5)
+                            if code in [4001, 5001]:
+                                try:
+                                    h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+                                    if h:
+                                        self.kernel32.TerminateProcess(h, 0)
+                                        self.kernel32.CloseHandle(h)
+                                except:
+                                    pass
+                        else:
+                            break
+                    self.kernel32.CloseHandle(h_port)
+                time.sleep(0.2)
+        except Exception as e:
+            self.send_message(e, "warn", False)
 
 ####################################################################################################
 

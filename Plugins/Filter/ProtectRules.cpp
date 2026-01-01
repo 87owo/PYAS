@@ -319,14 +319,47 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
 
     if (WildcardMatch(L"*\\Windows\\Temp\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*\\AppData\\Local\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Windows\\SystemTemp\\*", FileName->Buffer, FileName->Length)) {
+        WildcardMatch(L"*\\Windows\\SystemTemp\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length)) {
         return TRUE;
     }
     return FALSE;
 }
 
+static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
+    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
+    NTSTATUS status;
+    BOOLEAN isExplorer = FALSE;
+    PEPROCESS Process = NULL;
+    PUNICODE_STRING imageFileName = NULL;
+
+    status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(status)) return FALSE;
+
+    status = SeLocateProcessImageName(Process, &imageFileName);
+
+    if (NT_SUCCESS(status) && imageFileName) {
+        if (imageFileName->Buffer) {
+            if (HasSuffix(imageFileName, L"explorer.exe")) {
+                isExplorer = TRUE;
+            }
+        }
+        ExFreePool(imageFileName);
+    }
+
+    ObDereferenceObject(Process);
+    return isExplorer;
+}
+
 BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Buffer, ULONG Length, BOOLEAN IsWrite) {
     if (IsNoisyRansomPath(FileName)) return FALSE;
+
+    if (!IsWrite) {
+        if (IsExplorerProcess(ProcessId)) {
+            return FALSE;
+        }
+    }
 
     LARGE_INTEGER Now = { 0 };
     KeQuerySystemTime(&Now);

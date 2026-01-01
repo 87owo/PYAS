@@ -5,27 +5,34 @@ LARGE_INTEGER Cookie;
 static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID Argument2) {
     UNREFERENCED_PARAMETER(CallbackContext);
 
+    if (KeGetCurrentIrql() > APC_LEVEL) return STATUS_SUCCESS;
+
     REG_NOTIFY_CLASS Class = (REG_NOTIFY_CLASS)(ULONG_PTR)Argument1;
 
     if (Class == RegNtPreSetValueKey || Class == RegNtPreDeleteKey || Class == RegNtPreCreateKey) {
         REG_SET_VALUE_KEY_INFORMATION* Info = (REG_SET_VALUE_KEY_INFORMATION*)Argument2;
-        PCUNICODE_STRING KeyName;
+        PCUNICODE_STRING KeyName = NULL;
 
         if (!NT_SUCCESS(CmCallbackGetKeyObjectIDEx(&Cookie, Info->Object, NULL, &KeyName, 0))) {
             return STATUS_SUCCESS;
         }
 
-        if (CheckRegistryRule(KeyName)) {
-            HANDLE Pid = PsGetCurrentProcessId();
-            if (!IsProcessTrusted(Pid)) {
-                if (!IsInstallerProcess(Pid)) {
-                    SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer);
-                    CmCallbackReleaseKeyObjectIDEx(KeyName);
-                    return STATUS_ACCESS_DENIED;
+        if (KeyName && KeyName->Buffer) {
+            if (CheckRegistryRule(KeyName)) {
+                HANDLE Pid = PsGetCurrentProcessId();
+                if (!IsProcessTrusted(Pid)) {
+                    if (!IsInstallerProcess(Pid)) {
+                        SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer, KeyName->Length);
+                        CmCallbackReleaseKeyObjectIDEx(KeyName);
+                        return STATUS_ACCESS_DENIED;
+                    }
                 }
             }
         }
-        CmCallbackReleaseKeyObjectIDEx(KeyName);
+
+        if (KeyName) {
+            CmCallbackReleaseKeyObjectIDEx(KeyName);
+        }
     }
     return STATUS_SUCCESS;
 }

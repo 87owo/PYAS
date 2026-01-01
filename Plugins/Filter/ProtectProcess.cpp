@@ -7,9 +7,9 @@ OB_OPERATION_REGISTRATION ObCallbacks[1];
 static BOOLEAN IsSystemImage(PUNICODE_STRING FullImageName) {
     if (!FullImageName || !FullImageName->Buffer) return FALSE;
 
-    if (wcsstr(FullImageName->Buffer, L"\\Windows\\System32\\") ||
-        wcsstr(FullImageName->Buffer, L"\\Windows\\SysWOW64\\") ||
-        wcsstr(FullImageName->Buffer, L"\\Windows\\WinSxS\\")) {
+    if (WildcardMatch(L"*\\Windows\\System32\\*", FullImageName->Buffer, FullImageName->Length) ||
+        WildcardMatch(L"*\\Windows\\SysWOW64\\*", FullImageName->Buffer, FullImageName->Length) ||
+        WildcardMatch(L"*\\Windows\\WinSxS\\*", FullImageName->Buffer, FullImageName->Length)) {
         return TRUE;
     }
     return FALSE;
@@ -18,6 +18,7 @@ static BOOLEAN IsSystemImage(PUNICODE_STRING FullImageName) {
 VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo) {
     UNREFERENCED_PARAMETER(ImageInfo);
 
+    if (KeGetCurrentIrql() > APC_LEVEL) return;
     if (!FullImageName || !FullImageName->Buffer) return;
     if (ProcessId == (HANDLE)0) return;
 
@@ -25,7 +26,7 @@ VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INF
 
     if (IsTargetProtected(ProcessId)) {
         if (CheckFileExtensionRule(FullImageName)) {
-            SendMessageToUser(6001, (ULONG)(ULONG_PTR)ProcessId, FullImageName->Buffer);
+            SendMessageToUser(6001, (ULONG)(ULONG_PTR)ProcessId, FullImageName->Buffer, FullImageName->Length);
         }
     }
 }
@@ -36,11 +37,15 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     if (OperationInformation->KernelHandle) return OB_PREOP_SUCCESS;
 
     PEPROCESS TargetProcess = (PEPROCESS)OperationInformation->Object;
+    if (!TargetProcess) return OB_PREOP_SUCCESS;
+
     HANDLE TargetPid = PsGetProcessId(TargetProcess);
     HANDLE SourcePid = PsGetCurrentProcessId();
 
     if (SourcePid == TargetPid) return OB_PREOP_SUCCESS;
     if (IsProcessTrusted(SourcePid)) return OB_PREOP_SUCCESS;
+
+    // Low frequency path, acceptable to check installer here
     if (IsInstallerProcess(SourcePid)) return OB_PREOP_SUCCESS;
 
     BOOLEAN bProtected = IsTargetProtected(TargetPid);

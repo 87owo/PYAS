@@ -2,7 +2,7 @@
 
 constexpr auto MAX_TRACKERS = 64;
 constexpr auto RANSOM_TIME_WINDOW_MS = 3000;
-constexpr auto RANSOM_COUNT_THRESHOLD = 3;
+constexpr auto RANSOM_COUNT_THRESHOLD = 5;
 constexpr auto HIGH_ENTROPY_THRESHOLD = 15;
 
 typedef struct _RANSOM_TRACKER {
@@ -16,7 +16,11 @@ RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
 static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
     if (!String || !String->Buffer || !Suffix) return FALSE;
 
-    SIZE_T SuffixLenBytes = wcslen(Suffix) * sizeof(WCHAR);
+    SIZE_T SuffixLenBytes = 0;
+    while (Suffix[SuffixLenBytes / sizeof(WCHAR)] != L'\0') {
+        SuffixLenBytes += sizeof(WCHAR);
+    }
+
     if (String->Length < SuffixLenBytes) return FALSE;
 
     UNICODE_STRING SuffixPart{};
@@ -31,11 +35,13 @@ static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
 }
 
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
+    if (!Pattern || !String) return FALSE;
+
     PCWSTR mp = NULL;
     PCWSTR cp = NULL;
     PCWSTR StringEnd = (PCWSTR)((PUCHAR)String + StringLengthBytes);
 
-    while (String < StringEnd && *String) {
+    while ((PUCHAR)String < (PUCHAR)StringEnd) {
         WCHAR pChar = *Pattern;
         WCHAR sChar = *String;
 
@@ -58,7 +64,7 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
     }
 
     while (*Pattern == L'*') Pattern++;
-    return !*Pattern && (String >= StringEnd || !*String);
+    return !*Pattern && ((PUCHAR)String >= (PUCHAR)StringEnd);
 }
 
 const PCWSTR RegistryBlockList[] = {
@@ -212,23 +218,29 @@ BOOLEAN IsTargetProtected(HANDLE ProcessId) {
 }
 
 BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
+    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
     NTSTATUS status;
     BOOLEAN isTrusted = FALSE;
     PEPROCESS Process = NULL;
+    PUNICODE_STRING imageFileName = NULL;
 
     status = PsLookupProcessByProcessId(ProcessId, &Process);
     if (!NT_SUCCESS(status)) return FALSE;
 
-    PUNICODE_STRING imageFileName;
     status = SeLocateProcessImageName(Process, &imageFileName);
 
     if (NT_SUCCESS(status) && imageFileName) {
-        for (int i = 0; i < sizeof(TrustedInstallerNames) / sizeof(TrustedInstallerNames[0]); i++) {
-            if (HasSuffix(imageFileName, TrustedInstallerNames[i])) {
-                isTrusted = TRUE;
-                break;
+        if (imageFileName->Buffer) {
+            for (int i = 0; i < sizeof(TrustedInstallerNames) / sizeof(TrustedInstallerNames[0]); i++) {
+                if (HasSuffix(imageFileName, TrustedInstallerNames[i])) {
+                    isTrusted = TRUE;
+                    break;
+                }
             }
         }
+
+        ExFreePool(imageFileName);
     }
 
     ObDereferenceObject(Process);
@@ -329,6 +341,11 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
 
     ExAcquireFastMutex(&GlobalData.TrackerMutex);
 
+    if (IsWrite && !SuspiciousWrite) {
+        ExReleaseFastMutex(&GlobalData.TrackerMutex);
+        return FALSE;
+    }
+
     PRANSOM_TRACKER Tracker = NULL;
     PRANSOM_TRACKER EmptySlot = NULL;
 
@@ -365,7 +382,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
 
     ULONG Weight = 1;
     if (IsWrite) {
-        Weight = SuspiciousWrite ? RANSOM_COUNT_THRESHOLD : 1;
+        Weight = SuspiciousWrite ? 2 : 1;
     }
 
     Tracker->ActivityCount += Weight;
@@ -378,38 +395,47 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
     return Result;
 }
 
-NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path) {
-    PFLT_PORT LocalClientPort = NULL;
-
-    ExAcquireFastMutex(&GlobalData.PortMutex);
-    LocalClientPort = GlobalData.ClientPort;
-    ExReleaseFastMutex(&GlobalData.PortMutex);
-
-    if (!LocalClientPort) {
-        return STATUS_PORT_DISCONNECTED;
-    }
+NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize) {
+    if (KeGetCurrentIrql() > APC_LEVEL) return STATUS_UNSUCCESSFUL;
 
     PYAS_MESSAGE msg;
     RtlZeroMemory(&msg, sizeof(msg));
     msg.MessageCode = Code;
     msg.ProcessId = Pid;
 
-    if (Path) {
-
-        ULONG CopyLen = 0;
-        while (CopyLen < MAX_PATH_LEN - 1 && Path[CopyLen] != L'\0') {
-            __try {
-                msg.Path[CopyLen] = Path[CopyLen];
-                CopyLen++;
-            }
-            __except (EXCEPTION_EXECUTE_HANDLER) {
-                break;
-            }
+    if (Path && PathSize > 0) {
+        size_t MaxSize = sizeof(msg.Path) - sizeof(WCHAR);
+        size_t BytesToCopy = PathSize;
+        if (BytesToCopy > MaxSize) {
+            BytesToCopy = MaxSize;
         }
-        msg.Path[CopyLen] = L'\0';
+
+        __try {
+            RtlCopyMemory(msg.Path, Path, BytesToCopy);
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            return STATUS_ACCESS_VIOLATION;
+        }
+        msg.Path[BytesToCopy / sizeof(WCHAR)] = L'\0';
     }
 
-    LARGE_INTEGER timeout{};
-    timeout.QuadPart = -(5 * 10000);
-    return FltSendMessage(GlobalData.FilterHandle, &LocalClientPort, &msg, sizeof(msg), NULL, NULL, &timeout);
+    if (!ExAcquireRundownProtection(&GlobalData.PortRundown)) {
+        return STATUS_PORT_DISCONNECTED;
+    }
+
+    NTSTATUS status = STATUS_SUCCESS;
+
+    if (GlobalData.ClientPort) {
+        LARGE_INTEGER timeout{};
+        timeout.QuadPart = -(5 * 10000);
+        PFLT_PORT Port = GlobalData.ClientPort;
+
+        status = FltSendMessage(GlobalData.FilterHandle, &Port, &msg, sizeof(msg), NULL, NULL, &timeout);
+    }
+    else {
+        status = STATUS_PORT_DISCONNECTED;
+    }
+
+    ExReleaseRundownProtection(&GlobalData.PortRundown);
+    return status;
 }

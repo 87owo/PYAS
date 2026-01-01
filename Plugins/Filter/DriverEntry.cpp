@@ -33,6 +33,8 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     UninitializeRegistryProtection();
     UninitializeProcessProtection();
 
+    ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
+
     if (GlobalData.ServerPort) {
         FltCloseCommunicationPort(GlobalData.ServerPort);
     }
@@ -49,9 +51,13 @@ static NTSTATUS PortConnect(PFLT_PORT ClientPort, PVOID ServerPortCookie, PVOID 
     UNREFERENCED_PARAMETER(ConnectionPortCookie);
 
     ExAcquireFastMutex(&GlobalData.PortMutex);
+
     GlobalData.ClientPort = ClientPort;
     GlobalData.PyasPid = (ULONG)(ULONG_PTR)PsGetCurrentProcessId();
     GlobalData.PyasProcess = PsGetCurrentProcess();
+
+    ExReInitializeRundownProtection(&GlobalData.PortRundown);
+
     ExReleaseFastMutex(&GlobalData.PortMutex);
 
     return STATUS_SUCCESS;
@@ -67,12 +73,15 @@ static VOID PortDisconnect(PVOID ConnectionCookie) {
         GlobalData.PyasProcess = NULL;
     }
     ExReleaseFastMutex(&GlobalData.PortMutex);
+
+    ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 }
 
 CONST FLT_OPERATION_REGISTRATION Callbacks[] = {
     { IRP_MJ_CREATE, 0, ProtectFile_PreCreate, NULL },
     { IRP_MJ_WRITE, 0, ProtectFile_PreWrite, NULL },
-    { IRP_MJ_SET_INFORMATION, 0, ProtectFile_PreWrite, NULL },
+    { IRP_MJ_SET_INFORMATION, 0, ProtectFile_PreSetInfo, NULL },
+    { IRP_MJ_FILE_SYSTEM_CONTROL, 0, ProtectFile_FileSystemControl, NULL },
     { IRP_MJ_DEVICE_CONTROL, 0, ProtectBoot_PreDeviceControl, NULL },
     { IRP_MJ_OPERATION_END }
 };
@@ -105,6 +114,8 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     GlobalData.DriverObject = DriverObject;
     ExInitializeFastMutex(&GlobalData.PortMutex);
     ExInitializeFastMutex(&GlobalData.TrackerMutex);
+
+    ExInitializeRundownProtection(&GlobalData.PortRundown);
 
     status = FltRegisterFilter(DriverObject, &FilterRegistration, &GlobalData.FilterHandle);
     if (!NT_SUCCESS(status)) return status;

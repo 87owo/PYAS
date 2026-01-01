@@ -203,7 +203,12 @@ const PCWSTR TrustedInstallerNames[] = {
     L"msiexec.exe",
     L"svchost.exe",
     L"TiWorker.exe",
-    L"taskhostw.exe"
+    L"taskhostw.exe",
+    L"Taskmgr.exe",
+    L"vds.exe",
+    L"vdsldr.exe",
+    L"defrag.exe",
+    L"cleanmgr.exe"
 };
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {

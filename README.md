@@ -28,23 +28,22 @@ PYAS/
 ├── Engine/
 │   ├── Models/
 │   │   ├── convert.py               # Convert executable files or other files to images
-│   │   └── train.py                 # TensorFlow CNN model training complete code
+│   │   ├── train.py                 # TensorFlow CNN model training complete code
+│   │   └── ...                      # Other models folders and files
 │   │
 │   └── Rules/
 │       ├── rules.yar                # Yara virus signature rule matching
-│       └── rules.ips                # IP network address rule matching
+│       ├── rules.ips                # IP network address rule matching
+│       └── ...                      # Other rules folders and files
 │
 ├── Plugins/
 │   └── Filter/
-│       ├── DriverEntry.c            # Main driver entry and initialization logic
-│       ├── DriverEntry.h            # Global driver definitions, constants, and functions
-│       ├── DriverPipe.c             # Kernel to user pipe logging implementation
-│       ├── ProtectBoot.c            # Disk boot sector write protection
-│       ├── ProtectImage.c           # Image load monitoring and shellcode detection
-│       ├── ProtectInject.c          # Process thread handle access control to prevent injection
-│       ├── ProtectReg.c             # Registry modification protection
-│       ├── ProtectRules.c           # White, block list, and matching logic for files registry
-│       └── ProtectRules.h           # Protection rule declarations
+│       ├── DriverEntry.cpp          # Main driver entry and initialization logic
+│       ├── DriverCommon.h           # Global driver definitions, constants, and functions
+│       ├── ProtectBoot.cpp          # Disk boot sector write protection
+│       ├── ProtectRegistry.cpp      # Registry modification protection
+│       ├── ProtectRules.cpp         # White, block list, and matching logic for files registry
+│       └── ...                      # Other driver folders and files
 │
 ├── PYAS.py                          # Main application entry point and UI to engine interface
 ├── PYAS_Config.py                   # Configuration loading, saving, and global parameters

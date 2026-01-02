@@ -1,7 +1,7 @@
-import os, gc, re, sys, time, json, shutil
+import os, gc, re, sys, time, json, uuid, queue
 import ctypes, ctypes.wintypes, threading
 import requests, webbrowser, winreg, msvcrt
-import traceback, hashlib, subprocess
+import traceback, hashlib, subprocess, shutil
 
 from PYAS_Config import *
 from PYAS_Engine import *
@@ -93,6 +93,8 @@ class MainWindow_Controller(QMainWindow):
     scan_add_virus_signal = Signal(str)
     scan_result_signal = Signal(str)
     scan_reset_signal = Signal()
+    scan_update_signal = Signal(str, str)
+    scan_remove_signal = Signal(str)
     progress_title_signal = Signal(str)
     init_log_signal = Signal(str)
 
@@ -124,6 +126,9 @@ class MainWindow_Controller(QMainWindow):
         self.sign.init_windll(["wintrust"])
         self.model = model_scanner()
         self.rule = rule_scanner()
+        self.cloud = cloud_scanner()
+        self.cloud_queue = queue.Queue()
+        self.init_cloud_worker()
 
         self.mouse_flag = 0
         self.mouse_pos = 0
@@ -144,10 +149,13 @@ class MainWindow_Controller(QMainWindow):
         ]
         self.pyas_default = {
             "version": "3.3.8",
-            "product": "00000-00000-00000-00000-00000",
+            "api_host": "https://pyas-security.com/",
+            "api_key": "",
+            "suffix": [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"],
+            "size": 256 * 1024 * 1024,
+            "sensitive": 95,
             "language": "english_switch",
             "theme": "white_switch",
-            "sensitive": 95,
             "process_switch": True,
             "document_switch": True,
             "system_switch": True,
@@ -341,6 +349,8 @@ class MainWindow_Controller(QMainWindow):
         self.scan_add_virus_signal.connect(self.slot_scan_add_virus)
         self.scan_result_signal.connect(self.slot_scan_result)
         self.scan_reset_signal.connect(self.slot_scan_reset)
+        self.scan_update_signal.connect(self.slot_scan_update)
+        self.scan_remove_signal.connect(self.slot_scan_remove)
         self.progress_title_signal.connect(self.slot_progress_title)
         self.init_log_signal.connect(self.slot_init_log)
 
@@ -647,10 +657,13 @@ class MainWindow_Controller(QMainWindow):
             self.close_button()
 
     def singleton_mutex(self, name):
-        mutex = self.kernel32.CreateMutexW(None, False, name)
-        if self.kernel32.GetLastError() == 183:
+        try:
+            self.h_mutex = self.kernel32.CreateMutexW(None, False, name)
+            if self.kernel32.GetLastError() == 183:
+                return False
+            return True
+        except Exception:
             return False
-        return True
 
 ####################################################################################################
 
@@ -773,6 +786,19 @@ class MainWindow_Controller(QMainWindow):
     @Slot(str)
     def slot_init_log(self, text):
         self.send_message(text, "load", True)
+        
+    @Slot(str, str)
+    def slot_scan_update(self, old_text, new_text):
+        items = self.widgets["virus_list"].findItems(old_text, Qt.MatchExactly)
+        if items:
+            items[0].setText(new_text)
+
+    @Slot(str)
+    def slot_scan_remove(self, text):
+        items = self.widgets["virus_list"].findItems(text, Qt.MatchExactly)
+        if items:
+            row = self.widgets["virus_list"].row(items[0])
+            self.widgets["virus_list"].takeItem(row)
 
 ####################################################################################################
 
@@ -821,10 +847,16 @@ class MainWindow_Controller(QMainWindow):
                         continue
                     self.scan_count += 1
 
-                    state = self.scan_engine(norm_path)
-                    if state:
+                    suffix = self.pyas_config.get("suffix", [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"])
+                    ext = os.path.splitext(file_path)[-1].lower()
+                    if ext not in suffix:
+                        continue
+
+                    result = self.scan_engine(norm_path)
+                    if result:
                         self.virus_results.append(norm_path)
-                        self.scan_add_virus_signal.emit(f"[{state}] > {norm_path}")
+                        self.scan_add_virus_signal.emit(f"[{result}] > {norm_path}")
+                        self.start_daemon_thread(self.cloud_check, norm_path)
 
                     lang = self.pyas_config.get("language", "english_switch")
                     self.progress_title_signal.emit(self.trans(lang, "正在掃描"))
@@ -856,17 +888,82 @@ class MainWindow_Controller(QMainWindow):
 
     def scan_engine(self, file_path):
         try:
+            result = False
+
             label, level = self.model.model_scan(file_path)
             if label and level >= self.pyas_config.get("sensitive", 95):
                 if not self.sign.sign_verify(file_path):
-                    return f"{label}.{level}"
+                    result = f"{label}.{level}"
 
             if self.pyas_config.get("extension_switch", False):
                 types, detail = self.rule.yara_scan(file_path)
                 if types and detail:
-                    return f"{types}.{detail}"
+                    result = f"{types}.{detail}"
+
+            return result
         except Exception as e:
             self.send_message(e, "warn", False)
+        return False
+
+####################################################################################################
+
+    def init_cloud_worker(self):
+        for _ in range(1):
+            t = threading.Thread(target=self.cloud_worker, daemon=True)
+            t.start()
+
+    def cloud_worker(self):
+        while True:
+            try:
+                file_path = self.cloud_queue.get()
+                self.perform_cloud_scan(file_path)
+                self.cloud_queue.task_done()
+            except Exception:
+                pass
+
+    def cloud_check(self, file_path, get_result=False):
+        if get_result:
+            return self.perform_cloud_scan(file_path, get_result=True)
+        self.cloud_queue.put(file_path)
+
+    def perform_cloud_scan(self, file_path, get_result=False):
+        was_locked = False
+        try:
+            if not os.path.exists(file_path):
+                return False
+
+            if file_path in self.virus_lock:
+                self.lock_file(file_path, False)
+                was_locked = True
+
+            size = os.path.getsize(file_path)
+            if size > self.pyas_config.get("size", 256 * 1024 * 1024):
+                if was_locked:
+                    self.lock_file(file_path, True)
+                return False
+
+            api_host = self.pyas_config.get("api_host", "https://pyas-security.com/")
+            api_key = self.pyas_config.get("api_key", "")
+            success, sha256 = self.cloud.upload_file(file_path, api_host, api_key)
+
+            if was_locked:
+                self.lock_file(file_path, True)
+                was_locked = False
+
+            if success and sha256:
+                if get_result:
+                    return self.cloud.get_result(sha256, api_host, api_key)
+            else:
+                self.send_message(f"雲端服務 | 通訊服務錯誤 | None | {file_path} | None", "warn", True)
+
+        except Exception as e:
+            self.send_message(e, "warn", False)
+        finally:
+            if 'was_locked' in locals() and was_locked:
+                try:
+                    self.lock_file(file_path, True)
+                except Exception:
+                    pass
         return False
 
 ####################################################################################################
@@ -1657,6 +1754,7 @@ class MainWindow_Controller(QMainWindow):
                 if self.scan_engine(file_path):
                     self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | {file_path} | None", "notify", True)
+                self.start_daemon_thread(self.cloud_check, file_path)
 
             self.suspend_process(h, False)
             self.kernel32.CloseHandle(h)
@@ -1806,6 +1904,7 @@ class MainWindow_Controller(QMainWindow):
                     if state:
                         self.add_to_quarantine([file_path])
                         self.send_message(f"檔案防護 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
+                        self.start_daemon_thread(self.cloud_check, file_path)
             except Exception as e:
                 self.send_message(e, "warn", False)
         self.kernel32.CloseHandle(hDir)

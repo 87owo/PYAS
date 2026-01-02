@@ -1,5 +1,6 @@
-import os, yara, numpy, base64, onnxruntime
-import ctypes, ctypes.wintypes, pefile
+import os, yara, time, numpy, base64, requests
+import ctypes, ctypes.wintypes, pefile, hashlib, onnxruntime
+
 from PIL import Image
 from io import BytesIO
 
@@ -45,32 +46,41 @@ class sign_scanner:
         for name in path:
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
-            except Exception as e:
-                self.send_message(e, "warn", False)
+            except Exception:
+                pass
 
-        self.WinVerifyTrust = self.wintrust.WinVerifyTrust
-        self.WinVerifyTrust.restype = ctypes.wintypes.LONG
-        self.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.c_void_p]
+        try:
+            self.WinVerifyTrust = self.wintrust.WinVerifyTrust
+            self.WinVerifyTrust.restype = ctypes.wintypes.LONG
+            self.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.c_void_p]
+        except Exception:
+            pass
 
     def is_sign(self, file_path):
-        with pefile.PE(file_path, fast_load=True) as pe:
-            sec_dir = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-            return sec_dir.VirtualAddress != 0 and sec_dir.Size > 0
+        try:
+            with pefile.PE(file_path, fast_load=True) as pe:
+                sec_dir = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+                return sec_dir.VirtualAddress != 0 and sec_dir.Size > 0
+        except Exception:
+            return False
 
     def sign_verify(self, file_path):
-        fi = WINTRUST_FILE_INFO(ctypes.sizeof(WINTRUST_FILE_INFO), file_path, None, None)
-        data = WINTRUST_DATA(ctypes.sizeof(WINTRUST_DATA), None, None, 2, 0, 1,
-            ctypes.pointer(fi), 1, None, None, 0, 0, None)
-        s = self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
-        data.dwStateAction = 2
-        self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
-        return s == 0
+        try:
+            fi = WINTRUST_FILE_INFO(ctypes.sizeof(WINTRUST_FILE_INFO), file_path, None, None)
+            data = WINTRUST_DATA(ctypes.sizeof(WINTRUST_DATA), None, None, 2, 0, 1,
+                ctypes.pointer(fi), 1, None, None, 0, 0, None)
+            s = self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
+            data.dwStateAction = 2
+            self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
+            return s == 0
+        except Exception:
+            return False
 
 ####################################################################################################
 
 class rule_scanner:
     def __init__(self):
-        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys"}
+        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"}
         self.rules = None
         self.network = []
 
@@ -96,21 +106,21 @@ class rule_scanner:
     def load_compiled_rule(self, file):
         try:
             self.rules = yara.load(file)
-        except Exception as e:
-            print(e)
+        except Exception:
+            pass
 
     def load_network_list(self, file):
         try:
             with open(file, "r", encoding="utf-8", errors="ignore") as f:
                 self.network.extend(line.strip() for line in f if line.strip())
-        except Exception as e:
-            print(e)
+        except Exception:
+            pass
 
     def compile_all_rules(self, file_map):
         try:
             self.rules = yara.compile(filepaths=file_map)
-        except Exception as e:
-            print(e)
+        except Exception:
+            pass
 
     def yara_scan(self, file_path):
         try:
@@ -138,7 +148,7 @@ class rule_scanner:
 class model_scanner:
     def __init__(self):
         self.models = []
-        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys"}
+        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"}
         self.labels = ["Pefile/White", "Pefile/General"]
         self.detect_set = {"Pefile/General"}
         self.resize = (224, 224)
@@ -234,11 +244,105 @@ class model_scanner:
         if ext in self.suffix:
             try:
                 with pefile.PE(fpath_str, fast_load=True) as pe:
-                    for section in pe.sections:
-                        name = section.Name.rstrip(b'\x00').decode('latin1', errors='ignore').lower()
+                    for i, section in enumerate(pe.sections):
+                        try:
+                            name = section.Name.rstrip(b'\x00').decode('latin1', errors='ignore').lower()
+                        except:
+                            name = f"section_{i}"
                         data = section.get_data()
                         if data:
-                            match_data[name] = data
+                            match_data[f"{name}_{i}"] = data
             except Exception:
                 pass
         return match_data
+
+####################################################################################################
+
+class cloud_scanner:
+    def __init__(self):
+        pass
+
+    def calc_hash(self, file_path, block_size=65536):
+        try:
+            h = hashlib.sha256()
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(block_size), b""):
+                    h.update(chunk)
+            return h.hexdigest()
+        except Exception:
+            return ""
+
+    def upload_file(self, file_path, api_host, api_key):
+        try:
+            sha256 = self.calc_hash(file_path)
+            if not sha256:
+                return False, None
+
+            base = api_host.rstrip('/')
+            base_headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
+
+            def _req(m, ep, files=None, **k):
+                try:
+                    return requests.request(m, f"{base}{ep}", headers=base_headers, files=files, timeout=120, **k)
+                except:
+                    return None
+
+            r = _req("GET", f"/api/processing_status/{sha256}")
+            status = r.json().get('status') if r and r.status_code == 200 else 'missing'
+            if status in ['failed', 'error']:
+                status = 'missing'
+
+            if status == 'missing':
+                with open(file_path, 'rb') as f:
+                    r = _req("POST", "/api/upload", files={'file': f})
+                    if not r or r.status_code != 200:
+                        return False, sha256
+
+            return True, sha256
+        except Exception:
+            return False, None
+
+    def get_result(self, sha256, api_host, api_key):
+        try:
+            if not sha256:
+                return False
+
+            base = api_host.rstrip('/')
+            headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
+
+            def _req(m, ep, **k):
+                try:
+                    return requests.request(m, f"{base}{ep}", headers=headers, timeout=10, **k)
+                except:
+                    return None
+
+            for _ in range(30):
+                r = _req("GET", f"/api/processing_status/{sha256}")
+                st = r.json().get('status') if r else 'error'
+                if st == 'done':
+                    break
+                if st in ['error', 'failed']:
+                    return False
+                time.sleep(1)
+
+            r = _req("GET", f"/api/report/{sha256}")
+            if r and r.status_code == 200:
+                data = r.json().get('data', {})
+                res = data.get('detection', {}).get('results', {}).get('PYAS', {})
+                label = res.get('label', 'Unsupport')
+                sims = data.get('similar', [])
+
+                is_malicious = 'General' in label
+                sim_malicious_count = 0
+                valid_sim_count = 0
+                for s in sims:
+                    if s.get('similarity', 0) > 80:
+                        valid_sim_count += 1
+                        if "General" in s.get('label'):
+                            sim_malicious_count += 1
+
+                if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
+                    return True
+        except Exception:
+            pass
+        return False

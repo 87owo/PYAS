@@ -11,7 +11,7 @@ tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
 ####################################################################################################
 
-def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=256, color_mode="grayscale"):
+def load_dataset(data_dir, image_size=(224, 224), val_split=0.01, batch_size=256, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
     file_paths, labels, class_indices = get_file_list(data_dir)
     
@@ -117,7 +117,7 @@ def build_model(input_shape, num_classes):
 
 ####################################################################################################
 
-def calculate_lr_cosine_sq(epoch, total_epochs=25, lr_start=5e-4, lr_end=1e-6):
+def calculate_lr_cosine_sq(epoch, total_epochs=30, lr_start=5e-4, lr_end=5e-7):
     cos_val = 0.5 * (1 + numpy.cos(epoch / total_epochs * numpy.pi))
     return lr_end + (lr_start - lr_end) * (cos_val ** 2)
 
@@ -159,5 +159,5 @@ model.compile(optimizer='adam', loss=categorical_focal_loss(gamma=2.0, alpha=0.2
     metrics=['accuracy', metrics.Precision(name='precision'), metrics.Recall(name='recall'),
     metrics.FalsePositives(name='fp'), metrics.TrueNegatives(name='tn')])
 
-model.fit(train_ds, epochs=25, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
+model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
 input('Training Complete')

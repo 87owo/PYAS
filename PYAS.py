@@ -107,11 +107,6 @@ class MainWindow_Controller(QMainWindow):
         self.load_config()
         self.init_interface()
         self.init_windll()
-        self.backup_mbr()
-        self.relock_file()
-        self.init_whitelist()
-        self.init_thread()
-        self.init_connect()
         self.show_startup()
 
 ####################################################################################################
@@ -611,6 +606,12 @@ class MainWindow_Controller(QMainWindow):
     def show_startup(self):
         try:
             if self.singleton_mutex("pyas_security"):
+                self.backup_mbr()
+                self.relock_file()
+                self.init_whitelist()
+                self.init_thread()
+                self.init_connect()
+
                 param = ""
                 if self.args_pyas:
                     param = self.args_pyas[0].replace("/", "-")

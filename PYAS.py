@@ -1410,6 +1410,35 @@ class MainWindow_Controller(QMainWindow):
 
 ####################################################################################################
 
+    def check_process_survival(self):
+        target_map = {
+            "explorer.exe": "explorer.exe"
+        }
+        try:
+            running = set()
+            pe = self.get_process_entry()
+            snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+            if self.kernel32.Process32First(snapshot, ctypes.byref(pe)):
+                while True:
+                    try:
+                        name = pe.szExeFile.decode("mbcs").lower()
+                        running.add(name)
+                    except:
+                        pass
+                    if not self.kernel32.Process32Next(snapshot, ctypes.byref(pe)):
+                        break
+            self.kernel32.CloseHandle(snapshot)
+
+            for name, cmd in target_map.items():
+                if name.lower() not in running:
+                    subprocess.Popen(cmd, shell=True)
+                    self.send_message(f"系統防護 | 系統進程重啟 | None | None | {name}", "notify", True)
+
+        except Exception as e:
+            self.send_message(e, "warn", False)
+
+####################################################################################################
+
     def popup_button(self):
         self.config_list("block_list")
         self.block_window = False
@@ -1754,7 +1783,7 @@ class MainWindow_Controller(QMainWindow):
                     continue
                 if self.scan_engine(file_path):
                     self.kernel32.TerminateProcess(h, 0)
-                    self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | {file_path} | None", "notify", True)
+                    self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | None | {file_path}", "notify", True)
                 self.start_daemon_thread(self.cloud_check, file_path)
 
             self.suspend_process(h, False)
@@ -1904,7 +1933,7 @@ class MainWindow_Controller(QMainWindow):
                     state = self.scan_engine(file_path)
                     if state:
                         self.add_to_quarantine([file_path])
-                        self.send_message(f"檔案防護 | 靜態掃描攔截 | None | {file_path} | None", "notify", True)
+                        self.send_message(f"檔案防護 | 靜態掃描攔截 | {pid} | None | {file_path}", "notify", True)
                         self.start_daemon_thread(self.cloud_check, file_path)
             except Exception as e:
                 self.send_message(e, "warn", False)
@@ -1982,7 +2011,8 @@ class MainWindow_Controller(QMainWindow):
                 self.repair_system_file_type()
                 self.repair_system_file_icon()
                 self.repair_system_image()
-                time.sleep(0.2)
+                self.check_process_survival()
+                time.sleep(0.5)
             except Exception as e:
                 self.send_message(e, "warn", False)
 

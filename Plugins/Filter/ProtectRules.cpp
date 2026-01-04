@@ -215,7 +215,9 @@ const PCWSTR TrustedInstallerPatterns[] = {
     L"*googleupdate*",
     L"*steam*",
     L"*origin*",
-    L"*battle.net*"
+    L"*battle.net*",
+    L"*avast*",
+    L"*avg*"
 };
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {

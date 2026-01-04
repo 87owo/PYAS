@@ -198,21 +198,24 @@ const PCWSTR ProtectedPaths[] = {
     L"*\\PYAS_Driver.sys"
 };
 
-const PCWSTR TrustedInstallerNames[] = {
-    L"TrustedInstaller.exe",
-    L"msiexec.exe",
-    L"svchost.exe",
-    L"TiWorker.exe",
-    L"taskhostw.exe",
-    L"Taskmgr.exe",
-    L"vds.exe",
-    L"vdsldr.exe",
-    L"defrag.exe",
-    L"cleanmgr.exe",
-    L"setup.exe",
-    L"update.exe",
-    L"installer.exe",
-    L"uninstall.exe"
+const PCWSTR TrustedInstallerPatterns[] = {
+    L"*setup*",
+    L"*install*",
+    L"*update*",
+    L"*unins*",
+    L"*patch*",
+    L"*msiexec*",
+    L"*tiworker*",
+    L"*trustedinstaller*",
+    L"*dism*",
+    L"*pkgmgr*",
+    L"*wuauclt*",
+    L"*svchost*",
+    L"*taskhost*",
+    L"*googleupdate*",
+    L"*steam*",
+    L"*origin*",
+    L"*battle.net*"
 };
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
@@ -225,7 +228,6 @@ BOOLEAN IsTargetProtected(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     return FALSE;
 }
-
 BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
     if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
 
@@ -241,14 +243,13 @@ BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
 
     if (NT_SUCCESS(status) && imageFileName) {
         if (imageFileName->Buffer) {
-            for (int i = 0; i < sizeof(TrustedInstallerNames) / sizeof(TrustedInstallerNames[0]); i++) {
-                if (HasSuffix(imageFileName, TrustedInstallerNames[i])) {
+            for (int i = 0; i < sizeof(TrustedInstallerPatterns) / sizeof(TrustedInstallerPatterns[0]); i++) {
+                if (WildcardMatch(TrustedInstallerPatterns[i], imageFileName->Buffer, imageFileName->Length)) {
                     isTrusted = TRUE;
                     break;
                 }
             }
         }
-
         ExFreePool(imageFileName);
     }
 

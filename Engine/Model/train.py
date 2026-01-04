@@ -11,7 +11,7 @@ tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
 ####################################################################################################
 
-def load_dataset(data_dir, image_size=(224, 224), val_split=0.01, batch_size=256, color_mode="grayscale"):
+def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=256, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
     file_paths, labels, class_indices = get_file_list(data_dir)
     
@@ -142,7 +142,7 @@ class CustomModelCheckpoint(callbacks.Callback):
 
 ####################################################################################################
 
-train_ds, val_ds = load_dataset(r'.\Image_File_Pefile')
+train_ds, val_ds = load_dataset(r'.\Image_Full_Pefile')
 for imgs, _ in train_ds.take(1):
     train_ds.image_shape = imgs.shape[1:]
     break

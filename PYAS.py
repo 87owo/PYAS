@@ -13,7 +13,7 @@ from PySide6.QtGui import *
 
 ####################################################################################################
 
-class PROCESSENTRY32(ctypes.Structure):
+class PROCESSENTRY32W(ctypes.Structure):
     _fields_ = [
         ("dwSize", ctypes.wintypes.DWORD),
         ("cntUsage", ctypes.wintypes.DWORD),
@@ -22,8 +22,9 @@ class PROCESSENTRY32(ctypes.Structure):
         ("th32ModuleID", ctypes.wintypes.DWORD),
         ("cntThreads", ctypes.wintypes.DWORD),
         ("th32ParentProcessID", ctypes.wintypes.DWORD),
+        ("pcPriClassBase", ctypes.wintypes.LONG),
         ("dwFlags", ctypes.wintypes.DWORD),
-        ("szExeFile", ctypes.wintypes.CHAR * 260)]
+        ("szExeFile", ctypes.wintypes.WCHAR * 260)]
 
 class MIB_TCPROW_OWNER_PID(ctypes.Structure):
     _fields_ = [
@@ -146,7 +147,7 @@ class MainWindow_Controller(QMainWindow):
             "version": "3.3.8",
             "api_host": "https://pyas-security.com/",
             "api_key": "",
-            "suffix": [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"],
+            "suffix": [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui", ".cpl"],
             "size": 256 * 1024 * 1024,
             "sensitive": 95,
             "language": "english_switch",
@@ -1056,7 +1057,7 @@ class MainWindow_Controller(QMainWindow):
                     self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
                     widget.takeItem(widget.row(item))
                     self.virus_results.remove(file_path)
-                except:
+                except Exception as e:
                     self.send_message(e, "warn", False)
 
         elif act == quarantine_action:
@@ -1067,7 +1068,7 @@ class MainWindow_Controller(QMainWindow):
                     self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
                     widget.takeItem(widget.row(item))
                     self.virus_results.remove(file_path)
-                except:
+                except Exception as e:
                     self.send_message(e, "warn", False)
 
         count = len(self.virus_results)
@@ -1078,7 +1079,7 @@ class MainWindow_Controller(QMainWindow):
     def list_process(self):
         pe = self.get_process_entry()
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        result, success = [], self.kernel32.Process32First(snapshot, ctypes.byref(pe))
+        result, success = [], self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
 
         while success:
             pid = pe.th32ProcessID
@@ -1086,15 +1087,13 @@ class MainWindow_Controller(QMainWindow):
             if pid > 4:
                 name, file_path = self.get_exe_info(pid)
             if not name:
-                raw = bytes(pe.szExeFile).split(b"\x00", 1)[0]
-                if raw:
-                    try:
-                        name = raw.decode("mbcs", errors="replace") or None
-                    except Exception:
-                        name = None
+                try:
+                    name = pe.szExeFile
+                except Exception:
+                    name = None
 
             result.append((pid, name, file_path))
-            success = self.kernel32.Process32Next(snapshot, ctypes.byref(pe))
+            success = self.kernel32.Process32NextW(snapshot, ctypes.byref(pe))
         self.kernel32.CloseHandle(snapshot)
         return result
 
@@ -1166,21 +1165,21 @@ class MainWindow_Controller(QMainWindow):
             self.kill_process(pid)
 
         elif act == white_action:
-            file_path = self.norm_path(path)
-            if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
+            target_path = self.norm_path(file_path)
+            if target_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
                 try:
-                    n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
+                    n = self.manage_named_list("white_list", [target_path], action="add", with_hash=True)
                     self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
-                except:
+                except Exception as e:
                     self.send_message(e, "warn", False)
 
         elif act == quarantine_action:
-            file_path = self.norm_path(path)
-            if file_path and self.send_message("您確定要增加到隔離區嗎?", "quest"):
+            target_path = self.norm_path(file_path)
+            if target_path and self.send_message("您確定要增加到隔離區嗎?", "quest"):
                 try:
-                    n = self.manage_named_list("quarantine", [file_path], action="add", with_hash=True, lock_func=self.lock_file)
+                    n = self.manage_named_list("quarantine", [target_path], action="add", with_hash=True, lock_func=self.lock_file)
                     self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
-                except:
+                except Exception as e:
                     self.send_message(e, "warn", False)
 
     def kill_process(self, pid):
@@ -1418,14 +1417,14 @@ class MainWindow_Controller(QMainWindow):
             running = set()
             pe = self.get_process_entry()
             snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-            if self.kernel32.Process32First(snapshot, ctypes.byref(pe)):
+            if self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe)):
                 while True:
                     try:
-                        name = pe.szExeFile.decode("mbcs").lower()
+                        name = pe.szExeFile.lower()
                         running.add(name)
                     except:
                         pass
-                    if not self.kernel32.Process32Next(snapshot, ctypes.byref(pe)):
+                    if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)):
                         break
             self.kernel32.CloseHandle(snapshot)
 
@@ -1558,19 +1557,19 @@ class MainWindow_Controller(QMainWindow):
         if name:
             return name
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        entry = PROCESSENTRY32()
-        entry.dwSize = ctypes.sizeof(PROCESSENTRY32)
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
 
         result = ""
-        if self.kernel32.Process32First(snapshot, ctypes.byref(entry)):
+        if self.kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
             while True:
                 if entry.th32ProcessID == pid:
                     try:
-                        result = entry.szExeFile.decode("mbcs").rstrip("\x00")
+                        result = entry.szExeFile
                     except Exception:
                         result = ""
                     break
-                if not self.kernel32.Process32Next(snapshot, ctypes.byref(entry)):
+                if not self.kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
                     break
         self.kernel32.CloseHandle(snapshot)
         return result
@@ -1810,10 +1809,10 @@ class MainWindow_Controller(QMainWindow):
     def get_process_list(self):
         exist_process, pe = set(), self.get_process_entry()
         hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        if self.kernel32.Process32First(hSnapshot, ctypes.byref(pe)):
+        if self.kernel32.Process32FirstW(hSnapshot, ctypes.byref(pe)):
             while True:
                 exist_process.add(pe.th32ProcessID)
-                if not self.kernel32.Process32Next(hSnapshot, ctypes.byref(pe)):
+                if not self.kernel32.Process32NextW(hSnapshot, ctypes.byref(pe)):
                     break
         self.kernel32.CloseHandle(hSnapshot)
         return exist_process
@@ -1825,8 +1824,8 @@ class MainWindow_Controller(QMainWindow):
         return ""
 
     def get_process_entry(self):
-        pe = PROCESSENTRY32()
-        pe.dwSize = ctypes.sizeof(PROCESSENTRY32)
+        pe = PROCESSENTRY32W()
+        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
         return pe
 
     def get_exe_info(self, pid):
@@ -1930,10 +1929,16 @@ class MainWindow_Controller(QMainWindow):
 
                 file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                 if file_path and notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
+
+                    suffix = self.pyas_config.get("suffix", [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"])
+                    ext = os.path.splitext(file_path)[-1].lower()
+                    if ext not in suffix:
+                        continue
+
                     state = self.scan_engine(file_path)
                     if state:
                         self.add_to_quarantine([file_path])
-                        self.send_message(f"檔案防護 | 靜態掃描攔截 | {pid} | None | {file_path}", "notify", True)
+                        self.send_message(f"檔案防護 | 靜態掃描攔截 | None | None | {file_path}", "notify", True)
                         self.start_daemon_thread(self.cloud_check, file_path)
             except Exception as e:
                 self.send_message(e, "warn", False)

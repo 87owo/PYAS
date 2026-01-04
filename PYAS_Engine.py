@@ -1,5 +1,5 @@
 import os, yara, time, numpy, base64, requests
-import ctypes, ctypes.wintypes, pefile, hashlib, onnxruntime
+import ctypes, ctypes.wintypes, hashlib, onnxruntime
 
 from PIL import Image
 from io import BytesIO
@@ -56,14 +56,6 @@ class sign_scanner:
         except Exception:
             pass
 
-    def is_sign(self, file_path):
-        try:
-            with pefile.PE(file_path, fast_load=True) as pe:
-                sec_dir = pe.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-                return sec_dir.VirtualAddress != 0 and sec_dir.Size > 0
-        except Exception:
-            return False
-
     def sign_verify(self, file_path):
         try:
             fi = WINTRUST_FILE_INFO(ctypes.sizeof(WINTRUST_FILE_INFO), file_path, None, None)
@@ -80,7 +72,6 @@ class sign_scanner:
 
 class rule_scanner:
     def __init__(self):
-        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"}
         self.rules = None
         self.network = []
 
@@ -127,11 +118,6 @@ class rule_scanner:
             if not self.rules:
                 return False, False
 
-            fpath_str = str(file_path)
-            ext = os.path.splitext(fpath_str)[-1].lower()
-            if ext not in self.suffix:
-                return False, False
-
             matches = self.rules.match(filepath=file_path)
             if matches:
                 rule_name = str(matches[0])
@@ -148,7 +134,6 @@ class rule_scanner:
 class model_scanner:
     def __init__(self):
         self.models = []
-        self.suffix = {".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"}
         self.labels = ["Pefile/White", "Pefile/General"]
         self.detect_set = {"Pefile/General"}
         self.resize = (224, 224)
@@ -173,15 +158,16 @@ class model_scanner:
         if not self.models:
             return (False, False) if not full_output else ([], str(file_path), None)
 
-        sections = self.extract_sections(file_path)
-        if not sections:
-            return (False, False) if not full_output else ([], str(file_path), None)
-            
-        images = [self.preprocess_image(data, self.resize) for data in sections.values()]
-        if not images:
+        data = self.get_data(file_path)
+        if not data:
             return (False, False) if not full_output else ([], str(file_path), None)
 
-        arr = numpy.stack([numpy.asarray(img).astype('float32') / 255.0 for img in images])
+        image = self.preprocess_image(data, self.resize)
+        if not image:
+            return (False, False) if not full_output else ([], str(file_path), None)
+
+        arr = numpy.asarray(image).astype('float32') / 255.0
+        arr = numpy.expand_dims(arr, axis=0)
         if arr.ndim == 3:
             arr = numpy.expand_dims(arr, axis=-1)
 
@@ -200,20 +186,20 @@ class model_scanner:
             
             try:
                 probs = model.run(None, {input_name: curr_arr})[0]
+                pred = probs[0]
             except Exception:
                 continue
 
-            for name, pred, img in zip(sections.keys(), probs, images):
-                idx = int(numpy.argmax(pred))
-                label = self.labels[idx] if idx < len(self.labels) else f"Class_{idx}"
-                conf = round(float(pred[idx]) * 100, 2)
+            idx = int(numpy.argmax(pred))
+            label = self.labels[idx] if idx < len(self.labels) else f"Class_{idx}"
+            conf = round(float(pred[idx]) * 100, 2)
 
-                if full_output:
-                    results.append((name, label, conf, self.pil_to_base64(img)))
-                
-                if label in self.detect_set:
-                    if best_malicious is None or conf > best_malicious[1]:
-                        best_malicious = (label, int(conf))
+            if full_output:
+                results.append(("Whole File", label, conf, self.pil_to_base64(image)))
+            
+            if label in self.detect_set:
+                if best_malicious is None or conf > best_malicious[1]:
+                    best_malicious = (label, int(conf))
 
         if full_output:
             results.sort(key=lambda x: (x[1] not in self.detect_set, -x[2]))
@@ -237,24 +223,12 @@ class model_scanner:
         image = Image.fromarray(imgbuf.reshape((wah, wah)), 'L')
         return image.resize((width, height), Image.Resampling.NEAREST)
 
-    def extract_sections(self, file_path):
-        match_data = {}
-        fpath_str = str(file_path)
-        ext = os.path.splitext(fpath_str)[-1].lower()
-        if ext in self.suffix:
-            try:
-                with pefile.PE(fpath_str, fast_load=True) as pe:
-                    for i, section in enumerate(pe.sections):
-                        try:
-                            name = section.Name.rstrip(b'\x00').decode('latin1', errors='ignore').lower()
-                        except:
-                            name = f"section_{i}"
-                        data = section.get_data()
-                        if data:
-                            match_data[f"{name}_{i}"] = data
-            except Exception:
-                pass
-        return match_data
+    def get_data(self, file_path):
+        try:
+            with open(file_path, 'rb') as f:
+                return f.read()
+        except Exception:
+            return None
 
 ####################################################################################################
 

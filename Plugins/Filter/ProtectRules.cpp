@@ -208,7 +208,11 @@ const PCWSTR TrustedInstallerNames[] = {
     L"vds.exe",
     L"vdsldr.exe",
     L"defrag.exe",
-    L"cleanmgr.exe"
+    L"cleanmgr.exe",
+    L"setup.exe",
+    L"update.exe",
+    L"installer.exe",
+    L"uninstall.exe"
 };
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
@@ -325,6 +329,7 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
     if (WildcardMatch(L"*\\Windows\\Temp\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*\\AppData\\Local\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*\\Windows\\SystemTemp\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\Program Files*\\*\\Temp\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length)) {
         return TRUE;
     }

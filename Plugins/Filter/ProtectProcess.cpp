@@ -31,6 +31,35 @@ VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INF
     }
 }
 
+static BOOLEAN IsBlacklistedAdminTool(HANDLE ProcessId) {
+    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
+    NTSTATUS status;
+    BOOLEAN isBlacklisted = FALSE;
+    PEPROCESS Process = NULL;
+    PUNICODE_STRING imageFileName = NULL;
+
+    status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(status)) return FALSE;
+
+    status = SeLocateProcessImageName(Process, &imageFileName);
+
+    if (NT_SUCCESS(status) && imageFileName) {
+        if (imageFileName->Buffer) {
+            if (WildcardMatch(L"*Taskmgr.exe", imageFileName->Buffer, imageFileName->Length) ||
+                WildcardMatch(L"*taskkill.exe", imageFileName->Buffer, imageFileName->Length) ||
+                WildcardMatch(L"*ProcessHacker.exe", imageFileName->Buffer, imageFileName->Length) ||
+                WildcardMatch(L"*procmon.exe", imageFileName->Buffer, imageFileName->Length)) {
+                isBlacklisted = TRUE;
+            }
+        }
+        ExFreePool(imageFileName);
+    }
+
+    ObDereferenceObject(Process);
+    return isBlacklisted;
+}
+
 static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
     UNREFERENCED_PARAMETER(RegistrationContext);
 
@@ -43,18 +72,40 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     HANDLE SourcePid = PsGetCurrentProcessId();
 
     if (SourcePid == TargetPid) return OB_PREOP_SUCCESS;
-    if (IsProcessTrusted(SourcePid)) return OB_PREOP_SUCCESS;
 
-    // Low frequency path, acceptable to check installer here
-    if (IsInstallerProcess(SourcePid)) return OB_PREOP_SUCCESS;
+    if ((ULONG)(ULONG_PTR)SourcePid == GlobalData.PyasPid) return OB_PREOP_SUCCESS;
+    if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
 
     BOOLEAN bProtected = IsTargetProtected(TargetPid);
 
     if (bProtected) {
-        ACCESS_MASK DenyMask = PROCESS_TERMINATE | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_CREATE_THREAD | PROCESS_VM_READ | PROCESS_DUP_HANDLE;
+        BOOLEAN bIsInstaller = IsInstallerProcess(SourcePid);
+
+        if (bIsInstaller) {
+            if (IsBlacklistedAdminTool(SourcePid)) {
+                bIsInstaller = FALSE;
+            }
+        }
+
+        if (bIsInstaller) return OB_PREOP_SUCCESS;
+
+        ACCESS_MASK DenyMask = PROCESS_TERMINATE |
+            PROCESS_VM_OPERATION |
+            PROCESS_VM_WRITE |
+            PROCESS_CREATE_THREAD |
+            PROCESS_VM_READ |
+            PROCESS_DUP_HANDLE |
+            PROCESS_SUSPEND_RESUME |
+            PROCESS_SET_INFORMATION |
+            PROCESS_SET_QUOTA;
 
         OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~DenyMask;
         OperationInformation->Parameters->CreateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
+
+        if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
+            OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= ~DenyMask;
+            OperationInformation->Parameters->DuplicateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
+        }
     }
 
     return OB_PREOP_SUCCESS;

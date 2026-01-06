@@ -75,6 +75,7 @@ const PCWSTR RegistryBlockList[] = {
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
+    
     L"*\\DisableAntiSpyware",
     L"*\\DisableWindowsUpdateAccess",
     L"*\\EnableLUA",
@@ -186,16 +187,39 @@ const PCWSTR NaturallyCompressedExtensions[] = {
 };
 
 const PCWSTR ProtectedPaths[] = {
-    L"*\\System32\\drivers\\etc\\hosts",
-    L"*\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*",
-    L"\\Device\\HarddiskVolume*\\Windows\\System32\\*.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\System32\\*.dll",
-    L"\\Device\\HarddiskVolume*\\Windows\\SysWOW64\\*.exe",
-    L"\\Device\\HarddiskVolume*\\Windows\\SysWOW64\\*.dll",
-    L"\\Device\\HarddiskVolume*\\bootmgr",
-    L"\\Device\\HarddiskVolume*\\EFI\\*",
     L"*\\PYAS.exe",
-    L"*\\PYAS_Driver.sys"
+    L"*\\PYAS_Driver.sys",
+    L"*\\ProgramData\\PYAS\\*.json",
+
+    L"*\\Windows\\System32\\*.exe",
+    L"*\\Windows\\System32\\*.dll",
+    L"*\\Windows\\SysWOW64\\*.exe",
+    L"*\\Windows\\SysWOW64\\*.dll",
+    L"*\\Windows\\System32\\drivers\\etc\\hosts",
+
+    L"*\\bootmgr",
+    L"*\\boot.ini",
+    L"*\\BOOTNXT",
+    L"*\\EFI\\*",
+    L"*\\Boot\\*",
+    L"*\\Recovery\\*",
+    L"*\\System Volume Information\\*",
+
+    L"*\\CON",
+    L"*\\CON\\*",
+    L"*\\PRN",
+    L"*\\PRN\\*",
+    L"*\\AUX",
+    L"*\\AUX\\*",
+    L"*\\NUL",
+    L"*\\NUL\\*",
+    L"*\\COM?",
+    L"*\\COM?\\*",
+    L"*\\LPT?",
+    L"*\\LPT?\\*",
+    L"*\\evil*.exe",
+    L"*\\OSDATA",
+    L"*\\OSDATA\\*"
 };
 
 const PCWSTR TrustedInstallerPatterns[] = {

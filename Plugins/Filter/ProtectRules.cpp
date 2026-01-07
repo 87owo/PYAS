@@ -75,7 +75,7 @@ const PCWSTR RegistryBlockList[] = {
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
-    
+
     L"*\\DisableAntiSpyware",
     L"*\\DisableWindowsUpdateAccess",
     L"*\\EnableLUA",
@@ -241,7 +241,11 @@ const PCWSTR TrustedInstallerPatterns[] = {
     L"*origin*",
     L"*battle.net*",
     L"*avast*",
-    L"*avg*"
+    L"*avg*",
+    L"*MsMpEng*",
+    L"*MpCmdRun*",
+    L"*MicrosoftEdge*",
+    L"*OneDrive*"
 };
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
@@ -254,6 +258,7 @@ BOOLEAN IsTargetProtected(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     return FALSE;
 }
+
 BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
     if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
 
@@ -357,7 +362,10 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
         WildcardMatch(L"*\\AppData\\Local\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*\\Windows\\SystemTemp\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*\\Program Files*\\*\\Temp\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length)) {
+        WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\ProgramData\\Microsoft\\Windows Defender\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\Program Files*\\Microsoft\\EdgeUpdate\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\Program Files*\\Microsoft\\Edge\\*", FileName->Buffer, FileName->Length)) {
         return TRUE;
     }
     return FALSE;

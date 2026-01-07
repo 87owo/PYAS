@@ -13,59 +13,31 @@ typedef struct _RANSOM_TRACKER {
 
 RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
 
-static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
-    if (!String || !String->Buffer || !Suffix) return FALSE;
+const PCWSTR SafeSystemBinaries[] = {
+    L"\\Windows\\System32\\lsass.exe",
+    L"\\Windows\\System32\\services.exe",
+    L"\\Windows\\System32\\csrss.exe",
+    L"\\Windows\\System32\\smss.exe",
+    L"\\Windows\\System32\\wininit.exe",
+    L"\\Windows\\System32\\winlogon.exe",
+    L"\\Windows\\System32\\svchost.exe",
+    L"\\Windows\\System32\\SearchIndexer.exe",
+    L"\\Windows\\System32\\msiexec.exe",
+    L"\\Windows\\System32\\TrustedInstaller.exe",
+    L"\\Windows\\System32\\TiWorker.exe",
+    L"\\Windows\\System32\\dism.exe",
+    L"\\Windows\\System32\\dismhost.exe",
+    L"\\Windows\\System32\\wuauclt.exe"
+};
 
-    SIZE_T SuffixLenBytes = 0;
-    while (Suffix[SuffixLenBytes / sizeof(WCHAR)] != L'\0') {
-        SuffixLenBytes += sizeof(WCHAR);
-    }
-
-    if (String->Length < SuffixLenBytes) return FALSE;
-
-    UNICODE_STRING SuffixPart{};
-    SuffixPart.Buffer = (PWCH)((PUCHAR)String->Buffer + String->Length - SuffixLenBytes);
-    SuffixPart.Length = (USHORT)SuffixLenBytes;
-    SuffixPart.MaximumLength = (USHORT)SuffixLenBytes;
-
-    UNICODE_STRING TargetSuffix;
-    RtlInitUnicodeString(&TargetSuffix, Suffix);
-
-    return RtlEqualUnicodeString(&SuffixPart, &TargetSuffix, TRUE);
-}
-
-BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
-    if (!Pattern || !String) return FALSE;
-
-    PCWSTR mp = NULL;
-    PCWSTR cp = NULL;
-    PCWSTR StringEnd = (PCWSTR)((PUCHAR)String + StringLengthBytes);
-
-    while ((PUCHAR)String < (PUCHAR)StringEnd) {
-        WCHAR pChar = *Pattern;
-        WCHAR sChar = *String;
-
-        if (pChar == L'*') {
-            if (!*++Pattern) return TRUE;
-            mp = Pattern;
-            cp = String + 1;
-        }
-        else if ((RtlDowncaseUnicodeChar(pChar) == RtlDowncaseUnicodeChar(sChar)) || pChar == L'?') {
-            Pattern++;
-            String++;
-        }
-        else if (mp) {
-            Pattern = mp;
-            String = cp++;
-        }
-        else {
-            return FALSE;
-        }
-    }
-
-    while (*Pattern == L'*') Pattern++;
-    return !*Pattern && ((PUCHAR)String >= (PUCHAR)StringEnd);
-}
+const PCWSTR SafeProcessPatterns[] = {
+    L"*\\Windows Defender\\MsMpEng.exe",
+    L"*\\Windows Defender\\NisSrv.exe",
+    L"*\\Windows Defender\\MsSense.exe",
+    L"*\\Windows Defender Advanced Threat Protection\\MsSense.exe",
+    L"*\\Microsoft\\EdgeUpdate\\*",
+    L"*\\Google\\Update\\*"
+};
 
 const PCWSTR RegistryBlockList[] = {
     L"\\REGISTRY\\MACHINE\\BCD00000000\\*",
@@ -75,7 +47,6 @@ const PCWSTR RegistryBlockList[] = {
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
-
     L"*\\DisableAntiSpyware",
     L"*\\DisableWindowsUpdateAccess",
     L"*\\EnableLUA",
@@ -222,70 +193,113 @@ const PCWSTR ProtectedPaths[] = {
     L"*\\OSDATA\\*"
 };
 
-const PCWSTR TrustedInstallerPatterns[] = {
-    L"*setup*",
-    L"*install*",
-    L"*update*",
-    L"*unins*",
-    L"*patch*",
-    L"*msiexec*",
-    L"*tiworker*",
-    L"*trustedinstaller*",
-    L"*dism*",
-    L"*pkgmgr*",
-    L"*wuauclt*",
-    L"*svchost*",
-    L"*taskhost*",
-    L"*googleupdate*",
-    L"*steam*",
-    L"*origin*",
-    L"*battle.net*",
-    L"*avast*",
-    L"*avg*",
-    L"*MsMpEng*",
-    L"*MpCmdRun*",
-    L"*MicrosoftEdge*",
-    L"*OneDrive*"
-};
+static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
+    if (!String || !String->Buffer || !Suffix) return FALSE;
+
+    SIZE_T SuffixLenBytes = 0;
+    while (Suffix[SuffixLenBytes / sizeof(WCHAR)] != L'\0') {
+        SuffixLenBytes += sizeof(WCHAR);
+    }
+
+    if (String->Length < SuffixLenBytes) return FALSE;
+
+    UNICODE_STRING SuffixPart{};
+    SuffixPart.Buffer = (PWCH)((PUCHAR)String->Buffer + String->Length - SuffixLenBytes);
+    SuffixPart.Length = (USHORT)SuffixLenBytes;
+    SuffixPart.MaximumLength = (USHORT)SuffixLenBytes;
+
+    UNICODE_STRING TargetSuffix;
+    RtlInitUnicodeString(&TargetSuffix, Suffix);
+
+    return RtlEqualUnicodeString(&SuffixPart, &TargetSuffix, TRUE);
+}
+
+BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
+    if (!Pattern || !String) return FALSE;
+
+    PCWSTR mp = NULL;
+    PCWSTR cp = NULL;
+    PCWSTR StringEnd = (PCWSTR)((PUCHAR)String + StringLengthBytes);
+
+    while ((PUCHAR)String < (PUCHAR)StringEnd) {
+        WCHAR pChar = *Pattern;
+        WCHAR sChar = *String;
+
+        if (pChar == L'*') {
+            if (!*++Pattern) return TRUE;
+            mp = Pattern;
+            cp = String + 1;
+        }
+        else if ((RtlDowncaseUnicodeChar(pChar) == RtlDowncaseUnicodeChar(sChar)) || pChar == L'?') {
+            Pattern++;
+            String++;
+        }
+        else if (mp) {
+            Pattern = mp;
+            String = cp++;
+        }
+        else {
+            return FALSE;
+        }
+    }
+
+    while (*Pattern == L'*') Pattern++;
+    return !*Pattern && ((PUCHAR)String >= (PUCHAR)StringEnd);
+}
+
+static NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
+    NTSTATUS status;
+    PEPROCESS Process = NULL;
+
+    *ImageName = NULL;
+    status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(status)) return status;
+
+    status = SeLocateProcessImageName(Process, ImageName);
+    ObDereferenceObject(Process);
+
+    return status;
+}
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
-    return FALSE;
+
+    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
+    PUNICODE_STRING imageFileName = NULL;
+    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
+    BOOLEAN isTrusted = FALSE;
+
+    if (NT_SUCCESS(status) && imageFileName) {
+        if (imageFileName->Buffer) {
+            for (SIZE_T i = 0; i < sizeof(SafeSystemBinaries) / sizeof(SafeSystemBinaries[0]); i++) {
+                if (HasSuffix(imageFileName, SafeSystemBinaries[i])) {
+                    isTrusted = TRUE;
+                    goto cleanup;
+                }
+            }
+            for (SIZE_T i = 0; i < sizeof(SafeProcessPatterns) / sizeof(SafeProcessPatterns[0]); i++) {
+                if (WildcardMatch(SafeProcessPatterns[i], imageFileName->Buffer, imageFileName->Length)) {
+                    isTrusted = TRUE;
+                    goto cleanup;
+                }
+            }
+        }
+    cleanup:
+        ExFreePool(imageFileName);
+    }
+
+    return isTrusted;
+}
+
+BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
+    return IsProcessTrusted(ProcessId);
 }
 
 BOOLEAN IsTargetProtected(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     return FALSE;
-}
-
-BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
-    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
-
-    NTSTATUS status;
-    BOOLEAN isTrusted = FALSE;
-    PEPROCESS Process = NULL;
-    PUNICODE_STRING imageFileName = NULL;
-
-    status = PsLookupProcessByProcessId(ProcessId, &Process);
-    if (!NT_SUCCESS(status)) return FALSE;
-
-    status = SeLocateProcessImageName(Process, &imageFileName);
-
-    if (NT_SUCCESS(status) && imageFileName) {
-        if (imageFileName->Buffer) {
-            for (int i = 0; i < sizeof(TrustedInstallerPatterns) / sizeof(TrustedInstallerPatterns[0]); i++) {
-                if (WildcardMatch(TrustedInstallerPatterns[i], imageFileName->Buffer, imageFileName->Length)) {
-                    isTrusted = TRUE;
-                    break;
-                }
-            }
-        }
-        ExFreePool(imageFileName);
-    }
-
-    ObDereferenceObject(Process);
-    return isTrusted;
 }
 
 BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
@@ -374,15 +388,9 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
 static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
     if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
 
-    NTSTATUS status;
-    BOOLEAN isExplorer = FALSE;
-    PEPROCESS Process = NULL;
     PUNICODE_STRING imageFileName = NULL;
-
-    status = PsLookupProcessByProcessId(ProcessId, &Process);
-    if (!NT_SUCCESS(status)) return FALSE;
-
-    status = SeLocateProcessImageName(Process, &imageFileName);
+    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
+    BOOLEAN isExplorer = FALSE;
 
     if (NT_SUCCESS(status) && imageFileName) {
         if (imageFileName->Buffer) {
@@ -392,8 +400,6 @@ static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
         }
         ExFreePool(imageFileName);
     }
-
-    ObDereferenceObject(Process);
     return isExplorer;
 }
 

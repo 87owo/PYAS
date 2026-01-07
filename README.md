@@ -9,14 +9,14 @@ Antivirus software written in Python and C++ that blocks threats through deep le
 Python 3.10 is recommended. Other Python versions may require different pip commands.
 
 ```
-pip install numpy==1.26.4
-pip install onnxruntime==1.18.1
-pip install pefile==2023.2.7
-pip install Pillow==11.0.0
-pip install pyperclip==1.9.0
-pip install PySide6==6.9.1
 pip install requests==2.32.4
+pip install PySide6==6.9.1
 pip install yara-python==4.5.4
+pip install Pillow==11.0.0
+pip install numpy==1.26.4
+pip install tensorflow==2.10.0
+pip install tf2onnx==1.13.0
+pip install onnxruntime==1.18.1
 ```
 
 ## File Information

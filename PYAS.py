@@ -146,7 +146,7 @@ class MainWindow_Controller(QMainWindow):
         self.pyas_default = {
             "version": "3.3.8",
             "api_host": "https://pyas-security.com/",
-            "api_key": "",
+            "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui", ".cpl"],
             "size": 256 * 1024 * 1024,
             "sensitive": 95,
@@ -945,7 +945,7 @@ class MainWindow_Controller(QMainWindow):
                 return False
 
             api_host = self.pyas_config.get("api_host", "https://pyas-security.com/")
-            api_key = self.pyas_config.get("api_key", "")
+            api_key = self.pyas_config.get("api_key", "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ")
             success, sha256 = self.cloud.upload_file(file_path, api_host, api_key)
 
             if was_locked:
@@ -1774,10 +1774,19 @@ class MainWindow_Controller(QMainWindow):
 
             seen = set()
             paths = [p for p in paths if p and (p not in seen and not seen.add(p))]
+
+            suffix = self.pyas_config.get("suffix", [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"])
+
             for p in paths:
                 file_path = self.norm_path(self.device_path_to_drive(p)) if p else ""
-                if not file_path:
+                
+                if not file_path or not os.path.isfile(file_path):
                     continue
+
+                ext = os.path.splitext(file_path)[-1].lower()
+                if ext not in suffix:
+                    continue
+
                 if self.is_in_whitelist(file_path):
                     continue
                 if self.scan_engine(file_path):

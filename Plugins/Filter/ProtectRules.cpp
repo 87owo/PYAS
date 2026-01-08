@@ -27,7 +27,14 @@ const PCWSTR SafeSystemBinaries[] = {
     L"\\Windows\\System32\\TiWorker.exe",
     L"\\Windows\\System32\\dism.exe",
     L"\\Windows\\System32\\dismhost.exe",
-    L"\\Windows\\System32\\wuauclt.exe"
+    L"\\Windows\\System32\\wuauclt.exe",
+    L"\\Windows\\System32\\taskhostw.exe",
+    L"\\Windows\\System32\\MoUsoCoreWorker.exe",
+    L"\\Windows\\System32\\sppsvc.exe",
+    L"\\Windows\\System32\\backgroundTaskHost.exe",
+    L"\\Windows\\System32\\RuntimeBroker.exe",
+    L"\\Windows\\System32\\ctfmon.exe",
+    L"\\Windows\\System32\\smartscreen.exe"
 };
 
 const PCWSTR SafeProcessPatterns[] = {

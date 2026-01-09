@@ -1265,7 +1265,9 @@ class MainWindow_Controller(QMainWindow):
                     self.mbr_backup[drive] = mbr
             except FileNotFoundError:
                 continue
-            except PermissionError as e:
+            except PermissionError:
+                continue
+            except OSError:
                 continue
             except Exception as e:
                 self.send_message(e, "warn", False)

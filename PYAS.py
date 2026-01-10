@@ -1256,21 +1256,19 @@ class MainWindow_Controller(QMainWindow):
 
     def backup_mbr(self, max_drives=26):
         self.mbr_backup = {}
+        MBR_SIGNATURE = b"\x55\xAA"
+        
         for drive in range(max_drives):
             drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
                 with open(drive_path, "rb") as f:
                     mbr = f.read(512)
-                if mbr[510:512] == b"\x55\xAA":
-                    self.mbr_backup[drive] = mbr
-            except FileNotFoundError:
-                continue
-            except PermissionError:
-                continue
-            except OSError:
+                    if len(mbr) == 512 and mbr[510:512] == MBR_SIGNATURE:
+                        self.mbr_backup[drive] = mbr
+            except (FileNotFoundError, PermissionError, OSError):
                 continue
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(str(e), "warn", False)
 
     def repair_system_mbr(self):
         if not hasattr(self, "mbr_backup") or not self.mbr_backup:
@@ -1546,35 +1544,30 @@ class MainWindow_Controller(QMainWindow):
         self.user32.GetClassNameW(hWnd, class_name, 256)
         pid = ctypes.c_ulong()
         self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
-
-        proc_name = ""
-        try:
-            proc_name = self.get_process_name(pid.value)
-        except Exception:
-            pass
+        
+        proc_name = self._get_process_name(pid.value)
         return str(title.value), str(class_name.value), proc_name
 
-    def get_process_name(self, pid):
-        name, file_path = self.get_exe_info(pid)
-        if name:
-            return name
-        snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        entry = PROCESSENTRY32W()
-        entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
-
-        result = ""
-        if self.kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
-            while True:
-                if entry.th32ProcessID == pid:
-                    try:
-                        result = entry.szExeFile
-                    except Exception:
-                        result = ""
-                    break
-                if not self.kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
-                    break
-        self.kernel32.CloseHandle(snapshot)
-        return result
+    def _get_process_name(self, pid):
+        try:
+            name, _ = self.get_exe_info(pid)
+            if name:
+                return name
+            
+            snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+            entry = PROCESSENTRY32W()
+            entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            
+            if self.kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+                while True:
+                    if entry.th32ProcessID == pid:
+                        return entry.szExeFile
+                    if not self.kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                        break
+            self.kernel32.CloseHandle(snapshot)
+        except:
+            pass
+        return ""
 
 ####################################################################################################
 
@@ -2077,6 +2070,16 @@ class MainWindow_Controller(QMainWindow):
         try:
             port_name = "\\PYAS_Output_Pipe"
             h_port = ctypes.wintypes.HANDLE()
+            
+            RULES = {
+                2001: "FILE_BLOCK",
+                3001: "REG_BLOCK",
+                4001: "BOOT_BLOCK",
+                5001: "RANSOM_BLOCK",
+                6001: "INJECT_BLOCK"
+            }
+            
+            KILL_CODES = {4001, 5001}
 
             while self.pyas_config.get("driver_switch", False):
                 hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(h_port))
@@ -2091,23 +2094,11 @@ class MainWindow_Controller(QMainWindow):
                             raw_path = self.get_exe_info(pid)[1]
                             target = message.Data.Path
 
-                            rule_name = "Unknown"
-                            if code == 2001:
-                                rule_name = "FILE_BLOCK"
-                            elif code == 3001:
-                                rule_name = "REG_BLOCK"
-                            elif code == 4001:
-                                rule_name = "BOOT_BLOCK"
-                            elif code == 5001:
-                                rule_name = "RANSOM_BLOCK"
-                            elif code == 6001:
-                                rule_name = "INJECT_BLOCK"
-
+                            rule_name = RULES.get(code, "Unknown")
                             display_rule = self.block_replace.get(rule_name, rule_name)
                             self.send_message(f"驅動防護 | {display_rule} | {pid} | {raw_path} | {target}", "notify", True)
-                            
 
-                            if code in [4001, 5001]:
+                            if code in KILL_CODES:
                                 try:
                                     h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                                     if h:

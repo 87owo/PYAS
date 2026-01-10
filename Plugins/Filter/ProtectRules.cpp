@@ -14,36 +14,126 @@ typedef struct _RANSOM_TRACKER {
 RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
 
 const PCWSTR SafeSystemBinaries[] = {
-    L"\\Windows\\System32\\lsass.exe",
-    L"\\Windows\\System32\\services.exe",
-    L"\\Windows\\System32\\csrss.exe",
-    L"\\Windows\\System32\\smss.exe",
-    L"\\Windows\\System32\\wininit.exe",
-    L"\\Windows\\System32\\winlogon.exe",
-    L"\\Windows\\System32\\svchost.exe",
-    L"\\Windows\\System32\\SearchIndexer.exe",
-    L"\\Windows\\System32\\msiexec.exe",
-    L"\\Windows\\System32\\TrustedInstaller.exe",
-    L"\\Windows\\System32\\TiWorker.exe",
-    L"\\Windows\\System32\\dism.exe",
-    L"\\Windows\\System32\\dismhost.exe",
-    L"\\Windows\\System32\\wuauclt.exe",
-    L"\\Windows\\System32\\taskhostw.exe",
-    L"\\Windows\\System32\\MoUsoCoreWorker.exe",
-    L"\\Windows\\System32\\sppsvc.exe",
-    L"\\Windows\\System32\\backgroundTaskHost.exe",
-    L"\\Windows\\System32\\RuntimeBroker.exe",
-    L"\\Windows\\System32\\ctfmon.exe",
-    L"\\Windows\\System32\\smartscreen.exe"
+    L"*\\Windows\\System32\\lsass.exe",
+    L"*\\Windows\\System32\\services.exe",
+    L"*\\Windows\\System32\\csrss.exe",
+    L"*\\Windows\\System32\\smss.exe",
+    L"*\\Windows\\System32\\wininit.exe",
+    L"*\\Windows\\System32\\winlogon.exe",
+    L"*\\Windows\\System32\\svchost.exe",
+    L"*\\Windows\\System32\\SearchIndexer.exe",
+    L"*\\Windows\\System32\\msiexec.exe",
+    L"*\\Windows\\System32\\TrustedInstaller.exe",
+    L"*\\Windows\\System32\\TiWorker.exe",
+    L"*\\Windows\\System32\\dism.exe",
+    L"*\\Windows\\System32\\dismhost.exe",
+    L"*\\Windows\\System32\\wuauclt.exe",
+    L"*\\Windows\\System32\\taskhostw.exe",
+    L"*\\Windows\\System32\\MoUsoCoreWorker.exe",
+    L"*\\Windows\\System32\\sppsvc.exe",
+    L"*\\Windows\\System32\\backgroundTaskHost.exe",
+    L"*\\Windows\\System32\\RuntimeBroker.exe",
+    L"*\\Windows\\System32\\ctfmon.exe",
+    L"*\\Windows\\System32\\smartscreen.exe",
+    L"*\\Windows\\System32\\Taskmgr.exe",
+    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe"
+};
+
+const PCWSTR CriticalSystemBinaries[] = {
+    L"*\\Windows\\System32\\lsass.exe",
+    L"*\\Windows\\System32\\services.exe",
+    L"*\\Windows\\System32\\wininit.exe",
+    L"*\\Windows\\System32\\winlogon.exe",
+    L"*\\Windows\\System32\\svchost.exe",
+    L"*\\Windows\\System32\\smss.exe",
+    L"*\\Windows\\System32\\csrss.exe",
+    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe"
 };
 
 const PCWSTR SafeProcessPatterns[] = {
-    L"*\\Windows Defender\\MsMpEng.exe",
-    L"*\\Windows Defender\\NisSrv.exe",
-    L"*\\Windows Defender\\MsSense.exe",
-    L"*\\Windows Defender Advanced Threat Protection\\MsSense.exe",
+    L"*\\Windows Defender\\*",
+    L"*\\Windows Defender Advanced Threat Protection\\*",
+
+    L"*\\Program*\\*",
+    L"*\\AppData\\Local\\*",
+    L"*\\AppData\\Roaming\\*",
+
+    L"*\\Google\\Update\\*",
+    L"*\\Google\\Chrome\\Application\\chrome.exe",
+    L"*\\Internet Explorer\\iexplore.exe",
     L"*\\Microsoft\\EdgeUpdate\\*",
-    L"*\\Google\\Update\\*"
+    L"*\\Microsoft\\Edge\\Application\\msedge.exe",
+    L"*\\Microsoft\\EdgeWebView\\Application\\*",
+    L"*\\Mozilla Firefox\\firefox.exe",
+    L"*\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+    L"*\\Opera Software\\*\\opera.exe",
+    L"*\\Vivaldi\\Application\\vivaldi.exe",
+
+    L"*\\WinRAR\\WinRAR.exe",
+    L"*\\WinRAR\\UnRAR.exe",
+    L"*\\7-Zip\\7zG.exe",
+    L"*\\7-Zip\\7zFM.exe",
+    L"*\\Bandizip\\Bandizip.exe",
+
+    L"*\\Microsoft Office\\root\\Office*\\*.EXE",
+    L"*\\Microsoft Office\\root\\Office*\\WINWORD.EXE",
+    L"*\\Microsoft Office\\root\\Office*\\EXCEL.EXE",
+    L"*\\Microsoft Office\\root\\Office*\\POWERPNT.EXE",
+    L"*\\Adobe\\Acrobat*\\*\\Acrobat.exe",
+    L"*\\Adobe\\Acrobat*\\*\\AcroRd32.exe",
+    L"*\\Foxit PDF Reader\\FoxitPDFReader.exe",
+    L"*\\LibreOffice*\\program\\soffice.bin",
+    L"*\\LibreOffice*\\program\\soffice.exe",
+    L"*\\Notepad++\\notepad++.exe",
+    L"*\\Sublime Text*\\sublime_text.exe",
+
+    L"*\\Microsoft\\Teams\\*\\Teams.exe",
+    L"*\\Zoom\\bin\\Zoom.exe",
+    L"*\\Slack\\app-*\\slack.exe",
+    L"*\\Telegram Desktop\\Telegram.exe",
+    L"*\\WhatsApp\\WhatsApp.exe",
+    L"*\\Discord\\app-*\\Discord.exe",
+
+    L"*\\Microsoft Visual Studio\\*\\devenv.exe",
+    L"*\\Microsoft VS Code\\Code.exe",
+    L"*\\Git\\cmd\\git.exe",
+    L"*\\Git\\mingw64\\bin\\git.exe",
+    L"*\\bin\\cmake.exe",
+    L"*\\nodejs\\node.exe",
+    L"*\\Android Studio\\bin\\studio64.exe",
+    L"*\\JetBrains\\*\\bin\\*.exe",
+
+    L"*\\Dropbox\\Client\\Dropbox.exe",
+    L"*\\Google\\Drive\\*\\GoogleDriveFS.exe",
+    L"*\\Microsoft OneDrive\\OneDrive.exe",
+
+    L"*\\Sangfor\\*",
+    L"*\\SogouInput\\*",
+    L"*\\baidu\\BaiduNetdisk\\*",
+    L"*\\TortoiseSVN\\*",
+    L"*\\TortoiseGit\\*",
+    L"*\\TortoiseOverlays\\*"
+
+    L"*\\VideoLAN\\VLC\\vlc.exe",
+    L"*\\Spotify\\Spotify.exe",
+    L"*\\obs-studio\\bin\\*\\obs64.exe",
+    L"*\\DaVinci Resolve\\Resolve.exe",
+    L"*\\Adobe\\Adobe Premiere Pro*\\Adobe Premiere Pro.exe",
+    L"*\\Adobe\\Adobe Photoshop*\\Photoshop.exe",
+
+    L"*\\Steam\\steam.exe",
+    L"*\\Steam\\bin\\steamwebhelper.exe",
+    L"*\\Steam\\steamapps\\*",
+    L"*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe",
+    L"*\\Battle.net\\*\\Battle.net.exe",
+
+    L"*\\NVIDIA Corporation\\*",
+    L"*\\AMD\\*",
+    L"*\\Intel\\*",
+    L"*\\Logitech\\*",
+    L"*\\Razer\\*",
+    L"*\\Corsair\\*",
+    L"*\\ASUS\\*"
 };
 
 const PCWSTR RegistryBlockList[] = {
@@ -54,6 +144,18 @@ const PCWSTR RegistryBlockList[] = {
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
+    L"*\\Image File Execution Options\\*"
+
+    L"*\\Classes\\.exe",
+    L"*\\Classes\\.bat",
+    L"*\\Classes\\.cmd",
+    L"*\\Classes\\.com",
+    L"*\\Classes\\exefile\\*",
+    L"*\\Classes\\batfile\\*",
+    L"*\\Classes\\cmdfile\\*",
+    L"*\\Classes\\comfile\\*",
+    L"*\\DefaultIcon",
+
     L"*\\DisableAntiSpyware",
     L"*\\DisableWindowsUpdateAccess",
     L"*\\EnableLUA",
@@ -140,7 +242,6 @@ const PCWSTR RegistryBlockList[] = {
     L"*\\LegalNoticeText",
     L"*\\Run",
     L"*\\RunOnce",
-    L"*\\Image File Execution Options\\*"
 };
 
 const PCWSTR DangerousExtensions[] = {
@@ -160,8 +261,9 @@ const PCWSTR NaturallyCompressedExtensions[] = {
     L".jpg", L".jpeg", L".png", L".webp", L".gif",
     L".mp3", L".wav", L".aac", L".ogg", L".flac",
     L".mp4", L".avi", L".mov", L".wmv", L".mkv",
-    L".exe", L".dll", L".sys", L".mui",
-    L".docx", L".xlsx", L".pptx", L".odt", L".ods"
+    L".exe", L".dll", L".sys", L".mui", L".scr",
+    L".docx", L".xlsx", L".pptx", L".pdf", L".wps",
+    L".apk", L".jar", L".class", L".db", L".sqlite"
 };
 
 const PCWSTR ProtectedPaths[] = {
@@ -174,6 +276,7 @@ const PCWSTR ProtectedPaths[] = {
     L"*\\Windows\\SysWOW64\\*.exe",
     L"*\\Windows\\SysWOW64\\*.dll",
     L"*\\Windows\\System32\\drivers\\etc\\hosts",
+    L"*\\Windows\\Web\\Wallpaper\\*",
 
     L"*\\bootmgr",
     L"*\\boot.ini",
@@ -191,34 +294,65 @@ const PCWSTR ProtectedPaths[] = {
     L"*\\AUX\\*",
     L"*\\NUL",
     L"*\\NUL\\*",
+    L"*\\CLOCK$",
+    L"*\\CLOCK$\\*",
     L"*\\COM?",
     L"*\\COM?\\*",
     L"*\\LPT?",
     L"*\\LPT?\\*",
-    L"*\\evil*.exe",
+    L"*\\COM0",
+    L"*\\COM0\\*",
+    L"*\\LPT0",
+    L"*\\LPT0\\*",
+    L"*\\$Mft",
+    L"*\\$Mft\\*",
+    L"*\\$MftMirr",
+    L"*\\$MftMirr\\*",
+    L"*\\$LogFile",
+    L"*\\$LogFile\\*",
+    L"*\\$Volume",
+    L"*\\$Volume\\*",
+    L"*\\$AttrDef",
+    L"*\\$AttrDef\\*",
+    L"*\\$Bitmap",
+    L"*\\$Bitmap\\*",
+    L"*\\$Boot",
+    L"*\\$Boot\\*",
+    L"*\\$BadClus",
+    L"*\\$BadClus\\*",
+    L"*\\$Secure",
+    L"*\\$Secure\\*",
+    L"*\\$Upcase",
+    L"*\\$Upcase\\*",
     L"*\\OSDATA",
-    L"*\\OSDATA\\*"
+    L"*\\OSDATA\\*",
+
+    L"*:*",
+    L"*<*",
+    L"*>*",
+    L"*|*",
 };
 
 static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
     if (!String || !String->Buffer || !Suffix) return FALSE;
 
-    SIZE_T SuffixLenBytes = 0;
-    while (Suffix[SuffixLenBytes / sizeof(WCHAR)] != L'\0') {
-        SuffixLenBytes += sizeof(WCHAR);
+    SIZE_T StringLenChars = String->Length / sizeof(WCHAR);
+    SIZE_T SuffixLenChars = 0;
+
+    while (Suffix[SuffixLenChars] != L'\0') {
+        SuffixLenChars++;
     }
 
-    if (String->Length < SuffixLenBytes) return FALSE;
+    if (StringLenChars < SuffixLenChars) return FALSE;
 
-    UNICODE_STRING SuffixPart{};
-    SuffixPart.Buffer = (PWCH)((PUCHAR)String->Buffer + String->Length - SuffixLenBytes);
-    SuffixPart.Length = (USHORT)SuffixLenBytes;
-    SuffixPart.MaximumLength = (USHORT)SuffixLenBytes;
+    PCWSTR Ptr = String->Buffer + (StringLenChars - SuffixLenChars);
 
-    UNICODE_STRING TargetSuffix;
-    RtlInitUnicodeString(&TargetSuffix, Suffix);
-
-    return RtlEqualUnicodeString(&SuffixPart, &TargetSuffix, TRUE);
+    for (SIZE_T i = 0; i < SuffixLenChars; i++) {
+        if (RtlDowncaseUnicodeChar(Ptr[i]) != RtlDowncaseUnicodeChar(Suffix[i])) {
+            return FALSE;
+        }
+    }
+    return TRUE;
 }
 
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
@@ -228,16 +362,12 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
     PCWSTR cp = NULL;
     PCWSTR StringEnd = (PCWSTR)((PUCHAR)String + StringLengthBytes);
 
-    while ((PUCHAR)String < (PUCHAR)StringEnd) {
-        WCHAR pChar = *Pattern;
-        WCHAR sChar = *String;
-
-        if (pChar == L'*') {
-            if (!*++Pattern) return TRUE;
-            mp = Pattern;
+    while (String < StringEnd) {
+        if (*Pattern == L'*') {
+            mp = ++Pattern;
             cp = String + 1;
         }
-        else if ((RtlDowncaseUnicodeChar(pChar) == RtlDowncaseUnicodeChar(sChar)) || pChar == L'?') {
+        else if (*Pattern == L'?' || (RtlDowncaseUnicodeChar(*Pattern) == RtlDowncaseUnicodeChar(*String))) {
             Pattern++;
             String++;
         }
@@ -249,9 +379,10 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
             return FALSE;
         }
     }
-
-    while (*Pattern == L'*') Pattern++;
-    return !*Pattern && ((PUCHAR)String >= (PUCHAR)StringEnd);
+    while (*Pattern == L'*') {
+        Pattern++;
+    }
+    return !*Pattern;
 }
 
 static NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
@@ -271,33 +402,53 @@ static NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
-
     if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
 
     PUNICODE_STRING imageFileName = NULL;
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isTrusted = FALSE;
 
-    if (NT_SUCCESS(status) && imageFileName) {
-        if (imageFileName->Buffer) {
-            for (SIZE_T i = 0; i < sizeof(SafeSystemBinaries) / sizeof(SafeSystemBinaries[0]); i++) {
-                if (HasSuffix(imageFileName, SafeSystemBinaries[i])) {
-                    isTrusted = TRUE;
-                    goto cleanup;
-                }
-            }
-            for (SIZE_T i = 0; i < sizeof(SafeProcessPatterns) / sizeof(SafeProcessPatterns[0]); i++) {
-                if (WildcardMatch(SafeProcessPatterns[i], imageFileName->Buffer, imageFileName->Length)) {
-                    isTrusted = TRUE;
-                    goto cleanup;
-                }
+    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
+        for (SIZE_T i = 0; i < sizeof(SafeSystemBinaries) / sizeof(SafeSystemBinaries[0]); i++) {
+            if (WildcardMatch(SafeSystemBinaries[i], imageFileName->Buffer, imageFileName->Length)) {
+                isTrusted = TRUE;
+                goto cleanup;
             }
         }
-    cleanup:
-        ExFreePool(imageFileName);
+        for (SIZE_T i = 0; i < sizeof(SafeProcessPatterns) / sizeof(SafeProcessPatterns[0]); i++) {
+            if (WildcardMatch(SafeProcessPatterns[i], imageFileName->Buffer, imageFileName->Length)) {
+                isTrusted = TRUE;
+                goto cleanup;
+            }
+        }
     }
 
+cleanup:
+    if (imageFileName) ExFreePool(imageFileName);
     return isTrusted;
+}
+
+BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId) {
+    if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
+    if (ProcessId == (HANDLE)4) return TRUE;
+    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
+    PUNICODE_STRING imageFileName = NULL;
+    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
+    BOOLEAN isCritical = FALSE;
+
+    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
+        for (SIZE_T i = 0; i < sizeof(CriticalSystemBinaries) / sizeof(CriticalSystemBinaries[0]); i++) {
+            if (WildcardMatch(CriticalSystemBinaries[i], imageFileName->Buffer, imageFileName->Length)) {
+                isCritical = TRUE;
+                goto cleanup;
+            }
+        }
+    }
+
+cleanup:
+    if (imageFileName) ExFreePool(imageFileName);
+    return isCritical;
 }
 
 BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
@@ -311,6 +462,9 @@ BOOLEAN IsTargetProtected(HANDLE ProcessId) {
 
 BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
     if (!KeyName || !KeyName->Buffer) return FALSE;
+
+    if (KeyName->Length < 4 * sizeof(WCHAR)) return FALSE;
+
     for (int i = 0; i < sizeof(RegistryBlockList) / sizeof(RegistryBlockList[0]); i++) {
         if (WildcardMatch(RegistryBlockList[i], KeyName->Buffer, KeyName->Length)) return TRUE;
     }
@@ -319,18 +473,14 @@ BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
 
 BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
-
     for (int i = 0; i < sizeof(DangerousExtensions) / sizeof(DangerousExtensions[0]); i++) {
-        if (HasSuffix(FileName, DangerousExtensions[i])) {
-            return TRUE;
-        }
+        if (HasSuffix(FileName, DangerousExtensions[i])) return TRUE;
     }
     return FALSE;
 }
 
 BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
-
     for (int i = 0; i < sizeof(ProtectedPaths) / sizeof(ProtectedPaths[0]); i++) {
         if (WildcardMatch(ProtectedPaths[i], FileName->Buffer, FileName->Length)) return TRUE;
     }
@@ -359,19 +509,13 @@ static BOOLEAN IsHighEntropy(PVOID Buffer, ULONG Length) {
     }
 
     ULONG ExpectedAvg = ScanLen / 256;
-    if (MaxFreq < (ExpectedAvg + HIGH_ENTROPY_THRESHOLD)) {
-        return TRUE;
-    }
-    return FALSE;
+    return (MaxFreq < (ExpectedAvg + HIGH_ENTROPY_THRESHOLD));
 }
 
 static BOOLEAN IsNaturallyCompressed(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
-
     for (int i = 0; i < sizeof(NaturallyCompressedExtensions) / sizeof(NaturallyCompressedExtensions[0]); i++) {
-        if (HasSuffix(FileName, NaturallyCompressedExtensions[i])) {
-            return TRUE;
-        }
+        if (HasSuffix(FileName, NaturallyCompressedExtensions[i])) return TRUE;
     }
     return FALSE;
 }
@@ -380,13 +524,14 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
 
     if (WildcardMatch(L"*\\Windows\\Temp\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\AppData\\Local\\*", FileName->Buffer, FileName->Length) ||
         WildcardMatch(L"*\\Windows\\SystemTemp\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Program Files*\\*\\Temp\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\ProgramData\\Microsoft\\Windows Defender\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Program Files*\\Microsoft\\EdgeUpdate\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Program Files*\\Microsoft\\Edge\\*", FileName->Buffer, FileName->Length)) {
+        WildcardMatch(L"*\\Windows\\Prefetch\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\Windows\\Logs\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\Profiles\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\Program*\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\AppData\\Local\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*\\User Data\\*", FileName->Buffer, FileName->Length) ||
+        WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length)) {
         return TRUE;
     }
     return FALSE;
@@ -394,17 +539,11 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
 
 static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
     if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
-
     PUNICODE_STRING imageFileName = NULL;
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isExplorer = FALSE;
-
-    if (NT_SUCCESS(status) && imageFileName) {
-        if (imageFileName->Buffer) {
-            if (HasSuffix(imageFileName, L"explorer.exe")) {
-                isExplorer = TRUE;
-            }
-        }
+    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
+        if (HasSuffix(imageFileName, L"\\explorer.exe")) isExplorer = TRUE;
         ExFreePool(imageFileName);
     }
     return isExplorer;
@@ -414,9 +553,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
     if (IsNoisyRansomPath(FileName)) return FALSE;
 
     if (!IsWrite) {
-        if (IsExplorerProcess(ProcessId)) {
-            return FALSE;
-        }
+        if (IsExplorerProcess(ProcessId)) return FALSE;
     }
 
     LARGE_INTEGER Now = { 0 };
@@ -429,13 +566,11 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
             SuspiciousWrite = TRUE;
         }
     }
-
-    ExAcquireFastMutex(&GlobalData.TrackerMutex);
-
     if (IsWrite && !SuspiciousWrite) {
-        ExReleaseFastMutex(&GlobalData.TrackerMutex);
         return FALSE;
     }
+
+    ExAcquireFastMutex(&GlobalData.TrackerMutex);
 
     PRANSOM_TRACKER Tracker = NULL;
     PRANSOM_TRACKER EmptySlot = NULL;
@@ -463,17 +598,22 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
         }
     }
 
-    LARGE_INTEGER Diff = { 0 };
+    LARGE_INTEGER Diff;
     Diff.QuadPart = Now.QuadPart - Tracker->LastActivityTime.QuadPart;
 
     if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
         Tracker->ActivityCount = 0;
         Tracker->LastActivityTime = Now;
     }
-
+    else {
+        Tracker->LastActivityTime = Now;
+    }
     ULONG Weight = 1;
     if (IsWrite) {
         Weight = SuspiciousWrite ? 2 : 1;
+    }
+    else {
+        Weight = 2;
     }
 
     Tracker->ActivityCount += Weight;
@@ -481,7 +621,6 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Bu
     if (Tracker->ActivityCount >= RANSOM_COUNT_THRESHOLD) {
         Result = TRUE;
     }
-
     ExReleaseFastMutex(&GlobalData.TrackerMutex);
     return Result;
 }
@@ -497,34 +636,26 @@ NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize) 
     if (Path && PathSize > 0) {
         size_t MaxSize = sizeof(msg.Path) - sizeof(WCHAR);
         size_t BytesToCopy = PathSize;
-        if (BytesToCopy > MaxSize) {
-            BytesToCopy = MaxSize;
-        }
+        if (BytesToCopy > MaxSize) BytesToCopy = MaxSize;
 
         __try {
             RtlCopyMemory(msg.Path, Path, BytesToCopy);
+            msg.Path[BytesToCopy / sizeof(WCHAR)] = L'\0';
         }
         __except (EXCEPTION_EXECUTE_HANDLER) {
             return STATUS_ACCESS_VIOLATION;
         }
-        msg.Path[BytesToCopy / sizeof(WCHAR)] = L'\0';
     }
 
     if (!ExAcquireRundownProtection(&GlobalData.PortRundown)) {
         return STATUS_PORT_DISCONNECTED;
     }
 
-    NTSTATUS status = STATUS_SUCCESS;
-
+    NTSTATUS status = STATUS_PORT_DISCONNECTED;
     if (GlobalData.ClientPort) {
-        LARGE_INTEGER timeout{};
+        LARGE_INTEGER timeout;
         timeout.QuadPart = -(5 * 10000);
-        PFLT_PORT Port = GlobalData.ClientPort;
-
-        status = FltSendMessage(GlobalData.FilterHandle, &Port, &msg, sizeof(msg), NULL, NULL, &timeout);
-    }
-    else {
-        status = STATUS_PORT_DISCONNECTED;
+        status = FltSendMessage(GlobalData.FilterHandle, &GlobalData.ClientPort, &msg, sizeof(msg), NULL, NULL, &timeout);
     }
 
     ExReleaseRundownProtection(&GlobalData.PortRundown);

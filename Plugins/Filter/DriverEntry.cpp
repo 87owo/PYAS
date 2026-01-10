@@ -27,7 +27,15 @@ static VOID InstanceTeardownComplete(PCFLT_RELATED_OBJECTS FltObjects, FLT_INSTA
 }
 
 static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
-    UNREFERENCED_PARAMETER(Flags);
+    if (!(Flags & FLTFL_FILTER_UNLOAD_MANDATORY)) {
+        ExAcquireFastMutex(&GlobalData.PortMutex);
+        BOOLEAN IsConnected = (GlobalData.ClientPort != NULL);
+        ExReleaseFastMutex(&GlobalData.PortMutex);
+
+        if (IsConnected) {
+            return STATUS_FLT_DO_NOT_DETACH;
+        }
+    }
 
     PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
     UninitializeRegistryProtection();
@@ -81,6 +89,7 @@ CONST FLT_OPERATION_REGISTRATION Callbacks[] = {
     { IRP_MJ_CREATE, 0, ProtectFile_PreCreate, NULL },
     { IRP_MJ_WRITE, 0, ProtectFile_PreWrite, NULL },
     { IRP_MJ_SET_INFORMATION, 0, ProtectFile_PreSetInfo, NULL },
+    { IRP_MJ_SET_SECURITY, 0, ProtectFile_SetSecurity, NULL },
     { IRP_MJ_FILE_SYSTEM_CONTROL, 0, ProtectFile_FileSystemControl, NULL },
     { IRP_MJ_DEVICE_CONTROL, 0, ProtectBoot_PreDeviceControl, NULL },
     { IRP_MJ_OPERATION_END }

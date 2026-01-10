@@ -20,11 +20,23 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
         if (KeyName && KeyName->Buffer) {
             if (CheckRegistryRule(KeyName)) {
                 HANDLE Pid = PsGetCurrentProcessId();
-                if (!IsProcessTrusted(Pid)) {
-                    if (!IsInstallerProcess(Pid)) {
+
+                if (WildcardMatch(L"*\\MACHINE\\SAM\\*", KeyName->Buffer, KeyName->Length) ||
+                    WildcardMatch(L"*\\MACHINE\\SECURITY\\*", KeyName->Buffer, KeyName->Length)) {
+
+                    if (!IsCriticalSystemProcess(Pid)) {
                         SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer, KeyName->Length);
                         CmCallbackReleaseKeyObjectIDEx(KeyName);
                         return STATUS_ACCESS_DENIED;
+                    }
+                }
+                else {
+                    if (!IsProcessTrusted(Pid)) {
+                        if (!IsInstallerProcess(Pid)) {
+                            SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer, KeyName->Length);
+                            CmCallbackReleaseKeyObjectIDEx(KeyName);
+                            return STATUS_ACCESS_DENIED;
+                        }
                     }
                 }
             }

@@ -187,7 +187,7 @@ class MainWindow_Controller(QMainWindow):
             5001: "RANSOM_BLOCK",
             6001: "INJECT_BLOCK"
         }
-        self.kill_codes = {4001, 5001}
+        self.kill_codes = {2001, 3001, 4001, 5001}
 
 ####################################################################################################
 
@@ -2117,7 +2117,7 @@ class MainWindow_Controller(QMainWindow):
                             display_rule = self.block_replace.get(rule_name, rule_name)
                             self.send_message(f"驅動防護 | {display_rule} | {pid} | {raw_path} | {target}", "notify", True)
 
-                            if code in self.kill_codes:
+                            if code in self.kill_codes and not self.is_in_whitelist(raw_path):
                                 try:
                                     h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                                     if h:

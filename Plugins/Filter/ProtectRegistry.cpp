@@ -2,6 +2,14 @@
 
 LARGE_INTEGER Cookie;
 
+static BOOLEAN IsBamRegistryPath(PCUNICODE_STRING KeyName) {
+    if (!KeyName || !KeyName->Buffer) return FALSE;
+    if (WildcardMatch(L"*\\Services\\bam\\*", KeyName->Buffer, KeyName->Length)) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID Argument2) {
     UNREFERENCED_PARAMETER(CallbackContext);
 
@@ -18,11 +26,18 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
         }
 
         if (KeyName && KeyName->Buffer) {
+
+            if (IsBamRegistryPath(KeyName)) {
+                CmCallbackReleaseKeyObjectIDEx(KeyName);
+                return STATUS_SUCCESS;
+            }
+
             if (CheckRegistryRule(KeyName)) {
                 HANDLE Pid = PsGetCurrentProcessId();
-
-                if (WildcardMatch(L"*\\MACHINE\\SAM\\*", KeyName->Buffer, KeyName->Length) ||
-                    WildcardMatch(L"*\\MACHINE\\SECURITY\\*", KeyName->Buffer, KeyName->Length)) {
+                if (WildcardMatch(L"*\\MACHINE\\SAM*", KeyName->Buffer, KeyName->Length) ||
+                    WildcardMatch(L"*\\MACHINE\\SECURITY*", KeyName->Buffer, KeyName->Length) ||
+                    WildcardMatch(L"*\\MACHINE\\SYSTEM*", KeyName->Buffer, KeyName->Length) ||
+                    WildcardMatch(L"*\\MACHINE\\BCD00000000*", KeyName->Buffer, KeyName->Length)) {
 
                     if (!IsCriticalSystemProcess(Pid)) {
                         SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer, KeyName->Length);

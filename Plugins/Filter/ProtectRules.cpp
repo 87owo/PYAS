@@ -40,6 +40,8 @@ const PCWSTR SafeSystemBinaries[] = {
 };
 
 const PCWSTR CriticalSystemBinaries[] = {
+    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe",
+    L"*\\Windows Defender\\MsMpEng.exe"
     L"*\\Windows\\System32\\lsass.exe",
     L"*\\Windows\\System32\\services.exe",
     L"*\\Windows\\System32\\wininit.exe",
@@ -47,7 +49,30 @@ const PCWSTR CriticalSystemBinaries[] = {
     L"*\\Windows\\System32\\svchost.exe",
     L"*\\Windows\\System32\\smss.exe",
     L"*\\Windows\\System32\\csrss.exe",
-    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe"
+    L"*\\Windows\\System32\\sppsvc.exe",
+    L"*\\Windows\\System32\\msiexec.exe",
+    L"*\\Windows\\System32\\TrustedInstaller.exe",
+    L"*\\Windows\\System32\\TiWorker.exe",
+    L"*\\Windows\\System32\\dism.exe",
+    L"*\\Windows\\System32\\dismhost.exe",
+    L"*\\Windows\\System32\\SgrmBroker.exe",
+    L"*\\Windows\\System32\\WerFault.exe",
+    L"*\\Windows\\System32\\wbem\\WmiApSrv.exe",
+    L"*\\Windows\\System32\\wbem\\WmiPrvSE.exe"
+    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe",
+    L"*\\Windows\\System32\\ctfmon.exe",
+    L"*\\Windows\\System32\\taskhostw.exe",
+    L"*\\Windows\\System32\\fontdrvhost.exe",
+    L"*\\Windows\\System32\\dwm.exe",
+    L"*\\Windows\\System32\\SearchIndexer.exe",
+    L"*\\Windows\\System32\\SearchProtocolHost.exe",
+    L"*\\Windows\\System32\\SearchFilterHost.exe",
+    L"*\\Windows\\System32\\smartscreen.exe",
+    L"*\\Windows\\System32\\vssvc.exe",
+    L"*\\Windows\\System32\\cleanmgr.exe",
+    L"*\\Windows\\System32\\defrag.exe",
+    L"*\\Windows\\System32\\chkdsk.exe",
+    L"*\\Windows\\System32\\conhost.exe"
 };
 
 const PCWSTR SafeProcessPatterns[] = {
@@ -112,7 +137,7 @@ const PCWSTR SafeProcessPatterns[] = {
     L"*\\baidu\\BaiduNetdisk\\*",
     L"*\\TortoiseSVN\\*",
     L"*\\TortoiseGit\\*",
-    L"*\\TortoiseOverlays\\*"
+    L"*\\TortoiseOverlays\\*",
 
     L"*\\VideoLAN\\VLC\\vlc.exe",
     L"*\\Spotify\\Spotify.exe",
@@ -137,14 +162,25 @@ const PCWSTR SafeProcessPatterns[] = {
 };
 
 const PCWSTR RegistryBlockList[] = {
+    L"\\REGISTRY\\MACHINE\\BCD00000000",
     L"\\REGISTRY\\MACHINE\\BCD00000000\\*",
+    L"\\REGISTRY\\MACHINE\\SAM",
     L"\\REGISTRY\\MACHINE\\SAM\\*",
+    L"\\REGISTRY\\MACHINE\\SECURITY",
     L"\\REGISTRY\\MACHINE\\SECURITY\\*",
+    L"\\REGISTRY\\MACHINE\\SYSTEM",
+    L"\\REGISTRY\\MACHINE\\SYSTEM\\*",
+
+    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\*",
+    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*",
+    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\*",
+    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\*",
+
     L"\\REGISTRY\\USER\\*_Classes\\*\\shell\\open\\command\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
-    L"*\\Image File Execution Options\\*"
+    L"*\\Image File Execution Options\\*",
 
     L"*\\Classes\\.exe",
     L"*\\Classes\\.bat",
@@ -271,18 +307,31 @@ const PCWSTR ProtectedPaths[] = {
     L"*\\PYAS_Driver.sys",
     L"*\\ProgramData\\PYAS\\*.json",
 
+    L"*\\Windows\\System32\\config\\SAM*",
+    L"*\\Windows\\System32\\config\\SECURITY*",
+    L"*\\Windows\\System32\\config\\SOFTWARE*",
+    L"*\\Windows\\System32\\config\\SYSTEM*",
+    L"*\\Windows\\System32\\config\\DEFAULT*",
+    L"*\\Windows\\System32\\config\\RegBack\\*",
+
+    L"*\\Windows\\System32\\drivers\\*",
+    L"*\\Windows\\System32\\drivers\\etc\\hosts",
     L"*\\Windows\\System32\\*.exe",
     L"*\\Windows\\System32\\*.dll",
     L"*\\Windows\\SysWOW64\\*.exe",
     L"*\\Windows\\SysWOW64\\*.dll",
-    L"*\\Windows\\System32\\drivers\\etc\\hosts",
     L"*\\Windows\\Web\\Wallpaper\\*",
+    L"*\\Windows\\explorer.exe",
+    L"*\\Windows\\regedit.exe",
 
     L"*\\bootmgr",
     L"*\\boot.ini",
     L"*\\BOOTNXT",
+    L"*\\EFI",
     L"*\\EFI\\*",
+    L"*\\Boot",
     L"*\\Boot\\*",
+    L"*\\Recovery",
     L"*\\Recovery\\*",
     L"*\\System Volume Information\\*",
 
@@ -481,6 +530,11 @@ BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
 
 BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
+
+    if (WildcardMatch(L"*\\Windows\\System32\\config\\systemprofile*", FileName->Buffer, FileName->Length)) {
+        return FALSE;
+    }
+
     for (int i = 0; i < sizeof(ProtectedPaths) / sizeof(ProtectedPaths[0]); i++) {
         if (WildcardMatch(ProtectedPaths[i], FileName->Buffer, FileName->Length)) return TRUE;
     }

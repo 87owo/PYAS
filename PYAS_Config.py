@@ -27,7 +27,7 @@ translate_dict = {
               "腳本":"Script ","鏈式":"Chain ","記憶體":"Memory ","正在加載":"Loading ","加載":"Load ",
               "行為":"Behavior ","可疑":"Suspicious ","勒索":"Ransom ","主要":"Main ",
               "許可條款":"License Terms ","惡意":"Malicious", "開發":"Developers ",
-              "啟用":"Enable ","禁用":"Disable ","正在初始化中":"Initializing ",
+              "啟用":"Enable ","禁用":"Disable ","正在初始化中":"Initializing ","初始化":"initialize ",
               "正在掃描":"Scanning ","正在刪除":"Deleting ","正在追蹤":"Tracking ",
               "最小化到":"Minimize To ","靈敏度":"Sensitivity ","正在檢查":"Checking ",
               "確定要":"Sure Want To ","引擎靈敏度":"Sensitivity ","更新":"Update ",

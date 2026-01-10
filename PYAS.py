@@ -130,6 +130,7 @@ class MainWindow_Controller(QMainWindow):
         self.mouse_pos = 0
         self.current_opacity = 0
 
+        self.driver_port = None
         self.scan_running = False
         self.virus_lock = {}
         self.virus_results = []
@@ -179,6 +180,14 @@ class MainWindow_Controller(QMainWindow):
             "SCREEN_BLOCK": "監控行為攔截",
             "KILL_ATTEMPT": "終止行為攔截",
         }
+        self.block_rules = {
+            2001: "FILE_BLOCK",
+            3001: "REG_BLOCK",
+            4001: "BOOT_BLOCK",
+            5001: "RANSOM_BLOCK",
+            6001: "INJECT_BLOCK"
+        }
+        self.kill_codes = {4001, 5001}
 
 ####################################################################################################
 
@@ -209,7 +218,7 @@ class MainWindow_Controller(QMainWindow):
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"init_windll | {e}", "warn", False)
 
         self.advapi32.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
         self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
@@ -262,7 +271,7 @@ class MainWindow_Controller(QMainWindow):
             with open(file_path, "w", encoding="utf-8", errors="ignore") as f:
                 f.write(json.dumps(filter_config, indent=4, ensure_ascii=False))
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"save_config | {e}", "warn", False)
 
     def read_config(self, file_path, default_value):
         try:
@@ -274,7 +283,7 @@ class MainWindow_Controller(QMainWindow):
                 config_value.setdefault(key, value)
             return config_value
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"read_config | {e}", "warn", False)
             return default_value.copy()
 
     def load_config(self):
@@ -300,7 +309,7 @@ class MainWindow_Controller(QMainWindow):
             self.model.load_path(self.path_models, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
             self.init_log_signal.emit("引擎加載完成")
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"init_engine_thread | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -623,7 +632,7 @@ class MainWindow_Controller(QMainWindow):
             else:
                 sys.exit(0)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"show_startup | {e}", "warn", False)
 
     def show_button(self):
         self.show()
@@ -816,7 +825,7 @@ class MainWindow_Controller(QMainWindow):
             lang = self.pyas_config.get("language", "english_switch")
             self.scan_progress_signal.emit(self.trans(lang, "正在初始化中"))
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"init_scan | {e}", "warn", False)
 
     def file_button(self):
         targets = self.send_message("檔案掃描", "files", True)
@@ -865,7 +874,7 @@ class MainWindow_Controller(QMainWindow):
                     self.scan_progress_signal.emit(norm_path)
                     gc.collect()
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"scan_worker | {e}", "warn", False)
         finally:
             count = len(self.virus_results)
             elapsed = int(time.time() - self.scan_start)
@@ -904,7 +913,7 @@ class MainWindow_Controller(QMainWindow):
 
             return result
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"scan_engine | {e}", "warn", False)
         return False
 
 ####################################################################################################
@@ -959,7 +968,7 @@ class MainWindow_Controller(QMainWindow):
                 self.send_message(f"雲端服務 | 通訊服務錯誤 | None | {file_path} | None", "warn", True)
 
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"perform_cloud_scan | {e}", "warn", False)
         finally:
             if 'was_locked' in locals() and was_locked:
                 try:
@@ -989,7 +998,7 @@ class MainWindow_Controller(QMainWindow):
                     virus_list.takeItem(i)
                     self.virus_results.remove(file_path)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"solve_button | {e}", "warn", False)
                 QApplication.processEvents()
 
         count = len(self.virus_results)
@@ -1047,7 +1056,7 @@ class MainWindow_Controller(QMainWindow):
                     widget.takeItem(widget.row(item))
                     self.virus_results.remove(file_path)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"show_scan_menu | {e}", "warn", False)
 
         elif act == white_action:
             file_path = self.norm_path(path)
@@ -1058,7 +1067,7 @@ class MainWindow_Controller(QMainWindow):
                     widget.takeItem(widget.row(item))
                     self.virus_results.remove(file_path)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"show_scan_menu | {e}", "warn", False)
 
         elif act == quarantine_action:
             file_path = self.norm_path(path)
@@ -1069,7 +1078,7 @@ class MainWindow_Controller(QMainWindow):
                     widget.takeItem(widget.row(item))
                     self.virus_results.remove(file_path)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"show_scan_menu | {e}", "warn", False)
 
         count = len(self.virus_results)
         self.widgets["solve_button"].setVisible(count > 0)
@@ -1171,7 +1180,7 @@ class MainWindow_Controller(QMainWindow):
                     n = self.manage_named_list("white_list", [target_path], action="add", with_hash=True)
                     self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"show_process_menu | {e}", "warn", False)
 
         elif act == quarantine_action:
             target_path = self.norm_path(file_path)
@@ -1180,7 +1189,7 @@ class MainWindow_Controller(QMainWindow):
                     n = self.manage_named_list("quarantine", [target_path], action="add", with_hash=True, lock_func=self.lock_file)
                     self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"show_process_menu | {e}", "warn", False)
 
     def kill_process(self, pid):
         try:
@@ -1193,7 +1202,7 @@ class MainWindow_Controller(QMainWindow):
                     self.kernel32.TerminateProcess(h, 0)
                 self.kernel32.CloseHandle(h)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"kill_process | {e}", "warn", False)
         self.refresh_process()
 
 ####################################################################################################
@@ -1207,7 +1216,7 @@ class MainWindow_Controller(QMainWindow):
                 size_text = self.format_size(self.total_deleted_size)
                 self.send_message(f"成功清理了 {size_text} 系統垃圾", "info", True)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"clean_button | {e}", "warn", False)
 
     def traverse_temp(self, path):
         try:
@@ -1230,7 +1239,7 @@ class MainWindow_Controller(QMainWindow):
                 except Exception:
                     continue
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"traverse_temp | {e}", "warn", False)
 
     def format_size(self, size):
         units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
@@ -1252,18 +1261,18 @@ class MainWindow_Controller(QMainWindow):
                 self.repair_system_image()
                 self.send_message("修復系統檔案成功", "info", True)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"repair_button | {e}", "warn", False)
 
     def backup_mbr(self, max_drives=26):
         self.mbr_backup = {}
-        MBR_SIGNATURE = b"\x55\xAA"
+        mbr_signature = b"\x55\xAA"
         
         for drive in range(max_drives):
             drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
                 with open(drive_path, "rb") as f:
                     mbr = f.read(512)
-                    if len(mbr) == 512 and mbr[510:512] == MBR_SIGNATURE:
+                    if len(mbr) == 512 and mbr[510:512] == mbr_signature:
                         self.mbr_backup[drive] = mbr
             except (FileNotFoundError, PermissionError, OSError):
                 continue
@@ -1285,7 +1294,7 @@ class MainWindow_Controller(QMainWindow):
             except PermissionError as e:
                 continue
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"repair_system_mbr | {e}", "warn", False)
 
     def repair_system_wallpaper(self):
         try:
@@ -1314,7 +1323,7 @@ class MainWindow_Controller(QMainWindow):
                     pass
             self.user32.SystemParametersInfoW(20, 0, wallpaper, 3)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"repair_system_wallpaper | {e}", "warn", False)
 
     def repair_system_restrict(self):
         try:
@@ -1353,7 +1362,7 @@ class MainWindow_Controller(QMainWindow):
                 except FileNotFoundError:
                     continue
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"repair_system_restrict | {e}", "warn", False)
 
     def repair_system_file_type(self):
         try:
@@ -1373,7 +1382,7 @@ class MainWindow_Controller(QMainWindow):
                     except Exception:
                         continue
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"repair_system_file_type | {e}", "warn", False)
 
     def repair_system_file_icon(self):
         try:
@@ -1384,7 +1393,7 @@ class MainWindow_Controller(QMainWindow):
                 except Exception:
                     continue
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"repair_system_file_icon | {e}", "warn", False)
 
     def repair_system_image(self):
         try:
@@ -1405,7 +1414,7 @@ class MainWindow_Controller(QMainWindow):
                     except OSError:
                         break
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"repair_system_image | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -1434,7 +1443,7 @@ class MainWindow_Controller(QMainWindow):
                     self.send_message(f"系統防護 | 系統進程重啟 | None | None | {name}", "notify", True)
 
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"check_process_survival | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -1522,7 +1531,7 @@ class MainWindow_Controller(QMainWindow):
                                     self.kernel32.TerminateProcess(h, 0)
                                     self.kernel32.CloseHandle(h)
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"popup_intercept_thread | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -1544,30 +1553,37 @@ class MainWindow_Controller(QMainWindow):
         self.user32.GetClassNameW(hWnd, class_name, 256)
         pid = ctypes.c_ulong()
         self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
-        
-        proc_name = self._get_process_name(pid.value)
+
+        proc_name = self.get_process_name(pid.value)
         return str(title.value), str(class_name.value), proc_name
 
-    def _get_process_name(self, pid):
+    def get_process_name(self, pid):
         try:
+            result_name = ""
             name, _ = self.get_exe_info(pid)
             if name:
                 return name
-            
+
             snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+            if snapshot == -1:
+                return result_name
+
             entry = PROCESSENTRY32W()
             entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
-            
+
             if self.kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
                 while True:
                     if entry.th32ProcessID == pid:
-                        return entry.szExeFile
+                        result_name = entry.szExeFile
+                        break
                     if not self.kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
                         break
+
             self.kernel32.CloseHandle(snapshot)
+            return result_name
         except:
             pass
-        return ""
+        return result_name
 
 ####################################################################################################
 
@@ -1633,7 +1649,7 @@ class MainWindow_Controller(QMainWindow):
                         try:
                             lock_func(path, True)
                         except Exception as e:
-                            self.send_message(e, "warn", False)
+                            self.send_message(f"manage_named_list | {e}", "warn", False)
                     self.config_list(list_key).append({"file": path, "hash": file_hash})
                     n += 1
 
@@ -1646,7 +1662,7 @@ class MainWindow_Controller(QMainWindow):
                     self.config_list(list_key).remove(item)
                     n += 1
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"manage_named_list | {e}", "warn", False)
 
         if n:
             self.save_config(self.file_config, self.pyas_config)
@@ -1669,7 +1685,7 @@ class MainWindow_Controller(QMainWindow):
             webbrowser.open("https://pyas-security.com/antivirus")
             return True
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"website_button | {e}", "warn", False)
             return False
 
     def cloud_button(self):
@@ -1677,7 +1693,7 @@ class MainWindow_Controller(QMainWindow):
             webbrowser.open("https://pyas-security.com/analyze")
             return True
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"cloud_button | {e}", "warn", False)
             return False
 
     def update_button(self):
@@ -1712,7 +1728,7 @@ class MainWindow_Controller(QMainWindow):
                     webbrowser.open(page)
             return True
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"update_button | {e}", "warn", False)
             return False
 
 ####################################################################################################
@@ -1729,7 +1745,7 @@ class MainWindow_Controller(QMainWindow):
                     os.close(self.virus_lock[file])
                     del self.virus_lock[file]
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"lock_file | {e}", "warn", False)
 
     def relock_file(self):
         quarantine_list = self.pyas_config.get("quarantine", [])
@@ -1739,7 +1755,7 @@ class MainWindow_Controller(QMainWindow):
                 try:
                     self.lock_file(file, True)
                 except Exception as e:
-                    self.send_message(e, "warn", False)
+                    self.send_message(f"relock_file | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -1753,7 +1769,7 @@ class MainWindow_Controller(QMainWindow):
                     self.handle_new_process(pid)
                 self.exist_process = cur
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"protect_proc_thread | {e}", "warn", False)
 
     def handle_new_process(self, pid):
         try:
@@ -1792,7 +1808,7 @@ class MainWindow_Controller(QMainWindow):
             self.suspend_process(h, False)
             self.kernel32.CloseHandle(h)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"handle_new_process | {e}", "warn", False)
 
     def suspend_process(self, h_process, suspend):
         try:
@@ -1806,7 +1822,7 @@ class MainWindow_Controller(QMainWindow):
             else:
                 self.ntdll.NtResumeProcess(h_process)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"suspend_process | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -1945,7 +1961,7 @@ class MainWindow_Controller(QMainWindow):
                         self.send_message(f"檔案防護 | 靜態掃描攔截 | None | None | {file_path}", "notify", True)
                         self.start_daemon_thread(self.cloud_check, file_path)
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"protect_file_thread | {e}", "warn", False)
         self.kernel32.CloseHandle(hDir)
 
 ####################################################################################################
@@ -1964,7 +1980,7 @@ class MainWindow_Controller(QMainWindow):
                     self.handle_new_connection(key)
                 self.exist_connections = conns
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"protect_net_thread | {e}", "warn", False)
         self.exist_connections = set()
 
     def get_connections_list(self):
@@ -1990,7 +2006,7 @@ class MainWindow_Controller(QMainWindow):
                 connections.add((row.dwOwningPid, row.dwRemoteAddr, row.dwRemotePort))
             return connections
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"get_connections_list | {e}", "warn", False)
             return set()
 
     def handle_new_connection(self, key):
@@ -2008,7 +2024,7 @@ class MainWindow_Controller(QMainWindow):
                     self.send_message(f"網路防護 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
             self.kernel32.CloseHandle(h)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"handle_new_connection | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -2023,7 +2039,7 @@ class MainWindow_Controller(QMainWindow):
                 self.check_process_survival()
                 time.sleep(0.5)
             except Exception as e:
-                self.send_message(e, "warn", False)
+                self.send_message(f"protect_system_thread | {e}", "warn", False)
 
 ####################################################################################################
 
@@ -2052,11 +2068,19 @@ class MainWindow_Controller(QMainWindow):
             subprocess.run(["sc", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return True
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"install_system_driver | {e}", "warn", False)
             return False
 
     def stop_system_driver(self):
         try:
+            if self.driver_port:
+                try:
+                    self.kernel32.CloseHandle(self.driver_port)
+                    self.driver_port = None
+                except Exception:
+                    pass
+
+            time.sleep(0.5)
             service_name = "PYAS_Driver"
             subprocess.run(["sc", "stop", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             subprocess.run(["sc", "delete", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
@@ -2069,36 +2093,31 @@ class MainWindow_Controller(QMainWindow):
     def pipe_server_thread(self):
         try:
             port_name = "\\PYAS_Output_Pipe"
-            h_port = ctypes.wintypes.HANDLE()
-            
-            RULES = {
-                2001: "FILE_BLOCK",
-                3001: "REG_BLOCK",
-                4001: "BOOT_BLOCK",
-                5001: "RANSOM_BLOCK",
-                6001: "INJECT_BLOCK"
-            }
-            
-            KILL_CODES = {4001, 5001}
+            self.driver_port = ctypes.wintypes.HANDLE()
 
             while self.pyas_config.get("driver_switch", False):
-                hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(h_port))
+                hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(self.driver_port))
+                
                 if hr == 0:
                     message = PYAS_FULL_MESSAGE()
 
                     while self.pyas_config.get("driver_switch", False):
-                        hr_get = self.fltlib.FilterGetMessage(h_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None)
+                        try:
+                            hr_get = self.fltlib.FilterGetMessage(self.driver_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None)
+                        except OSError:
+                            break
+
                         if hr_get == 0:
                             code = message.Data.MessageCode
                             pid = message.Data.ProcessId
                             raw_path = self.get_exe_info(pid)[1]
                             target = message.Data.Path
 
-                            rule_name = RULES.get(code, "Unknown")
+                            rule_name = self.block_rules.get(code, "Unknown")
                             display_rule = self.block_replace.get(rule_name, rule_name)
                             self.send_message(f"驅動防護 | {display_rule} | {pid} | {raw_path} | {target}", "notify", True)
 
-                            if code in KILL_CODES:
+                            if code in self.kill_codes:
                                 try:
                                     h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                                     if h:
@@ -2108,10 +2127,12 @@ class MainWindow_Controller(QMainWindow):
                                     pass
                         else:
                             break
-                    self.kernel32.CloseHandle(h_port)
+                    if self.driver_port:
+                        self.kernel32.CloseHandle(self.driver_port)
+                        self.driver_port = None
                 time.sleep(0.2)
         except Exception as e:
-            self.send_message(e, "warn", False)
+            self.send_message(f"pipe_server_thread | {e}", "warn", False)
 
 ####################################################################################################
 

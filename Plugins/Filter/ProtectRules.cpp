@@ -41,7 +41,7 @@ const PCWSTR SafeSystemBinaries[] = {
 
 const PCWSTR CriticalSystemBinaries[] = {
     L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe",
-    L"*\\Windows Defender\\MsMpEng.exe"
+    L"*\\Windows Defender\\MsMpEng.exe",
     L"*\\Windows\\System32\\lsass.exe",
     L"*\\Windows\\System32\\services.exe",
     L"*\\Windows\\System32\\wininit.exe",
@@ -58,7 +58,7 @@ const PCWSTR CriticalSystemBinaries[] = {
     L"*\\Windows\\System32\\SgrmBroker.exe",
     L"*\\Windows\\System32\\WerFault.exe",
     L"*\\Windows\\System32\\wbem\\WmiApSrv.exe",
-    L"*\\Windows\\System32\\wbem\\WmiPrvSE.exe"
+    L"*\\Windows\\System32\\wbem\\WmiPrvSE.exe",
     L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe",
     L"*\\Windows\\System32\\ctfmon.exe",
     L"*\\Windows\\System32\\taskhostw.exe",
@@ -72,7 +72,8 @@ const PCWSTR CriticalSystemBinaries[] = {
     L"*\\Windows\\System32\\cleanmgr.exe",
     L"*\\Windows\\System32\\defrag.exe",
     L"*\\Windows\\System32\\chkdsk.exe",
-    L"*\\Windows\\System32\\conhost.exe"
+    L"*\\Windows\\System32\\conhost.exe",
+    L"*\\Windows\\System32\\RecoveryDrive.exe"
 };
 
 const PCWSTR SafeProcessPatterns[] = {

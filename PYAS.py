@@ -187,7 +187,7 @@ class MainWindow_Controller(QMainWindow):
             5001: "RANSOM_BLOCK",
             6001: "INJECT_BLOCK"
         }
-        self.kill_codes = {2001, 3001, 4001, 5001}
+        self.kill_codes = {4001, 5001}
 
 ####################################################################################################
 

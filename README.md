@@ -62,107 +62,107 @@ PYAS Security antivirus software general architecture diagram.
 ```mermaid
 graph TD
     %% Global Styles
-    classDef ui fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef logic fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
-    classDef engine fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef thread fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    classDef kernel fill:#ffebee,stroke:#c62828,stroke-width:2px;
-    classDef data fill:#eceff1,stroke:#455a64,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef userMode fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1
+    classDef kernelMode fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#e65100
+    classDef storage fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
+    classDef interaction fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5,color:#1b5e20
 
-    User((User))
-
-    subgraph Presentation_Layer ["Presentation Layer (View)"]
+    subgraph UserSpace [User Mode Application - PYAS.exe]
         direction TB
-        UI_Static["PYAS_Interface.py<br/>(Ui_main_window Class)"]:::ui
-        UI_Controller["PYAS.py<br/>(MainWindow_Controller Class)"]:::ui
-        TrayIcon["System Tray Icon"]:::ui
         
-        User <--> UI_Controller
-        UI_Static --- UI_Controller
-        UI_Controller --- TrayIcon
-    end
-
-    subgraph Core_Logic_Layer ["Core Logic & Controller"]
-        direction TB
-        Init_Env["Initialization<br/>(init_environ, init_variable,<br/>init_windll)"]:::logic
-        Config_Mgr["Configuration Manager<br/>(load_config, save_config)"]:::logic
+        GUI[MainWindow_Controller / UI]:::userMode
+        ConfigMgr[Configuration & Rule Manager]:::userMode
         
-        subgraph System_Tools ["System Tools"]
-            Sys_Repair["System Repair<br/>(repair_system_mbr,<br/>repair_system_image, etc.)"]:::logic
-            Sys_Clean["System Cleaner<br/>(clean_button, traverse_temp)"]:::logic
-            Proc_Mgr["Process Manager<br/>(list_process, kill_process)"]:::logic
-            List_Mgr["List Manager<br/>(manage_named_list:<br/>Whitelist/Quarantine)"]:::logic
+        subgraph DetectionEngine [Analysis Engine - PYAS_Engine.py]
+            direction TB
+            SignScanner[Digital Signature Scanner]:::userMode
+            PEScanner[PE Feature & Entropy Analysis]:::userMode
+            YaraScanner[Heuristic / YARA Scanner]:::userMode
+            CNNScanner[AI / CNN Model Scanner]:::userMode
+            CloudScanner[Cloud API / Hash Check]:::userMode
         end
 
-        UI_Controller --> Init_Env
-        Init_Env --> Config_Mgr
-        UI_Controller --> System_Tools
-    end
-
-    subgraph Protection_Layer ["Real-time Protection Threads (Daemons)"]
-        direction TB
-        Thread_Proc["Process Guard Thread<br/>(protect_proc_thread)<br/>[WMI/Snapshot]"]:::thread
-        Thread_File["File Guard Thread<br/>(protect_file_thread)<br/>[ReadDirectoryChangesW]"]:::thread
-        Thread_Net["Network Guard Thread<br/>(protect_net_thread)<br/>[GetExtendedTcpTable]"]:::thread
-        Thread_Sys["System Guard Thread<br/>(protect_system_thread)<br/>[Reg/MBR Check]"]:::thread
-        Thread_Popup["Popup Blocker Thread<br/>(popup_intercept_thread)<br/>[EnumWindows]"]:::thread
-        Thread_Pipe["Driver IPC Thread<br/>(pipe_server_thread)<br/>[NamedPipe Server]"]:::thread
-
-        Init_Env --> Thread_Proc
-        Init_Env --> Thread_File
-        Init_Env --> Thread_Net
-        Init_Env --> Thread_Sys
-        Init_Env --> Thread_Popup
-        Init_Env --> Thread_Pipe
-    end
-
-    subgraph Engine_Layer ["Detection Engine (PYAS_Engine.py)"]
-        direction TB
-        Scan_Worker["Scan Worker<br/>(scan_worker / scan_engine)"]:::engine
-        
-        subgraph Scanners
-            Sign_Check["Signature Scanner<br/>(sign_scanner)<br/>[WinVerifyTrust]"]:::engine
-            AI_Model["AI Model Scanner<br/>(model_scanner)<br/>[ONNX/ResNet]"]:::engine
-            Yara_Rules["Rule Scanner<br/>(rule_scanner)<br/>[Yara/IP Lists]"]:::engine
+        subgraph UserMonitors [User-Mode Protection Threads]
+            direction TB
+            ProcMon[Process Monitor - CreateToolhelp32Snapshot]:::userMode
+            FileMon[File Monitor - ReadDirectoryChangesW]:::userMode
+            NetMon[Network Monitor - GetExtendedTcpTable]:::userMode
+            SysRep[System Repair - MBR/Reg/Wallpaper]:::userMode
+            PopupBlock[Popup Blocker - EnumWindows]:::userMode
+            PipeClient[IPC Client Thread]:::userMode
         end
 
-        Thread_Proc --> Scan_Worker
-        Thread_File --> Scan_Worker
-        Thread_Net --> Scan_Worker
-        UI_Controller -->|Manual Scan| Scan_Worker
-
-        Scan_Worker --> Sign_Check
-        Scan_Worker --> AI_Model
-        Scan_Worker --> Yara_Rules
+        GUI --> ConfigMgr
+        GUI --> DetectionEngine
+        GUI --> UserMonitors
+        UserMonitors --> DetectionEngine
     end
 
-    subgraph Kernel_OS_Layer ["Windows Kernel & Driver"]
+    subgraph StorageLayer [File System / Configuration]
+        direction LR
+        JSONRules[JSON Rules Files]:::storage
+        ConfigJSON[Config.json]:::storage
+        Quarantine[Quarantine Folder]:::storage
+    end
+
+    subgraph KernelSpace [Kernel Mode Driver - PYAS_Driver.sys]
         direction TB
-        WinAPI["Windows API (ctypes)<br/>(kernel32, user32, ntdll,<br/>advapi32, iphlpapi, psapi)"]:::kernel
-        Driver_Sys["Kernel Driver<br/>(PYAS_Driver.sys)"]:::kernel
-        OS_FS["File System (NTFS)"]:::kernel
-        OS_Net["Network Stack"]:::kernel
-
-        Init_Env -- Load DLLs --> WinAPI
-        Thread_File -- Monitor --> OS_FS
-        Thread_Net -- Monitor --> OS_Net
-        Thread_Proc -- Suspend/Kill --> WinAPI
         
-        Thread_Pipe <==>|"Named Pipe IPC<br/>(\\.\pipe\PYAS_Output_Pipe)"| Driver_Sys
-        Driver_Sys -- Callback/Block --> WinAPI
+        DriverEntry[DriverEntry / Initialization]:::kernelMode
+        GlobalData[Global Data & State]:::kernelMode
+        CommServer[Communication Port Server]:::kernelMode
+
+        subgraph KernelLogic [Core Protection Logic]
+            RuleLoader[Rule Loader & Parser]:::kernelMode
+            TrustCache[Trust Cache & Ransom Tracker]:::kernelMode
+            
+            subgraph MiniFilter [File System MiniFilter]
+                PreCreate[PreCreate: HoneyToken / Access Control]:::kernelMode
+                PreWrite[PreWrite: Ransomware / Entropy Check]:::kernelMode
+                PreSetInfo[PreSetInfo: Anti-Rename / Extension]:::kernelMode
+                PreDevCtrl[PreDeviceControl: Boot / Disk Wipe Protect]:::kernelMode
+            end
+
+            subgraph ObjectCallbacks [Object Manager Callbacks]
+                ProcProtect[ObRegisterCallbacks: Handle Stripping]:::kernelMode
+                ImageLoad[PsSetLoadImageNotifyRoutine: Image Blocking]:::kernelMode
+            end
+
+            subgraph RegistryCallbacks [Configuration Manager Callbacks]
+                RegFilter[CmRegisterCallbackEx: Registry Guard]:::kernelMode
+            end
+        end
+
+        DriverEntry --> GlobalData
+        DriverEntry --> CommServer
+        DriverEntry --> MiniFilter
+        DriverEntry --> ProcProtect
+        DriverEntry --> ImageLoad
+        DriverEntry --> RegFilter
+        
+        MiniFilter --> RuleLoader
+        ProcProtect --> RuleLoader
+        RegFilter --> RuleLoader
+        
+        PreWrite --> TrustCache
+        PreCreate --> TrustCache
     end
 
-    subgraph Data_Persistence ["Data & Resources"]
-        Config_File[("Config.json")]:::data
-        Model_Files[("Model Files<br/>(.onnx)")]:::data
-        Rule_Files[("Rule Files<br/>(.yar)")]:::data
-        Quarantine_Dir[("/Quarantine/")]:::data
-
-        Config_Mgr <--> Config_File
-        AI_Model <--> Model_Files
-        Yara_Rules <--> Rule_Files
-        List_Mgr <--> Quarantine_Dir
-    end
+    %% Cross-Boundary Interactions
+    ConfigMgr -- Writes --> JSONRules
+    ConfigMgr -- Writes --> ConfigJSON
+    RuleLoader -- Reads --> JSONRules
+    
+    GUI -- Service Control (SCM) --> DriverEntry
+    PipeClient -- FltSendMessage (IPC) --> CommServer
+    CommServer -- Notifications --> PipeClient
+    
+    FileMon -- Moves Malicious Files --> Quarantine
+    
+    %% Logic Flow Details
+    ProcProtect -- Protects --> UserSpace
+    RegFilter -- Protects --> StorageLayer
+    PreDevCtrl -- Protects --> StorageLayer
 ```
 
 ## Support System

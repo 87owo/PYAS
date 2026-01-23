@@ -107,6 +107,17 @@ typedef struct _RULE_NODE {
 
 extern DRIVER_DATA GlobalData;
 
+//
+// Rule Lists Externs (Added for Exception Path support)
+//
+extern PRULE_NODE g_RegistryBlockList;
+extern PRULE_NODE g_RegistryTrustedList;
+extern PRULE_NODE g_ProcessTrustedPaths;
+extern PRULE_NODE g_ProcessExploitable;
+extern PRULE_NODE g_FileProtectedPaths;
+extern PRULE_NODE g_FileExceptionPaths; // [Added] Exception List
+extern PRULE_NODE g_FileRansomExts;
+
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreSetInfo(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);

@@ -32,6 +32,7 @@ PRULE_NODE g_RegistryTrustedList = NULL;
 PRULE_NODE g_ProcessTrustedPaths = NULL;
 PRULE_NODE g_ProcessExploitable = NULL;
 PRULE_NODE g_FileProtectedPaths = NULL;
+PRULE_NODE g_FileExceptionPaths = NULL;
 PRULE_NODE g_FileRansomExts = NULL;
 
 const PCWSTR Helper_NaturallyCompressedExtensions[] = {
@@ -371,6 +372,7 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Process_TrustedPaths", &g_ProcessTrustedPaths);
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Process_ExploitableBlacklist", &g_ProcessExploitable);
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_ProtectedPaths", &g_FileProtectedPaths);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_ExceptionPaths", &g_FileExceptionPaths);
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_RansomwareExtensions", &g_FileRansomExts);
                     ExReleaseResourceLite(&RuleLock);
                 }
@@ -391,6 +393,7 @@ VOID UnloadRules() {
     FreeList(&g_ProcessTrustedPaths);
     FreeList(&g_ProcessExploitable);
     FreeList(&g_FileProtectedPaths);
+    FreeList(&g_FileExceptionPaths);
     FreeList(&g_FileRansomExts);
     ExReleaseResourceLite(&RuleLock);
     ExDeleteResourceLite(&RuleLock);
@@ -567,6 +570,16 @@ BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
     }
 
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PRULE_NODE ExNode = g_FileExceptionPaths;
+    while (ExNode) {
+        if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
+            ExReleaseResourceLite(&RuleLock);
+            return FALSE; 
+        }
+        ExNode = ExNode->Next;
+    }
+
     PRULE_NODE Node = g_FileProtectedPaths;
     BOOLEAN Match = FALSE;
     while (Node) {

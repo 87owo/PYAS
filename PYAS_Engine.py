@@ -125,9 +125,8 @@ class rule_scanner:
             matches = self.rules.match(filepath=file_path)
             if matches:
                 rule_name = str(matches[0])
-                types = rule_name.split("_")[0]
-                label = rule_name.split("_")[1]
-                level = rule_name.split("_")[2]
+                label = rule_name.split("_")[0]
+                level = rule_name.split("_")[-1]
                 return f"{label}:WinPE/Unknown.A!rb", level
             return False, False
         except Exception:

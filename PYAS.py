@@ -905,25 +905,29 @@ class MainWindow_Controller(QMainWindow):
         try:
             if self.sign.sign_verify(file_path):
                 return False
-
+        except Exception as e:
+            self.send_message(f"sign_verify | {e}", "warn", False)
+        try:
             pe_label, pe_score = self.properties.pe_scan(file_path)
             if pe_label:
                 return pe_label
-
+        except Exception as e:
+            self.send_message(f"pe_scan | {e}", "warn", False)
+        try:
             if self.pyas_config.get("extension_switch", False):
                 yara_label, yara_level = self.heuristic.yara_scan(file_path)
                 if yara_label:
                     return yara_label
-
+        except Exception as e:
+            self.send_message(f"yara_scan | {e}", "warn", False)
+        try:
             if self.pyas_config.get("sensitive_switch", False):
                 cnn_label, cnn_score = self.pattern.model_scan(file_path)
                 if cnn_label:
                     return cnn_label
-
-            return False
         except Exception as e:
-            self.send_message(f"scan_engine | {e}", "warn", False)
-        return Falses
+            self.send_message(f"cnn_scan | {e}", "warn", False)
+        return False
 
 ####################################################################################################
 

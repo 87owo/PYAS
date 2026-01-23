@@ -44,7 +44,7 @@ PYAS/
 │   │   └── ...                      # Other driver folders and files
 │   │
 │   └── Rules/
-│       └── ...                      # White, block list, and matching logic for files registry
+│       └── rules.json               # White, block list, and matching logic for files registry
 |
 ├── PYAS.py                          # Main application entry point and UI to engine interface
 ├── PYAS_Config.py                   # Configuration loading, saving, and global parameters

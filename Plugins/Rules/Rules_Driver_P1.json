@@ -11,7 +11,7 @@
     "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
     
-	"*\\Image File Execution Options\\*",
+    "*\\Image File Execution Options\\*",
     "*\\Classes\\.exe",
     "*\\Classes\\.bat",
     "*\\Classes\\.cmd",
@@ -21,7 +21,7 @@
     "*\\Classes\\cmdfile\\*",
     "*\\Classes\\comfile\\*",
     
-	"*\\DefaultIcon",
+    "*\\DefaultIcon",
     "*\\DisableAntiSpyware",
     "*\\DisableWindowsUpdateAccess",
     "*\\EnableLUA",
@@ -173,7 +173,7 @@
     "*\\EFI\\*",
     "*\\Boot\\*",
     "*\\Recovery\\*",
-	"*\\Windows\\*",
+    "*\\Windows\\*",
     "*\\System Volume Information\\*",
     
     "*\\CON",
@@ -195,6 +195,9 @@
 
     "*\\<*",
     "*\\>*",
+  ],
+  "Rule_File_ExceptionPaths": [
+    "*\\AppData\\*"
   ],
   "Rule_File_RansomwareExtensions": [
     ".exe", ".dll", ".sys", ".com", ".scr",

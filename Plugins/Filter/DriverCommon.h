@@ -100,6 +100,11 @@ typedef struct _DRIVER_DATA {
     EX_RUNDOWN_REF PortRundown;
 } DRIVER_DATA, * PDRIVER_DATA;
 
+typedef struct _RULE_NODE {
+    struct _RULE_NODE* Next;
+    UNICODE_STRING Pattern;
+} RULE_NODE, * PRULE_NODE;
+
 extern DRIVER_DATA GlobalData;
 
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
@@ -114,7 +119,12 @@ VOID UninitializeProcessProtection();
 NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject);
 VOID UninitializeRegistryProtection();
 
+NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath);
+VOID UnloadRules();
+
 VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
+
+NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName);
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId);
 BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId);
@@ -125,7 +135,7 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes);
 BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName);
 BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName);
 BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName);
-BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Buffer, ULONG Length, BOOLEAN IsWrite);
+BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID WriteBuffer, ULONG WriteLength, BOOLEAN IsWrite);
 
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize);
 

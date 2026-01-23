@@ -40,6 +40,7 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
     UninitializeRegistryProtection();
     UninitializeProcessProtection();
+    UnloadRules(); // Release JSON rules memory
 
     ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 
@@ -112,8 +113,6 @@ CONST FLT_REGISTRATION FilterRegistration = {
 };
 
 extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath) {
-    UNREFERENCED_PARAMETER(RegistryPath);
-
     NTSTATUS status = STATUS_SUCCESS;
     PSECURITY_DESCRIPTOR sd = NULL;
     OBJECT_ATTRIBUTES oa = { 0 };
@@ -125,6 +124,12 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     ExInitializeFastMutex(&GlobalData.TrackerMutex);
 
     ExInitializeRundownProtection(&GlobalData.PortRundown);
+
+    status = LoadRulesFromDisk(RegistryPath);
+    if (!NT_SUCCESS(status)) {
+        // Optional: Fail load if rules missing, or continue with empty rules
+        // return status; 
+    }
 
     status = FltRegisterFilter(DriverObject, &FilterRegistration, &GlobalData.FilterHandle);
     if (!NT_SUCCESS(status)) return status;

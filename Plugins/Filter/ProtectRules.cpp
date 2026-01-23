@@ -3,7 +3,10 @@
 constexpr auto MAX_TRACKERS = 64;
 constexpr auto RANSOM_TIME_WINDOW_MS = 3000;
 constexpr auto RANSOM_COUNT_THRESHOLD = 5;
-constexpr auto HIGH_ENTROPY_THRESHOLD = 15;
+constexpr auto HIGH_ENTROPY_THRESHOLD = 10;
+
+constexpr auto TRUST_CACHE_SIZE = 128;
+constexpr auto TRUST_CACHE_TTL_SEC = 300;
 
 typedef struct _RANSOM_TRACKER {
     HANDLE ProcessId;
@@ -11,351 +14,67 @@ typedef struct _RANSOM_TRACKER {
     LARGE_INTEGER LastActivityTime;
 } RANSOM_TRACKER, * PRANSOM_TRACKER;
 
+typedef struct _TRUST_CACHE_ENTRY {
+    HANDLE ProcessId;
+    BOOLEAN IsTrusted;
+    LARGE_INTEGER CacheTime;
+} TRUST_CACHE_ENTRY, * PTRUST_CACHE_ENTRY;
+
 RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
+TRUST_CACHE_ENTRY TrustCache[TRUST_CACHE_SIZE];
+FAST_MUTEX TrustCacheLock;
 
-const PCWSTR SafeSystemBinaries[] = {
-    L"*\\Windows\\System32\\lsass.exe",
-    L"*\\Windows\\System32\\services.exe",
-    L"*\\Windows\\System32\\csrss.exe",
-    L"*\\Windows\\System32\\smss.exe",
-    L"*\\Windows\\System32\\wininit.exe",
-    L"*\\Windows\\System32\\winlogon.exe",
-    L"*\\Windows\\System32\\svchost.exe",
-    L"*\\Windows\\System32\\SearchIndexer.exe",
-    L"*\\Windows\\System32\\msiexec.exe",
-    L"*\\Windows\\System32\\TrustedInstaller.exe",
-    L"*\\Windows\\System32\\TiWorker.exe",
-    L"*\\Windows\\System32\\dism.exe",
-    L"*\\Windows\\System32\\dismhost.exe",
-    L"*\\Windows\\System32\\wuauclt.exe",
-    L"*\\Windows\\System32\\taskhostw.exe",
-    L"*\\Windows\\System32\\MoUsoCoreWorker.exe",
-    L"*\\Windows\\System32\\sppsvc.exe",
-    L"*\\Windows\\System32\\backgroundTaskHost.exe",
-    L"*\\Windows\\System32\\RuntimeBroker.exe",
-    L"*\\Windows\\System32\\ctfmon.exe",
-    L"*\\Windows\\System32\\smartscreen.exe",
-    L"*\\Windows\\System32\\Taskmgr.exe",
-    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe"
-};
+static BOOLEAN g_CacheInitialized = FALSE;
 
-const PCWSTR CriticalSystemBinaries[] = {
-    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe",
-    L"*\\Windows Defender\\MsMpEng.exe",
-    L"*\\Windows\\System32\\lsass.exe",
-    L"*\\Windows\\System32\\services.exe",
-    L"*\\Windows\\System32\\wininit.exe",
-    L"*\\Windows\\System32\\winlogon.exe",
-    L"*\\Windows\\System32\\svchost.exe",
-    L"*\\Windows\\System32\\smss.exe",
-    L"*\\Windows\\System32\\csrss.exe",
-    L"*\\Windows\\System32\\sppsvc.exe",
-    L"*\\Windows\\System32\\msiexec.exe",
-    L"*\\Windows\\System32\\TrustedInstaller.exe",
-    L"*\\Windows\\System32\\TiWorker.exe",
-    L"*\\Windows\\System32\\dism.exe",
-    L"*\\Windows\\System32\\dismhost.exe",
-    L"*\\Windows\\System32\\SgrmBroker.exe",
-    L"*\\Windows\\System32\\WerFault.exe",
-    L"*\\Windows\\System32\\wbem\\WmiApSrv.exe",
-    L"*\\Windows\\System32\\wbem\\WmiPrvSE.exe",
-    L"*\\Windows\\ImmersiveControlPanel\\SystemSettings.exe",
-    L"*\\Windows\\System32\\ctfmon.exe",
-    L"*\\Windows\\System32\\taskhostw.exe",
-    L"*\\Windows\\System32\\fontdrvhost.exe",
-    L"*\\Windows\\System32\\dwm.exe",
-    L"*\\Windows\\System32\\SearchIndexer.exe",
-    L"*\\Windows\\System32\\SearchProtocolHost.exe",
-    L"*\\Windows\\System32\\SearchFilterHost.exe",
-    L"*\\Windows\\System32\\smartscreen.exe",
-    L"*\\Windows\\System32\\vssvc.exe",
-    L"*\\Windows\\System32\\cleanmgr.exe",
-    L"*\\Windows\\System32\\defrag.exe",
-    L"*\\Windows\\System32\\chkdsk.exe",
-    L"*\\Windows\\System32\\conhost.exe",
-    L"*\\Windows\\System32\\RecoveryDrive.exe"
-};
+ERESOURCE RuleLock;
+PRULE_NODE g_RegistryBlockList = NULL;
+PRULE_NODE g_RegistryTrustedList = NULL;
+PRULE_NODE g_ProcessTrustedPaths = NULL;
+PRULE_NODE g_ProcessExploitable = NULL;
+PRULE_NODE g_FileProtectedPaths = NULL;
+PRULE_NODE g_FileRansomExts = NULL;
 
-const PCWSTR SafeProcessPatterns[] = {
-    L"*\\Windows Defender\\*",
-    L"*\\Windows Defender Advanced Threat Protection\\*",
-
-    L"*\\Program*\\*",
-    L"*\\AppData\\Local\\*",
-    L"*\\AppData\\Roaming\\*",
-
-    L"*\\Google\\Update\\*",
-    L"*\\Google\\Chrome\\Application\\chrome.exe",
-    L"*\\Internet Explorer\\iexplore.exe",
-    L"*\\Microsoft\\EdgeUpdate\\*",
-    L"*\\Microsoft\\Edge\\Application\\msedge.exe",
-    L"*\\Microsoft\\EdgeWebView\\Application\\*",
-    L"*\\Mozilla Firefox\\firefox.exe",
-    L"*\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-    L"*\\Opera Software\\*\\opera.exe",
-    L"*\\Vivaldi\\Application\\vivaldi.exe",
-
-    L"*\\WinRAR\\WinRAR.exe",
-    L"*\\WinRAR\\UnRAR.exe",
-    L"*\\7-Zip\\7zG.exe",
-    L"*\\7-Zip\\7zFM.exe",
-    L"*\\Bandizip\\Bandizip.exe",
-
-    L"*\\Microsoft Office\\root\\Office*\\*.EXE",
-    L"*\\Microsoft Office\\root\\Office*\\WINWORD.EXE",
-    L"*\\Microsoft Office\\root\\Office*\\EXCEL.EXE",
-    L"*\\Microsoft Office\\root\\Office*\\POWERPNT.EXE",
-    L"*\\Adobe\\Acrobat*\\*\\Acrobat.exe",
-    L"*\\Adobe\\Acrobat*\\*\\AcroRd32.exe",
-    L"*\\Foxit PDF Reader\\FoxitPDFReader.exe",
-    L"*\\LibreOffice*\\program\\soffice.bin",
-    L"*\\LibreOffice*\\program\\soffice.exe",
-    L"*\\Notepad++\\notepad++.exe",
-    L"*\\Sublime Text*\\sublime_text.exe",
-
-    L"*\\Microsoft\\Teams\\*\\Teams.exe",
-    L"*\\Zoom\\bin\\Zoom.exe",
-    L"*\\Slack\\app-*\\slack.exe",
-    L"*\\Telegram Desktop\\Telegram.exe",
-    L"*\\WhatsApp\\WhatsApp.exe",
-    L"*\\Discord\\app-*\\Discord.exe",
-
-    L"*\\Microsoft Visual Studio\\*\\devenv.exe",
-    L"*\\Microsoft VS Code\\Code.exe",
-    L"*\\Git\\cmd\\git.exe",
-    L"*\\Git\\mingw64\\bin\\git.exe",
-    L"*\\bin\\cmake.exe",
-    L"*\\nodejs\\node.exe",
-    L"*\\Android Studio\\bin\\studio64.exe",
-    L"*\\JetBrains\\*\\bin\\*.exe",
-
-    L"*\\Dropbox\\Client\\Dropbox.exe",
-    L"*\\Google\\Drive\\*\\GoogleDriveFS.exe",
-    L"*\\Microsoft OneDrive\\OneDrive.exe",
-
-    L"*\\Sangfor\\*",
-    L"*\\SogouInput\\*",
-    L"*\\baidu\\BaiduNetdisk\\*",
-    L"*\\TortoiseSVN\\*",
-    L"*\\TortoiseGit\\*",
-    L"*\\TortoiseOverlays\\*",
-
-    L"*\\VideoLAN\\VLC\\vlc.exe",
-    L"*\\Spotify\\Spotify.exe",
-    L"*\\obs-studio\\bin\\*\\obs64.exe",
-    L"*\\DaVinci Resolve\\Resolve.exe",
-    L"*\\Adobe\\Adobe Premiere Pro*\\Adobe Premiere Pro.exe",
-    L"*\\Adobe\\Adobe Photoshop*\\Photoshop.exe",
-
-    L"*\\Steam\\steam.exe",
-    L"*\\Steam\\bin\\steamwebhelper.exe",
-    L"*\\Steam\\steamapps\\*",
-    L"*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe",
-    L"*\\Battle.net\\*\\Battle.net.exe",
-
-    L"*\\NVIDIA Corporation\\*",
-    L"*\\AMD\\*",
-    L"*\\Intel\\*",
-    L"*\\Logitech\\*",
-    L"*\\Razer\\*",
-    L"*\\Corsair\\*",
-    L"*\\ASUS\\*"
-};
-
-const PCWSTR RegistryBlockList[] = {
-    L"\\REGISTRY\\MACHINE\\BCD00000000",
-    L"\\REGISTRY\\MACHINE\\BCD00000000\\*",
-    L"\\REGISTRY\\MACHINE\\SAM",
-    L"\\REGISTRY\\MACHINE\\SAM\\*",
-    L"\\REGISTRY\\MACHINE\\SECURITY",
-    L"\\REGISTRY\\MACHINE\\SECURITY\\*",
-    L"\\REGISTRY\\MACHINE\\SYSTEM",
-    L"\\REGISTRY\\MACHINE\\SYSTEM\\*",
-
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\*",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\*",
-    L"\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\*",
-
-    L"\\REGISTRY\\USER\\*_Classes\\*\\shell\\open\\command\\*",
-    L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
-    L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
-    L"\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
-    L"*\\Image File Execution Options\\*",
-
-    L"*\\Classes\\.exe",
-    L"*\\Classes\\.bat",
-    L"*\\Classes\\.cmd",
-    L"*\\Classes\\.com",
-    L"*\\Classes\\exefile\\*",
-    L"*\\Classes\\batfile\\*",
-    L"*\\Classes\\cmdfile\\*",
-    L"*\\Classes\\comfile\\*",
-    L"*\\DefaultIcon",
-
-    L"*\\DisableAntiSpyware",
-    L"*\\DisableWindowsUpdateAccess",
-    L"*\\EnableLUA",
-    L"*\\ConsentPromptBehaviorAdmin",
-    L"*\\NoControlPanel",
-    L"*\\NoDrives",
-    L"*\\NoFileMenu",
-    L"*\\NoFind",
-    L"*\\NoStartMenuPinnedList",
-    L"*\\NoSetFolders",
-    L"*\\NoSetFolderOptions",
-    L"*\\NoViewOnDrive",
-    L"*\\NoClose",
-    L"*\\NoDesktop",
-    L"*\\NoLogoff",
-    L"*\\NoFolderOptions",
-    L"*\\RestrictRun",
-    L"*\\NoViewContextMenu",
-    L"*\\HideClock",
-    L"*\\NoStartMenuMyGames",
-    L"*\\NoStartMenuMyMusic",
-    L"*\\DisableCMD",
-    L"*\\NoAddingComponents",
-    L"*\\NoWinKeys",
-    L"*\\NoStartMenuLogOff",
-    L"*\\NoSimpleNetIDList",
-    L"*\\NoLowDiskSpaceChecks",
-    L"*\\DisableLockWorkstation",
-    L"*\\Restrict_Run",
-    L"*\\DisableTaskMgr",
-    L"*\\DisableRegistryTools",
-    L"*\\DisableChangePassword",
-    L"*\\Wallpaper",
-    L"*\\NoComponents",
-    L"*\\NoStartMenuMorePrograms",
-    L"*\\NoActiveDesktop",
-    L"*\\NoSetActiveDesktop",
-    L"*\\NoRecentDocsMenu",
-    L"*\\NoWindowsUpdate",
-    L"*\\NoChangeStartMenu",
-    L"*\\NoFavoritesMenu",
-    L"*\\NoRecentDocsHistory",
-    L"*\\NoSetTaskbar",
-    L"*\\NoSMHelp",
-    L"*\\NoTrayContextMenu",
-    L"*\\NoManageMyComputerVerb",
-    L"*\\NoRealMode",
-    L"*\\NoRun",
-    L"*\\ClearRecentDocsOnExit",
-    L"*\\NoActiveDesktopChanges",
-    L"*\\NoStartMenuNetworkPlaces",
-    L"*\\NoLockScreen",
-    L"*\\HideFastUserSwitching",
-    L"*\\ConsentPromptBehaviorUser",
-    L"*\\EnableSecureUIAPaths",
-    L"*\\NoSRM",
-    L"*\\NoInteractiveServices",
-    L"*\\ShutdownWithoutLogon",
-    L"*\\AutoAdminLogon",
-    L"*\\ImagePath",
-    L"*\\BootExecute",
-    L"*\\SubSystems",
-    L"*\\FirmwareBootDevice",
-    L"*\\BootDriverFlags",
-    L"*\\SystemStartOptions",
-    L"*\\CrashDumpEnabled",
-    L"*\\DisableAutomaticRestartOnFailure",
-    L"*\\SystemBiosVersion",
-    L"*\\NoTheme",
-    L"*\\PendingFileRenameOperations",
-    L"*\\SystemSetupInProgress",
-    L"*\\CmdLine",
-    L"*\\SetupType",
-    L"*\\AutoReboot",
-    L"*\\Userinit",
-    L"*\\UIHost",
-    L"*\\Debugger",
-    L"*\\DefaultUserName",
-    L"*\\DefaultPassword",
-    L"*\\AltDefaultUserName",
-    L"*\\AltDefaultPassword",
-    L"*\\DisableCAD",
-    L"*\\LegalNoticeCaption",
-    L"*\\LegalNoticeText",
-    L"*\\Run",
-    L"*\\RunOnce",
-};
-
-const PCWSTR DangerousExtensions[] = {
-    L".exe", L".dll", L".sys", L".com", L".scr",
-    L".zip", L".7z", L".rar", L".tar", L".gz",
-    L".js", L".bat", L".cmd", L".ps1", L".vbs",
-    L".ppt", L".pptx", L".wps", L".txt", L".rtf",
-    L".pdf", L".xls", L".xlsx", L".doc", L".docx",
-    L".jpg", L".jpeg", L".png", L".webp", L".gif",
-    L".mp3", L".wav", L".aac", L".ogg", L".flac",
-    L".mp4", L".avi", L".mov", L".wmv", L".mkv",
-    L".aux", L".cur", L".mui", L".ttf", L".efi"
-};
-
-const PCWSTR NaturallyCompressedExtensions[] = {
+const PCWSTR Helper_NaturallyCompressedExtensions[] = {
     L".zip", L".7z", L".rar", L".tar", L".gz",
     L".jpg", L".jpeg", L".png", L".webp", L".gif",
     L".mp3", L".wav", L".aac", L".ogg", L".flac",
     L".mp4", L".avi", L".mov", L".wmv", L".mkv",
-    L".exe", L".dll", L".sys", L".mui", L".scr",
     L".docx", L".xlsx", L".pptx", L".pdf", L".wps",
     L".apk", L".jar", L".class", L".db", L".sqlite"
 };
 
-const PCWSTR ProtectedPaths[] = {
-    L"*\\PYAS.exe",
-    L"*\\PYAS_Driver.sys",
-    L"*\\ProgramData\\PYAS\\*.json",
+static VOID FreeList(PRULE_NODE* Head) {
+    PRULE_NODE Current = *Head;
+    while (Current) {
+        PRULE_NODE Next = Current->Next;
+        if (Current->Pattern.Buffer) PyasFree(Current->Pattern.Buffer);
+        PyasFree(Current);
+        Current = Next;
+    }
+    *Head = NULL;
+}
 
-    L"*\\Windows\\System32\\config\\SAM*",
-    L"*\\Windows\\System32\\config\\SECURITY*",
-    L"*\\Windows\\System32\\config\\SOFTWARE*",
-    L"*\\Windows\\System32\\config\\SYSTEM*",
-    L"*\\Windows\\System32\\config\\DEFAULT*",
-    L"*\\Windows\\System32\\config\\RegBack\\*",
+static VOID AddRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
+    if (!RuleStr || !RuleStr->Buffer) return;
 
-    L"*\\Windows\\System32\\drivers\\*",
-    L"*\\Windows\\System32\\drivers\\etc\\hosts",
-    L"*\\Windows\\System32\\*.exe",
-    L"*\\Windows\\System32\\*.dll",
-    L"*\\Windows\\SysWOW64\\*.exe",
-    L"*\\Windows\\SysWOW64\\*.dll",
-    L"*\\Windows\\Web\\Wallpaper\\*",
-    L"*\\Windows\\explorer.exe",
-    L"*\\Windows\\regedit.exe",
+    PRULE_NODE Node = (PRULE_NODE)PyasAllocate(sizeof(RULE_NODE));
+    if (!Node) return;
 
-    L"*\\bootmgr",
-    L"*\\boot.ini",
-    L"*\\BOOTNXT",
-    L"*\\EFI",
-    L"*\\EFI\\*",
-    L"*\\Boot",
-    L"*\\Boot\\*",
-    L"*\\Recovery",
-    L"*\\Recovery\\*",
-    L"*\\System Volume Information\\*",
+    SIZE_T Size = RuleStr->Length + sizeof(WCHAR);
+    Node->Pattern.Buffer = (PWCHAR)PyasAllocate(Size);
+    if (!Node->Pattern.Buffer) {
+        PyasFree(Node);
+        return;
+    }
 
-    L"*\\CON",
-    L"*\\CON\\*",
-    L"*\\PRN",
-    L"*\\PRN\\*",
-    L"*\\AUX",
-    L"*\\AUX\\*",
-    L"*\\NUL",
-    L"*\\NUL\\*",
-    L"*\\COM?",
-    L"*\\COM?\\*",
-    L"*\\LPT?",
-    L"*\\LPT?\\*",
-    L"*\\LPT?",
-    L"*\\LPT?\\*",
-    L"*\\OSDATA",
-    L"*\\OSDATA\\*",
+    RtlCopyMemory(Node->Pattern.Buffer, RuleStr->Buffer, RuleStr->Length);
+    Node->Pattern.Buffer[RuleStr->Length / sizeof(WCHAR)] = L'\0';
+    Node->Pattern.Length = RuleStr->Length;
+    Node->Pattern.MaximumLength = (USHORT)Size;
 
-    L"*\\<*",
-    L"*\\>*",
-};
+    Node->Next = *Head;
+    *Head = Node;
+}
 
 static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
     if (!String || !String->Buffer || !Suffix) return FALSE;
@@ -409,7 +128,275 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
     return !*Pattern;
 }
 
-static NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
+static ULONG ProcessJsonUnescape(PWCHAR Buffer, ULONG LengthChars) {
+    if (!Buffer || LengthChars == 0) return 0;
+
+    ULONG WriteIdx = 0;
+    ULONG ReadIdx = 0;
+
+    while (ReadIdx < LengthChars) {
+        if (Buffer[ReadIdx] == L'\\' && (ReadIdx + 1 < LengthChars)) {
+            WCHAR NextChar = Buffer[ReadIdx + 1];
+            if (NextChar == L'\\' || NextChar == L'"' || NextChar == L'/') {
+                Buffer[WriteIdx++] = NextChar;
+                ReadIdx += 2;
+            }
+            else if (NextChar == L'n') { Buffer[WriteIdx++] = L'\n'; ReadIdx += 2; }
+            else if (NextChar == L'r') { Buffer[WriteIdx++] = L'\r'; ReadIdx += 2; }
+            else if (NextChar == L't') { Buffer[WriteIdx++] = L'\t'; ReadIdx += 2; }
+            else {
+                Buffer[WriteIdx++] = Buffer[ReadIdx++];
+            }
+        }
+        else {
+            Buffer[WriteIdx++] = Buffer[ReadIdx++];
+        }
+    }
+
+    Buffer[WriteIdx] = L'\0';
+    return WriteIdx * sizeof(WCHAR);
+}
+
+static VOID SkipWhitespace(PCHAR* Ptr, PCHAR End) {
+    while (*Ptr < End) {
+        char c = **Ptr;
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            (*Ptr)++;
+        }
+        else {
+            break;
+        }
+    }
+}
+
+static VOID ParseAndLoadRules(PCHAR JsonContent, ULONG ContentLength, PCSTR KeyName, PRULE_NODE* ListHead) {
+    if (!JsonContent || !KeyName || !ListHead) return;
+
+    PCHAR Ptr = JsonContent;
+    PCHAR End = JsonContent + ContentLength;
+    SIZE_T KeyLen = 0;
+    while (KeyName[KeyLen] != '\0') KeyLen++;
+
+    while (Ptr < End) {
+        if (*Ptr == '"') {
+            if ((SIZE_T)(End - Ptr) > KeyLen && RtlCompareMemory(Ptr + 1, KeyName, KeyLen) == KeyLen) {
+                if (*(Ptr + 1 + KeyLen) == '"') {
+                    Ptr += 1 + KeyLen + 1;
+
+                    SkipWhitespace(&Ptr, End);
+                    if (Ptr >= End || *Ptr != ':') continue;
+                    Ptr++;
+
+                    SkipWhitespace(&Ptr, End);
+                    if (Ptr >= End || *Ptr != '[') continue;
+                    Ptr++;
+
+                    while (Ptr < End) {
+                        SkipWhitespace(&Ptr, End);
+                        if (Ptr >= End) break;
+
+                        if (*Ptr == ']') {
+                            Ptr++;
+                            return;
+                        }
+
+                        if (*Ptr == '"') {
+                            PCHAR StartQuote = ++Ptr;
+                            while (Ptr < End) {
+                                if (*Ptr == '"' && *(Ptr - 1) != '\\') break;
+                                Ptr++;
+                            }
+
+                            if (Ptr < End && *Ptr == '"') {
+                                ULONG UTF8Len = (ULONG)(Ptr - StartQuote);
+                                if (UTF8Len > 0) {
+                                    ULONG WideSize = 0;
+                                    RtlUTF8ToUnicodeN(NULL, 0, &WideSize, StartQuote, UTF8Len);
+
+                                    if (WideSize > 0) {
+                                        PWCHAR WideBuffer = (PWCHAR)PyasAllocate(WideSize + sizeof(WCHAR));
+                                        if (WideBuffer) {
+                                            ULONG ResultSize = 0;
+                                            RtlUTF8ToUnicodeN(WideBuffer, WideSize, &ResultSize, StartQuote, UTF8Len);
+                                            ULONG FinalSize = ProcessJsonUnescape(WideBuffer, ResultSize / sizeof(WCHAR));
+
+                                            UNICODE_STRING Us;
+                                            Us.Buffer = WideBuffer;
+                                            Us.Length = (USHORT)FinalSize;
+                                            Us.MaximumLength = (USHORT)(WideSize + sizeof(WCHAR));
+
+                                            AddRule(ListHead, &Us);
+                                            PyasFree(WideBuffer);
+                                        }
+                                    }
+                                }
+                                Ptr++;
+                            }
+                        }
+                        else if (*Ptr == ',') {
+                            Ptr++;
+                        }
+                        else {
+                            Ptr++;
+                        }
+                    }
+                    return;
+                }
+            }
+        }
+        Ptr++;
+    }
+}
+
+NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
+    NTSTATUS status = STATUS_SUCCESS;
+    HANDLE FileHandle = NULL;
+    IO_STATUS_BLOCK IoStatus = { 0 };
+    OBJECT_ATTRIBUTES oa = { 0 };
+    UNICODE_STRING ImagePathName;
+    OBJECT_ATTRIBUTES RegOa = { 0 };
+    HANDLE RegHandle = NULL;
+    PKEY_VALUE_PARTIAL_INFORMATION Info = NULL;
+    ULONG ResultLength = 0;
+    PWCHAR PathBuffer = NULL;
+    SIZE_T PathBufferSize = 0;
+    UNICODE_STRING FinalPath = { 0 };
+
+    RtlInitUnicodeString(&ImagePathName, L"ImagePath");
+    ExInitializeResourceLite(&RuleLock);
+
+    InitializeObjectAttributes(&RegOa, RegistryPath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+    status = ZwOpenKey(&RegHandle, KEY_READ, &RegOa);
+    if (!NT_SUCCESS(status)) return status;
+
+    status = ZwQueryValueKey(RegHandle, &ImagePathName, KeyValuePartialInformation, NULL, 0, &ResultLength);
+    if (status != STATUS_BUFFER_TOO_SMALL) {
+        ZwClose(RegHandle);
+        return status;
+    }
+
+    Info = (PKEY_VALUE_PARTIAL_INFORMATION)PyasAllocate(ResultLength);
+    if (!Info) {
+        ZwClose(RegHandle);
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    status = ZwQueryValueKey(RegHandle, &ImagePathName, KeyValuePartialInformation, Info, ResultLength, &ResultLength);
+    ZwClose(RegHandle);
+    if (!NT_SUCCESS(status)) {
+        PyasFree(Info);
+        return status;
+    }
+
+    if (Info->Type == REG_EXPAND_SZ || Info->Type == REG_SZ) {
+        PathBufferSize = ResultLength + 1024;
+        PathBuffer = (PWCHAR)PyasAllocate(PathBufferSize);
+
+        if (PathBuffer) {
+            RtlZeroMemory(PathBuffer, PathBufferSize);
+            PWCHAR Src = (PWCHAR)Info->Data;
+
+            if (NT_SUCCESS(RtlStringCbCopyW(PathBuffer, PathBufferSize, Src))) {
+                PWCHAR LastSlash = NULL;
+                PWCHAR Current = PathBuffer;
+                while (*Current) {
+                    if (*Current == L'\\') LastSlash = Current;
+                    Current++;
+                }
+
+                if (LastSlash) {
+                    *LastSlash = L'\0';
+
+                    SIZE_T CurrentPathLen = wcslen(PathBuffer);
+                    const WCHAR FilterSuffix[] = L"\\Filter";
+                    SIZE_T FilterLen = (sizeof(FilterSuffix) / sizeof(WCHAR)) - 1;
+
+                    if (CurrentPathLen >= FilterLen) {
+                        PWCHAR SuffixStart = PathBuffer + CurrentPathLen - FilterLen;
+                        BOOLEAN Match = TRUE;
+                        for (SIZE_T i = 0; i < FilterLen; i++) {
+                            if (RtlDowncaseUnicodeChar(SuffixStart[i]) != RtlDowncaseUnicodeChar(FilterSuffix[i])) {
+                                Match = FALSE;
+                                break;
+                            }
+                        }
+                        if (Match) {
+                            *SuffixStart = L'\0';
+                        }
+                    }
+
+                    RtlStringCbCatW(PathBuffer, PathBufferSize, L"\\Rules\\Rules_Driver_P1.json");
+
+                    if (wcsncmp(PathBuffer, L"\\??\\", 4) != 0 &&
+                        wcsncmp(PathBuffer, L"\\SystemRoot", 11) != 0 &&
+                        wcsncmp(PathBuffer, L"\\DosDevices\\", 12) != 0) {
+
+                        PWCHAR TmpBuffer = (PWCHAR)PyasAllocate(PathBufferSize + 16);
+                        if (TmpBuffer) {
+                            RtlStringCbCopyW(TmpBuffer, PathBufferSize + 16, L"\\??\\");
+                            RtlStringCbCatW(TmpBuffer, PathBufferSize + 16, PathBuffer);
+                            PyasFree(PathBuffer);
+                            PathBuffer = TmpBuffer;
+                        }
+                    }
+                    RtlInitUnicodeString(&FinalPath, PathBuffer);
+                }
+            }
+        }
+    }
+    PyasFree(Info);
+
+    if (!FinalPath.Buffer) {
+        if (PathBuffer) PyasFree(PathBuffer);
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    InitializeObjectAttributes(&oa, &FinalPath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+    status = ZwCreateFile(&FileHandle, GENERIC_READ | SYNCHRONIZE, &oa, &IoStatus, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
+
+    if (NT_SUCCESS(status)) {
+        FILE_STANDARD_INFORMATION FileInfo = { 0 };
+        status = ZwQueryInformationFile(FileHandle, &IoStatus, &FileInfo, sizeof(FileInfo), FileStandardInformation);
+
+        if (NT_SUCCESS(status) && FileInfo.EndOfFile.LowPart > 0) {
+            PVOID FileBuffer = PyasAllocate(FileInfo.EndOfFile.LowPart + 1);
+            if (FileBuffer) {
+                status = ZwReadFile(FileHandle, NULL, NULL, NULL, &IoStatus, FileBuffer, FileInfo.EndOfFile.LowPart, NULL, NULL);
+                if (NT_SUCCESS(status)) {
+                    ((PCHAR)FileBuffer)[FileInfo.EndOfFile.LowPart] = '\0';
+
+                    ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Registry_BlockList", &g_RegistryBlockList);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Registry_TrustedList", &g_RegistryTrustedList);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Process_TrustedPaths", &g_ProcessTrustedPaths);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Process_ExploitableBlacklist", &g_ProcessExploitable);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_ProtectedPaths", &g_FileProtectedPaths);
+                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_RansomwareExtensions", &g_FileRansomExts);
+                    ExReleaseResourceLite(&RuleLock);
+                }
+                PyasFree(FileBuffer);
+            }
+        }
+        ZwClose(FileHandle);
+    }
+
+    if (PathBuffer) PyasFree(PathBuffer);
+    return status;
+}
+
+VOID UnloadRules() {
+    ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
+    FreeList(&g_RegistryBlockList);
+    FreeList(&g_RegistryTrustedList);
+    FreeList(&g_ProcessTrustedPaths);
+    FreeList(&g_ProcessExploitable);
+    FreeList(&g_FileProtectedPaths);
+    FreeList(&g_FileRansomExts);
+    ExReleaseResourceLite(&RuleLock);
+    ExDeleteResourceLite(&RuleLock);
+}
+
+NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
     NTSTATUS status;
     PEPROCESS Process = NULL;
 
@@ -423,31 +410,86 @@ static NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName
     return status;
 }
 
+static VOID InitTrustCache() {
+    if (g_CacheInitialized) return;
+    ExInitializeFastMutex(&TrustCacheLock);
+    RtlZeroMemory(TrustCache, sizeof(TrustCache));
+    g_CacheInitialized = TRUE;
+}
+
+static BOOLEAN IsWindowsSystemApp(PCWSTR Buffer, USHORT Length) {
+    if (WildcardMatch(L"*\\Windows\\SystemApps\\*", Buffer, Length)) return TRUE;
+    if (WildcardMatch(L"*\\Windows\\ImmersiveControlPanel\\*", Buffer, Length)) return TRUE;
+    if (WildcardMatch(L"*\\explorer.exe", Buffer, Length)) return TRUE;
+    return FALSE;
+}
+
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
+
     if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
+    if (g_CacheInitialized) {
+        ExAcquireFastMutex(&TrustCacheLock);
+        ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
+        if (TrustCache[Hash].ProcessId == ProcessId) {
+            BOOLEAN cachedResult = TrustCache[Hash].IsTrusted;
+            ExReleaseFastMutex(&TrustCacheLock);
+            return cachedResult;
+        }
+        ExReleaseFastMutex(&TrustCacheLock);
+    }
+    else {
+        InitTrustCache();
+    }
 
     PUNICODE_STRING imageFileName = NULL;
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isTrusted = FALSE;
 
     if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
-        for (SIZE_T i = 0; i < sizeof(SafeSystemBinaries) / sizeof(SafeSystemBinaries[0]); i++) {
-            if (WildcardMatch(SafeSystemBinaries[i], imageFileName->Buffer, imageFileName->Length)) {
-                isTrusted = TRUE;
+
+        ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+        PRULE_NODE Node = g_ProcessExploitable;
+        while (Node) {
+            if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
+                ExReleaseResourceLite(&RuleLock);
                 goto cleanup;
             }
+            Node = Node->Next;
         }
-        for (SIZE_T i = 0; i < sizeof(SafeProcessPatterns) / sizeof(SafeProcessPatterns[0]); i++) {
-            if (WildcardMatch(SafeProcessPatterns[i], imageFileName->Buffer, imageFileName->Length)) {
+
+        if (IsWindowsSystemApp(imageFileName->Buffer, imageFileName->Length)) {
+            isTrusted = TRUE;
+            ExReleaseResourceLite(&RuleLock);
+            goto cleanup;
+        }
+
+        Node = g_ProcessTrustedPaths;
+        while (Node) {
+            if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
                 isTrusted = TRUE;
+                ExReleaseResourceLite(&RuleLock);
                 goto cleanup;
             }
+            Node = Node->Next;
         }
+
+        ExReleaseResourceLite(&RuleLock);
     }
 
 cleanup:
+    if (g_CacheInitialized) {
+        ExAcquireFastMutex(&TrustCacheLock);
+        ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
+        TrustCache[Hash].ProcessId = ProcessId;
+        TrustCache[Hash].IsTrusted = isTrusted;
+        KeQuerySystemTime(&TrustCache[Hash].CacheTime);
+        ExReleaseFastMutex(&TrustCacheLock);
+    }
+
     if (imageFileName) ExFreePool(imageFileName);
     return isTrusted;
 }
@@ -455,24 +497,8 @@ cleanup:
 BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
-    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
 
-    PUNICODE_STRING imageFileName = NULL;
-    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
-    BOOLEAN isCritical = FALSE;
-
-    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
-        for (SIZE_T i = 0; i < sizeof(CriticalSystemBinaries) / sizeof(CriticalSystemBinaries[0]); i++) {
-            if (WildcardMatch(CriticalSystemBinaries[i], imageFileName->Buffer, imageFileName->Length)) {
-                isCritical = TRUE;
-                goto cleanup;
-            }
-        }
-    }
-
-cleanup:
-    if (imageFileName) ExFreePool(imageFileName);
-    return isCritical;
+    return IsProcessTrusted(ProcessId);
 }
 
 BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
@@ -486,21 +512,51 @@ BOOLEAN IsTargetProtected(HANDLE ProcessId) {
 
 BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
     if (!KeyName || !KeyName->Buffer) return FALSE;
-
     if (KeyName->Length < 4 * sizeof(WCHAR)) return FALSE;
 
-    for (int i = 0; i < sizeof(RegistryBlockList) / sizeof(RegistryBlockList[0]); i++) {
-        if (WildcardMatch(RegistryBlockList[i], KeyName->Buffer, KeyName->Length)) return TRUE;
+    if (WildcardMatch(L"*{645FF040-5081-101B-9F08-00AA002F954E}\\DefaultIcon", KeyName->Buffer, KeyName->Length)) {
+        return FALSE;
     }
-    return FALSE;
+
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PRULE_NODE AllowNode = g_RegistryTrustedList;
+    while (AllowNode) {
+        if (WildcardMatch(AllowNode->Pattern.Buffer, KeyName->Buffer, KeyName->Length)) {
+            ExReleaseResourceLite(&RuleLock);
+            return FALSE;
+        }
+        AllowNode = AllowNode->Next;
+    }
+
+    PRULE_NODE Node = g_RegistryBlockList;
+    BOOLEAN Match = FALSE;
+    while (Node) {
+        if (WildcardMatch(Node->Pattern.Buffer, KeyName->Buffer, KeyName->Length)) {
+            Match = TRUE;
+            break;
+        }
+        Node = Node->Next;
+    }
+    ExReleaseResourceLite(&RuleLock);
+    return Match;
 }
 
 BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
-    for (int i = 0; i < sizeof(DangerousExtensions) / sizeof(DangerousExtensions[0]); i++) {
-        if (HasSuffix(FileName, DangerousExtensions[i])) return TRUE;
+
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+    PRULE_NODE Node = g_FileRansomExts;
+    BOOLEAN Match = FALSE;
+    while (Node) {
+        if (HasSuffix(FileName, Node->Pattern.Buffer)) {
+            Match = TRUE;
+            break;
+        }
+        Node = Node->Next;
     }
-    return FALSE;
+    ExReleaseResourceLite(&RuleLock);
+    return Match;
 }
 
 BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
@@ -510,10 +566,18 @@ BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
         return FALSE;
     }
 
-    for (int i = 0; i < sizeof(ProtectedPaths) / sizeof(ProtectedPaths[0]); i++) {
-        if (WildcardMatch(ProtectedPaths[i], FileName->Buffer, FileName->Length)) return TRUE;
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+    PRULE_NODE Node = g_FileProtectedPaths;
+    BOOLEAN Match = FALSE;
+    while (Node) {
+        if (WildcardMatch(Node->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
+            Match = TRUE;
+            break;
+        }
+        Node = Node->Next;
     }
-    return FALSE;
+    ExReleaseResourceLite(&RuleLock);
+    return Match;
 }
 
 static BOOLEAN IsHighEntropy(PVOID Buffer, ULONG Length) {
@@ -543,8 +607,8 @@ static BOOLEAN IsHighEntropy(PVOID Buffer, ULONG Length) {
 
 static BOOLEAN IsNaturallyCompressed(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
-    for (int i = 0; i < sizeof(NaturallyCompressedExtensions) / sizeof(NaturallyCompressedExtensions[0]); i++) {
-        if (HasSuffix(FileName, NaturallyCompressedExtensions[i])) return TRUE;
+    for (int i = 0; i < sizeof(Helper_NaturallyCompressedExtensions) / sizeof(Helper_NaturallyCompressedExtensions[0]); i++) {
+        if (HasSuffix(FileName, Helper_NaturallyCompressedExtensions[i])) return TRUE;
     }
     return FALSE;
 }
@@ -578,73 +642,85 @@ static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
     return isExplorer;
 }
 
-BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Buffer, ULONG Length, BOOLEAN IsWrite) {
-    if (IsNoisyRansomPath(FileName)) return FALSE;
+BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID WriteBuffer, ULONG WriteLength, BOOLEAN IsWrite) {
+    if (IsNoisyRansomPath(FileName)) {
+        return FALSE;
+    }
 
     if (!IsWrite) {
         if (IsExplorerProcess(ProcessId)) return FALSE;
     }
 
-    LARGE_INTEGER Now = { 0 };
-    KeQuerySystemTime(&Now);
-    BOOLEAN Result = FALSE;
     BOOLEAN SuspiciousWrite = FALSE;
-
-    if (IsWrite && Buffer && Length > 0) {
-        if (!IsNaturallyCompressed(FileName) && IsHighEntropy(Buffer, Length)) {
+    if (IsWrite && WriteBuffer && WriteLength > 0) {
+        if (!IsNaturallyCompressed(FileName) && IsHighEntropy(WriteBuffer, WriteLength)) {
             SuspiciousWrite = TRUE;
         }
     }
+
     if (IsWrite && !SuspiciousWrite) {
         return FALSE;
     }
 
+    LARGE_INTEGER Now = { 0 };
+    KeQuerySystemTime(&Now);
+    BOOLEAN Result = FALSE;
+
     ExAcquireFastMutex(&GlobalData.TrackerMutex);
 
     PRANSOM_TRACKER Tracker = NULL;
-    PRANSOM_TRACKER EmptySlot = NULL;
+    PRANSOM_TRACKER CandidateSlot = NULL;
+    PRANSOM_TRACKER LruSlot = &RansomTrackers[0];
 
     for (int i = 0; i < MAX_TRACKERS; i++) {
-        if (RansomTrackers[i].ProcessId == ProcessId) {
-            Tracker = &RansomTrackers[i];
+        PRANSOM_TRACKER Current = &RansomTrackers[i];
+
+        if (Current->LastActivityTime.QuadPart < LruSlot->LastActivityTime.QuadPart) {
+            LruSlot = Current;
+        }
+
+        if (Current->ProcessId == ProcessId) {
+            Tracker = Current;
             break;
         }
-        if (RansomTrackers[i].ProcessId == NULL && !EmptySlot) {
-            EmptySlot = &RansomTrackers[i];
+
+        BOOLEAN IsExpired = FALSE;
+        if (Current->ProcessId != NULL) {
+            LARGE_INTEGER Diff;
+            Diff.QuadPart = Now.QuadPart - Current->LastActivityTime.QuadPart;
+            if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
+                IsExpired = TRUE;
+            }
+        }
+
+        if ((Current->ProcessId == NULL || IsExpired) && !CandidateSlot) {
+            CandidateSlot = Current;
         }
     }
 
     if (!Tracker) {
-        if (EmptySlot) {
-            Tracker = EmptySlot;
-            Tracker->ProcessId = ProcessId;
-            Tracker->ActivityCount = 0;
-            Tracker->LastActivityTime = Now;
+        if (CandidateSlot) {
+            Tracker = CandidateSlot;
         }
         else {
-            ExReleaseFastMutex(&GlobalData.TrackerMutex);
-            return FALSE;
+            Tracker = LruSlot;
         }
-    }
 
-    LARGE_INTEGER Diff;
-    Diff.QuadPart = Now.QuadPart - Tracker->LastActivityTime.QuadPart;
-
-    if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
+        Tracker->ProcessId = ProcessId;
         Tracker->ActivityCount = 0;
         Tracker->LastActivityTime = Now;
     }
     else {
+        LARGE_INTEGER Diff;
+        Diff.QuadPart = Now.QuadPart - Tracker->LastActivityTime.QuadPart;
+
+        if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
+            Tracker->ActivityCount = 0;
+        }
         Tracker->LastActivityTime = Now;
     }
-    ULONG Weight = 1;
-    if (IsWrite) {
-        Weight = SuspiciousWrite ? 2 : 1;
-    }
-    else {
-        Weight = 2;
-    }
 
+    ULONG Weight = 2;
     Tracker->ActivityCount += Weight;
 
     if (Tracker->ActivityCount >= RANSOM_COUNT_THRESHOLD) {

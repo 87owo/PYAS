@@ -1,4 +1,4 @@
-import os, yara, time, numpy, base64, requests
+import os, yara, time, numpy, base64, requests, pefile, math
 import ctypes, ctypes.wintypes, hashlib, onnxruntime
 
 from PIL import Image
@@ -94,6 +94,8 @@ class rule_scanner:
         if yara_files:
             self.compile_all_rules(yara_files)
 
+####################################################################################################
+
     def load_compiled_rule(self, file):
         try:
             self.rules = yara.load(file)
@@ -113,6 +115,8 @@ class rule_scanner:
         except Exception:
             pass
 
+####################################################################################################
+
     def yara_scan(self, file_path):
         try:
             if not self.rules:
@@ -124,19 +128,21 @@ class rule_scanner:
                 types = rule_name.split("_")[0]
                 label = rule_name.split("_")[1]
                 level = rule_name.split("_")[2]
-                return f"{types}/{label}", level
+                return f"{label}:WinPE/Unknown.A!rb", level
             return False, False
         except Exception:
             return False, False
 
 ####################################################################################################
 
-class model_scanner:
+class cnn_scanner:
     def __init__(self):
         self.models = []
-        self.labels = ["Pefile/White", "Pefile/General"]
-        self.detect_set = {"Pefile/General"}
+        self.labels = ["White:WinPE/Unknown", "General:WinPE/Unknown"]
+        self.detect_set = {"General:WinPE/Unknown"}
         self.resize = (224, 224)
+
+####################################################################################################
 
     def load_path(self, path, callback=None):
         for root, _, files in os.walk(path):
@@ -149,10 +155,12 @@ class model_scanner:
     def load_file(self, file):
         if file.lower().endswith('.onnx'):
             try:
-                session = onnxruntime.InferenceSession(file)
+                session = onnxruntime.InferenceSession(file, providers=['CPUExecutionProvider'])
                 self.models.append(session)
             except Exception:
                 return False
+
+####################################################################################################
 
     def model_scan(self, file_path, full_output=False):
         if not self.models:
@@ -199,7 +207,7 @@ class model_scanner:
             
             if label in self.detect_set:
                 if best_malicious is None or conf > best_malicious[1]:
-                    best_malicious = (label, int(conf))
+                    best_malicious = (f"{label}.{int(conf)}!dl", int(conf))
 
         if full_output:
             results.sort(key=lambda x: (x[1] not in self.detect_set, -x[2]))
@@ -208,6 +216,8 @@ class model_scanner:
             return results, str(file_path), f"{malicious_count}/{total}"
 
         return best_malicious if best_malicious else (False, False)
+
+####################################################################################################
 
     def pil_to_base64(self, img):
         buf = BytesIO()
@@ -232,6 +242,315 @@ class model_scanner:
 
 ####################################################################################################
 
+class pe_scanner:
+    def __init__(self):
+        self.model = None
+        self.input_name = None
+        self.signer = sign_scanner()
+        self.signer.init_windll(["wintrust"])
+        self.SCHEMA = [
+            "FileEntropy", "IsExe", "IsDll", "IsDriver", "Is64Bit", "Machine", "Magic",
+            "TimeDateStamp", "CheckSum", "ImageBase", "SizeOfImage", "SizeOfHeaders",
+            "Characteristics", "DllCharacteristics", "Subsystem", "LoaderFlags",
+            "MajorLinkerVersion", "MinorLinkerVersion", "SizeOfCode", 
+            "SizeOfInitializedData", "SizeOfUninitializedData", "AddressOfEntryPoint",
+            "BaseOfCode", "SectionAlignment", "FileAlignment",
+            "MajorOperatingSystemVersion", "MinorOperatingSystemVersion",
+            "MajorImageVersion", "MinorImageVersion",
+            "MajorSubsystemVersion", "MinorSubsystemVersion",
+            "SizeOfStackReserve", "SizeOfStackCommit", "SizeOfHeapReserve", "SizeOfHeapCommit",
+            "NumberOfSections", "NumberOfRvaAndSizes", "PointerToSymbolTable", "NumberOfSymbols",
+            "SizeOfOptionalHeader",
+            "TextSection", "TextSizeRatio", "DataSection", "DataSizeRatio", 
+            "RsrcSection", "RsrcSizeRatio", "SectionCount", "ExecutableSections", 
+            "WritableSections", "ReadableSections", "SectionException",
+            "IconCount", "ApiCount", "ExportCount", "DebugCount", "ExceptionCount",
+            "FileDescriptionLength", "FileVersionLength", "ProductNameLength", 
+            "ProductVersionLength", "CompanyNameLength", "LegalCopyrightLength", 
+            "CommentsLength", "InternalNameLength", "LegalTrademarksLength",
+            "SpecialBuildLength", "PrivateBuildLength",
+            "TrustSigned", "IsDebug", "IsPatched", "IsPrivateBuild", "IsPreRelease", 
+            "IsSpecialBuild", "IsAdmin", "IsInstall", "HasTlsCallbacks", 
+            "HasInvalidTimestamp", "HasRelocationDirectory", "HasPacked", "FileTimeException",
+            "_CorExeMain", "_CorDllMain",
+            "GetDC", "CreateDCW", "CreateDCA", "BitBlt", "StretchBlt", "CreateCompatibleDC",
+            "CreateCompatibleBitmap", "SelectObject", "DeleteDC", "DeleteObject", "GetDeviceCaps",
+            "GetSystemMetrics",
+            "SetWindowsHookExA", "SetWindowsHookExW", "UnhookWindowsHookEx", 
+            "GetAsyncKeyState", "GetKeyState", "GetKeyboardState", 
+            "MapVirtualKeyA", "MapVirtualKeyW", "MapVirtualKeyExA", "MapVirtualKeyExW", 
+            "ToAscii", "ToAsciiEx", "ToUnicode", "ToUnicodeEx", "KeybdEvent", "SendInput",
+            "GetCursorPos", "SetCursorPos", "MouseEvent", "GetDoubleClickTime", 
+            "GetCapture", "SetCapture",
+            "WaveInOpen", "WaveInClose", "WaveInStart", "WaveInStop", 
+            "CapCreateCaptureWindowA", "CapCreateCaptureWindowW", 
+            "OpenClipboard", "CloseClipboard", "GetClipboardData", "SetClipboardData",
+            "GetDesktopWindow", "GetForegroundWindow", "GetWindowDC", "GetWindowRect",
+            "GetClientRect", "PrintWindow", "SetWindowDisplayAffinity", "FindWindowA", "FindWindowW",
+            "EnumWindows", "EnumChildWindows",
+            "Direct3DCreate9", "D3D11CreateDevice", "GdipSaveImageToFile",
+            "CreateProcessA", "CreateProcessW", "CreateThread", "ResumeThread", "SuspendThread",
+            "OpenProcess", "TerminateProcess", "GetCurrentProcess", "GetCurrentProcessId",
+            "ExitProcess", "WinExec", "ShellExecuteA", "ShellExecuteW",
+            "CreateRemoteThread", "QueueUserAPC", "VirtualAlloc", "VirtualAllocEx",
+            "VirtualProtect", "VirtualProtectEx", "WriteProcessMemory", "ReadProcessMemory",
+            "NtUnmapViewOfSection", "SetThreadContext", "GetThreadContext", "Wow64SetThreadContext",
+            "ZwUnmapViewOfSection", "CreateFileMappingA", "CreateFileMappingW", "MapViewOfFile",
+            "UnmapViewOfSection",
+            "LoadLibraryA", "LoadLibraryW", "LoadLibraryExA", "LoadLibraryExW", 
+            "GetProcAddress", "GetModuleHandleA", "GetModuleHandleW", "FreeLibrary",
+            "CreateFileA", "CreateFileW", "WriteFile", "ReadFile", "DeleteFileA", "DeleteFileW",
+            "CopyFileA", "CopyFileW", "MoveFileA", "MoveFileW", "FindFirstFileA", "FindNextFileA",
+            "GetTempPathA", "GetTempPathW", "GetTempFileNameA", "GetTempFileNameW", 
+            "SetFileAttributesA", "SetFileAttributesW", "DeviceIoControl", "SetFileTime",
+            "RegOpenKeyExA", "RegOpenKeyExW", "RegSetValueExA", "RegSetValueExW", 
+            "RegCreateKeyExA", "RegCreateKeyExW", "RegDeleteKeyA", "RegDeleteKeyW",
+            "RegEnumValueA", "RegEnumValueW", "RegQueryValueExA", "RegQueryValueExW",
+            "RegDeleteValueA", "RegDeleteValueW",
+            "OpenSCManagerA", "OpenSCManagerW", "CreateServiceA", "CreateServiceW",
+            "StartServiceA", "StartServiceW", "ControlService", "DeleteService",
+            "AdjustTokenPrivileges", "LookupPrivilegeValueA", "LookupPrivilegeValueW", 
+            "OpenProcessToken", "NetUserAdd", "NetLocalGroupAddMembers",
+            "Socket", "Connect", "Send", "Recv", "WSAStartup", "gethostbyname", "getaddrinfo",
+            "WSAIoctl", "WSASocketA", "WSASocketW",
+            "URLDownloadToFileA", "URLDownloadToFileW", 
+            "InternetOpenA", "InternetOpenW", "InternetConnectA", "InternetConnectW",
+            "InternetOpenUrlA", "InternetOpenUrlW",
+            "HttpOpenRequestA", "HttpOpenRequestW", "HttpSendRequestA", "HttpSendRequestW",
+            "InternetReadFile", "DnsQuery_A", "DnsQuery_W",
+            "IsDebuggerPresent", "CheckRemoteDebuggerPresent", "OutputDebugStringA", "OutputDebugStringW",
+            "GetTickCount", "QueryPerformanceCounter", "Sleep", "GetSystemTimeAsFileTime",
+            "GetLocalTime", "GlobalMemoryStatus", "GetVersionExA", "GetVersionExW",
+            "GetComputerNameA", "GetComputerNameW", "GetUserNameA", "GetUserNameW",
+            "CryptAcquireContextA", "CryptAcquireContextW", "CryptCreateHash", "CryptHashData", 
+            "CryptDeriveKey", "CryptEncrypt", "CryptDecrypt", "CryptDestroyKey", "CryptDestroyHash",
+            "CryptReleaseContext", "CryptGenKey", "CryptImportKey", "CryptExportKey",
+            "RtlDecompressBuffer", "ConnectNamedPipe", "PeekNamedPipe"
+        ]
+        self.PACKERS = {
+            'upx', 'aspack', 'asprotect', 'pecompact', 'upack', 'fsg', 'mew', 
+            'mpress', 'ezip', 'pklt', 'shrink', 'petite', 'telock',
+            'themida', 'winlicense', 'tmd', 'vmp', 'enigma', 'obsidium', 
+            'pelock', 'exestealth', 'yoda', 'armadillo', 'zprotect',
+            'sforce', 'starforce', 'qihoo', 'wisevec', 'megastop',
+        }
+        self.INSTALLER_SIGS = [b"Nullsoft.NSIS", b"Inno Setup", b"7-Zip.7zip", b"InstallShield"]
+        self.SCHEMA_SET = set(self.SCHEMA)
+
+####################################################################################################
+
+    def load_path(self, path, callback=None):
+        for root, _, files in os.walk(path):
+            for file in files:
+                full_path = os.path.join(root, file)
+                if callback:
+                    callback(full_path)
+                self.load_model(full_path)
+
+    def load_model(self, model_path):
+        if not os.path.exists(model_path) or not model_path.endswith('.onnx'):
+            return
+        try:
+            self.model = onnxruntime.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+            self.input_name = self.model.get_inputs()[0].name
+        except Exception:
+            pass
+
+####################################################################################################
+
+    def _safe_float(self, val):
+        try:
+            f = float(val)
+            if math.isinf(f) or math.isnan(f): return 0.0
+            return f
+        except:
+            return 0.0
+
+    def _calc_entropy(self, data):
+        if not data: return 0.0
+        arr = numpy.frombuffer(data, dtype=numpy.uint8)
+        counts = numpy.bincount(arr, minlength=256)
+        probs = counts[counts > 0] / len(arr)
+        return float(-numpy.sum(probs * numpy.log2(probs)))
+
+####################################################################################################
+
+    def extract_features(self, file_path):
+        fts = {k: 0 for k in self.SCHEMA}
+        pe = None
+        try:
+            fsize = os.path.getsize(file_path)
+            if fsize == 0: return None
+
+            pe = pefile.PE(file_path, fast_load=True)
+            fts['TrustSigned'] = 1 if self.signer.sign_verify(file_path) else 0
+
+            fh = pe.FILE_HEADER
+            fts['Machine'] = fh.Machine
+            fts['NumberOfSections'] = fh.NumberOfSections
+            fts['TimeDateStamp'] = fh.TimeDateStamp
+            fts['PointerToSymbolTable'] = fh.PointerToSymbolTable
+            fts['NumberOfSymbols'] = fh.NumberOfSymbols
+            fts['SizeOfOptionalHeader'] = fh.SizeOfOptionalHeader
+            fts['Characteristics'] = fh.Characteristics
+
+            curr_ts = time.time()
+            fts['HasInvalidTimestamp'] = 1 if (fh.TimeDateStamp < 631152000 or fh.TimeDateStamp > curr_ts + 2592000) else 0
+
+            if hasattr(pe, 'OPTIONAL_HEADER'):
+                op = pe.OPTIONAL_HEADER
+                fts['Magic'] = op.Magic
+                fts['MajorLinkerVersion'] = op.MajorLinkerVersion
+                fts['MinorLinkerVersion'] = op.MinorLinkerVersion
+                fts['SizeOfCode'] = op.SizeOfCode
+                fts['SizeOfInitializedData'] = op.SizeOfInitializedData
+                fts['SizeOfUninitializedData'] = op.SizeOfUninitializedData
+                fts['AddressOfEntryPoint'] = op.AddressOfEntryPoint
+                fts['BaseOfCode'] = op.BaseOfCode
+                fts['ImageBase'] = op.ImageBase
+                fts['SectionAlignment'] = op.SectionAlignment
+                fts['FileAlignment'] = op.FileAlignment
+                fts['MajorOperatingSystemVersion'] = op.MajorOperatingSystemVersion
+                fts['MinorOperatingSystemVersion'] = op.MinorOperatingSystemVersion
+                fts['MajorImageVersion'] = op.MajorImageVersion
+                fts['MinorImageVersion'] = op.MinorImageVersion
+                fts['MajorSubsystemVersion'] = op.MajorSubsystemVersion
+                fts['MinorSubsystemVersion'] = op.MinorSubsystemVersion
+                fts['SizeOfImage'] = op.SizeOfImage
+                fts['SizeOfHeaders'] = op.SizeOfHeaders
+                fts['CheckSum'] = op.CheckSum
+                fts['Subsystem'] = op.Subsystem
+                fts['DllCharacteristics'] = op.DllCharacteristics
+                fts['SizeOfStackReserve'] = op.SizeOfStackReserve
+                fts['SizeOfStackCommit'] = op.SizeOfStackCommit
+                fts['SizeOfHeapReserve'] = op.SizeOfHeapReserve
+                fts['SizeOfHeapCommit'] = op.SizeOfHeapCommit
+                fts['LoaderFlags'] = op.LoaderFlags
+                fts['NumberOfRvaAndSizes'] = op.NumberOfRvaAndSizes
+
+                fts['Is64Bit'] = 1 if fh.Machine == 0x8664 else 0
+                fts['IsExe'] = 1 if pe.is_exe() else 0
+                fts['IsDll'] = 1 if pe.is_dll() else 0
+                fts['IsDriver'] = 1 if pe.is_driver() else 0
+
+                if len(op.DATA_DIRECTORY) > 9 and op.DATA_DIRECTORY[9].VirtualAddress > 0:
+                    fts['HasTlsCallbacks'] = 1
+                if len(op.DATA_DIRECTORY) > 5 and op.DATA_DIRECTORY[5].Size > 0:
+                    fts['HasRelocationDirectory'] = 1
+
+            pe.parse_sections(pe.FILE_HEADER.NumberOfSections)
+            file_data = pe.get_memory_mapped_image()
+            fts['FileEntropy'] = self._calc_entropy(file_data)
+            fts['SectionCount'] = len(pe.sections)
+
+            for section in pe.sections:
+                try:
+                    name = section.Name.decode('ascii', 'ignore').strip('\x00')
+                except:
+                    name = ""
+                s_data = section.get_data()
+                s_entropy = self._calc_entropy(s_data)
+
+                if any(p in name.lower() for p in self.PACKERS):
+                    fts['HasPacked'] = 1
+                if section.Characteristics & 0x20000000:
+                    fts['ExecutableSections'] += 1
+                if section.Characteristics & 0x80000000:
+                    fts['WritableSections'] += 1
+                if section.Characteristics & 0x40000000:
+                    fts['ReadableSections'] += 1
+                if section.SizeOfRawData + section.PointerToRawData > fsize:
+                    fts['SectionException'] = 1
+
+                ratio = section.SizeOfRawData / fsize if fsize > 0 else 0
+                if name.startswith('.text'):
+                    fts['TextSection'] = s_entropy
+                    fts['TextSizeRatio'] = ratio
+                elif name.startswith('.data'):
+                    fts['DataSection'] = s_entropy
+                    fts['DataSizeRatio'] = ratio
+                elif name.startswith('.rsrc'):
+                    fts['RsrcSection'] = s_entropy
+                    fts['RsrcSizeRatio'] = ratio
+                    if b"requireAdministrator" in s_data:
+                        fts['IsAdmin'] = 1
+                    for sig in self.INSTALLER_SIGS:
+                        if sig in s_data:
+                            fts['IsInstall'] = 1
+                            break
+
+            pe.parse_data_directories(directories=[
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'],
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'],
+                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG']
+            ])
+
+            if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    for imp in entry.imports:
+                        fts['ApiCount'] += 1
+                        if not imp or not hasattr(imp, 'name') or not imp.name:
+                            continue
+                        try:
+                            name = imp.name.decode('ascii', 'ignore')
+                            if name in self.SCHEMA_SET:
+                                fts[name] = 1
+                        except:
+                            pass
+
+            if hasattr(pe, 'DIRECTORY_ENTRY_EXPORT'):
+                fts['ExportCount'] = len(pe.DIRECTORY_ENTRY_EXPORT.symbols)
+            
+            if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
+                for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries:
+                    if entry.id == 3 and hasattr(entry, 'directory'):
+                        fts['IconCount'] = len(entry.directory.entries)
+                        break
+            
+            if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG'):
+                fts['DebugCount'] = len(pe.DIRECTORY_ENTRY_DEBUG)
+
+            return {k: self._safe_float(v) for k, v in fts.items()}
+
+        except Exception:
+            return None
+        finally:
+            if pe: pe.close()
+
+####################################################################################################
+
+    def pe_scan(self, file_path):
+        if not self.model:
+            return False, False
+        
+        try:
+            data = self.extract_features(file_path)
+            if not data:
+                return False, False
+
+            vec = numpy.array(
+                [data.get(feat, 0.0) for feat in self.SCHEMA], 
+                dtype=numpy.float32
+            ).reshape(1, -1)
+            
+            outputs = self.model.run(None, {self.input_name: vec})
+            result = outputs[1]
+            prob = 0.0
+            if isinstance(result, list):
+                prob = float(result[0].get(1, 0.0))
+
+            score = int(prob * 100)
+            if prob > 0.5:
+                return f"General:WinPE/Unknown.{score}!ml", score
+            
+            return False, False
+
+        except Exception:
+            return False, False
+
+####################################################################################################
+
 class cloud_scanner:
     def __init__(self):
         pass
@@ -245,6 +564,8 @@ class cloud_scanner:
             return h.hexdigest()
         except Exception:
             return ""
+
+####################################################################################################
 
     def upload_file(self, file_path, api_host, api_key):
         try:
@@ -275,6 +596,8 @@ class cloud_scanner:
             return True, sha256
         except Exception:
             return False, None
+
+####################################################################################################
 
     def get_result(self, sha256, api_host, api_key):
         try:
@@ -316,7 +639,7 @@ class cloud_scanner:
                             sim_malicious_count += 1
 
                 if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
-                    return True
+                    return f"General:WinPE/Unknown.{score}!cl"
         except Exception:
             pass
         return False

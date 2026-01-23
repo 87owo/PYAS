@@ -120,8 +120,9 @@ class MainWindow_Controller(QMainWindow):
 
         self.sign = sign_scanner()
         self.sign.init_windll(["wintrust"])
-        self.model = model_scanner()
-        self.rule = rule_scanner()
+        self.pattern = cnn_scanner()
+        self.heuristic = rule_scanner()
+        self.properties = pe_scanner()
         self.cloud = cloud_scanner()
         self.cloud_queue = queue.Queue()
         self.init_cloud_worker()
@@ -149,8 +150,8 @@ class MainWindow_Controller(QMainWindow):
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui", ".cpl"],
+            "block": [2001, 3001, 4001, 5001, 6001],
             "size": 256 * 1024 * 1024,
-            "sensitive": 95,
             "language": "english_switch",
             "theme": "white_switch",
             "process_switch": True,
@@ -158,6 +159,8 @@ class MainWindow_Controller(QMainWindow):
             "system_switch": True,
             "driver_switch": True,
             "network_switch": True,
+            "extension_switch": False,
+            "sensitive_switch": False,
             "custom_rule": [],
         }
         self.pass_windows = [
@@ -187,7 +190,6 @@ class MainWindow_Controller(QMainWindow):
             5001: "RANSOM_BLOCK",
             6001: "INJECT_BLOCK"
         }
-        self.kill_codes = {4001, 5001}
 
 ####################################################################################################
 
@@ -206,8 +208,9 @@ class MainWindow_Controller(QMainWindow):
 
         self.path_systemp = os.path.join(self.path_system, "Temp")
         self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
-        self.path_models = os.path.join(self.path_pyas, "Engine", "Models")
-        self.path_rules = os.path.join(self.path_pyas, "Engine", "Rules")
+        self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
+        self.path_pattern = os.path.join(self.path_pyas, "Engine", "Pattern")
+        self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
         self.path_protect = os.path.join(self.path_pyas, "Plugins", "Filter")
         self.path_drivers = os.path.join(self.path_protect, "PYAS_Driver.sys")
 
@@ -305,8 +308,9 @@ class MainWindow_Controller(QMainWindow):
 
     def init_engine_thread(self):
         try:
-            self.rule.load_path(self.path_rules, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
-            self.model.load_path(self.path_models, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
+            self.heuristic.load_path(self.path_heuristic, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
+            self.pattern.load_path(self.path_pattern, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
+            self.properties.load_path(self.path_properties, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
             self.init_log_signal.emit("引擎加載完成")
         except Exception as e:
             self.send_message(f"init_engine_thread | {e}", "warn", False)
@@ -401,7 +405,7 @@ class MainWindow_Controller(QMainWindow):
     def save_state(self, name, checked):
         self.pyas_config[name] = bool(checked)
         if name == "sensitive_switch":
-            self.pyas_config["sensitive"] = 0 if checked else 95
+            pass
         elif name == "extension_switch":
             pass
         elif name == "process_switch":
@@ -899,22 +903,27 @@ class MainWindow_Controller(QMainWindow):
 
     def scan_engine(self, file_path):
         try:
-            result = False
+            if self.sign.sign_verify(file_path):
+                return False
 
-            label, level = self.model.model_scan(file_path)
-            if label and level >= self.pyas_config.get("sensitive", 95):
-                if not self.sign.sign_verify(file_path):
-                    result = f"{label}.{level}"
+            pe_label, pe_score = self.properties.pe_scan(file_path)
+            if pe_label:
+                return pe_label
 
             if self.pyas_config.get("extension_switch", False):
-                types, detail = self.rule.yara_scan(file_path)
-                if types and detail:
-                    result = f"{types}.{detail}"
+                yara_label, yara_level = self.heuristic.yara_scan(file_path)
+                if yara_label:
+                    return yara_label
 
-            return result
+            if self.pyas_config.get("sensitive_switch", False):
+                cnn_label, cnn_score = self.pattern.model_scan(file_path)
+                if cnn_label:
+                    return cnn_label
+
+            return False
         except Exception as e:
             self.send_message(f"scan_engine | {e}", "warn", False)
-        return False
+        return Falses
 
 ####################################################################################################
 
@@ -2019,7 +2028,7 @@ class MainWindow_Controller(QMainWindow):
 
             file_path = self.norm_path(self.get_process_file(h))
             if file_path and not self.is_in_whitelist(file_path):
-                if hasattr(self.rule, "network") and remote_ip in self.rule.network:
+                if hasattr(self.heuristic, "network") and remote_ip in self.heuristic.network:
                     self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"網路防護 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
             self.kernel32.CloseHandle(h)
@@ -2117,7 +2126,7 @@ class MainWindow_Controller(QMainWindow):
                             display_rule = self.block_replace.get(rule_name, rule_name)
                             self.send_message(f"驅動防護 | {display_rule} | {pid} | {raw_path} | {target}", "notify", True)
 
-                            if code in self.kill_codes and not self.is_in_whitelist(raw_path):
+                            if code in self.pyas_config.get("block", []) and not self.is_in_whitelist(raw_path):
                                 try:
                                     h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                                     if h:

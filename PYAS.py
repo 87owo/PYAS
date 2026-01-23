@@ -951,6 +951,8 @@ class MainWindow_Controller(QMainWindow):
         try:
             if not os.path.exists(file_path):
                 return False
+            if not os.path.isfile(file_path): 
+                return False
 
             if file_path in self.virus_lock:
                 self.lock_file(file_path, False)

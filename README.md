@@ -34,19 +34,18 @@ PYAS/
 │   │
 │   ├── Heuristic/
 │   │   ├── rules.yar                # Yara virus signature rule matching
-│   │   ├── rules.ips                # IP network address rule matching
 │   │   └── ...                      # Other rules folders and files
 │   └── ...                          # Other engine folders and files
 │
 ├── Plugins/
 │   └── Filter/
-│       ├── DriverEntry.cpp          # Main driver entry and initialization logic
-│       ├── DriverCommon.h           # Global driver definitions, constants, and functions
-│       ├── ProtectBoot.cpp          # Disk boot sector write protection
-│       ├── ProtectRegistry.cpp      # Registry modification protection
-│       ├── ProtectRules.cpp         # White, block list, and matching logic for files registry
-│       └── ...                      # Other driver folders and files
-│
+│   │   ├── DriverEntry.cpp          # Main driver entry and initialization logic
+│   │   ├── DriverCommon.h           # Global driver definitions, constants, and functions
+│   │   └── ...                      # Other driver folders and files
+│   │
+│   └── Rules/
+│       └── ...                      # White, block list, and matching logic for files registry
+|
 ├── PYAS.py                          # Main application entry point and UI to engine interface
 ├── PYAS_Config.py                   # Configuration loading, saving, and global parameters
 ├── PYAS_Engine.py                   # Core scanning engine: YARA, IP, ONNX model execution

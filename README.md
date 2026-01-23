@@ -186,6 +186,8 @@ Source Available : https://github.com/87owo/PYAS
 
 Official Website : https://pyas-security.com/antivirus
 
+Online Analyze : https://pyas-security.com/analyze
+
 ## Project License
 
 For any questions, needs, or bug feedback, please contact us through the following website.

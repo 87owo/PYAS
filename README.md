@@ -27,15 +27,16 @@ The following lists the storage locations of all relevant code and other related
 ```
 PYAS/
 ├── Engine/
-│   ├── Models/
+│   ├── Pattern/
 │   │   ├── convert.py               # Convert executable files or other files to images
 │   │   ├── train.py                 # TensorFlow CNN model training complete code
 │   │   └── ...                      # Other models folders and files
 │   │
-│   └── Rules/
-│       ├── rules.yar                # Yara virus signature rule matching
-│       ├── rules.ips                # IP network address rule matching
-│       └── ...                      # Other rules folders and files
+│   ├── Heuristic/
+│   │   ├── rules.yar                # Yara virus signature rule matching
+│   │   ├── rules.ips                # IP network address rule matching
+│   │   └── ...                      # Other rules folders and files
+│   └── ...                          # Other engine folders and files
 │
 ├── Plugins/
 │   └── Filter/

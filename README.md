@@ -16,6 +16,7 @@ pip install Pillow==11.0.0
 pip install numpy==1.26.4
 pip install tensorflow==2.10.0
 pip install tf2onnx==1.13.0
+pip install lightgbm==4.6.0
 pip install onnxruntime==1.18.1
 ```
 

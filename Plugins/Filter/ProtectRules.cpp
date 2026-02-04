@@ -549,6 +549,16 @@ BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
 
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PRULE_NODE ExNode = g_FileExceptionPaths;
+    while (ExNode) {
+        if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
+            ExReleaseResourceLite(&RuleLock);
+            return FALSE;
+        }
+        ExNode = ExNode->Next;
+    }
+
     PRULE_NODE Node = g_FileRansomExts;
     BOOLEAN Match = FALSE;
     while (Node) {

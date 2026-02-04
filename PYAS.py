@@ -146,7 +146,7 @@ class MainWindow_Controller(QMainWindow):
             "traditional_switch", "simplified_switch", "english_switch",
         ]
         self.pyas_default = {
-            "version": "3.3.8",
+            "version": "3.4.0",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui", ".cpl"],
@@ -161,6 +161,7 @@ class MainWindow_Controller(QMainWindow):
             "network_switch": True,
             "extension_switch": False,
             "sensitive_switch": False,
+            "cloud_switch": True,
             "custom_rule": [],
         }
         self.pass_windows = [
@@ -407,6 +408,8 @@ class MainWindow_Controller(QMainWindow):
         if name == "sensitive_switch":
             pass
         elif name == "extension_switch":
+            pass
+        elif name == "cloud_switch":
             pass
         elif name == "process_switch":
             if checked:
@@ -953,6 +956,8 @@ class MainWindow_Controller(QMainWindow):
     def perform_cloud_scan(self, file_path, get_result=False):
         was_locked = False
         try:
+            if not self.pyas_config.get("cloud_switch", True):
+                return False
             if not os.path.exists(file_path):
                 return False
             if not os.path.isfile(file_path): 
@@ -1701,14 +1706,6 @@ class MainWindow_Controller(QMainWindow):
             return True
         except Exception as e:
             self.send_message(f"website_button | {e}", "warn", False)
-            return False
-
-    def cloud_button(self):
-        try:
-            webbrowser.open("https://pyas-security.com/analyze")
-            return True
-        except Exception as e:
-            self.send_message(f"cloud_button | {e}", "warn", False)
             return False
 
     def update_button(self):

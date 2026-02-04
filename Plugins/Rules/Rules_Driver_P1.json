@@ -2,16 +2,12 @@
   "Rule_Registry_BlockList": [
     "\\REGISTRY\\MACHINE\\BCD00000000",
     "\\REGISTRY\\MACHINE\\BCD00000000\\*",
-    "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\\*",
-    "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\*",
-    "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon\\*",
-    "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\*",
-    "\\REGISTRY\\USER\\*_Classes\\*\\shell\\open\\command\\*",
+    "*\\Image File Execution Options\\*",
+
     "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
     "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
     "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
-    
-    "*\\Image File Execution Options\\*",
+
     "*\\Classes\\.exe",
     "*\\Classes\\.bat",
     "*\\Classes\\.cmd",
@@ -106,13 +102,8 @@
     "*\\DisableCAD",
     "*\\LegalNoticeCaption",
     "*\\LegalNoticeText",
-    "*\\Run",
-    "*\\RunOnce"
   ],
   "Rule_Registry_TrustedList": [
-    "\\REGISTRY\\MACHINE\\System\\CurrentControlSet\\Control\\SafeBoot\\Option",
-    "\\REGISTRY\\MACHINE\\System\\ControlSet001\\Control\\SafeBoot\\Option",
-    "\\REGISTRY\\MACHINE\\System\\ControlSet001\\Services\\WinSock2\\Parameters",
   ],
   "Rule_Process_TrustedPaths": [
     "*\\Windows\\*",
@@ -173,7 +164,9 @@
     "*\\EFI\\*",
     "*\\Boot\\*",
     "*\\Recovery\\*",
-    "*\\Windows\\*",
+    "*\\Windows\\*.exe",
+    "*\\Windows\\System32\\*.exe",
+    "*\\Windows\\SysWOW64\\*.exe",
     "*\\System Volume Information\\*",
     
     "*\\CON",
@@ -193,8 +186,9 @@
     "*\\OSDATA",
     "*\\OSDATA\\*",
 
-    "*\\<*",
-    "*\\>*",
+    "*\\*<*",
+    "*\\*>*",
+    "*\\*:*",
   ],
   "Rule_File_ExceptionPaths": [
     "*\\AppData\\*"

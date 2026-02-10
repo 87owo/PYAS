@@ -141,8 +141,6 @@ class cnn_scanner:
         self.detect_set = {"General:WinPE/Unknown"}
         self.resize = (224, 224)
 
-####################################################################################################
-
     def load_path(self, path, callback=None):
         for root, _, files in os.walk(path):
             for file in files:
@@ -193,13 +191,16 @@ class cnn_scanner:
             
             try:
                 probs = model.run(None, {input_name: curr_arr})[0]
-                pred = probs[0]
+                pred_prob = float(probs[0][0]) if hasattr(probs[0], '__len__') else float(probs[0])
             except Exception:
                 continue
 
-            idx = int(numpy.argmax(pred))
-            label = self.labels[idx] if idx < len(self.labels) else f"Class_{idx}"
-            conf = round(float(pred[idx]) * 100, 2)
+            is_malicious = pred_prob > 0.5
+            idx = 1 if is_malicious else 0
+            label = self.labels[idx]
+            
+            conf = pred_prob if is_malicious else (1.0 - pred_prob)
+            conf = round(conf * 100, 2)
 
             if full_output:
                 results.append(("Whole File", label, conf, self.pil_to_base64(image)))

@@ -11,7 +11,7 @@ tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
 ####################################################################################################
 
-def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=256, color_mode="grayscale"):
+def load_dataset(data_dir, image_size=(224, 224), val_split=0.0001, batch_size=256, color_mode="grayscale"):
     channels = 1 if color_mode == "grayscale" else 3
     file_paths, labels, class_indices = get_file_list(data_dir)
     
@@ -24,14 +24,13 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=
     train_labels = labels[num_val:]
     val_files = file_paths[:num_val]
     val_labels = labels[:num_val]
-    num_classes = len(class_indices)
 
     train_ds = tf.data.Dataset.from_tensor_slices((train_files, train_labels))
-    train_ds = train_ds.map(lambda f, l: parse_fn(f, l, image_size, channels, num_classes), num_parallel_calls=tf.data.AUTOTUNE)
+    train_ds = train_ds.map(lambda f, l: parse_fn(f, l, image_size, channels), num_parallel_calls=tf.data.AUTOTUNE)
     train_ds = train_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
     val_ds = tf.data.Dataset.from_tensor_slices((val_files, val_labels))
-    val_ds = val_ds.map(lambda f, l: parse_fn(f, l, image_size, channels, num_classes), num_parallel_calls=tf.data.AUTOTUNE)
+    val_ds = val_ds.map(lambda f, l: parse_fn(f, l, image_size, channels), num_parallel_calls=tf.data.AUTOTUNE)
     val_ds = val_ds.batch(batch_size).prefetch(tf.data.AUTOTUNE)
 
     train_ds.class_indices = class_indices
@@ -39,12 +38,12 @@ def load_dataset(data_dir, image_size=(224, 224), val_split=0.00001, batch_size=
 
 ####################################################################################################
 
-def parse_fn(filename, label, image_size, channels, num_classes):
+def parse_fn(filename, label, image_size, channels):
     img = tf.io.read_file(filename)
     img = tf.image.decode_image(img, channels=channels, expand_animations=False)
     img = tf.cond(tf.reduce_all(tf.equal(tf.shape(img)[:2], image_size)), lambda: tf.cast(img, tf.float32), lambda: tf.image.resize(img, image_size))
     img = tf.cast(img, tf.float32) / 255.0
-    label = tf.one_hot(label, depth=num_classes)
+    label = tf.cast(label, tf.float32)
     return img, label
 
 def get_file_list(directory):
@@ -99,7 +98,7 @@ def coordinate_attention(x, reduction):
 
     return layers.Multiply()([x, x_h_sigmoid, x_w_sigmoid])
 
-def build_model(input_shape, num_classes):
+def build_model(input_shape):
     i = layers.Input(shape=input_shape)
     x = multi_conv(i, strides=1)
     x = gated_conv(x, strides=2)
@@ -112,7 +111,7 @@ def build_model(input_shape, num_classes):
     x = layers.GlobalMaxPooling2D()(x)
 
     x = layers.Dense(x.shape[-1] // 2, activation='gelu', dtype='float32')(x)
-    o = layers.Dense(num_classes, activation='softmax', dtype='float32')(x)
+    o = layers.Dense(1, activation='sigmoid', dtype='float32')(x)
     return models.Model(i, o)
 
 ####################################################################################################
@@ -124,18 +123,20 @@ def calculate_lr_cosine_sq(epoch, total_epochs=30, lr_start=5e-4, lr_end=5e-7):
 def lr_scheduler(epoch):
     return calculate_lr_cosine_sq(epoch)
 
-def categorical_focal_loss(gamma=2.0, alpha=0.25):
+def binary_focal_loss(gamma=2.0, alpha=0.25):
     def focal_loss(y_true, y_pred):
+        y_true = tf.cast(y_true, tf.float32)
         y_pred = tf.clip_by_value(y_pred, tf.keras.backend.epsilon(), 1.0 - tf.keras.backend.epsilon())
-        cross_entropy = -y_true * tf.math.log(y_pred)
-        loss = alpha * tf.math.pow(1.0 - y_pred, gamma) * cross_entropy
-        return tf.reduce_sum(loss, axis=-1)
+        p_t = tf.where(tf.equal(y_true, 1), y_pred, 1 - y_pred)
+        alpha_t = tf.where(tf.equal(y_true, 1), alpha, 1 - alpha)
+        loss = -alpha_t * tf.math.pow(1.0 - p_t, gamma) * tf.math.log(p_t)
+        return tf.reduce_mean(loss)
     return focal_loss
 
 class CustomModelCheckpoint(callbacks.Callback):
     def on_epoch_end(self, epoch, logs=False):
         models.save_model(self.model, f"PYAS_Model_Epoch_{epoch + 1}.h5")
-        spec = (tf.TensorSpec((None,) + train_ds.image_shape, tf.float32),)
+        spec = (tf.TensorSpec((None,) + self.model.input.shape[1:], tf.float32),)
         model_proto, _ = tf2onnx.convert.from_keras(self.model, input_signature=spec, opset=17)
         with open(f"PYAS_Model_Epoch_{epoch + 1}.onnx", "wb") as f:
             f.write(model_proto.SerializeToString())
@@ -148,16 +149,17 @@ for imgs, _ in train_ds.take(1):
     break
 
 try:
-    model = models.load_model('PYAS_Model_Epoch_0.h5')
+    model = models.load_model('PYAS_Model_Epoch_0.h5', compile=False)
     print("Load model from disk")
 except:
     print("Creating a new model")
-    model = build_model(train_ds.image_shape, len(train_ds.class_indices))
+    model = build_model(train_ds.image_shape)
 
 print(f"Total parameters: {model.count_params()}")
-model.compile(optimizer='adam', loss=categorical_focal_loss(gamma=2.0, alpha=0.25), 
-    metrics=['accuracy', metrics.Precision(name='precision'), metrics.Recall(name='recall'),
+model.compile(optimizer='adam', loss=binary_focal_loss(gamma=2.0, alpha=0.25), 
+    metrics=[metrics.BinaryAccuracy(name='accuracy'), metrics.AUC(name='auc'),
+    metrics.Precision(name='precision'), metrics.Recall(name='recall'),
     metrics.FalsePositives(name='fp'), metrics.TrueNegatives(name='tn')])
 
-model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds)
+model.fit(train_ds, epochs=30, callbacks=[CustomModelCheckpoint(), callbacks.LearningRateScheduler(lr_scheduler)], validation_data=val_ds, class_weight={0: 10.0, 1: 1.0})
 input('Training Complete')

@@ -59,12 +59,8 @@ class sign_scanner:
     def sign_verify(self, file_path):
         try:
             fi = WINTRUST_FILE_INFO(ctypes.sizeof(WINTRUST_FILE_INFO), file_path, None, None)
-            data = WINTRUST_DATA(ctypes.sizeof(WINTRUST_DATA), None, None, 2, 0, 1,
-                ctypes.pointer(fi), 1, None, None, 0, 0, None)
-            s = self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
-            data.dwStateAction = 2
-            self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(data))
-            return s == 0
+            td = WINTRUST_DATA(ctypes.sizeof(WINTRUST_DATA), None, None, 2, 0, 1, ctypes.pointer(fi), 1, None, None, 0, 0, None)
+            return self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(td)) == 0
         except Exception:
             return False
 
@@ -643,3 +639,4 @@ class cloud_scanner:
         except Exception:
             pass
         return False
+

@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import lightgbm as lgb
 import onnxmltools
+
 from onnxmltools.convert.common.data_types import FloatTensorType
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
@@ -10,8 +11,8 @@ from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
 ####################################################################################################
 
 DB_PATH = "pe_features.db"
-MODEL_FILE = "pe_malware_lgbm.txt"
-ONNX_FILE = "pe_malware.onnx"
+MODEL_FILE = "model.txt"
+ONNX_FILE = "model.onnx"
 FEATURE_FILE = "features.json"
 TEST_SIZE = 0.0001
 RANDOM_SEED = 42
@@ -31,10 +32,13 @@ LGBM_PARAMS = {
     'max_depth': -1,
     'min_data_in_leaf': 20,
     'lambda_l1': 0.1,
-    'lambda_l2': 0.1
+    'lambda_l2': 0.1,
 }
 
 ####################################################################################################
+
+def clean_col_name(name):
+    return re.sub(r'[^A-Za-z0-9_]+', '', name)
 
 def get_raw_schema(db_path):
     if not os.path.exists(db_path):
@@ -44,14 +48,16 @@ def get_raw_schema(db_path):
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(PeData)")
         columns = [row[1] for row in cursor.fetchall()]
-        exclude_lower = {'label', 'id', 'filename', 'filelength', 'rowid', 'probability', 'predictedlabel', 'score'}
-        return [c for c in columns if c.lower().strip() not in exclude_lower]
+        exclude = {'label', 'id', 'filename', 'filelength', 'rowid', 'probability', 'predictedlabel', 'score', 'filehash'}
+        return [c for c in columns if c.lower().strip() not in exclude]
     except:
         return None
     finally:
         conn.close()
 
-def load_and_clean_data(db_path, raw_cols):
+####################################################################################################
+
+def load_data(db_path, raw_cols):
     print(f"[*] Connecting to database: {db_path}")
     conn = sqlite3.connect(db_path)
     req_cols = list(set(raw_cols + ['Label']))
@@ -72,10 +78,12 @@ def load_and_clean_data(db_path, raw_cols):
         valid_features = [c for c in raw_cols if c in X.columns]
         X = X[valid_features].copy()
         
-        X = X.rename(columns=lambda x: re.sub('[^A-Za-z0-9_]+', '', x))
+        rename_map = {old: clean_col_name(old) for old in X.columns}
+        X = X.rename(columns=rename_map)
         
-        if X.isnull().values.any():
-            X = X.fillna(X.median(numeric_only=True))
+        if X.columns.duplicated().any():
+            print("[-] Warning: Duplicate column names detected after cleaning. Deduplicating...")
+            X = X.loc[:, ~X.columns.duplicated()]
 
         final_features = X.columns.tolist()
         return X, y, final_features
@@ -95,13 +103,11 @@ def train_process(X, y):
     n_neg = (y_train == 0).sum()
     
     base_weight = n_neg / n_pos if n_pos > 0 else 1.0
-    
-    weight_ratio_base = 1.0
     weight_ratio_target = 0.1
-    final_pos_weight = base_weight * (weight_ratio_target / weight_ratio_base)
+    final_pos_weight = base_weight * weight_ratio_target
     
     print(f"[*] Balance Report: Safe={n_neg}, Malware={n_pos}")
-    print(f"[*] Weight Config: Base Balanced={base_weight:.4f}, Final Adjusted (Favor Safe)={final_pos_weight:.4f}")
+    print(f"[*] Weight Config: Base Balanced={base_weight:.4f}, Final Adjusted={final_pos_weight:.4f}")
     
     train_data = lgb.Dataset(X_train, label=y_train)
     valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
@@ -109,7 +115,7 @@ def train_process(X, y):
     params = LGBM_PARAMS.copy()
     params['scale_pos_weight'] = final_pos_weight
 
-    print("\n[*] Starting LightGBM training (Full Force, No Early Stopping)...")
+    print("\n[*] Starting LightGBM training...")
     start_time = time.time()
     
     model = lgb.train(
@@ -127,6 +133,8 @@ def train_process(X, y):
     
     return model, X_test, y_test
 
+####################################################################################################
+
 def export_onnx_model(model, feature_names):
     print(f"[*] Exporting ONNX model to {ONNX_FILE}...")
     try:
@@ -140,6 +148,8 @@ def export_onnx_model(model, feature_names):
         print(f"[+] ONNX export success. Features synced to {FEATURE_FILE}")
     except Exception as e:
         print(f"[-] ONNX export failed: {e}")
+
+####################################################################################################
 
 def evaluate_and_save(model, X_test, y_test):
     print("\n------------------- Evaluation Report -------------------\n")
@@ -171,7 +181,7 @@ def evaluate_and_save(model, X_test, y_test):
 ####################################################################################################
 
 if __name__ == "__main__":
-    print("\n---------------- PE Malware Trainer v3.0 ----------------\n")
+    print("\n---------------- PE Malware Trainer v3.1 ----------------\n")
 
     if not os.path.exists(DB_PATH):
         print(f"[-] Error: Database {DB_PATH} not found.")
@@ -182,7 +192,7 @@ if __name__ == "__main__":
         print("[-] Error: Could not read schema.")
         sys.exit(1)
 
-    X, y, _ = load_and_clean_data(DB_PATH, raw_schema)
+    X, y, _ = load_data(DB_PATH, raw_schema)
     if X is None:
         sys.exit(1)
 

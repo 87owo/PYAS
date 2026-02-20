@@ -1,4 +1,4 @@
-import os, yara, time, numpy, base64, requests, pefile, math
+import os, yara, time, numpy, base64, requests, pefile, math, json, re, datetime
 import ctypes, ctypes.wintypes, hashlib, onnxruntime
 
 from PIL import Image
@@ -239,101 +239,172 @@ class cnn_scanner:
 ####################################################################################################
 
 class pe_scanner:
+    API_CAT_MAPPING = {
+        'ProcessControl': {
+            'CreateProcessA', 'CreateProcessW', 'WinExec', 'ShellExecuteA', 'ShellExecuteW',
+            'ShellExecuteExW', 'ExitProcess', 'TerminateProcess', 'OpenProcess', 'GetExitCodeProcess',
+            'SetThreadPriority', 'GetThreadPriority', 'GetCurrentProcess', 'GetCurrentProcessId'
+        },
+        'Injection': {
+            'VirtualAlloc', 'VirtualAllocEx', 'VirtualProtect', 'VirtualProtectEx', 'WriteProcessMemory', 
+            'ReadProcessMemory', 'CreateRemoteThread', 'QueueUserAPC', 'SetThreadContext', 'GetThreadContext', 
+            'Wow64SetThreadContext', 'NtUnmapViewOfSection', 'ZwUnmapViewOfSection', 'RtlCreateUserThread', 
+            'SetWindowsHookExA', 'SetWindowsHookExW', 'UnhookWindowsHookEx', 'LoadLibraryA', 'LoadLibraryW', 
+            'LoadLibraryExA', 'LoadLibraryExW', 'GetProcAddress', 'GetModuleHandleA', 'GetModuleHandleW',
+            'FreeLibrary', 'CreateFileMappingA', 'CreateFileMappingW', 'MapViewOfFile', 'UnmapViewOfSection'
+        },
+        'Synchronization': {
+            'WaitForSingleObject', 'WaitForSingleObjectEx', 'WaitForMultipleObjects', 'WaitForMultipleObjectsEx',
+            'CreateMutexA', 'CreateMutexW', 'OpenMutexW', 'ReleaseMutex', 'CreateEventA', 'CreateEventW', 
+            'OpenEventW', 'SetEvent', 'ResetEvent', 'EnterCriticalSection', 'LeaveCriticalSection', 
+            'InitializeCriticalSection', 'DeleteCriticalSection', 'Sleep', 'SleepEx'
+        },
+        'MultiThreading': {
+            'CreateThread', 'ResumeThread', 'SuspendThread', 'ExitThread', 'TerminateThread',
+            'GetCurrentThread', 'GetCurrentThreadId', 'TlsAlloc', 'TlsSetValue', 'TlsGetValue',
+            'CreateThreadpoolWork', 'SubmitThreadpoolWork'
+        },
+        'Network': {
+            'socket', 'connect', 'send', 'recv', 'bind', 'listen', 'accept', 'gethostbyname', 'getaddrinfo',
+            'WSAStartup', 'WSACleanup', 'WSAIoctl', 'WSASocketA', 'WSASocketW', 'closesocket', 'htons',
+            'InternetOpenA', 'InternetOpenW', 'InternetConnectA', 'InternetConnectW', 'InternetOpenUrlA', 
+            'InternetOpenUrlW', 'HttpOpenRequestA', 'HttpOpenRequestW', 'HttpSendRequestA', 'HttpSendRequestW',
+            'InternetReadFile', 'URLDownloadToFileA', 'URLDownloadToFileW', 'DnsQuery_A', 'DnsQuery_W'
+        },
+        'Encryption': {
+            'CryptAcquireContextA', 'CryptAcquireContextW', 'CryptCreateHash', 'CryptHashData', 
+            'CryptDeriveKey', 'CryptEncrypt', 'CryptDecrypt', 'CryptDestroyKey', 'CryptDestroyHash',
+            'CryptReleaseContext', 'CryptGenKey', 'CryptImportKey', 'CryptExportKey'
+        },
+        'DataObfuscation': {
+            'RtlDecompressBuffer', 'MultiByteToWideChar', 'WideCharToMultiByte', 'Base64Decode', 
+            'CryptDecodeObject', 'IsDBCSLeadByte', 'CharUpperA', 'CharLowerA'
+        },
+        'FileIO': {
+            'CreateFileA', 'CreateFileW', 'WriteFile', 'ReadFile', 'DeleteFileA', 'DeleteFileW',
+            'CopyFileA', 'CopyFileW', 'MoveFileA', 'MoveFileW', 'FindFirstFileA', 'FindNextFileA',
+            'GetTempPathA', 'GetTempPathW', 'GetTempFileNameA', 'GetTempFileNameW', 'SetFileAttributesA', 
+            'SetFileAttributesW', 'DeviceIoControl', 'SetFileTime', 'GetFileSize', 'GetFileSizeEx',
+            'SetFilePointer', 'FlushFileBuffers', 'ConnectNamedPipe', 'PeekNamedPipe'
+        },
+        'Registry': {
+            'RegOpenKeyExA', 'RegOpenKeyExW', 'RegSetValueExA', 'RegSetValueExW', 
+            'RegCreateKeyExA', 'RegCreateKeyExW', 'RegDeleteKeyA', 'RegDeleteKeyW',
+            'RegEnumValueA', 'RegEnumValueW', 'RegQueryValueExA', 'RegQueryValueExW',
+            'RegDeleteValueA', 'RegDeleteValueW'
+        },
+        'Services': {
+            'OpenSCManagerA', 'OpenSCManagerW', 'CreateServiceA', 'CreateServiceW',
+            'StartServiceA', 'StartServiceW', 'ControlService', 'DeleteService'
+        },
+        'Privileges': {
+            'AdjustTokenPrivileges', 'LookupPrivilegeValueA', 'LookupPrivilegeValueW', 
+            'OpenProcessToken', 'NetUserAdd', 'NetLocalGroupAddMembers', 'IsAdmin', 
+            'GetUserNameA', 'GetUserNameW'
+        },
+        'Native': {
+            'RtlUnwind', 'RtlVirtualUnwind', 'RtlCaptureContext', 'RtlLookupFunctionEntry',
+            'NtClose', 'NtQueryInformationProcess', 'RtlAllocateHeap', 'RtlFreeHeap',
+            'GetSystemTimeAsFileTime', 'GetLocalTime', 'GlobalMemoryStatus', 
+            'GetVersionExA', 'GetVersionExW', 'GetComputerNameA', 'GetComputerNameW'
+        },
+        'DotNet': {
+            '_CorExeMain', '_CorDllMain'
+        },
+        'AntiDebug': {
+            'IsDebuggerPresent', 'CheckRemoteDebuggerPresent', 'OutputDebugStringA', 'OutputDebugStringW',
+            'GetTickCount', 'GetTickCount64', 'QueryPerformanceCounter', 'FindWindowA', 'FindWindowW',
+            'EnumWindows', 'EnumChildWindows', 'GetWindowRect', 'GetClientRect', 'SetWindowDisplayAffinity'
+        },
+        'Keylogging': {
+            'GetAsyncKeyState', 'GetKeyState', 'GetKeyboardState', 'MapVirtualKeyA', 'MapVirtualKeyW',
+            'ToAscii', 'ToAsciiEx', 'ToUnicode', 'ToUnicodeEx', 'GetKeyNameTextA', 'GetForegroundWindow',
+            'KeybdEvent', 'SendInput', 'MapVirtualKeyExA', 'MapVirtualKeyExW'
+        },
+        'Input': {
+            'GetCursorPos', 'SetCursorPos', 'MouseEvent', 'GetDoubleClickTime', 
+            'GetCapture', 'SetCapture'
+        },
+        'ScreenCapture': {
+            'BitBlt', 'StretchBlt', 'GetDC', 'GetWindowDC', 'CreateCompatibleDC', 'CreateCompatibleBitmap',
+            'GdipSaveImageToFile', 'PrintWindow', 'GetDesktopWindow', 'CreateDCW', 'CreateDCA',
+            'SelectObject', 'DeleteDC', 'DeleteObject', 'GetDeviceCaps', 'GetSystemMetrics'
+        },
+        'Graphics': {
+            'Direct3DCreate9', 'D3D11CreateDevice'
+        },
+        'Audio': {
+            'WaveInOpen', 'WaveInClose', 'WaveInStart', 'WaveInStop'
+        },
+        'Clipboard': {
+            'OpenClipboard', 'CloseClipboard', 'GetClipboardData', 'SetClipboardData'
+        },
+        'Camera': {
+            'CapCreateCaptureWindowA', 'CapCreateCaptureWindowW'
+        }
+    }
+
+    TARGET_DLLS = {
+        'kernel32.dll', 'user32.dll', 'gdi32.dll', 'advapi32.dll', 'shell32.dll', 'ntdll.dll', 'hal.dll',
+        'ws2_32.dll', 'wsock32.dll', 'wininet.dll', 'winhttp.dll', 'urlmon.dll', 'crypt32.dll', 'bcrypt.dll',
+        'psapi.dll', 'dbghelp.dll', 'imagehlp.dll', 'shlwapi.dll', 'ole32.dll', 'oleaut32.dll', 'comctl32.dll',
+        'mscoree.dll', 'vbscript.dll', 'netapi32.dll', 'iphlpapi.dll', 'wtsapi32.dll', 'version.dll', 'winmm.dll'
+    }
+
+    BASE_SCHEMA = [
+        "FileEntropy", "IsExe", "IsDll", "IsDriver", "Is64Bit", "Machine", "Magic",
+        "TimeDateStamp", "CheckSum", "ImageBase", "SizeOfImage", "SizeOfHeaders",
+        "Characteristics", "DllCharacteristics", "Subsystem", "LoaderFlags",
+        "MajorLinkerVersion", "MinorLinkerVersion", "SizeOfCode", 
+        "SizeOfInitializedData", "SizeOfUninitializedData", "AddressOfEntryPoint",
+        "BaseOfCode", "SectionAlignment", "FileAlignment",
+        "MajorOperatingSystemVersion", "MinorOperatingSystemVersion",
+        "MajorImageVersion", "MinorImageVersion",
+        "MajorSubsystemVersion", "MinorSubsystemVersion",
+        "SizeOfStackReserve", "SizeOfStackCommit", "SizeOfHeapReserve", "SizeOfHeapCommit",
+        "NumberOfSections", "NumberOfRvaAndSizes", "PointerToSymbolTable", "NumberOfSymbols",
+        "SizeOfOptionalHeader",
+        "TextSection", "TextSizeRatio", "DataSection", "DataSizeRatio", 
+        "RsrcSection", "RsrcSizeRatio", "SectionCount", "ExecutableSections", 
+        "WritableSections", "ReadableSections", "SectionException",
+        "IconCount", "ApiCount", "ExportCount", "DebugCount", "ExceptionCount",
+        "ImportCount", "ImportFunctionCount",
+        "FileDescriptionLength", "FileVersionLength", "ProductNameLength", 
+        "ProductVersionLength", "CompanyNameLength", "LegalCopyrightLength", 
+        "CommentsLength", "InternalNameLength", "LegalTrademarksLength",
+        "SpecialBuildLength", "PrivateBuildLength",
+        "TrustSigned", "IsDebug", "IsPatched", "IsPrivateBuild", "IsPreRelease", 
+        "IsSpecialBuild", "IsAdmin", "IsInstall", "HasTlsCallbacks", 
+        "HasInvalidTimestamp", "HasRelocationDirectory", "HasPacked", "FileTimeException"
+    ]
+
+    CAT_SCHEMA = [f"Cat_{k}" for k in API_CAT_MAPPING.keys()]
+    DLL_SCHEMA = [f"Dll_{d.replace('.', '_')}" for d in sorted(TARGET_DLLS)]
+    
+    _ALL_APIS = {api for apis in API_CAT_MAPPING.values() for api in apis}
+    API_SCHEMA = [f"Api_{api}" for api in sorted(_ALL_APIS)]
+    
+    SCHEMA = BASE_SCHEMA + CAT_SCHEMA + DLL_SCHEMA + API_SCHEMA
+    
+    API_REVERSE_MAP = {func: f"Cat_{cat}" for cat, funcs in API_CAT_MAPPING.items() for func in funcs}
+    
+    PACKERS = {
+        'upx', 'aspack', 'asprotect', 'pecompact', 'upack', 'fsg', 'mew', 
+        'mpress', 'ezip', 'pklt', 'shrink', 'petite', 'telock',
+        'themida', 'winlicense', 'tmd', 'vmp', 'enigma', 'obsidium', 
+        'pelock', 'exestealth', 'yoda', 'armadillo', 'zprotect',
+        'sforce', 'starforce', 'qihoo', 'wisevec', 'megastop',
+    }
+    INSTALLER_SIGS = [b"Nullsoft.NSIS", b"Inno Setup", b"7-Zip.7zip", b"InstallShield"]
+
+####################################################################################################
+
     def __init__(self):
         self.model = None
         self.input_name = None
+        self.feature_order = []
         self.signer = sign_scanner()
         self.signer.init_windll(["wintrust"])
-        self.SCHEMA = [
-            "FileEntropy", "IsExe", "IsDll", "IsDriver", "Is64Bit", "Machine", "Magic",
-            "TimeDateStamp", "CheckSum", "ImageBase", "SizeOfImage", "SizeOfHeaders",
-            "Characteristics", "DllCharacteristics", "Subsystem", "LoaderFlags",
-            "MajorLinkerVersion", "MinorLinkerVersion", "SizeOfCode", 
-            "SizeOfInitializedData", "SizeOfUninitializedData", "AddressOfEntryPoint",
-            "BaseOfCode", "SectionAlignment", "FileAlignment",
-            "MajorOperatingSystemVersion", "MinorOperatingSystemVersion",
-            "MajorImageVersion", "MinorImageVersion",
-            "MajorSubsystemVersion", "MinorSubsystemVersion",
-            "SizeOfStackReserve", "SizeOfStackCommit", "SizeOfHeapReserve", "SizeOfHeapCommit",
-            "NumberOfSections", "NumberOfRvaAndSizes", "PointerToSymbolTable", "NumberOfSymbols",
-            "SizeOfOptionalHeader",
-            "TextSection", "TextSizeRatio", "DataSection", "DataSizeRatio", 
-            "RsrcSection", "RsrcSizeRatio", "SectionCount", "ExecutableSections", 
-            "WritableSections", "ReadableSections", "SectionException",
-            "IconCount", "ApiCount", "ExportCount", "DebugCount", "ExceptionCount",
-            "FileDescriptionLength", "FileVersionLength", "ProductNameLength", 
-            "ProductVersionLength", "CompanyNameLength", "LegalCopyrightLength", 
-            "CommentsLength", "InternalNameLength", "LegalTrademarksLength",
-            "SpecialBuildLength", "PrivateBuildLength",
-            "TrustSigned", "IsDebug", "IsPatched", "IsPrivateBuild", "IsPreRelease", 
-            "IsSpecialBuild", "IsAdmin", "IsInstall", "HasTlsCallbacks", 
-            "HasInvalidTimestamp", "HasRelocationDirectory", "HasPacked", "FileTimeException",
-            "_CorExeMain", "_CorDllMain",
-            "GetDC", "CreateDCW", "CreateDCA", "BitBlt", "StretchBlt", "CreateCompatibleDC",
-            "CreateCompatibleBitmap", "SelectObject", "DeleteDC", "DeleteObject", "GetDeviceCaps",
-            "GetSystemMetrics",
-            "SetWindowsHookExA", "SetWindowsHookExW", "UnhookWindowsHookEx", 
-            "GetAsyncKeyState", "GetKeyState", "GetKeyboardState", 
-            "MapVirtualKeyA", "MapVirtualKeyW", "MapVirtualKeyExA", "MapVirtualKeyExW", 
-            "ToAscii", "ToAsciiEx", "ToUnicode", "ToUnicodeEx", "KeybdEvent", "SendInput",
-            "GetCursorPos", "SetCursorPos", "MouseEvent", "GetDoubleClickTime", 
-            "GetCapture", "SetCapture",
-            "WaveInOpen", "WaveInClose", "WaveInStart", "WaveInStop", 
-            "CapCreateCaptureWindowA", "CapCreateCaptureWindowW", 
-            "OpenClipboard", "CloseClipboard", "GetClipboardData", "SetClipboardData",
-            "GetDesktopWindow", "GetForegroundWindow", "GetWindowDC", "GetWindowRect",
-            "GetClientRect", "PrintWindow", "SetWindowDisplayAffinity", "FindWindowA", "FindWindowW",
-            "EnumWindows", "EnumChildWindows",
-            "Direct3DCreate9", "D3D11CreateDevice", "GdipSaveImageToFile",
-            "CreateProcessA", "CreateProcessW", "CreateThread", "ResumeThread", "SuspendThread",
-            "OpenProcess", "TerminateProcess", "GetCurrentProcess", "GetCurrentProcessId",
-            "ExitProcess", "WinExec", "ShellExecuteA", "ShellExecuteW",
-            "CreateRemoteThread", "QueueUserAPC", "VirtualAlloc", "VirtualAllocEx",
-            "VirtualProtect", "VirtualProtectEx", "WriteProcessMemory", "ReadProcessMemory",
-            "NtUnmapViewOfSection", "SetThreadContext", "GetThreadContext", "Wow64SetThreadContext",
-            "ZwUnmapViewOfSection", "CreateFileMappingA", "CreateFileMappingW", "MapViewOfFile",
-            "UnmapViewOfSection",
-            "LoadLibraryA", "LoadLibraryW", "LoadLibraryExA", "LoadLibraryExW", 
-            "GetProcAddress", "GetModuleHandleA", "GetModuleHandleW", "FreeLibrary",
-            "CreateFileA", "CreateFileW", "WriteFile", "ReadFile", "DeleteFileA", "DeleteFileW",
-            "CopyFileA", "CopyFileW", "MoveFileA", "MoveFileW", "FindFirstFileA", "FindNextFileA",
-            "GetTempPathA", "GetTempPathW", "GetTempFileNameA", "GetTempFileNameW", 
-            "SetFileAttributesA", "SetFileAttributesW", "DeviceIoControl", "SetFileTime",
-            "RegOpenKeyExA", "RegOpenKeyExW", "RegSetValueExA", "RegSetValueExW", 
-            "RegCreateKeyExA", "RegCreateKeyExW", "RegDeleteKeyA", "RegDeleteKeyW",
-            "RegEnumValueA", "RegEnumValueW", "RegQueryValueExA", "RegQueryValueExW",
-            "RegDeleteValueA", "RegDeleteValueW",
-            "OpenSCManagerA", "OpenSCManagerW", "CreateServiceA", "CreateServiceW",
-            "StartServiceA", "StartServiceW", "ControlService", "DeleteService",
-            "AdjustTokenPrivileges", "LookupPrivilegeValueA", "LookupPrivilegeValueW", 
-            "OpenProcessToken", "NetUserAdd", "NetLocalGroupAddMembers",
-            "Socket", "Connect", "Send", "Recv", "WSAStartup", "gethostbyname", "getaddrinfo",
-            "WSAIoctl", "WSASocketA", "WSASocketW",
-            "URLDownloadToFileA", "URLDownloadToFileW", 
-            "InternetOpenA", "InternetOpenW", "InternetConnectA", "InternetConnectW",
-            "InternetOpenUrlA", "InternetOpenUrlW",
-            "HttpOpenRequestA", "HttpOpenRequestW", "HttpSendRequestA", "HttpSendRequestW",
-            "InternetReadFile", "DnsQuery_A", "DnsQuery_W",
-            "IsDebuggerPresent", "CheckRemoteDebuggerPresent", "OutputDebugStringA", "OutputDebugStringW",
-            "GetTickCount", "QueryPerformanceCounter", "Sleep", "GetSystemTimeAsFileTime",
-            "GetLocalTime", "GlobalMemoryStatus", "GetVersionExA", "GetVersionExW",
-            "GetComputerNameA", "GetComputerNameW", "GetUserNameA", "GetUserNameW",
-            "CryptAcquireContextA", "CryptAcquireContextW", "CryptCreateHash", "CryptHashData", 
-            "CryptDeriveKey", "CryptEncrypt", "CryptDecrypt", "CryptDestroyKey", "CryptDestroyHash",
-            "CryptReleaseContext", "CryptGenKey", "CryptImportKey", "CryptExportKey",
-            "RtlDecompressBuffer", "ConnectNamedPipe", "PeekNamedPipe"
-        ]
-        self.PACKERS = {
-            'upx', 'aspack', 'asprotect', 'pecompact', 'upack', 'fsg', 'mew', 
-            'mpress', 'ezip', 'pklt', 'shrink', 'petite', 'telock',
-            'themida', 'winlicense', 'tmd', 'vmp', 'enigma', 'obsidium', 
-            'pelock', 'exestealth', 'yoda', 'armadillo', 'zprotect',
-            'sforce', 'starforce', 'qihoo', 'wisevec', 'megastop',
-        }
-        self.INSTALLER_SIGS = [b"Nullsoft.NSIS", b"Inno Setup", b"7-Zip.7zip", b"InstallShield"]
-        self.SCHEMA_SET = set(self.SCHEMA)
-
-####################################################################################################
 
     def load_path(self, path, callback=None):
         for root, _, files in os.walk(path):
@@ -341,14 +412,26 @@ class pe_scanner:
                 full_path = os.path.join(root, file)
                 if callback:
                     callback(full_path)
-                self.load_model(full_path)
+                if full_path.endswith('.onnx'):
+                    self.load_model(full_path)
 
     def load_model(self, model_path):
-        if not os.path.exists(model_path) or not model_path.endswith('.onnx'):
+        if not os.path.exists(model_path):
             return
         try:
             self.model = onnxruntime.InferenceSession(model_path, providers=['CPUExecutionProvider'])
             self.input_name = self.model.get_inputs()[0].name
+            
+            feat_path = os.path.join(os.path.dirname(model_path), "features.json")
+            model_features = []
+            if os.path.exists(feat_path):
+                with open(feat_path, 'r') as f:
+                    model_features = json.load(f)
+            else:
+                model_features = [re.sub(r'[^A-Za-z0-9_]+', '', f) for f in self.SCHEMA]
+
+            local_map = {re.sub(r'[^A-Za-z0-9_]+', '', raw_name): raw_name for raw_name in self.SCHEMA}
+            self.feature_order = [local_map.get(req_feat) for req_feat in model_features]
         except Exception:
             pass
 
@@ -372,13 +455,17 @@ class pe_scanner:
 ####################################################################################################
 
     def extract_features(self, file_path):
-        fts = {k: 0 for k in self.SCHEMA}
+        fts = {k: 0.0 for k in self.SCHEMA}
         pe = None
         try:
             fsize = os.path.getsize(file_path)
-            if fsize == 0: return None
+            if fsize == 0 or fsize > 268435456:
+                return None
 
-            pe = pefile.PE(file_path, fast_load=True)
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+
+            pe = pefile.PE(data=file_bytes, fast_load=True)
             fts['TrustSigned'] = 1 if self.signer.sign_verify(file_path) else 0
 
             fh = pe.FILE_HEADER
@@ -390,7 +477,7 @@ class pe_scanner:
             fts['SizeOfOptionalHeader'] = fh.SizeOfOptionalHeader
             fts['Characteristics'] = fh.Characteristics
 
-            curr_ts = time.time()
+            curr_ts = datetime.datetime.now(datetime.timezone.utc).timestamp()
             fts['HasInvalidTimestamp'] = 1 if (fh.TimeDateStamp < 631152000 or fh.TimeDateStamp > curr_ts + 2592000) else 0
 
             if hasattr(pe, 'OPTIONAL_HEADER'):
@@ -435,17 +522,26 @@ class pe_scanner:
                     fts['HasRelocationDirectory'] = 1
 
             pe.parse_sections(pe.FILE_HEADER.NumberOfSections)
-            file_data = pe.get_memory_mapped_image()
-            fts['FileEntropy'] = self._calc_entropy(file_data)
+            
+            try:
+                fts['FileEntropy'] = self._calc_entropy(file_bytes)
+            except Exception:
+                fts['FileEntropy'] = 0.0
+                
             fts['SectionCount'] = len(pe.sections)
 
             for section in pe.sections:
                 try:
                     name = section.Name.decode('ascii', 'ignore').strip('\x00')
-                except:
+                except Exception:
                     name = ""
-                s_data = section.get_data()
-                s_entropy = self._calc_entropy(s_data)
+                
+                try:
+                    s_data = section.get_data()
+                    s_entropy = self._calc_entropy(s_data)
+                except Exception:
+                    s_data = b""
+                    s_entropy = 0.0
 
                 if any(p in name.lower() for p in self.PACKERS):
                     fts['HasPacked'] = 1
@@ -483,16 +579,28 @@ class pe_scanner:
             ])
 
             if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+                fts['ImportCount'] = len(pe.DIRECTORY_ENTRY_IMPORT)
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    try:
+                        dll_name = entry.dll.decode('ascii', 'ignore').lower()
+                        if dll_name in self.TARGET_DLLS:
+                            fts[f"Dll_{dll_name.replace('.', '_')}"] = 1.0
+                    except Exception:
+                        pass
+                    
                     for imp in entry.imports:
-                        fts['ApiCount'] += 1
+                        fts['ImportFunctionCount'] += 1
                         if not imp or not hasattr(imp, 'name') or not imp.name:
                             continue
                         try:
-                            name = imp.name.decode('ascii', 'ignore')
-                            if name in self.SCHEMA_SET:
-                                fts[name] = 1
-                        except:
+                            func_name = imp.name.decode('ascii', 'ignore')
+                            if func_name in self._ALL_APIS:
+                                fts[f'Api_{func_name}'] += 1
+                                
+                            cat_key = self.API_REVERSE_MAP.get(func_name)
+                            if cat_key:
+                                fts[cat_key] += 1
+                        except Exception:
                             pass
 
             if hasattr(pe, 'DIRECTORY_ENTRY_EXPORT'):
@@ -512,7 +620,8 @@ class pe_scanner:
         except Exception:
             return None
         finally:
-            if pe: pe.close()
+            if pe:
+                pe.close()
 
 ####################################################################################################
 
@@ -525,16 +634,25 @@ class pe_scanner:
             if not data:
                 return False, False
 
-            vec = numpy.array(
-                [data.get(feat, 0.0) for feat in self.SCHEMA], 
-                dtype=numpy.float32
-            ).reshape(1, -1)
-            
+            vec_data = []
+            for key in self.feature_order:
+                if key:
+                    vec_data.append(data.get(key, 0.0))
+                else:
+                    vec_data.append(0.0)
+                    
+            vec = numpy.array(vec_data, dtype=numpy.float32).reshape(1, -1)
             outputs = self.model.run(None, {self.input_name: vec})
+            
             result = outputs[1]
             prob = 0.0
-            if isinstance(result, list):
-                prob = float(result[0].get(1, 0.0))
+            if isinstance(result, list) and len(result) > 0:
+                prob_dict = result[0]
+                if hasattr(prob_dict, 'get'):
+                    prob = float(prob_dict.get(1, prob_dict.get('1', 0.0)))
+            elif isinstance(result, numpy.ndarray):
+                if result.ndim == 2 and result.shape[1] > 1:
+                    prob = float(result[0][1])
 
             score = int(prob * 100)
             if prob > 0.5:
@@ -623,6 +741,7 @@ class cloud_scanner:
                 data = r.json().get('data', {})
                 res = data.get('detection', {}).get('results', {}).get('PYAS', {})
                 label = res.get('label', 'Unsupport')
+                score = res.get('score', 100)
                 sims = data.get('similar', [])
 
                 is_malicious = 'General' in label
@@ -631,7 +750,7 @@ class cloud_scanner:
                 for s in sims:
                     if s.get('similarity', 0) > 80:
                         valid_sim_count += 1
-                        if "General" in s.get('label'):
+                        if "General" in s.get('label', ''):
                             sim_malicious_count += 1
 
                 if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
@@ -639,4 +758,3 @@ class cloud_scanner:
         except Exception:
             pass
         return False
-

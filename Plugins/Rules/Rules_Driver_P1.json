@@ -17,6 +17,8 @@
     "*\\Classes\\cmdfile\\*",
     "*\\Classes\\comfile\\*",
     
+    "*\\mouclass",
+    "*\\kbdclass",
     "*\\DefaultIcon",
     "*\\DisableAntiSpyware",
     "*\\DisableWindowsUpdateAccess",

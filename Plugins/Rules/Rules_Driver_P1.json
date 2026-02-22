@@ -214,6 +214,6 @@
     ".mp4", ".avi", ".mov", ".wmv", ".mkv",
     ".aux", ".cur", ".mui", ".ttf", ".efi",
     ".cpp", ".h", ".c", ".hpp", ".cs", ".java", ".py", ".go", ".rs",
-    ".php", ".html", ".css", ".json", ".xml", ".sql", ".db"
+    ".php", ".html", ".css", ".xml", ".sql", ".db"
   ]
 }

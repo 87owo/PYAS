@@ -64,14 +64,24 @@ def load_data(db_path, raw_cols):
     sql = f"SELECT {', '.join(req_cols)} FROM PeData"
     
     try:
-        df = pd.read_sql_query(sql, conn)
-        if df.empty: return None, None, None
+        chunks = []
+        for chunk in pd.read_sql_query(sql, conn, chunksize=20000):
+            label_col = next((c for c in chunk.columns if c.lower().strip() == 'label'), None)
+            if not label_col:
+                print("[-] Critical Error: Label column not found.")
+                return None, None, None
 
-        label_col = next((c for c in df.columns if c.lower().strip() == 'label'), None)
-        if not label_col:
-            print("[-] Critical Error: Label column not found.")
+            cols_to_cast = [c for c in chunk.columns if c != label_col]
+            chunk[cols_to_cast] = chunk[cols_to_cast].astype(np.float32)
+            chunk[label_col] = chunk[label_col].astype(np.int8)
+            chunks.append(chunk)
+
+        if not chunks:
             return None, None, None
 
+        df = pd.concat(chunks, ignore_index=True)
+
+        label_col = next((c for c in df.columns if c.lower().strip() == 'label'), None)
         y = df[label_col].astype(int)
         X = df.drop(columns=[label_col], errors='ignore')
         

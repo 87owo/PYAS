@@ -48,9 +48,10 @@ def get_raw_schema(db_path):
         cursor = conn.cursor()
         cursor.execute("PRAGMA table_info(PeData)")
         columns = [row[1] for row in cursor.fetchall()]
-        exclude = {'label', 'id', 'filename', 'filelength', 'rowid', 'probability', 'predictedlabel', 'score', 'filehash'}
+        exclude = {'label', 'id', 'filename', 'filelength', 'rowid', 'probability', 'predictedlabel', 'score', 'filehash', 'timedatestamp'}
         return [c for c in columns if c.lower().strip() not in exclude]
-    except:
+    except Exception as e:
+        print(f"[-] Schema extraction error: {e}")
         return None
     finally:
         conn.close()

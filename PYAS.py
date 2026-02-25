@@ -672,6 +672,7 @@ class MainWindow_Controller(QMainWindow):
     def reset_button(self):
         if self.send_message("您確定要重置所有設定嗎?", "quest", True):
             self.pyas_config = self.pyas_default.copy()
+            self.save_config(self.file_config, self.pyas_config)
             self.close_button()
 
     def singleton_mutex(self, name):

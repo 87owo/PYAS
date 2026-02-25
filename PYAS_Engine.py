@@ -415,8 +415,8 @@ class pe_scanner:
     }
 
     BASE_SCHEMA = [
-        "FileEntropy", "SectionMeanEntropy", "IsExe", "IsDll", "IsDriver", "Is64Bit", "Machine", "Magic",
-        "TimeDateStamp", "CheckSum", "ImageBase", "SizeOfImage", "SizeOfHeaders",
+        "FileEntropy", "SectionMeanEntropy", "IsExe", "IsDll", "IsDriver", "Is64Bit",
+        "Machine", "Magic", "CheckSum", "ImageBase", "SizeOfImage", "SizeOfHeaders",
         "Characteristics", "DllCharacteristics", "Subsystem", "LoaderFlags",
         "MajorLinkerVersion", "MinorLinkerVersion", "SizeOfCode", 
         "SizeOfInitializedData", "SizeOfUninitializedData", "AddressOfEntryPoint",

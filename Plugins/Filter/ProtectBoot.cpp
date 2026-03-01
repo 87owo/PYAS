@@ -12,7 +12,6 @@ FLT_PREOP_CALLBACK_STATUS ProtectBoot_PreDeviceControl(PFLT_CALLBACK_DATA Data, 
     UNREFERENCED_PARAMETER(CompletionContext);
 
     if (Data->RequestorMode == KernelMode) return FLT_PREOP_SUCCESS_NO_CALLBACK;
-
     if (KeGetCurrentIrql() > APC_LEVEL) return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
     ULONG IoControlCode = Data->Iopb->Parameters.DeviceIoControl.Common.IoControlCode;
@@ -23,7 +22,7 @@ FLT_PREOP_CALLBACK_STATUS ProtectBoot_PreDeviceControl(PFLT_CALLBACK_DATA Data, 
         IoControlCode == IOCTL_DISK_FORMAT_TRACKS_EX) {
 
         HANDLE Pid = PsGetCurrentProcessId();
-        if (!IsProcessTrusted(Pid) && !IsInstallerProcess(Pid)) {
+        if (!IsProcessTrusted(Pid)) {
             UNICODE_STRING MsgStr = RTL_CONSTANT_STRING(L"Disk_Wiper_Attempt");
             SendMessageToUser(4001, (ULONG)(ULONG_PTR)Pid, MsgStr.Buffer, MsgStr.Length);
             Data->IoStatus.Status = STATUS_ACCESS_DENIED;

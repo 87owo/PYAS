@@ -1,8 +1,8 @@
 #include "DriverCommon.h"
 
-PVOID ObRegistrationHandle = NULL;
-OB_CALLBACK_REGISTRATION ObRegistration;
-OB_OPERATION_REGISTRATION ObCallbacks[1];
+static PVOID ObRegistrationHandle = NULL;
+static OB_CALLBACK_REGISTRATION ObRegistration;
+static OB_OPERATION_REGISTRATION ObCallbacks[2];
 
 static BOOLEAN IsSystemImage(PUNICODE_STRING FullImageName) {
     if (!FullImageName || !FullImageName->Buffer) return FALSE;
@@ -35,7 +35,7 @@ VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INF
 }
 
 static BOOLEAN IsBlacklistedAdminTool(HANDLE ProcessId) {
-    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
 
     NTSTATUS status;
     BOOLEAN isBlacklisted = FALSE;
@@ -75,22 +75,19 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     HANDLE SourcePid = PsGetCurrentProcessId();
 
     if (SourcePid == TargetPid) return OB_PREOP_SUCCESS;
-
     if ((ULONG)(ULONG_PTR)SourcePid == GlobalData.PyasPid) return OB_PREOP_SUCCESS;
     if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
 
-    BOOLEAN bProtected = IsTargetProtected(TargetPid);
+    if (IsTargetProtected(TargetPid)) {
+        BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
 
-    if (bProtected) {
-        BOOLEAN bIsInstaller = IsInstallerProcess(SourcePid);
-
-        if (bIsInstaller) {
+        if (bIsTrusted) {
             if (IsBlacklistedAdminTool(SourcePid)) {
-                bIsInstaller = FALSE;
+                bIsTrusted = FALSE;
             }
         }
 
-        if (bIsInstaller) return OB_PREOP_SUCCESS;
+        if (bIsTrusted) return OB_PREOP_SUCCESS;
 
         ACCESS_MASK DenyMask = PROCESS_TERMINATE |
             PROCESS_VM_OPERATION |
@@ -114,6 +111,53 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     return OB_PREOP_SUCCESS;
 }
 
+static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE_OPERATION_INFORMATION OperationInformation) {
+    UNREFERENCED_PARAMETER(RegistrationContext);
+
+    if (OperationInformation->KernelHandle) return OB_PREOP_SUCCESS;
+
+    PETHREAD TargetThread = (PETHREAD)OperationInformation->Object;
+    if (!TargetThread) return OB_PREOP_SUCCESS;
+
+    PEPROCESS TargetProcess = IoThreadToProcess(TargetThread);
+    if (!TargetProcess) return OB_PREOP_SUCCESS;
+
+    HANDLE TargetPid = PsGetProcessId(TargetProcess);
+    HANDLE SourcePid = PsGetCurrentProcessId();
+
+    if (SourcePid == TargetPid) return OB_PREOP_SUCCESS;
+    if ((ULONG)(ULONG_PTR)SourcePid == GlobalData.PyasPid) return OB_PREOP_SUCCESS;
+    if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
+
+    if (IsTargetProtected(TargetPid)) {
+        BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
+
+        if (bIsTrusted) {
+            if (IsBlacklistedAdminTool(SourcePid)) {
+                bIsTrusted = FALSE;
+            }
+        }
+
+        if (bIsTrusted) return OB_PREOP_SUCCESS;
+
+        ACCESS_MASK DenyMask = THREAD_TERMINATE |
+            THREAD_SUSPEND_RESUME |
+            THREAD_SET_CONTEXT |
+            THREAD_SET_INFORMATION |
+            THREAD_SET_THREAD_TOKEN;
+
+        OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~DenyMask;
+        OperationInformation->Parameters->CreateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
+
+        if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
+            OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= ~DenyMask;
+            OperationInformation->Parameters->DuplicateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
+        }
+    }
+
+    return OB_PREOP_SUCCESS;
+}
+
 NTSTATUS InitializeProcessProtection() {
     static UNICODE_STRING Altitude = { 0 };
     RtlInitUnicodeString(&Altitude, L"320000");
@@ -123,8 +167,13 @@ NTSTATUS InitializeProcessProtection() {
     ObCallbacks[0].PreOperation = PreOpenProcess;
     ObCallbacks[0].PostOperation = NULL;
 
+    ObCallbacks[1].ObjectType = PsThreadType;
+    ObCallbacks[1].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
+    ObCallbacks[1].PreOperation = PreOpenThread;
+    ObCallbacks[1].PostOperation = NULL;
+
     ObRegistration.Version = OB_FLT_REGISTRATION_VERSION;
-    ObRegistration.OperationRegistrationCount = 1;
+    ObRegistration.OperationRegistrationCount = 2;
     ObRegistration.Altitude = Altitude;
     ObRegistration.RegistrationContext = NULL;
     ObRegistration.OperationRegistration = ObCallbacks;

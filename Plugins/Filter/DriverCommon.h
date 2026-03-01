@@ -45,7 +45,21 @@ constexpr auto PYAS_POOL_TAG = 'SAYP';
 #ifndef PROCESS_SET_QUOTA
 #define PROCESS_SET_QUOTA (0x0100)
 #endif
-
+#ifndef THREAD_TERMINATE
+#define THREAD_TERMINATE               (0x0001)
+#endif
+#ifndef THREAD_SUSPEND_RESUME
+#define THREAD_SUSPEND_RESUME          (0x0002)
+#endif
+#ifndef THREAD_SET_CONTEXT
+#define THREAD_SET_CONTEXT             (0x0010)
+#endif
+#ifndef THREAD_SET_INFORMATION
+#define THREAD_SET_INFORMATION         (0x0020)
+#endif
+#ifndef THREAD_SET_THREAD_TOKEN
+#define THREAD_SET_THREAD_TOKEN        (0x0080)
+#endif
 #ifndef POOL_FLAG_NON_PAGED
 #define POOL_FLAG_NON_PAGED 0x0000000000000040UI64
 #endif
@@ -107,17 +121,6 @@ typedef struct _RULE_NODE {
 
 extern DRIVER_DATA GlobalData;
 
-//
-// Rule Lists Externs (Added for Exception Path support)
-//
-extern PRULE_NODE g_RegistryBlockList;
-extern PRULE_NODE g_RegistryTrustedList;
-extern PRULE_NODE g_ProcessTrustedPaths;
-extern PRULE_NODE g_ProcessExploitable;
-extern PRULE_NODE g_FileProtectedPaths;
-extern PRULE_NODE g_FileExceptionPaths; // [Added] Exception List
-extern PRULE_NODE g_FileRansomExts;
-
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreSetInfo(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
@@ -138,9 +141,7 @@ VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INF
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName);
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId);
-BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId);
 BOOLEAN IsTargetProtected(HANDLE ProcessId);
-BOOLEAN IsInstallerProcess(HANDLE ProcessId);
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes);
 
 BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName);

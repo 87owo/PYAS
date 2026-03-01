@@ -28,28 +28,27 @@ static VOID InstanceTeardownComplete(PCFLT_RELATED_OBJECTS FltObjects, FLT_INSTA
 
 static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     if (!(Flags & FLTFL_FILTER_UNLOAD_MANDATORY)) {
-        ExAcquireFastMutex(&GlobalData.PortMutex);
-        BOOLEAN IsConnected = (GlobalData.ClientPort != NULL);
-        ExReleaseFastMutex(&GlobalData.PortMutex);
+        return STATUS_FLT_DO_NOT_DETACH;
+    }
 
-        if (IsConnected) {
-            return STATUS_FLT_DO_NOT_DETACH;
-        }
+    if (GlobalData.ServerPort) {
+        FltCloseCommunicationPort(GlobalData.ServerPort);
+        GlobalData.ServerPort = NULL;
+    }
+
+    if (GlobalData.FilterHandle) {
+        FltUnregisterFilter(GlobalData.FilterHandle);
+        GlobalData.FilterHandle = NULL;
     }
 
     PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
     UninitializeRegistryProtection();
     UninitializeProcessProtection();
-    UnloadRules(); // Release JSON rules memory
 
     ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 
-    if (GlobalData.ServerPort) {
-        FltCloseCommunicationPort(GlobalData.ServerPort);
-    }
-    if (GlobalData.FilterHandle) {
-        FltUnregisterFilter(GlobalData.FilterHandle);
-    }
+    UnloadRules();
+
     return STATUS_SUCCESS;
 }
 
@@ -77,10 +76,6 @@ static VOID PortDisconnect(PVOID ConnectionCookie) {
 
     ExAcquireFastMutex(&GlobalData.PortMutex);
     GlobalData.ClientPort = NULL;
-    GlobalData.PyasPid = 0;
-    if (GlobalData.PyasProcess) {
-        GlobalData.PyasProcess = NULL;
-    }
     ExReleaseFastMutex(&GlobalData.PortMutex);
 
     ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
@@ -126,13 +121,12 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     ExInitializeRundownProtection(&GlobalData.PortRundown);
 
     status = LoadRulesFromDisk(RegistryPath);
-    if (!NT_SUCCESS(status)) {
-        // Optional: Fail load if rules missing, or continue with empty rules
-        // return status; 
-    }
 
     status = FltRegisterFilter(DriverObject, &FilterRegistration, &GlobalData.FilterHandle);
-    if (!NT_SUCCESS(status)) return status;
+    if (!NT_SUCCESS(status)) {
+        UnloadRules();
+        return status;
+    }
 
     status = FltBuildDefaultSecurityDescriptor(&sd, FLT_PORT_ALL_ACCESS);
     if (NT_SUCCESS(status)) {
@@ -143,7 +137,11 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     }
 
     if (!NT_SUCCESS(status)) {
-        FltUnregisterFilter(GlobalData.FilterHandle);
+        if (GlobalData.FilterHandle) {
+            FltUnregisterFilter(GlobalData.FilterHandle);
+            GlobalData.FilterHandle = NULL;
+        }
+        UnloadRules();
         return status;
     }
 
@@ -151,5 +149,24 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     InitializeRegistryProtection(DriverObject);
     PsSetLoadImageNotifyRoutine(ImageLoadNotify);
 
-    return FltStartFiltering(GlobalData.FilterHandle);
+    status = FltStartFiltering(GlobalData.FilterHandle);
+    if (!NT_SUCCESS(status)) {
+        PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
+        UninitializeRegistryProtection();
+        UninitializeProcessProtection();
+
+        if (GlobalData.ServerPort) {
+            FltCloseCommunicationPort(GlobalData.ServerPort);
+            GlobalData.ServerPort = NULL;
+        }
+
+        if (GlobalData.FilterHandle) {
+            FltUnregisterFilter(GlobalData.FilterHandle);
+            GlobalData.FilterHandle = NULL;
+        }
+
+        UnloadRules();
+    }
+
+    return status;
 }

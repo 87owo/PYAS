@@ -1,6 +1,6 @@
 #include "DriverCommon.h"
 
-LARGE_INTEGER Cookie;
+static LARGE_INTEGER Cookie;
 
 static BOOLEAN IsBamRegistryPath(PCUNICODE_STRING KeyName) {
     if (!KeyName || !KeyName->Buffer) return FALSE;
@@ -108,7 +108,7 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 
             if (CheckRegistryRule(&FullPath)) {
                 HANDLE Pid = PsGetCurrentProcessId();
-                if (!IsProcessTrusted(Pid) && !IsInstallerProcess(Pid)) {
+                if (!IsProcessTrusted(Pid)) {
                     SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
                     status = STATUS_ACCESS_DENIED;
                 }
@@ -126,7 +126,7 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
             if (KeyName) {
                 if (CheckRegistryRule(KeyName)) {
                     HANDLE Pid = PsGetCurrentProcessId();
-                    if (!IsProcessTrusted(Pid) && !IsInstallerProcess(Pid)) {
+                    if (!IsProcessTrusted(Pid)) {
                         SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer, KeyName->Length);
                         status = STATUS_ACCESS_DENIED;
                     }
@@ -166,22 +166,9 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 
                         if (CheckRegistryRule(&FullPath)) {
                             HANDLE Pid = PsGetCurrentProcessId();
-
-                            BOOLEAN IsCriticalReg = FALSE;
-                            if (WildcardMatch(L"*\\MACHINE\\SAM*", FullPath.Buffer, FullPath.Length) ||
-                                WildcardMatch(L"*\\MACHINE\\SECURITY*", FullPath.Buffer, FullPath.Length) ||
-                                WildcardMatch(L"*\\MACHINE\\SYSTEM*", FullPath.Buffer, FullPath.Length) ||
-                                WildcardMatch(L"*\\MACHINE\\BCD00000000*", FullPath.Buffer, FullPath.Length)) {
-                                if (IsCriticalSystemProcess(Pid)) {
-                                    IsCriticalReg = TRUE;
-                                }
-                            }
-
-                            if (!IsCriticalReg) {
-                                if (!IsProcessTrusted(Pid) && !IsInstallerProcess(Pid)) {
-                                    SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
-                                    status = STATUS_ACCESS_DENIED;
-                                }
+                            if (!IsProcessTrusted(Pid)) {
+                                SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
+                                status = STATUS_ACCESS_DENIED;
                             }
                         }
                         PyasFree(Buffer);
@@ -222,7 +209,7 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 
                         if (CheckRegistryRule(&FullPath)) {
                             HANDLE Pid = PsGetCurrentProcessId();
-                            if (!IsProcessTrusted(Pid) && !IsInstallerProcess(Pid)) {
+                            if (!IsProcessTrusted(Pid)) {
                                 SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
                                 status = STATUS_ACCESS_DENIED;
                             }

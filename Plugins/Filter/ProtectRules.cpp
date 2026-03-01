@@ -9,31 +9,30 @@ constexpr auto TRUST_CACHE_SIZE = 128;
 constexpr auto TRUST_CACHE_TTL_SEC = 300;
 
 typedef struct _RANSOM_TRACKER {
-    HANDLE ProcessId;
+    PEPROCESS Process;
     ULONG ActivityCount;
     LARGE_INTEGER LastActivityTime;
 } RANSOM_TRACKER, * PRANSOM_TRACKER;
 
 typedef struct _TRUST_CACHE_ENTRY {
-    HANDLE ProcessId;
+    PEPROCESS Process;
     BOOLEAN IsTrusted;
     LARGE_INTEGER CacheTime;
 } TRUST_CACHE_ENTRY, * PTRUST_CACHE_ENTRY;
 
-RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
-TRUST_CACHE_ENTRY TrustCache[TRUST_CACHE_SIZE];
-FAST_MUTEX TrustCacheLock;
-
+static RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
+static TRUST_CACHE_ENTRY TrustCache[TRUST_CACHE_SIZE];
+static FAST_MUTEX TrustCacheLock;
 static BOOLEAN g_CacheInitialized = FALSE;
 
-ERESOURCE RuleLock;
-PRULE_NODE g_RegistryBlockList = NULL;
-PRULE_NODE g_RegistryTrustedList = NULL;
-PRULE_NODE g_ProcessTrustedPaths = NULL;
-PRULE_NODE g_ProcessExploitable = NULL;
-PRULE_NODE g_FileProtectedPaths = NULL;
-PRULE_NODE g_FileExceptionPaths = NULL;
-PRULE_NODE g_FileRansomExts = NULL;
+static ERESOURCE RuleLock;
+static PRULE_NODE g_RegistryBlockList = NULL;
+static PRULE_NODE g_RegistryTrustedList = NULL;
+static PRULE_NODE g_ProcessTrustedPaths = NULL;
+static PRULE_NODE g_ProcessExploitable = NULL;
+static PRULE_NODE g_FileProtectedPaths = NULL;
+static PRULE_NODE g_FileExceptionPaths = NULL;
+static PRULE_NODE g_FileRansomExts = NULL;
 
 const PCWSTR Helper_NaturallyCompressedExtensions[] = {
     L".zip", L".7z", L".rar", L".tar", L".gz",
@@ -423,7 +422,7 @@ static VOID InitTrustCache() {
 static BOOLEAN IsWindowsSystemApp(PCWSTR Buffer, USHORT Length) {
     if (WildcardMatch(L"*\\Windows\\SystemApps\\*", Buffer, Length)) return TRUE;
     if (WildcardMatch(L"*\\Windows\\ImmersiveControlPanel\\*", Buffer, Length)) return TRUE;
-    if (WildcardMatch(L"*\\explorer.exe", Buffer, Length)) return TRUE;
+    if (WildcardMatch(L"*\\Windows\\explorer.exe", Buffer, Length)) return TRUE;
     return FALSE;
 }
 
@@ -431,15 +430,25 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
 
-    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
+
+    PEPROCESS Process = NULL;
+    if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) {
+        return FALSE;
+    }
 
     if (g_CacheInitialized) {
         ExAcquireFastMutex(&TrustCacheLock);
         ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
-        if (TrustCache[Hash].ProcessId == ProcessId) {
-            BOOLEAN cachedResult = TrustCache[Hash].IsTrusted;
-            ExReleaseFastMutex(&TrustCacheLock);
-            return cachedResult;
+        if (TrustCache[Hash].Process == Process) {
+            LARGE_INTEGER Now;
+            KeQuerySystemTime(&Now);
+            if ((Now.QuadPart - TrustCache[Hash].CacheTime.QuadPart) < (TRUST_CACHE_TTL_SEC * 10000000LL)) {
+                BOOLEAN cachedResult = TrustCache[Hash].IsTrusted;
+                ExReleaseFastMutex(&TrustCacheLock);
+                ObDereferenceObject(Process);
+                return cachedResult;
+            }
         }
         ExReleaseFastMutex(&TrustCacheLock);
     }
@@ -452,7 +461,6 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     BOOLEAN isTrusted = FALSE;
 
     if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
-
         ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
         PRULE_NODE Node = g_ProcessExploitable;
@@ -487,25 +495,15 @@ cleanup:
     if (g_CacheInitialized) {
         ExAcquireFastMutex(&TrustCacheLock);
         ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
-        TrustCache[Hash].ProcessId = ProcessId;
+        TrustCache[Hash].Process = Process;
         TrustCache[Hash].IsTrusted = isTrusted;
         KeQuerySystemTime(&TrustCache[Hash].CacheTime);
         ExReleaseFastMutex(&TrustCacheLock);
     }
 
     if (imageFileName) ExFreePool(imageFileName);
+    ObDereferenceObject(Process);
     return isTrusted;
-}
-
-BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId) {
-    if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
-    if (ProcessId == (HANDLE)4) return TRUE;
-
-    return IsProcessTrusted(ProcessId);
-}
-
-BOOLEAN IsInstallerProcess(HANDLE ProcessId) {
-    return IsProcessTrusted(ProcessId);
 }
 
 BOOLEAN IsTargetProtected(HANDLE ProcessId) {
@@ -585,7 +583,7 @@ BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
     while (ExNode) {
         if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
             ExReleaseResourceLite(&RuleLock);
-            return FALSE; 
+            return FALSE;
         }
         ExNode = ExNode->Next;
     }
@@ -654,7 +652,7 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
 }
 
 static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
-    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
     PUNICODE_STRING imageFileName = NULL;
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isExplorer = FALSE;
@@ -685,6 +683,11 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
         return FALSE;
     }
 
+    PEPROCESS Process = NULL;
+    if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) {
+        return FALSE;
+    }
+
     LARGE_INTEGER Now = { 0 };
     KeQuerySystemTime(&Now);
     BOOLEAN Result = FALSE;
@@ -702,13 +705,13 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
             LruSlot = Current;
         }
 
-        if (Current->ProcessId == ProcessId) {
+        if (Current->Process == Process) {
             Tracker = Current;
             break;
         }
 
         BOOLEAN IsExpired = FALSE;
-        if (Current->ProcessId != NULL) {
+        if (Current->Process != NULL) {
             LARGE_INTEGER Diff;
             Diff.QuadPart = Now.QuadPart - Current->LastActivityTime.QuadPart;
             if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
@@ -716,7 +719,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
             }
         }
 
-        if ((Current->ProcessId == NULL || IsExpired) && !CandidateSlot) {
+        if ((Current->Process == NULL || IsExpired) && !CandidateSlot) {
             CandidateSlot = Current;
         }
     }
@@ -729,7 +732,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
             Tracker = LruSlot;
         }
 
-        Tracker->ProcessId = ProcessId;
+        Tracker->Process = Process;
         Tracker->ActivityCount = 0;
         Tracker->LastActivityTime = Now;
     }
@@ -750,6 +753,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
         Result = TRUE;
     }
     ExReleaseFastMutex(&GlobalData.TrackerMutex);
+    ObDereferenceObject(Process);
     return Result;
 }
 

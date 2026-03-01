@@ -34,7 +34,8 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_R
 
     FileName = nameInfo->Name;
     if (!FileName.Buffer || FileName.Length == 0) {
-        goto cleanup;
+        FltReleaseFileNameInformation(nameInfo);
+        return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
     HANDLE Pid = PsGetCurrentProcessId();
@@ -64,7 +65,7 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_R
         if (Data->Iopb->Parameters.Create.SecurityContext->DesiredAccess &
             (FILE_WRITE_DATA | FILE_APPEND_DATA | GENERIC_WRITE | WRITE_DAC | WRITE_OWNER)) {
 
-            if (!Trusted && !IsInstallerProcess(Pid)) {
+            if (!Trusted) {
                 UNICODE_STRING MsgStr = RTL_CONSTANT_STRING(L"Disk_Wiper_Attempt");
                 SendMessageToUser(4001, (ULONG)(ULONG_PTR)Pid, MsgStr.Buffer, MsgStr.Length);
                 Data->IoStatus.Status = STATUS_ACCESS_DENIED;
@@ -178,11 +179,9 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_SetSecurity(PFLT_CALLBACK_DATA Data, PCFLT
     SECURITY_INFORMATION SecurityInfo = Data->Iopb->Parameters.SetSecurity.SecurityInformation;
 
     if (SecurityInfo & (OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION)) {
-
         if (CheckProtectedPathRule(&nameInfo->Name)) {
             HANDLE Pid = PsGetCurrentProcessId();
-
-            if (!IsProcessTrusted(Pid) && !IsInstallerProcess(Pid)) {
+            if (!IsProcessTrusted(Pid)) {
                 SendMessageToUser(2001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
                 Data->IoStatus.Status = STATUS_ACCESS_DENIED;
                 FltReleaseFileNameInformation(nameInfo);
@@ -220,7 +219,6 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RE
                 HANDLE Pid = PsGetCurrentProcessId();
 
                 if (!IsProcessTrusted(Pid)) {
-
                     PVOID SystemBuffer = NULL;
                     PMDL Mdl = Data->Iopb->Parameters.Write.MdlAddress;
 
@@ -238,11 +236,9 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RE
 
                     if (SystemBuffer) {
                         if (CheckRansomActivity(Pid, &nameInfo->Name, SystemBuffer, WriteLength, TRUE)) {
-                            if (!IsInstallerProcess(Pid)) {
-                                SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
-                                Data->IoStatus.Status = STATUS_ACCESS_DENIED;
-                                callbackStatus = FLT_PREOP_COMPLETE;
-                            }
+                            SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
+                            Data->IoStatus.Status = STATUS_ACCESS_DENIED;
+                            callbackStatus = FLT_PREOP_COMPLETE;
                         }
                     }
                 }
@@ -270,7 +266,6 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_FileSystemControl(PFLT_CALLBACK_DATA Data,
             if (NT_SUCCESS(FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo)) && nameInfo) {
                 if (NT_SUCCESS(FltParseFileNameInformation(nameInfo))) {
                     if (CheckFileExtensionRule(&nameInfo->Name) || CheckProtectedPathRule(&nameInfo->Name)) {
-
                         Data->IoStatus.Status = STATUS_NOT_SUPPORTED;
                         FltReleaseFileNameInformation(nameInfo);
                         return FLT_PREOP_COMPLETE;

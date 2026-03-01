@@ -21,7 +21,7 @@ LGBM_PARAMS = {
     'objective': 'binary',
     'metric': ['binary_logloss', 'auc'],
     'boosting_type': 'gbdt',
-    'num_leaves': 63,
+    'num_leaves': 255,
     'learning_rate': 0.05,
     'feature_fraction': 0.8,
     'bagging_fraction': 0.8,
@@ -30,7 +30,7 @@ LGBM_PARAMS = {
     'seed': RANDOM_SEED,
     'n_jobs': -1,
     'max_depth': -1,
-    'min_data_in_leaf': 20,
+    'min_data_in_leaf': 10,
     'lambda_l1': 0.1,
     'lambda_l2': 0.1,
 }
@@ -114,7 +114,7 @@ def train_process(X, y):
     n_neg = (y_train == 0).sum()
     
     base_weight = n_neg / n_pos if n_pos > 0 else 1.0
-    weight_ratio_target = 0.1
+    weight_ratio_target = 0.01
     final_pos_weight = base_weight * weight_ratio_target
     
     print(f"[*] Balance Report: Safe={n_neg}, Malware={n_pos}")

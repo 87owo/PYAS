@@ -260,6 +260,33 @@ class MainWindow_Controller(QMainWindow):
         self.fltlib.FilterGetMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p]
         self.fltlib.FilterGetMessage.restype = ctypes.c_long
 
+        self.kernel32.CreateToolhelp32Snapshot.restype = ctypes.wintypes.HANDLE
+        self.kernel32.CreateToolhelp32Snapshot.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.DWORD]
+        
+        self.kernel32.Process32FirstW.restype = ctypes.wintypes.BOOL
+        self.kernel32.Process32FirstW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
+        
+        self.kernel32.Process32NextW.restype = ctypes.wintypes.BOOL
+        self.kernel32.Process32NextW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
+        
+        self.kernel32.OpenProcess.restype = ctypes.wintypes.HANDLE
+        self.kernel32.OpenProcess.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.BOOL, ctypes.wintypes.DWORD]
+        
+        self.kernel32.CloseHandle.restype = ctypes.wintypes.BOOL
+        self.kernel32.CloseHandle.argtypes = [ctypes.wintypes.HANDLE]
+        
+        self.kernel32.TerminateProcess.restype = ctypes.wintypes.BOOL
+        self.kernel32.TerminateProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_uint]
+        
+        self.kernel32.CreateMutexW.restype = ctypes.wintypes.HANDLE
+        self.kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.wintypes.BOOL, ctypes.c_wchar_p]
+        
+        self.kernel32.CreateFileW.restype = ctypes.wintypes.HANDLE
+        self.kernel32.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.HANDLE]
+        
+        self.kernel32.ReadProcessMemory.restype = ctypes.wintypes.BOOL
+        self.kernel32.ReadProcessMemory.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
+
 ####################################################################################################
 
     def save_config(self, file_path, config):
@@ -1109,13 +1136,18 @@ class MainWindow_Controller(QMainWindow):
     def list_process(self):
         pe = self.get_process_entry()
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        result, success = [], self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
-
+        result = []
+        
+        if snapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
+            return result
+            
+        success = self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
         while success:
             pid = pe.th32ProcessID
             name, file_path = (None, None)
             if pid > 4:
                 name, file_path = self.get_exe_info(pid)
+
             if not name:
                 try:
                     name = pe.szExeFile
@@ -1124,6 +1156,7 @@ class MainWindow_Controller(QMainWindow):
 
             result.append((pid, name, file_path))
             success = self.kernel32.Process32NextW(snapshot, ctypes.byref(pe))
+            
         self.kernel32.CloseHandle(snapshot)
         return result
 
@@ -1216,12 +1249,14 @@ class MainWindow_Controller(QMainWindow):
         try:
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if h:
-                file_path = self.norm_path(self.get_process_file(h))
-                if self.path_equal(file_path, self.file_pyas):
-                    self.close_button()
-                else:
-                    self.kernel32.TerminateProcess(h, 0)
-                self.kernel32.CloseHandle(h)
+                try:
+                    file_path = self.norm_path(self.get_process_file(h))
+                    if self.path_equal(file_path, self.file_pyas):
+                        self.close_button()
+                    else:
+                        self.kernel32.TerminateProcess(h, 0)
+                finally:
+                    self.kernel32.CloseHandle(h)
         except Exception as e:
             self.send_message(f"kill_process | {e}", "warn", False)
         self.refresh_process()
@@ -1842,6 +1877,10 @@ class MainWindow_Controller(QMainWindow):
     def get_process_list(self):
         exist_process, pe = set(), self.get_process_entry()
         hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        
+        if hSnapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
+            return exist_process
+            
         if self.kernel32.Process32FirstW(hSnapshot, ctypes.byref(pe)):
             while True:
                 exist_process.add(pe.th32ProcessID)

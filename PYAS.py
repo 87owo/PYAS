@@ -336,6 +336,11 @@ class MainWindow_Controller(QMainWindow):
 
     def init_engine_thread(self):
         try:
+            self.backup_mbr()
+            self.relock_file()
+            self.init_whitelist()
+            self.init_thread()
+
             self.heuristic.load_path(self.path_heuristic, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
             self.pattern.load_path(self.path_pattern, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
             self.properties.load_path(self.path_properties, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
@@ -649,22 +654,17 @@ class MainWindow_Controller(QMainWindow):
 
     def show_startup(self):
         try:
-            if self.singleton_mutex("pyas_security"):
-                self.backup_mbr()
-                self.relock_file()
-                self.init_whitelist()
-                self.init_thread()
-                self.init_connect()
-
-                param = ""
-                if self.args_pyas:
-                    param = self.args_pyas[0].replace("/", "-")
-                if "-h" not in param:
-                    self.show_button()
-                self.apply_settings()
-                self.start_daemon_thread(self.init_engine_thread)
-            else:
+            if not self.singleton_mutex("pyas_security"):
                 sys.exit(0)
+
+            self.init_connect()
+            self.apply_settings()
+
+            param = self.args_pyas[0].replace("/", "-") if self.args_pyas else ""
+            if "-h" not in param:
+                self.show_button()
+
+            self.start_daemon_thread(self.init_engine_thread)
         except Exception as e:
             self.send_message(f"show_startup | {e}", "warn", False)
 
@@ -893,7 +893,7 @@ class MainWindow_Controller(QMainWindow):
                         continue
                     self.scan_count += 1
 
-                    suffix = self.pyas_config.get("suffix", [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"])
+                    suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
                     ext = os.path.splitext(file_path)[-1].lower()
                     if ext not in suffix:
                         continue
@@ -1834,7 +1834,7 @@ class MainWindow_Controller(QMainWindow):
             seen = set()
             paths = [p for p in paths if p and (p not in seen and not seen.add(p))]
 
-            suffix = self.pyas_config.get("suffix", [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"])
+            suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
 
             for p in paths:
                 file_path = self.norm_path(self.device_path_to_drive(p)) if p else ""
@@ -2002,7 +2002,7 @@ class MainWindow_Controller(QMainWindow):
                 file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                 if file_path and notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
 
-                    suffix = self.pyas_config.get("suffix", [".com", ".dll", ".drv", ".exe", ".ocx", ".scr", ".sys", ".mui"])
+                    suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
                     ext = os.path.splitext(file_path)[-1].lower()
                     if ext not in suffix:
                         continue

@@ -144,6 +144,8 @@ class MainWindow_Controller(QMainWindow):
         ]
         self.lang_names = [
             "traditional_switch", "simplified_switch", "english_switch",
+            "japanese_switch", "korean_switch", "french_switch", "spanish_switch",
+            "hindi_switch", "arabic_switch", "russian_switch", "slovenian_switch",
         ]
         self.pyas_default = {
             "version": "3.4.1",

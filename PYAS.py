@@ -148,7 +148,7 @@ class MainWindow_Controller(QMainWindow):
             "hindi_switch", "arabic_switch", "russian_switch", "slovenian_switch",
         ]
         self.pyas_default = {
-            "version": "3.4.1",
+            "version": "3.4.2",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
@@ -889,14 +889,21 @@ class MainWindow_Controller(QMainWindow):
             for file_path in self.yield_files(targets):
                 if not self.scan_running:
                     break
+                
+                norm_path = self.norm_path(file_path)
+                was_locked = False
+                
                 try:
-                    norm_path = self.norm_path(file_path)
+                    if norm_path in self.virus_lock:
+                        self.lock_file(norm_path, False)
+                        was_locked = True
+
                     if self.is_in_whitelist(norm_path):
                         continue
                     self.scan_count += 1
 
                     suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
-                    ext = os.path.splitext(file_path)[-1].lower()
+                    ext = os.path.splitext(norm_path)[-1].lower()
                     if ext not in suffix:
                         continue
 
@@ -912,6 +919,12 @@ class MainWindow_Controller(QMainWindow):
                     gc.collect()
                 except Exception as e:
                     self.send_message(f"scan_worker | {e}", "warn", False)
+                finally:
+                    if was_locked:
+                        try:
+                            self.lock_file(norm_path, True)
+                        except Exception:
+                            pass
         finally:
             count = len(self.virus_results)
             elapsed = int(time.time() - self.scan_start)
@@ -935,11 +948,6 @@ class MainWindow_Controller(QMainWindow):
                 yield from self.yield_files(t)
 
     def scan_engine(self, file_path):
-        try:
-            if self.sign.sign_verify(file_path):
-                return False
-        except Exception as e:
-            self.send_message(f"sign_verify | {e}", "warn", False)
         try:
             pe_label, pe_score = self.properties.pe_scan(file_path)
             if pe_label:

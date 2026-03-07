@@ -104,6 +104,7 @@ class MainWindow_Controller(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.init_environ()
+        self.init_clean_logs()
         self.init_variable()
         self.load_config()
         self.init_interface()
@@ -213,6 +214,8 @@ class MainWindow_Controller(QMainWindow):
 
         self.path_systemp = os.path.join(self.path_system, "Temp")
         self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
+        self.file_log = os.path.join(self.path_config, "PYAS", "Report.log")
+
         self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
         self.path_pattern = os.path.join(self.path_pyas, "Engine", "Pattern")
         self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
@@ -791,10 +794,35 @@ class MainWindow_Controller(QMainWindow):
             log_widget = self.widgets.get("log_text")
             if log_widget:
                 log_widget.append(output)
+            
+            self.write_log(output)
             return select
         except Exception:
             traceback.print_exc()
             return False
+
+    def write_log(self, text):
+        try:
+            os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
+            with open(self.file_log, "a", encoding="utf-8", errors="ignore") as f:
+                f.write(f"{text}\n")
+        except Exception:
+            pass
+
+    def init_clean_logs(self):
+        try:
+            if not os.path.exists(self.file_log):
+                return
+            cutoff_time = time.time() - 30 * 86400
+            cutoff_str = time.strftime("[%Y-%m-%d", time.localtime(cutoff_time))
+            with open(self.file_log, "r", encoding="utf-8", errors="ignore") as f:
+                lines = f.readlines()
+            with open(self.file_log, "w", encoding="utf-8", errors="ignore") as f:
+                for line in lines:
+                    if len(line) >= 11 and line[:11] >= cutoff_str:
+                        f.write(line)
+        except Exception:
+            pass
 
 ####################################################################################################
 

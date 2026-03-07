@@ -117,6 +117,7 @@ class MainWindow_Controller(QMainWindow):
         self.ui.setupUi(self)
         self.python = sys.executable
         self.process_timer = QTimer(self)
+        self.lock_mutex = threading.Lock()
 
         self.sign = sign_scanner()
         self.sign.init_windll(["wintrust"])
@@ -133,6 +134,7 @@ class MainWindow_Controller(QMainWindow):
 
         self.driver_port = None
         self.scan_running = False
+        self.scan_finished = False
         self.virus_lock = {}
         self.virus_results = []
         self.scan_count = 0
@@ -253,6 +255,12 @@ class MainWindow_Controller(QMainWindow):
 
         self.ntdll.NtQueryInformationProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.ULONG, ctypes.c_void_p, ctypes.wintypes.ULONG, ctypes.POINTER(ctypes.wintypes.ULONG)]
         self.ntdll.NtQueryInformationProcess.restype = ctypes.wintypes.ULONG
+
+        self.ntdll.NtSuspendProcess.argtypes = [ctypes.wintypes.HANDLE]
+        self.ntdll.NtSuspendProcess.restype = ctypes.c_ulong
+
+        self.ntdll.NtResumeProcess.argtypes = [ctypes.wintypes.HANDLE]
+        self.ntdll.NtResumeProcess.restype = ctypes.c_ulong
 
         self.shell32.CommandLineToArgvW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
         self.shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.wintypes.LPWSTR)
@@ -595,12 +603,36 @@ class MainWindow_Controller(QMainWindow):
     def change_window(self, widget_name, duration=200):
         widget = self.widgets.get(widget_name)
         if widget and widget != self.last_widget:
+            scan_win = self.widgets.get("scan_window")
+            method_win = self.widgets.get("method_window")
+
+            if self.last_widget in (scan_win, method_win) and widget in self.main_window and widget != scan_win:
+                if getattr(self, "scan_finished", False):
+                    def delayed_reset():
+                        if self.last_widget not in (scan_win, method_win):
+                            self.scan_finished = False
+                            self.scan_running = False
+                            self.virus_results.clear()
+                            self.scan_reset_signal.emit()
+                            lang = self.pyas_config.get("language", "english_switch")
+                            self.scan_progress_signal.emit(self.trans(lang, "此選項可以選擇掃描方式"))
+                            self.progress_title_signal.emit(self.trans(lang, "病毒掃描"))
+                    
+                    QTimer.singleShot(duration, delayed_reset)
+
             widget.raise_()
             widget.hide()
             for window in self.menu_window:
                 window.raise_()
             for window in self.sub_window:
                 window.hide()
+
+            if widget in (scan_win, method_win):
+                if getattr(self, "scan_finished", False):
+                    self.widgets["solve_button"].setVisible(len(self.virus_results) > 0)
+                    self.widgets["stop_button"].hide()
+                    self.widgets["method_button"].show()
+
             self.animate_geometry(widget, duration)
             self.last_widget = widget
 
@@ -803,9 +835,9 @@ class MainWindow_Controller(QMainWindow):
         count = len(self.virus_results)
         self.widgets["solve_button"].setVisible(count > 0)
         self.widgets["virus_list"].clear()
-        self.widgets["stop_button"].show()
-        self.widgets["method_button"].hide()
         self.widgets["method_window"].hide()
+        self.widgets["stop_button"].setVisible(self.scan_running)
+        self.widgets["method_button"].setVisible(not self.scan_running)
 
     @Slot(str)
     def slot_progress_title(self, text: str):
@@ -824,6 +856,7 @@ class MainWindow_Controller(QMainWindow):
 
     @Slot(str)
     def slot_scan_result(self, msg):
+        self.scan_finished = True
         count = len(self.virus_results)
         self.widgets["solve_button"].setVisible(count > 0)
         self.widgets["progress_text"].setText(msg)
@@ -853,6 +886,7 @@ class MainWindow_Controller(QMainWindow):
     def init_scan(self):
         try:
             self.scan_running = True
+            self.scan_finished = False
             self.virus_results = []
             self.scan_count = 0
             self.scan_start = time.time()
@@ -1038,26 +1072,29 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def solve_button(self):
-        deleted = 0
-        virus_list = self.widgets["virus_list"]
-        start_ts = time.time()
+        if self.send_message("您確定要刪除檔案嗎?", "quest"):
+            deleted = 0
+            virus_list = self.widgets["virus_list"]
+            start_ts = time.time()
 
-        for i in reversed(range(virus_list.count())):
-            item = virus_list.item(i)
-            if item.checkState() == Qt.Checked:
-                file_path = self.norm_path(item.text().split(">")[1].strip())
-                lang = self.pyas_config.get("language", "english_switch")
-                self.progress_title_signal.emit(self.trans(lang, "正在刪除"))
-                self.scan_progress_signal.emit(file_path)
+            for i in reversed(range(virus_list.count())):
+                item = virus_list.item(i)
+                if item.checkState() == Qt.Checked:
+                    file_path = self.norm_path(item.text().split(">")[1].strip())
+                    lang = self.pyas_config.get("language", "english_switch")
+                    self.progress_title_signal.emit(self.trans(lang, "正在刪除"))
+                    self.scan_progress_signal.emit(file_path)
 
-                try:
-                    os.remove(file_path)
-                    deleted += 1
-                    virus_list.takeItem(i)
-                    self.virus_results.remove(file_path)
-                except Exception as e:
-                    self.send_message(f"solve_button | {e}", "warn", False)
-                QApplication.processEvents()
+                    try:
+                        self.manage_named_list("quarantine", [file_path], action="remove", lock_func=self.lock_file)
+                        os.remove(file_path)
+                        deleted += 1
+                        virus_list.takeItem(i)
+                        if file_path in self.virus_results:
+                            self.virus_results.remove(file_path)
+                    except Exception as e:
+                        self.send_message(f"solve_button | {e}", "warn", False)
+                    QApplication.processEvents()
 
         count = len(self.virus_results)
         self.widgets["solve_button"].setVisible(count > 0)
@@ -1110,9 +1147,11 @@ class MainWindow_Controller(QMainWindow):
             file_path = self.norm_path(path)
             if file_path and self.send_message("您確定要刪除檔案嗎?", "quest"):
                 try:
+                    self.manage_named_list("quarantine", [file_path], action="remove", lock_func=self.lock_file)
                     os.remove(file_path)
                     widget.takeItem(widget.row(item))
-                    self.virus_results.remove(file_path)
+                    if file_path in self.virus_results:
+                        self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(f"show_scan_menu | {e}", "warn", False)
 
@@ -1120,10 +1159,12 @@ class MainWindow_Controller(QMainWindow):
             file_path = self.norm_path(path)
             if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
                 try:
+                    self.manage_named_list("quarantine", [file_path], action="remove", lock_func=self.lock_file)
                     n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
                     self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
                     widget.takeItem(widget.row(item))
-                    self.virus_results.remove(file_path)
+                    if file_path in self.virus_results:
+                        self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(f"show_scan_menu | {e}", "warn", False)
 
@@ -1134,7 +1175,8 @@ class MainWindow_Controller(QMainWindow):
                     n = self.manage_named_list("quarantine", [file_path], action="add", with_hash=True, lock_func=self.lock_file)
                     self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
                     widget.takeItem(widget.row(item))
-                    self.virus_results.remove(file_path)
+                    if file_path in self.virus_results:
+                        self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(f"show_scan_menu | {e}", "warn", False)
 
@@ -1793,15 +1835,16 @@ class MainWindow_Controller(QMainWindow):
 
     def lock_file(self, file, lock):
         try:
-            if lock:
-                if file not in self.virus_lock:
-                    self.virus_lock[file] = os.open(file, os.O_RDWR)
-                msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBRLCK, os.path.getsize(file))
-            else:
-                if file in self.virus_lock:
-                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
-                    os.close(self.virus_lock[file])
-                    del self.virus_lock[file]
+            with self.lock_mutex:
+                if lock:
+                    if file not in self.virus_lock:
+                        self.virus_lock[file] = os.open(file, os.O_RDWR)
+                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBRLCK, os.path.getsize(file))
+                else:
+                    if file in self.virus_lock:
+                        msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
+                        os.close(self.virus_lock[file])
+                        del self.virus_lock[file]
         except Exception as e:
             self.send_message(f"lock_file | {e}", "warn", False)
 
@@ -1821,21 +1864,22 @@ class MainWindow_Controller(QMainWindow):
         self.exist_process = self.get_process_list()
         while self.pyas_config.get("process_switch", False):
             try:
-                time.sleep(0.2)
+                time.sleep(0.1)
                 cur = self.get_process_list()
-                for pid in cur - self.exist_process:
-                    self.handle_new_process(pid)
+                new_pids = cur - self.exist_process
+                for pid in new_pids:
+                    self.start_daemon_thread(self.handle_new_process, pid)
                 self.exist_process = cur
             except Exception as e:
                 self.send_message(f"protect_proc_thread | {e}", "warn", False)
 
     def handle_new_process(self, pid):
-        try:
-            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-            if not h:
-                return
+        h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+        if not h:
+            return
 
-            self.suspend_process(h, True)
+        self.suspend_process(h, True)
+        try:
             cmdline = self.get_process_cmdline(h)
             paths = []
             for arg in self.split_commandline(cmdline):
@@ -1847,7 +1891,7 @@ class MainWindow_Controller(QMainWindow):
             suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
 
             for p in paths:
-                file_path = self.norm_path(self.device_path_to_drive(p)) if p else ""
+                file_path = self.norm_path(self.device_path_to_drive(p))
                 
                 if not file_path or not os.path.isfile(file_path):
                     continue
@@ -1861,20 +1905,17 @@ class MainWindow_Controller(QMainWindow):
                 if self.scan_engine(file_path):
                     self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | None | {file_path}", "notify", True)
-                self.start_daemon_thread(self.cloud_check, file_path)
-
-            self.suspend_process(h, False)
-            self.kernel32.CloseHandle(h)
+                    break
+                    
+                self.cloud_check(file_path)
         except Exception as e:
             self.send_message(f"handle_new_process | {e}", "warn", False)
+        finally:
+            self.suspend_process(h, False)
+            self.kernel32.CloseHandle(h)
 
     def suspend_process(self, h_process, suspend):
         try:
-            if not hasattr(self.ntdll, "NtSuspendProcess"):
-                self.ntdll.NtSuspendProcess.argtypes = [ctypes.c_void_p]
-                self.ntdll.NtSuspendProcess.restype = ctypes.c_ulong
-                self.ntdll.NtResumeProcess.argtypes = [ctypes.c_void_p]
-                self.ntdll.NtResumeProcess.restype = ctypes.c_ulong
             if suspend:
                 self.ntdll.NtSuspendProcess(h_process)
             else:
@@ -2031,7 +2072,7 @@ class MainWindow_Controller(QMainWindow):
     def protect_net_thread(self):
         while self.pyas_config.get("network_switch", False):
             try:
-                time.sleep(0.5)
+                time.sleep(0.2)
                 conns = self.get_connections_list()
                 if not hasattr(self, "exist_connections") or self.exist_connections is None:
                     self.exist_connections = set()

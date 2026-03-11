@@ -1035,7 +1035,7 @@ class MainWindow_Controller(QMainWindow):
 ####################################################################################################
 
     def init_cloud_worker(self):
-        for _ in range(1):
+        for _ in range(4):
             t = threading.Thread(target=self.cloud_worker, daemon=True)
             t.start()
 

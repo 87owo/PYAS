@@ -823,27 +823,39 @@ class cloud_scanner:
             base = api_host.rstrip('/')
             base_headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
 
-            def _req(m, ep, files=None, req_timeout=5, **k):
+            def _req(m, ep, files=None, req_timeout=10, **k):
                 try:
-                    return requests.request(m, f"{base}{ep}", headers=base_headers, files=files, timeout=req_timeout, **k)
-                except:
-                    return None
-
-            r = _req("GET", f"/api/processing_status/{sha256}", req_timeout=15)
-            
-            status = 'missing'
-            if r and r.status_code == 200:
-                try:
-                    status = r.json().get('status', 'missing')
+                    resp = requests.request(m, f"{base}{ep}", headers=base_headers, files=files, timeout=req_timeout, **k)
+                    return resp, None
+                except requests.exceptions.Timeout:
+                    return None, "timeout"
+                except requests.exceptions.ConnectionError:
+                    return None, "connection"
                 except Exception:
-                    pass
+                    return None, "unknown"
 
-            if status in ['failed', 'error']:
-                status = 'missing'
+            status = None
+            for _ in range(3):
+                r, err_type = _req("GET", f"/api/processing_status/{sha256}", req_timeout=10)
 
-            if status == 'missing':
+                if r is not None:
+                    status = 'missing'
+                    if r.status_code == 200:
+                        try:
+                            status = r.json().get('status', 'missing')
+                        except Exception:
+                            pass
+                    break
+
+                if err_type != "timeout":
+                    time.sleep(10)
+
+            if status is None:
+                return False, sha256
+
+            if status in ['failed', 'error', 'missing']:
                 with open(file_path, 'rb') as f:
-                    r = _req("POST", "/api/upload", files={'file': f}, req_timeout=30)
+                    r, err_type = _req("POST", "/api/upload", files={'file': f}, req_timeout=30)
                     if not r or r.status_code != 200:
                         return False, sha256
 
@@ -861,25 +873,33 @@ class cloud_scanner:
             base = api_host.rstrip('/')
             headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
 
-            def _req(m, ep, req_timeout, **k):
+            def _req(m, ep, req_timeout=10, **k):
                 try:
-                    return requests.request(m, f"{base}{ep}", headers=headers, timeout=req_timeout, **k)
+                    resp = requests.request(m, f"{base}{ep}", headers=headers, timeout=req_timeout, **k)
+                    return resp, None
                 except requests.exceptions.Timeout:
-                    return "timeout"
+                    return None, "timeout"
+                except requests.exceptions.ConnectionError:
+                    return None, "connection"
                 except Exception:
-                    return None
+                    return None, "unknown"
 
-            timeout_count = 0
-            for _ in range(30):
-                r = _req("GET", f"/api/processing_status/{sha256}", req_timeout=15)
+            network_fail_count = 0
+            is_done = False
+
+            for _ in range(3):
+                r, err_type = _req("GET", f"/api/processing_status/{sha256}", req_timeout=10)
                 
-                if r == "timeout" or r is None:
-                    timeout_count += 1
-                    if timeout_count >= 3:
+                if r is None:
+                    network_fail_count += 1
+                    if network_fail_count >= 3:
                         return False
-                    time.sleep(1)
+
+                    if err_type != "timeout":
+                        time.sleep(10)
                     continue
 
+                network_fail_count = 0
                 st = 'error'
                 if r.status_code == 200:
                     try:
@@ -888,18 +908,22 @@ class cloud_scanner:
                         pass
 
                 if st == 'done':
+                    is_done = True
                     break
                 if st in ['error', 'failed']:
                     return False
-                time.sleep(1)
+                time.sleep(10)
 
-            r = _req("GET", f"/api/report/{sha256}", req_timeout=30)
-            if r and r != "timeout" and r.status_code == 200:
+            if not is_done:
+                return False
+
+            r, err_type = _req("GET", f"/api/report/{sha256}", req_timeout=30)
+            if r is not None and r.status_code == 200:
                 try:
                     data = r.json().get('data', {})
                     res = data.get('detection', {}).get('results', {}).get('PYAS', {})
                     label = res.get('label', 'Unsupport')
-                    score = res.get('score', 100)
+                    score = res.get('score', 0)
                     sims = data.get('similar', [])
 
                     is_malicious = 'General' in label

@@ -835,7 +835,7 @@ class cloud_scanner:
                     return None, "unknown"
 
             status = None
-            for _ in range(3):
+            for _ in range(6):
                 r, err_type = _req("GET", f"/api/processing_status/{sha256}", req_timeout=10)
 
                 if r is not None:
@@ -855,7 +855,7 @@ class cloud_scanner:
 
             if status in ['failed', 'error', 'missing']:
                 with open(file_path, 'rb') as f:
-                    r, err_type = _req("POST", "/api/upload", files={'file': f}, req_timeout=30)
+                    r, err_type = _req("POST", "/api/upload", files={'file': f}, req_timeout=60)
                     if not r or r.status_code != 200:
                         return False, sha256
 
@@ -887,7 +887,7 @@ class cloud_scanner:
             network_fail_count = 0
             is_done = False
 
-            for _ in range(3):
+            for _ in range(6):
                 r, err_type = _req("GET", f"/api/processing_status/{sha256}", req_timeout=10)
                 
                 if r is None:
@@ -917,7 +917,7 @@ class cloud_scanner:
             if not is_done:
                 return False
 
-            r, err_type = _req("GET", f"/api/report/{sha256}", req_timeout=30)
+            r, err_type = _req("GET", f"/api/report/{sha256}", req_timeout=60)
             if r is not None and r.status_code == 200:
                 try:
                     data = r.json().get('data', {})

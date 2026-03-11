@@ -21,7 +21,7 @@ LGBM_PARAMS = {
     'objective': 'binary',
     'metric': ['binary_logloss', 'auc'],
     'boosting_type': 'gbdt',
-    'num_leaves': 255,
+    'num_leaves': 31,
     'learning_rate': 0.05,
     'feature_fraction': 0.8,
     'bagging_fraction': 0.8,
@@ -214,3 +214,4 @@ if __name__ == "__main__":
         print("\n\n[-] Training interrupted.")
     except Exception as e:
         print(f"\n[-] Critical Error: {e}")
+

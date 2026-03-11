@@ -1920,22 +1920,22 @@ class MainWindow_Controller(QMainWindow):
 
             for p in paths:
                 file_path = self.norm_path(self.device_path_to_drive(p))
-                
                 if not file_path or not os.path.isfile(file_path):
                     continue
 
                 ext = os.path.splitext(file_path)[-1].lower()
                 if ext not in suffix:
                     continue
-
                 if self.is_in_whitelist(file_path):
                     continue
+
+                self.start_daemon_thread(self.cloud_check, file_path)
+
                 if self.scan_engine(file_path):
                     self.kernel32.TerminateProcess(h, 0)
                     self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | None | {file_path}", "notify", True)
                     break
-                    
-                self.cloud_check(file_path)
+                
         except Exception as e:
             self.send_message(f"handle_new_process | {e}", "warn", False)
         finally:

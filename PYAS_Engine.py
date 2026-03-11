@@ -823,20 +823,27 @@ class cloud_scanner:
             base = api_host.rstrip('/')
             base_headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
 
-            def _req(m, ep, files=None, **k):
+            def _req(m, ep, files=None, req_timeout=5, **k):
                 try:
-                    return requests.request(m, f"{base}{ep}", headers=base_headers, files=files, timeout=120, **k)
+                    return requests.request(m, f"{base}{ep}", headers=base_headers, files=files, timeout=req_timeout, **k)
                 except:
                     return None
 
-            r = _req("GET", f"/api/processing_status/{sha256}")
-            status = r.json().get('status') if r and r.status_code == 200 else 'missing'
+            r = _req("GET", f"/api/processing_status/{sha256}", req_timeout=15)
+            
+            status = 'missing'
+            if r and r.status_code == 200:
+                try:
+                    status = r.json().get('status', 'missing')
+                except Exception:
+                    pass
+
             if status in ['failed', 'error']:
                 status = 'missing'
 
             if status == 'missing':
                 with open(file_path, 'rb') as f:
-                    r = _req("POST", "/api/upload", files={'file': f})
+                    r = _req("POST", "/api/upload", files={'file': f}, req_timeout=30)
                     if not r or r.status_code != 200:
                         return False, sha256
 
@@ -854,40 +861,60 @@ class cloud_scanner:
             base = api_host.rstrip('/')
             headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
 
-            def _req(m, ep, **k):
+            def _req(m, ep, req_timeout, **k):
                 try:
-                    return requests.request(m, f"{base}{ep}", headers=headers, timeout=10, **k)
-                except:
+                    return requests.request(m, f"{base}{ep}", headers=headers, timeout=req_timeout, **k)
+                except requests.exceptions.Timeout:
+                    return "timeout"
+                except Exception:
                     return None
 
+            timeout_count = 0
             for _ in range(30):
-                r = _req("GET", f"/api/processing_status/{sha256}")
-                st = r.json().get('status') if r else 'error'
+                r = _req("GET", f"/api/processing_status/{sha256}", req_timeout=15)
+                
+                if r == "timeout" or r is None:
+                    timeout_count += 1
+                    if timeout_count >= 3:
+                        return False
+                    time.sleep(1)
+                    continue
+
+                st = 'error'
+                if r.status_code == 200:
+                    try:
+                        st = r.json().get('status', 'error')
+                    except Exception:
+                        pass
+
                 if st == 'done':
                     break
                 if st in ['error', 'failed']:
                     return False
                 time.sleep(1)
 
-            r = _req("GET", f"/api/report/{sha256}")
-            if r and r.status_code == 200:
-                data = r.json().get('data', {})
-                res = data.get('detection', {}).get('results', {}).get('PYAS', {})
-                label = res.get('label', 'Unsupport')
-                score = res.get('score', 100)
-                sims = data.get('similar', [])
+            r = _req("GET", f"/api/report/{sha256}", req_timeout=30)
+            if r and r != "timeout" and r.status_code == 200:
+                try:
+                    data = r.json().get('data', {})
+                    res = data.get('detection', {}).get('results', {}).get('PYAS', {})
+                    label = res.get('label', 'Unsupport')
+                    score = res.get('score', 100)
+                    sims = data.get('similar', [])
 
-                is_malicious = 'General' in label
-                sim_malicious_count = 0
-                valid_sim_count = 0
-                for s in sims:
-                    if s.get('similarity', 0) > 80:
-                        valid_sim_count += 1
-                        if "General" in s.get('label', ''):
-                            sim_malicious_count += 1
+                    is_malicious = 'General' in label
+                    sim_malicious_count = 0
+                    valid_sim_count = 0
+                    for s in sims:
+                        if s.get('similarity', 0) > 80:
+                            valid_sim_count += 1
+                            if "General" in s.get('label', ''):
+                                sim_malicious_count += 1
 
-                if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
-                    return f"General:WinPE/Unknown.{score}!cl"
+                    if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
+                        return f"General:WinPE/Unknown.{score}!cl"
+                except Exception:
+                    pass
         except Exception:
             pass
         return False

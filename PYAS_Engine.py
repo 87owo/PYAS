@@ -800,7 +800,26 @@ class pe_scanner:
 
 class cloud_scanner:
     def __init__(self):
-        pass
+        self.session = None
+        self.api_host = None
+        self.api_key = None
+        self.timeout = 30
+
+    def _init_session(self, api_host, api_key):
+        if self.session is None or self.api_host != api_host or self.api_key != api_key:
+            self.api_host = api_host.rstrip('/')
+            self.api_key = api_key
+            self.session = requests.Session()
+            self.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.2"})
+
+    def _request(self, method, endpoint, **kwargs):
+        try:
+            r = self.session.request(method, f"{self.api_host}{endpoint}", timeout=self.timeout, **kwargs)
+            if r.status_code == 200:
+                return r
+        except Exception:
+            pass
+        return None
 
     def calc_hash(self, file_path, block_size=65536):
         try:
@@ -814,131 +833,106 @@ class cloud_scanner:
 
 ####################################################################################################
 
-    def upload_file(self, file_path, api_host, api_key):
+    def rescan(self, sha256, api_host, api_key):
+        self._init_session(api_host, api_key)
+        r = self._request("POST", f"/api/rescan/{sha256}")
+        return r is not None and r.json().get('status') == 'success'
+
+    def upload_file(self, file_path, api_host, api_key, chunk_size=5242880):
         try:
+            self._init_session(api_host, api_key)
             sha256 = self.calc_hash(file_path)
             if not sha256:
                 return False, None
 
-            base = api_host.rstrip('/')
-            base_headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
+            status_req = self._request("GET", f"/api/processing_status/{sha256}")
+            if status_req and status_req.json().get('status') != 'missing':
+                self.rescan(sha256, api_host, api_key)
+                return True, sha256
 
-            def _req(m, ep, files=None, req_timeout=10, **k):
-                try:
-                    resp = requests.request(m, f"{base}{ep}", headers=base_headers, files=files, timeout=req_timeout, **k)
-                    return resp, None
-                except requests.exceptions.Timeout:
-                    return None, "timeout"
-                except requests.exceptions.ConnectionError:
-                    return None, "connection"
-                except Exception:
-                    return None, "unknown"
-
-            status = None
-            for _ in range(6):
-                r, err_type = _req("GET", f"/api/processing_status/{sha256}", req_timeout=10)
-
-                if r is not None:
-                    status = 'missing'
-                    if r.status_code == 200:
-                        try:
-                            status = r.json().get('status', 'missing')
-                        except Exception:
-                            pass
-                    break
-
-                if err_type != "timeout":
-                    time.sleep(10)
-
-            if status is None:
+            file_size = os.path.getsize(file_path)
+            if file_size > 104857600:
                 return False, sha256
 
-            if status in ['failed', 'error', 'missing']:
+            if file_size > chunk_size:
+                total_chunks = (file_size + chunk_size - 1) // chunk_size
+                upload_id = os.urandom(16).hex()
                 with open(file_path, 'rb') as f:
-                    r, err_type = _req("POST", "/api/upload", files={'file': f}, req_timeout=60)
-                    if not r or r.status_code != 200:
-                        return False, sha256
+                    for i in range(total_chunks):
+                        chunk_data = f.read(chunk_size)
+                        headers = {
+                            "X-Chunk-Index": str(i),
+                            "X-Total-Chunks": str(total_chunks),
+                            "X-Upload-ID": upload_id
+                        }
+                        
+                        chunk_success = False
+                        for _ in range(3):
+                            r = self._request("POST", "/api/upload", files={'file': (os.path.basename(file_path), chunk_data)}, headers=headers)
+                            if r:
+                                chunk_success = True
+                                break
+                            time.sleep(1)
+                            
+                        if not chunk_success:
+                            return False, sha256
+                return True, sha256
 
-            return True, sha256
+            with open(file_path, 'rb') as f:
+                file_data = f.read()
+                
+            for _ in range(3):
+                r = self._request("POST", "/api/upload", files={'file': (os.path.basename(file_path), file_data)})
+                if r:
+                    return True, sha256
+                time.sleep(1)
+                
+            return False, sha256
         except Exception:
             return False, None
 
 ####################################################################################################
 
-    def get_result(self, sha256, api_host, api_key):
+    def get_result(self, sha256, api_host, api_key, max_retries=6, interval=10):
         try:
             if not sha256:
                 return False
+            self._init_session(api_host, api_key)
 
-            base = api_host.rstrip('/')
-            headers = {"X-API-Key": api_key, "User-Agent": "PYAS-Client/1.0"}
-
-            def _req(m, ep, req_timeout=10, **k):
-                try:
-                    resp = requests.request(m, f"{base}{ep}", headers=headers, timeout=req_timeout, **k)
-                    return resp, None
-                except requests.exceptions.Timeout:
-                    return None, "timeout"
-                except requests.exceptions.ConnectionError:
-                    return None, "connection"
-                except Exception:
-                    return None, "unknown"
-
-            network_fail_count = 0
             is_done = False
-
-            for _ in range(6):
-                r, err_type = _req("GET", f"/api/processing_status/{sha256}", req_timeout=10)
-                
-                if r is None:
-                    network_fail_count += 1
-                    if network_fail_count >= 3:
+            for _ in range(max_retries):
+                r = self._request("GET", f"/api/processing_status/{sha256}")
+                if r:
+                    st = r.json().get('status', 'error')
+                    if st == 'done':
+                        is_done = True
+                        break
+                    if st in ['error', 'failed']:
                         return False
-
-                    if err_type != "timeout":
-                        time.sleep(10)
-                    continue
-
-                network_fail_count = 0
-                st = 'error'
-                if r.status_code == 200:
-                    try:
-                        st = r.json().get('status', 'error')
-                    except Exception:
-                        pass
-
-                if st == 'done':
-                    is_done = True
-                    break
-                if st in ['error', 'failed']:
-                    return False
-                time.sleep(10)
+                time.sleep(interval)
 
             if not is_done:
                 return False
 
-            r, err_type = _req("GET", f"/api/report/{sha256}", req_timeout=60)
-            if r is not None and r.status_code == 200:
-                try:
-                    data = r.json().get('data', {})
-                    res = data.get('detection', {}).get('results', {}).get('PYAS', {})
-                    label = res.get('label', 'Unsupport')
-                    score = res.get('score', 0)
-                    sims = data.get('similar', [])
+            r = self._request("GET", f"/api/report/{sha256}")
+            if r:
+                data = r.json().get('data', {})
+                metadata = data.get('metadata', {})
+                label = metadata.get('label', 'Unsupport')
+                score = metadata.get('score', 0)
+                sims = data.get('similar', [])
 
-                    is_malicious = 'General' in label
-                    sim_malicious_count = 0
-                    valid_sim_count = 0
-                    for s in sims:
-                        if s.get('similarity', 0) > 80:
-                            valid_sim_count += 1
-                            if "General" in s.get('label', ''):
-                                sim_malicious_count += 1
+                is_malicious = 'General' in label
+                sim_malicious_count = 0
+                valid_sim_count = 0
+                for s in sims:
+                    if s.get('similarity', 0) > 80:
+                        valid_sim_count += 1
+                        if "General" in s.get('label', ''):
+                            sim_malicious_count += 1
 
-                    if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
-                        return f"General:WinPE/Unknown.{score}!cl"
-                except Exception:
-                    pass
+                if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
+                    return f"General:WinPE/Unknown.{score}!cl"
         except Exception:
             pass
         return False

@@ -156,7 +156,7 @@ class MainWindow_Controller(QMainWindow):
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
             "block": [2001, 3001, 4001, 5001, 6001],
-            "size": 256 * 1024 * 1024,
+            "size": 100 * 1024 * 1024,
             "language": "english_switch",
             "theme": "white_switch",
             "process_switch": True,

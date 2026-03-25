@@ -151,11 +151,11 @@ class MainWindow_Controller(QMainWindow):
             "hindi_switch", "arabic_switch", "russian_switch", "slovenian_switch",
         ]
         self.pyas_default = {
-            "version": "3.4.2",
+            "version": "3.4.3",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
-            "block": [2001, 3001, 4001, 5001, 6001],
+            "block": [3001, 5001, 6001],
             "size": 100 * 1024 * 1024,
             "language": "english_switch",
             "theme": "white_switch",
@@ -1068,7 +1068,7 @@ class MainWindow_Controller(QMainWindow):
                 was_locked = True
 
             size = os.path.getsize(file_path)
-            if size > self.pyas_config.get("size", 256 * 1024 * 1024):
+            if size > self.pyas_config.get("size", 100 * 1024 * 1024):
                 if was_locked:
                     self.lock_file(file_path, True)
                 return False
@@ -1101,6 +1101,7 @@ class MainWindow_Controller(QMainWindow):
 
     def solve_button(self):
         if self.send_message("您確定要刪除檔案嗎?", "quest"):
+            self.widgets["solve_button"].setVisible(False)
             deleted = 0
             virus_list = self.widgets["virus_list"]
             start_ts = time.time()

@@ -632,7 +632,7 @@ class MainWindow_Controller(QMainWindow):
 
             if widget in (scan_win, method_win):
                 if getattr(self, "scan_finished", False):
-                    self.widgets["solve_button"].setVisible(len(self.virus_results) > 0)
+                    self.widgets["solve_button"].setVisible(False)
                     self.widgets["stop_button"].hide()
                     self.widgets["method_button"].show()
 
@@ -861,7 +861,7 @@ class MainWindow_Controller(QMainWindow):
     @Slot()
     def slot_scan_reset(self):
         count = len(self.virus_results)
-        self.widgets["solve_button"].setVisible(count > 0)
+        self.widgets["solve_button"].setVisible(False)
         self.widgets["virus_list"].clear()
         self.widgets["method_window"].hide()
         self.widgets["stop_button"].setVisible(self.scan_running)
@@ -1208,9 +1208,6 @@ class MainWindow_Controller(QMainWindow):
                         self.virus_results.remove(file_path)
                 except Exception as e:
                     self.send_message(f"show_scan_menu | {e}", "warn", False)
-
-        count = len(self.virus_results)
-        self.widgets["solve_button"].setVisible(count > 0)
 
 ####################################################################################################
 

@@ -19,7 +19,6 @@
     
     "*\\mouclass",
     "*\\kbdclass",
-    "*\\DefaultIcon",
     "*\\DisableAntiSpyware",
     "*\\DisableWindowsUpdateAccess",
     "*\\EnableLUA",
@@ -117,6 +116,7 @@
     "*\\Microsoft\\Edge\\Application\\msedge.exe",
     "*\\Mozilla Firefox\\firefox.exe",
     "*\\Steam\\steam.exe",
+    "*\\steam\\*\\steam.exe",
     "*\\Battle.net\\*\\Battle.net.exe",
     "*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe"
   ],
@@ -201,6 +201,7 @@
     "*\\*:*",
   ],
   "Rule_File_ExceptionPaths": [
+    "*\\Users\\*\\steam\\*",
     "*\\AppData\\*"
   ],
   "Rule_File_RansomwareExtensions": [

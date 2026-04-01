@@ -96,7 +96,7 @@
     "*\\AltDefaultPassword",
     "*\\DisableCAD",
     "*\\LegalNoticeCaption",
-    "*\\LegalNoticeText"
+    "*\\LegalNoticeText",
   ],
   "Rule_Registry_TrustedList": [
   ],

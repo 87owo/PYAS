@@ -374,11 +374,15 @@ class MainWindow_Controller(QMainWindow):
             "taskmgr_window", "tool_window", "scan_window", "home_window"]]
 
         for w in self.sub_window:
-            if w: w.hide()
+            if w:
+                w.hide()
         for w in self.main_window + self.menu_window:
-            if w: w.raise_()
+            if w:
+                w.raise_()
         for w in self.menu_window + self.blank_window:
-            if w: w.setGraphicsEffect(self.create_shadow())
+            if w:
+                w.setAttribute(Qt.WA_StyledBackground, True)
+                w.setGraphicsEffect(self.create_shadow())
 
         self.last_widget = self.widgets.get("home_window")
         self.setup_theme_mapping()
@@ -540,7 +544,20 @@ class MainWindow_Controller(QMainWindow):
                 style = widget._origin_style
                 for k, v in theme_map.items():
                     style = style.replace(str(k), str(v))
+                
                 widget.setStyleSheet(style)
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                
+                try:
+                    widget.update()
+                except TypeError:
+                    if hasattr(widget, "viewport"):
+                        widget.viewport().update()
+                
+                effect = widget.graphicsEffect()
+                if effect:
+                    effect.update()
 
             mapping = getattr(widget, "_theme_mapping", None)
             if isinstance(mapping, dict):

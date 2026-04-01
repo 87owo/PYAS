@@ -3,11 +3,7 @@
     "\\REGISTRY\\MACHINE\\BCD00000000",
     "\\REGISTRY\\MACHINE\\BCD00000000\\*",
     "*\\Image File Execution Options\\*",
-
-    "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\NetWire\\*",
-    "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\Remcos*\\*",
-    "\\REGISTRY\\USER\\S-1-*\\SOFTWARE\\DC3_FEXEC\\*",
-
+    
     "*\\Classes\\.exe",
     "*\\Classes\\.bat",
     "*\\Classes\\.cmd",
@@ -100,23 +96,26 @@
     "*\\AltDefaultPassword",
     "*\\DisableCAD",
     "*\\LegalNoticeCaption",
-    "*\\LegalNoticeText",
+    "*\\LegalNoticeText"
   ],
   "Rule_Registry_TrustedList": [
   ],
   "Rule_Process_TrustedPaths": [
-    "*\\Windows\\*",
-    "*\\Windows Defender\\*",
-    "*\\Windows Defender Advanced Threat Protection\\*",
-    "*\\Program Files\\*",
-    "*\\Program Files (x86)\\*",
+    "\\Device\\HarddiskVolume*\\Windows\\*",
+    "\\Device\\HarddiskVolume*\\Program Files\\*",
+    "\\Device\\HarddiskVolume*\\Program Files (x86)\\*",
+    
+    "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender\\*",
+    "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender Advanced Threat Protection\\*",
+    
     "*\\Google\\Chrome\\Application\\chrome.exe",
     "*\\Microsoft\\Edge\\Application\\msedge.exe",
     "*\\Mozilla Firefox\\firefox.exe",
+    
     "*\\Steam\\steam.exe",
     "*\\steam\\*\\steam.exe",
     "*\\Battle.net\\*\\Battle.net.exe",
-    "*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe"
+    "*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",
@@ -157,26 +156,18 @@
     "*\\PYAS.exe",
     "*\\PYAS_Driver.sys",
     "*\\ProgramData\\PYAS\\*.json",
+    "*\\Plugins\\Rules\\Rules_Driver_P1.json",
+    "*\\Engine\\Pattern\\*.onnx",
+    "*\\Engine\\Properties\\*.onnx",
     
-    "*\\bootmgr",
-    "*\\boot.ini",
-    "*\\BOOTNXT",
-    "*\\BCD",
-    "*\\EFI\\*",
-    "*\\Boot\\*",
-    "*\\Recovery\\*",
-
-	"*\\Windows\\*.exe",
-    "*\\Windows\\*.dll",
-    "*\\Windows\\*.sys",
-    "*\\Windows\\System32\\config\\*",
-    "*\\Windows\\System32\\*.exe",
-    "*\\Windows\\System32\\*.dll",
-    "*\\Windows\\System32\\*.sys",
-    "*\\Windows\\SysWOW64\\*.exe",
-    "*\\Windows\\SysWOW64\\*.dll",
-    "*\\Windows\\SysWOW64\\*.sys",
-    "*\\System Volume Information\\*",
+    "\\Device\\HarddiskVolume*\\bootmgr",
+    "\\Device\\HarddiskVolume*\\boot.ini",
+    "\\Device\\HarddiskVolume*\\BOOTNXT",
+    "\\Device\\HarddiskVolume*\\EFI\\*",
+    "\\Device\\HarddiskVolume*\\Boot\\*",
+    "\\Device\\HarddiskVolume*\\Recovery\\*",
+    "\\Device\\HarddiskVolume*\\System Volume Information\\*",
+    "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\*",
     
     "*\\CON",
     "*\\CON\\*",
@@ -190,21 +181,19 @@
     "*\\COM?\\*",
     "*\\LPT?",
     "*\\LPT?\\*",
-    "*\\LPT?",
-    "*\\LPT?\\*",
     "*\\OSDATA",
     "*\\OSDATA\\*",
-
     "*\\*<*",
     "*\\*>*",
-    "*\\*:*",
   ],
   "Rule_File_ExceptionPaths": [
     "*\\Users\\*\\steam\\*",
-    "*\\AppData\\*"
+    "*\\AppData\\*",
+    "*\\Temp\\*",
+    "*\\Local\\Temp\\*",
+    "*\\ventoy\\Boot\\*",
   ],
   "Rule_File_RansomwareExtensions": [
-    ".exe", ".dll", ".sys", ".com", ".scr",
     ".zip", ".7z", ".rar", ".tar", ".gz",
     ".js", ".bat", ".cmd", ".ps1", ".vbs",
     ".ppt", ".pptx", ".wps", ".txt", ".rtf",
@@ -214,6 +203,6 @@
     ".mp4", ".avi", ".mov", ".wmv", ".mkv",
     ".aux", ".cur", ".mui", ".ttf", ".efi",
     ".cpp", ".h", ".c", ".hpp", ".cs", ".java", ".py", ".go", ".rs",
-    ".php", ".html", ".css", ".xml", ".sql", ".db"
+    ".php", ".html", ".css", ".xml", ".sql", ".db",
   ]
 }

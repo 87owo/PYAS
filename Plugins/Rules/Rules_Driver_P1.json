@@ -116,6 +116,15 @@
     "*\\steam\\*\\steam.exe",
     "*\\Battle.net\\*\\Battle.net.exe",
     "*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe",
+    
+    "*\\ThunderEv.exe",
+    "*\\ThunderStart.exe",
+    "*\\resources\\bin\\SDK\\DownloadSDKServer.exe",
+    "*\\KuGou.exe",
+    "*\\XLGame.exe",
+    "*\\XLLiveUD.exe",
+    "*\\PC4399_WPFLauncher.exe",
+    "*\\bin\\APlayer.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",
@@ -150,7 +159,7 @@
     "*\\taskkill.exe",
     "*\\ProcessHacker.exe",
     "*\\procmon.exe",
-    "*\\procexp.exe"
+    "*\\procexp.exe",
   ],
   "Rule_File_ProtectedPaths": [
     "*\\PYAS.exe",

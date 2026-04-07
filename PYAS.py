@@ -151,7 +151,7 @@ class MainWindow_Controller(QMainWindow):
             "hindi_switch", "arabic_switch", "russian_switch", "slovenian_switch",
         ]
         self.pyas_default = {
-            "version": "3.4.4",
+            "version": "3.4.5",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
@@ -309,9 +309,32 @@ class MainWindow_Controller(QMainWindow):
                 if k.endswith("_button") and isinstance(v, bool) and k.replace("_button", "_window") in self.widgets:
                     continue
                 filter_config[k] = v
+                
             path = os.path.dirname(file_path)
             if not os.path.exists(path):
                 os.makedirs(path)
+
+            if os.path.exists(file_path):
+                old_config = self.read_config(file_path, {})
+                changes = []
+                
+                for k, v in filter_config.items():
+                    if k not in old_config:
+                        changes.append(f"增加 [{k}]")
+
+                    elif old_config[k] != v:
+                        if isinstance(v, (list, dict)):
+                            changes.append(f"更新 [{k}]")
+                        else:
+                            changes.append(f"更新 [{k}]: {old_config[k]} -> {v}")
+                            
+                for k in old_config:
+                    if k not in filter_config:
+                        changes.append(f"刪除 [{k}]")
+
+                if changes:
+                    self.send_message(f"配置更新 | {', '.join(changes)}", "config", True)
+
             with open(file_path, "w", encoding="utf-8", errors="ignore") as f:
                 f.write(json.dumps(filter_config, indent=4, ensure_ascii=False))
         except Exception as e:
@@ -714,6 +737,9 @@ class MainWindow_Controller(QMainWindow):
             self.init_connect()
             self.apply_settings()
 
+            current_version = self.pyas_config.get("version", "None")
+            self.send_message(f"當前版本 | {current_version}", "version", True)
+
             param = self.args_pyas[0].replace("/", "-") if self.args_pyas else ""
             if "-h" not in param:
                 self.show_button()
@@ -991,6 +1017,7 @@ class MainWindow_Controller(QMainWindow):
                         self.virus_results.append(norm_path)
                         self.scan_add_virus_signal.emit(f"[{result}] > {norm_path}")
                         self.start_daemon_thread(self.cloud_check, norm_path)
+                        self.send_message(f"病毒掃描 | scan_worker | None | None | {norm_path}", "scan", True)
 
                     lang = self.pyas_config.get("language", "english_switch")
                     self.progress_title_signal.emit(self.trans(lang, "正在掃描"))

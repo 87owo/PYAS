@@ -478,33 +478,51 @@ class MainWindow_Controller(QMainWindow):
     def save_state(self, name, checked):
         self.pyas_config[name] = bool(checked)
         if name == "sensitive_switch":
-            pass
+            if checked:
+                if self.send_message("增強模式可能會誤報檔案，您確定要啟用嗎?", "quest", True):
+                    self.save_config(self.file_config, self.pyas_config)
+                else:
+                    self.pyas_config[name] = False
+                    if name in self.widgets:
+                        QTimer.singleShot(0, lambda: self.widgets[name].setChecked(False))
+            else:
+                self.save_config(self.file_config, self.pyas_config)
+
         elif name == "extension_switch":
-            pass
+            self.save_config(self.file_config, self.pyas_config)
         elif name == "cloud_switch":
-            pass
+            self.save_config(self.file_config, self.pyas_config)
+
         elif name == "process_switch":
             if checked:
                 self.start_daemon_thread(self.protect_proc_thread)
+            self.save_config(self.file_config, self.pyas_config)
         elif name == "document_switch":
             if checked:
                 self.start_daemon_thread(self.protect_file_thread)
+            self.save_config(self.file_config, self.pyas_config)
         elif name == "system_switch":
             if checked:
                 self.start_daemon_thread(self.protect_system_thread)
-        elif name == "driver_switch":
-            if not checked:
-                self.stop_system_driver()
-            elif self.install_system_driver():
-                self.start_daemon_thread(self.pipe_server_thread)
-            else:
-                self.send_message("驅動防護啟用失敗，請重啟裝置來修復錯誤", "warn", True)
+            self.save_config(self.file_config, self.pyas_config)
         elif name == "network_switch":
             if checked:
                 self.start_daemon_thread(self.protect_net_thread)
+            self.save_config(self.file_config, self.pyas_config)
+        elif name == "driver_switch":
+            if checked:
+                if self.install_system_driver():
+                    self.start_daemon_thread(self.pipe_server_thread)
+                else:
+                    self.pyas_config[name] = False
+                    if name in self.widgets:
+                        QTimer.singleShot(0, lambda: self.widgets[name].setChecked(False))
+                    self.send_message("驅動防護啟用失敗", "warn", True)
+            else:
+                self.stop_system_driver()
+            self.save_config(self.file_config, self.pyas_config)
         else:
             self.send_message(f"此功能不支持使用", "info", True)
-        self.save_config(self.file_config, self.pyas_config)
 
     def init_thread(self):
         self.start_daemon_thread(self.popup_intercept_thread)
@@ -1871,9 +1889,10 @@ class MainWindow_Controller(QMainWindow):
             current = str(self.pyas_config.get("version", "")).strip()
             page = "https://github.com/87owo/PYAS/releases"
             latest = ""
+            
             try:
                 j = requests.get("https://api.github.com/repos/87owo/PYAS/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "PYAS"}, timeout=10).json()
-                latest = (j.get("tag_name") or j.get("name") or "").strip()
+                latest = str(j.get("tag_name") or j.get("name") or "").strip()
                 page = j.get("html_url") or page
             except Exception:
                 try:
@@ -1884,10 +1903,15 @@ class MainWindow_Controller(QMainWindow):
                 except Exception:
                     pass
 
-            rl = re.sub(r"^[vV]\s*", "", str(latest))
-            cl = re.sub(r"^[vV]\s*", "", str(current))
+            if not latest:
+                self.send_message("檢查更新失敗", "error", True)
+                return False
+
+            rl = re.sub(r"^[vV]\s*", "", latest)
+            cl = re.sub(r"^[vV]\s*", "", current)
             tr = tuple(int(x) for x in re.findall(r"\d+", rl))
             tl = tuple(int(x) for x in re.findall(r"\d+", cl))
+            
             if tr and (not tl or tr > tl):
                 if self.send_message(f"發現新版本 {latest}，您確定要前往更新嗎?", "quest", True):
                     webbrowser.open(page)
@@ -1897,8 +1921,9 @@ class MainWindow_Controller(QMainWindow):
                 else:
                     webbrowser.open(page)
             return True
+            
         except Exception as e:
-            self.send_message(f"update_button | {e}", "warn", False)
+            self.send_message(f"update_button | {e}", "error", False)
             return False
 
 ####################################################################################################
@@ -2239,7 +2264,7 @@ class MainWindow_Controller(QMainWindow):
                 winreg.SetValueEx(key, "Flags", 0, winreg.REG_DWORD, 0)
 
             subprocess.run(["sc", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            return True
+            return self.check_system_driver()
         except Exception as e:
             self.send_message(f"install_system_driver | {e}", "warn", False)
             return False
@@ -2258,6 +2283,20 @@ class MainWindow_Controller(QMainWindow):
             subprocess.run(["sc", "stop", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             subprocess.run(["sc", "delete", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return True
+        except Exception:
+            return False
+
+    def check_system_driver(self):
+        try:
+            service_name = "PYAS_Driver"
+            result = subprocess.run(
+                ["sc", "query", service_name],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                shell=True
+            )
+            return "RUNNING" in result.stdout
         except Exception:
             return False
 

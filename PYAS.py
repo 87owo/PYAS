@@ -479,7 +479,9 @@ class MainWindow_Controller(QMainWindow):
         self.pyas_config[name] = bool(checked)
         if name == "sensitive_switch":
             if checked:
-                if self.send_message("增強模式可能會誤報檔案，您確定要啟用嗎?", "quest", True):
+                if not self.isVisible():
+                    self.save_config(self.file_config, self.pyas_config)
+                elif self.send_message("增強模式可能會誤報檔案，您確定要啟用嗎?", "quest", True):
                     self.save_config(self.file_config, self.pyas_config)
                 else:
                     self.pyas_config[name] = False

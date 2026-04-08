@@ -538,10 +538,12 @@ class pe_scanner:
         pe = None
         try:
             fsize = os.path.getsize(file_path)
-            if fsize == 0 or fsize > 268435456:
+            if fsize == 0 or fsize > 512 * 1024 * 1024:
                 return None
+
             with open(file_path, "rb") as f:
                 file_bytes = f.read()
+
             pe = pefile.PE(data=file_bytes, fast_load=True)
             fts['TrustSigned'] = 1 if self.signer.sign_verify(file_path) else 0
             fh = pe.FILE_HEADER

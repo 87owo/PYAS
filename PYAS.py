@@ -1629,7 +1629,7 @@ class MainWindow_Controller(QMainWindow):
                     try:
                         name = pe.szExeFile.lower()
                         running.add(name)
-                    except:
+                    except Exception:
                         pass
                     if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)):
                         break
@@ -1779,7 +1779,7 @@ class MainWindow_Controller(QMainWindow):
 
             self.kernel32.CloseHandle(snapshot)
             return result_name
-        except:
+        except Exception:
             pass
         return result_name
 
@@ -1823,8 +1823,8 @@ class MainWindow_Controller(QMainWindow):
         if not p:
             return False
         file_hash = self.calc_file_hash(p)
-        return any(os.path.normcase(item.get("file","")) == os.path.normcase(p) and
-            item.get("hash","") == file_hash for item in self.pyas_config.get("white_list", []))
+        return any(os.path.normcase(item["file"]) == p and
+            item.get("hash", "") == file_hash for item in self.pyas_config.get("white_list", []))
 
     def init_whitelist(self):
         self.manage_named_list("white_list", [self.file_pyas], action="add", with_hash=True)
@@ -2084,11 +2084,7 @@ class MainWindow_Controller(QMainWindow):
         proc_params_address = ctypes.c_void_p.from_buffer_copy(read_buf).value
         if not proc_params_address:
             return ""
-
-        offset_command_line = 0x70 if pointer_size == 8 else 0x40
-        us = UNICODE_STRING()
-        addr_cmd = int(proc_params_address) + offset_command_line
-        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_cmd), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpNumberOfBytesRead)):
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(proc_params_address), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpNumberOfBytesRead)):
             return ""
         if not us.Buffer or us.Length == 0:
             return ""
@@ -2337,7 +2333,7 @@ class MainWindow_Controller(QMainWindow):
                                     if h:
                                         self.kernel32.TerminateProcess(h, 0)
                                         self.kernel32.CloseHandle(h)
-                                except:
+                                except Exception:
                                     pass
                         else:
                             break

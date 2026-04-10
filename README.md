@@ -26,6 +26,10 @@ The following lists the storage locations of all relevant code and other related
 
 ```
 PYAS/
+├── Embed/
+│   ├── Dockerfile                   # Deploy an embedded command line antivirus engine
+│   └── ...        
+│
 ├── Engine/
 │   ├── Pattern/
 │   │   ├── convert.py               # Convert executable files or other files to images

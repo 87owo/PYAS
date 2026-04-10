@@ -6,7 +6,7 @@ import ctypes.wintypes
 
 DB_PATH = "pe_features.db"
 BATCH_SIZE = 1000
-MAX_FILE_SIZE = 256 * 1024 * 1024
+MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024
 TARGET_EXTENSIONS = {
     '.exe', '.dll', '.sys', '.ocx', '.scr', '.efi', '.acm', '.ax', '.cpl', '.drv', '.com', '.mui', '.pyd'
 }

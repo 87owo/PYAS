@@ -2084,7 +2084,11 @@ class MainWindow_Controller(QMainWindow):
         proc_params_address = ctypes.c_void_p.from_buffer_copy(read_buf).value
         if not proc_params_address:
             return ""
-        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(proc_params_address), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpNumberOfBytesRead)):
+
+        offset_command_line = 0x70 if pointer_size == 8 else 0x40
+        us = UNICODE_STRING()
+        addr_cmd = int(proc_params_address) + offset_command_line
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_cmd), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpNumberOfBytesRead)):
             return ""
         if not us.Buffer or us.Length == 0:
             return ""

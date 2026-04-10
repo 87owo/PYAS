@@ -35,7 +35,11 @@ PYAS/
 │   ├── Heuristic/
 │   │   ├── rules.yar                # Yara virus signature rule matching
 │   │   └── ...                      # Other rules folders and files
-│   └── ...                          # Other engine folders and files
+│   │
+│   └── Properties/
+│       ├── convert.py               # Convert executable files to sql database
+│       ├── train.py                 # Lightgbm model training complete code
+│       └── ...                      # Other rules folders and files
 │
 ├── Plugins/
 │   └── Filter/

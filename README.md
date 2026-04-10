@@ -28,7 +28,7 @@ The following lists the storage locations of all relevant code and other related
 PYAS/
 ├── Embed/
 │   ├── Dockerfile                   # Deploy an embedded command line antivirus engine
-│   └── ...        
+│   └── ...                          # Other microservice for VirusTotal Integration
 │
 ├── Engine/
 │   ├── Pattern/
@@ -43,7 +43,7 @@ PYAS/
 │   └── Properties/
 │       ├── convert.py               # Convert executable files to sql database
 │       ├── train.py                 # Lightgbm model training complete code
-│       └── ...                      # Other rules folders and files
+│       └── ...                      # Other models folders and files
 │
 ├── Plugins/
 │   └── Filter/

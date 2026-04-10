@@ -194,4 +194,4 @@ For any questions, needs, or bug feedback, please contact us through the followi
 
 Source Issues : https://github.com/87owo/PYAS/issues
 
-Official Email : mailto:service.pyas@gmail.com
+Official Email : service@pyas-security.com

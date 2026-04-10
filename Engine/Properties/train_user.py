@@ -114,7 +114,7 @@ def train_process(X, y):
     n_neg = (y_train == 0).sum()
     
     base_weight = n_neg / n_pos if n_pos > 0 else 1.0
-    weight_ratio_target = 0.01
+    weight_ratio_target = 0.001
     final_pos_weight = base_weight * weight_ratio_target
     
     print(f"[*] Balance Report: Safe={n_neg}, Malware={n_pos}")

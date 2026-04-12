@@ -204,7 +204,6 @@
   ],
   "Rule_File_RansomwareExtensions": [
     ".zip", ".7z", ".rar", ".tar", ".gz",
-    ".js", ".bat", ".cmd", ".ps1", ".vbs",
     ".ppt", ".pptx", ".wps", ".txt", ".rtf",
     ".pdf", ".xls", ".xlsx", ".doc", ".docx",
     ".jpg", ".jpeg", ".png", ".webp", ".gif",

@@ -48,6 +48,7 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 
     UnloadRules();
+    UninitializeRulesEngine();
 
     return STATUS_SUCCESS;
 }
@@ -120,11 +121,14 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
 
     ExInitializeRundownProtection(&GlobalData.PortRundown);
 
+    InitializeRulesEngine();
+
     status = LoadRulesFromDisk(RegistryPath);
 
     status = FltRegisterFilter(DriverObject, &FilterRegistration, &GlobalData.FilterHandle);
     if (!NT_SUCCESS(status)) {
         UnloadRules();
+        UninitializeRulesEngine();
         return status;
     }
 
@@ -142,6 +146,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
             GlobalData.FilterHandle = NULL;
         }
         UnloadRules();
+        UninitializeRulesEngine();
         return status;
     }
 
@@ -166,6 +171,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
         }
 
         UnloadRules();
+        UninitializeRulesEngine();
     }
 
     return status;

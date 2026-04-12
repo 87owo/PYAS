@@ -101,9 +101,10 @@ static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
     if (!Pattern || !String) return FALSE;
 
+    USHORT StringLenChars = StringLengthBytes / sizeof(WCHAR);
     PCWSTR mp = NULL;
     PCWSTR cp = NULL;
-    PCWSTR StringEnd = (PCWSTR)((PUCHAR)String + StringLengthBytes);
+    PCWSTR StringEnd = String + StringLenChars;
 
     while (String < StringEnd) {
         if (*Pattern == L'*') {
@@ -248,6 +249,18 @@ static VOID ParseAndLoadRules(PCHAR JsonContent, ULONG ContentLength, PCSTR KeyN
     }
 }
 
+VOID InitializeRulesEngine() {
+    ExInitializeResourceLite(&RuleLock);
+    ExInitializeFastMutex(&TrustCacheLock);
+    RtlZeroMemory(TrustCache, sizeof(TrustCache));
+    g_CacheInitialized = TRUE;
+}
+
+VOID UninitializeRulesEngine() {
+    ExDeleteResourceLite(&RuleLock);
+    g_CacheInitialized = FALSE;
+}
+
 NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
     NTSTATUS status = STATUS_SUCCESS;
     HANDLE FileHandle = NULL;
@@ -263,7 +276,6 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
     UNICODE_STRING FinalPath = { 0 };
 
     RtlInitUnicodeString(&ImagePathName, L"ImagePath");
-    ExInitializeResourceLite(&RuleLock);
 
     InitializeObjectAttributes(&RegOa, RegistryPath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
     status = ZwOpenKey(&RegHandle, KEY_READ, &RegOa);
@@ -395,7 +407,6 @@ VOID UnloadRules() {
     FreeList(&g_FileExceptionPaths);
     FreeList(&g_FileRansomExts);
     ExReleaseResourceLite(&RuleLock);
-    ExDeleteResourceLite(&RuleLock);
 }
 
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
@@ -410,13 +421,6 @@ NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
     ObDereferenceObject(Process);
 
     return status;
-}
-
-static VOID InitTrustCache() {
-    if (g_CacheInitialized) return;
-    ExInitializeFastMutex(&TrustCacheLock);
-    RtlZeroMemory(TrustCache, sizeof(TrustCache));
-    g_CacheInitialized = TRUE;
 }
 
 static BOOLEAN IsWindowsSystemApp(PCWSTR Buffer, USHORT Length) {
@@ -451,9 +455,6 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
             }
         }
         ExReleaseFastMutex(&TrustCacheLock);
-    }
-    else {
-        InitTrustCache();
     }
 
     PUNICODE_STRING imageFileName = NULL;

@@ -43,25 +43,25 @@ constexpr auto PYAS_POOL_TAG = 'SAYP';
 #define PROCESS_QUERY_LIMITED_INFORMATION  (0x1000)
 #endif
 #ifndef PROCESS_SET_QUOTA
-#define PROCESS_SET_QUOTA (0x0100)
+#define PROCESS_SET_QUOTA                  (0x0100)
 #endif
 #ifndef THREAD_TERMINATE
-#define THREAD_TERMINATE               (0x0001)
+#define THREAD_TERMINATE                   (0x0001)
 #endif
 #ifndef THREAD_SUSPEND_RESUME
-#define THREAD_SUSPEND_RESUME          (0x0002)
+#define THREAD_SUSPEND_RESUME              (0x0002)
 #endif
 #ifndef THREAD_SET_CONTEXT
-#define THREAD_SET_CONTEXT             (0x0010)
+#define THREAD_SET_CONTEXT                 (0x0010)
 #endif
 #ifndef THREAD_SET_INFORMATION
-#define THREAD_SET_INFORMATION         (0x0020)
+#define THREAD_SET_INFORMATION             (0x0020)
 #endif
 #ifndef THREAD_SET_THREAD_TOKEN
-#define THREAD_SET_THREAD_TOKEN        (0x0080)
+#define THREAD_SET_THREAD_TOKEN            (0x0080)
 #endif
 #ifndef POOL_FLAG_NON_PAGED
-#define POOL_FLAG_NON_PAGED 0x0000000000000040UI64
+#define POOL_FLAG_NON_PAGED                0x0000000000000040UI64
 #endif
 
 #ifndef FSCTL_MANAGE_BYPASS_IO
@@ -136,6 +136,9 @@ VOID UninitializeRegistryProtection();
 NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath);
 VOID UnloadRules();
 
+VOID InitializeRulesEngine();
+VOID UninitializeRulesEngine();
+
 VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
 
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName);
@@ -152,13 +155,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize);
 
 FORCEINLINE PVOID PyasAllocate(SIZE_T Size) {
-#if (NTDDI_VERSION >= NTDDI_WIN10_VB)
     return ExAllocatePool2(POOL_FLAG_NON_PAGED, Size, PYAS_POOL_TAG);
-#else
-    PVOID Buffer = ExAllocatePoolWithTag(NonPagedPoolNx, Size, PYAS_POOL_TAG);
-    if (Buffer) RtlZeroMemory(Buffer, Size);
-    return Buffer;
-#endif
 }
 
 FORCEINLINE VOID PyasFree(PVOID Ptr) {

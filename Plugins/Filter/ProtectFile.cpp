@@ -123,39 +123,38 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreSetInfo(PFLT_CALLBACK_DATA Data, PCFLT_
     }
 
     PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
+    FLT_PREOP_CALLBACK_STATUS callbackStatus = FLT_PREOP_SUCCESS_NO_CALLBACK;
     NTSTATUS status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
 
-    if (!NT_SUCCESS(status) || !nameInfo) return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    if (!NT_SUCCESS(status) || !nameInfo) goto cleanup;
 
     status = FltParseFileNameInformation(nameInfo);
-    if (!NT_SUCCESS(status) || !nameInfo->Name.Buffer) {
-        FltReleaseFileNameInformation(nameInfo);
-        return FLT_PREOP_SUCCESS_NO_CALLBACK;
-    }
+    if (!NT_SUCCESS(status) || !nameInfo->Name.Buffer) goto cleanup;
 
     HANDLE Pid = PsGetCurrentProcessId();
     if (!IsProcessTrusted(Pid)) {
-
         if (CheckProtectedPathRule(&nameInfo->Name)) {
             SendMessageToUser(2001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
             Data->IoStatus.Status = STATUS_ACCESS_DENIED;
-            FltReleaseFileNameInformation(nameInfo);
-            return FLT_PREOP_COMPLETE;
+            callbackStatus = FLT_PREOP_COMPLETE;
+            goto cleanup;
         }
 
         if (CheckFileExtensionRule(&nameInfo->Name)) {
             if (CheckRansomActivity(Pid, &nameInfo->Name, NULL, 0, FALSE)) {
                 SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
                 Data->IoStatus.Status = STATUS_ACCESS_DENIED;
-                FltReleaseFileNameInformation(nameInfo);
-                return FLT_PREOP_COMPLETE;
+                callbackStatus = FLT_PREOP_COMPLETE;
+                goto cleanup;
             }
         }
     }
+
+cleanup:
     if (nameInfo) {
         FltReleaseFileNameInformation(nameInfo);
     }
-    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    return callbackStatus;
 }
 
 FLT_PREOP_CALLBACK_STATUS ProtectFile_SetSecurity(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext) {
@@ -166,15 +165,13 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_SetSecurity(PFLT_CALLBACK_DATA Data, PCFLT
     if (KeGetCurrentIrql() > APC_LEVEL) return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
     PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
+    FLT_PREOP_CALLBACK_STATUS callbackStatus = FLT_PREOP_SUCCESS_NO_CALLBACK;
     NTSTATUS status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
 
-    if (!NT_SUCCESS(status) || !nameInfo) return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    if (!NT_SUCCESS(status) || !nameInfo) goto cleanup;
 
     status = FltParseFileNameInformation(nameInfo);
-    if (!NT_SUCCESS(status) || !nameInfo->Name.Buffer) {
-        FltReleaseFileNameInformation(nameInfo);
-        return FLT_PREOP_SUCCESS_NO_CALLBACK;
-    }
+    if (!NT_SUCCESS(status) || !nameInfo->Name.Buffer) goto cleanup;
 
     SECURITY_INFORMATION SecurityInfo = Data->Iopb->Parameters.SetSecurity.SecurityInformation;
 
@@ -184,18 +181,22 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_SetSecurity(PFLT_CALLBACK_DATA Data, PCFLT
             if (!IsProcessTrusted(Pid)) {
                 SendMessageToUser(2001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
                 Data->IoStatus.Status = STATUS_ACCESS_DENIED;
-                FltReleaseFileNameInformation(nameInfo);
-                return FLT_PREOP_COMPLETE;
+                callbackStatus = FLT_PREOP_COMPLETE;
+                goto cleanup;
             }
         }
     }
 
-    FltReleaseFileNameInformation(nameInfo);
-    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+cleanup:
+    if (nameInfo) {
+        FltReleaseFileNameInformation(nameInfo);
+    }
+    return callbackStatus;
 }
 
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext) {
     UNREFERENCED_PARAMETER(CompletionContext);
+    UNREFERENCED_PARAMETER(FltObjects);
 
     if (Data->RequestorMode == KernelMode) return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
@@ -207,43 +208,45 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RE
     if (WriteLength == 0) return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
     PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
+    FLT_PREOP_CALLBACK_STATUS callbackStatus = FLT_PREOP_SUCCESS_NO_CALLBACK;
     NTSTATUS status = FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo);
 
-    FLT_PREOP_CALLBACK_STATUS callbackStatus = FLT_PREOP_SUCCESS_NO_CALLBACK;
+    if (!NT_SUCCESS(status) || !nameInfo) goto cleanup;
 
-    if (NT_SUCCESS(status) && nameInfo) {
-        status = FltParseFileNameInformation(nameInfo);
-        if (NT_SUCCESS(status) && nameInfo->Name.Buffer) {
+    status = FltParseFileNameInformation(nameInfo);
+    if (!NT_SUCCESS(status) || !nameInfo->Name.Buffer) goto cleanup;
 
-            if (CheckFileExtensionRule(&nameInfo->Name)) {
-                HANDLE Pid = PsGetCurrentProcessId();
+    if (CheckFileExtensionRule(&nameInfo->Name)) {
+        HANDLE Pid = PsGetCurrentProcessId();
 
-                if (!IsProcessTrusted(Pid)) {
-                    PVOID SystemBuffer = NULL;
-                    PMDL Mdl = Data->Iopb->Parameters.Write.MdlAddress;
+        if (!IsProcessTrusted(Pid)) {
+            PVOID SystemBuffer = NULL;
+            PMDL Mdl = Data->Iopb->Parameters.Write.MdlAddress;
 
-                    if (!Mdl) {
-                        if (Data->Iopb->Parameters.Write.WriteBuffer && KeGetCurrentIrql() <= APC_LEVEL) {
-                            if (NT_SUCCESS(FltLockUserBuffer(Data))) {
-                                Mdl = Data->Iopb->Parameters.Write.MdlAddress;
-                            }
-                        }
-                    }
-
-                    if (Mdl) {
-                        SystemBuffer = MmGetSystemAddressForMdlSafe(Mdl, NormalPagePriority | MdlMappingNoExecute);
-                    }
-
-                    if (SystemBuffer) {
-                        if (CheckRansomActivity(Pid, &nameInfo->Name, SystemBuffer, WriteLength, TRUE)) {
-                            SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
-                            Data->IoStatus.Status = STATUS_ACCESS_DENIED;
-                            callbackStatus = FLT_PREOP_COMPLETE;
-                        }
+            if (!Mdl) {
+                if (Data->Iopb->Parameters.Write.WriteBuffer && KeGetCurrentIrql() <= APC_LEVEL) {
+                    if (NT_SUCCESS(FltLockUserBuffer(Data))) {
+                        Mdl = Data->Iopb->Parameters.Write.MdlAddress;
                     }
                 }
             }
+
+            if (Mdl) {
+                SystemBuffer = MmGetSystemAddressForMdlSafe(Mdl, NormalPagePriority | MdlMappingNoExecute);
+            }
+
+            if (SystemBuffer) {
+                if (CheckRansomActivity(Pid, &nameInfo->Name, SystemBuffer, WriteLength, TRUE)) {
+                    SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
+                    Data->IoStatus.Status = STATUS_ACCESS_DENIED;
+                    callbackStatus = FLT_PREOP_COMPLETE;
+                }
+            }
         }
+    }
+
+cleanup:
+    if (nameInfo) {
         FltReleaseFileNameInformation(nameInfo);
     }
     return callbackStatus;
@@ -260,24 +263,31 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_FileSystemControl(PFLT_CALLBACK_DATA Data,
     PFS_BPIO_INPUT InputBuffer = (PFS_BPIO_INPUT)Data->Iopb->Parameters.FileSystemControl.Neither.InputBuffer;
     if (!InputBuffer) return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
+    FS_BPIO_OPERATIONS Operation;
+
     __try {
-        if (InputBuffer->Operation == FS_BPIO_OP_ENABLE) {
-            PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
-            if (NT_SUCCESS(FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo)) && nameInfo) {
-                if (NT_SUCCESS(FltParseFileNameInformation(nameInfo))) {
-                    if (CheckFileExtensionRule(&nameInfo->Name) || CheckProtectedPathRule(&nameInfo->Name)) {
-                        Data->IoStatus.Status = STATUS_NOT_SUPPORTED;
-                        FltReleaseFileNameInformation(nameInfo);
-                        return FLT_PREOP_COMPLETE;
-                    }
-                }
-                FltReleaseFileNameInformation(nameInfo);
-            }
-        }
+        Operation = InputBuffer->Operation;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
 
-    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    PFLT_FILE_NAME_INFORMATION nameInfo = NULL;
+    FLT_PREOP_CALLBACK_STATUS callbackStatus = FLT_PREOP_SUCCESS_NO_CALLBACK;
+
+    if (Operation == FS_BPIO_OP_ENABLE) {
+        if (NT_SUCCESS(FltGetFileNameInformation(Data, FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT, &nameInfo)) && nameInfo) {
+            if (NT_SUCCESS(FltParseFileNameInformation(nameInfo))) {
+                if (CheckFileExtensionRule(&nameInfo->Name) || CheckProtectedPathRule(&nameInfo->Name)) {
+                    Data->IoStatus.Status = STATUS_NOT_SUPPORTED;
+                    callbackStatus = FLT_PREOP_COMPLETE;
+                }
+            }
+        }
+    }
+
+    if (nameInfo) {
+        FltReleaseFileNameInformation(nameInfo);
+    }
+    return callbackStatus;
 }

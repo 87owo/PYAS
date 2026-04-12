@@ -100,11 +100,9 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
             PROCESS_SET_QUOTA;
 
         OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~DenyMask;
-        OperationInformation->Parameters->CreateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
 
         if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
             OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= ~DenyMask;
-            OperationInformation->Parameters->DuplicateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
         }
     }
 
@@ -147,11 +145,9 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
             THREAD_SET_THREAD_TOKEN;
 
         OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~DenyMask;
-        OperationInformation->Parameters->CreateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
 
         if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
             OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= ~DenyMask;
-            OperationInformation->Parameters->DuplicateHandleInformation.OriginalDesiredAccess &= ~DenyMask;
         }
     }
 

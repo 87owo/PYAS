@@ -151,7 +151,7 @@ class MainWindow_Controller(QMainWindow):
             "hindi_switch", "arabic_switch", "russian_switch", "slovenian_switch",
         ]
         self.pyas_default = {
-            "version": "3.4.5",
+            "version": "3.4.6",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],

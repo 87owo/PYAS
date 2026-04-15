@@ -209,6 +209,5 @@
     ".jpg", ".jpeg", ".png", ".webp", ".gif",
     ".mp3", ".wav", ".aac", ".ogg", ".flac",
     ".mp4", ".avi", ".mov", ".wmv", ".mkv",
-    ".aux", ".cur", ".mui", ".ttf", ".efi",
   ]
 }

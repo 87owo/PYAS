@@ -178,6 +178,7 @@ class MainWindow_Controller(QMainWindow):
         self.block_replace = {
             "FILE_BLOCK": "檔案行為攔截",
             "RANSOM_BLOCK": "勒索行為攔截",
+            "RANSOM_ROLLBACK": "勒索檔案回滾",
             "BOOT_BLOCK": "引導行為攔截",
             "REG_BLOCK": "註冊表行為攔截",
             "CLR_BLOCK": "執行環境攔截",
@@ -194,7 +195,8 @@ class MainWindow_Controller(QMainWindow):
             3001: "REG_BLOCK",
             4001: "BOOT_BLOCK",
             5001: "RANSOM_BLOCK",
-            6001: "INJECT_BLOCK"
+            6001: "INJECT_BLOCK",
+            7002: "RANSOM_ROLLBACK",
         }
 
 ####################################################################################################

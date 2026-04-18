@@ -201,6 +201,8 @@
     "*\\Temp\\*",
     "*\\Local\\Temp\\*",
     "*\\ventoy\\Boot\\*",
+    "*\\AdminRegionConfig.*",
+    "*\\nt_qq\\nt_*\\*",
   ],
   "Rule_File_RansomwareExtensions": [
     ".zip", ".7z", ".rar", ".tar", ".gz",

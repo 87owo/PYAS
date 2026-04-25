@@ -1521,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.revertSwitch = (switchKey) => {
-        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "extension_switch", "sensitive_switch", "cloud_switch"];
+        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch"];
         const index = switchMap.indexOf(switchKey);
         if (index !== -1) {
             const toggle = document.querySelectorAll('.toggle-switch input')[index];
@@ -1533,7 +1533,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
         toggle.addEventListener('change', (e) => {
-            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "extension_switch", "sensitive_switch", "cloud_switch"];
+            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch"];
             if (window.pywebview && switchMap[index]) {
                 window.pywebview.api.update_config(switchMap[index], e.target.checked);
             }
@@ -1916,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCustomSelectUI('theme_select', theme);
             updateCustomSelectUI('lang_select', lang);
 
-            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "extension_switch", "sensitive_switch", "cloud_switch"];
+            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch"];
             document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
                 if (switchMap[index]) {
                     toggle.checked = !!cfg[switchMap[index]];

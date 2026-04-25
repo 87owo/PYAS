@@ -145,12 +145,6 @@ Please ensure your computer supports Microsoft Visual C++ 2015-2022 Redistributa
 | Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 300MB  | 100MB   |
 | Recommend | Administrator | >= Windows 10 (21H2) | 3 GHz     | 500MB  | 200MB   |
 
-## Packaged Releases
-
-Download the installer. If it is incompatible with your system, you can repackage it yourself.
-
-Packaged Download: https://github.com/87owo/PYAS/releases
-
 ## Official Website
 
 If you are interested in this project, you can visit the website to see other related content.
@@ -160,6 +154,8 @@ Source Available : https://github.com/87owo/PYAS
 Official Website : https://pyas-security.com/antivirus
 
 Online Analyze : https://pyas-security.com/analyze
+
+Packaged Download: https://github.com/87owo/PYAS/releases
 
 ## Project License
 

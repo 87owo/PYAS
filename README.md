@@ -9,15 +9,25 @@ Antivirus software written in Python and C++ that blocks threats through deep le
 Python 3.10 is recommended. Other Python versions may require different pip commands.
 
 ```
-pip install requests==2.32.4
-pip install PySide6==6.9.1
-pip install yara-python==4.5.4
-pip install Pillow==11.0.0
-pip install numpy==1.26.4
-pip install tensorflow==2.10.0
-pip install tf2onnx==1.13.0
-pip install lightgbm==4.6.0
-pip install onnxruntime==1.18.1
+pip install pystray
+pip install pefile
+pip install requests
+pip install pywebview
+pip install Pillow
+pip install yara-python
+pip install numpy
+pip install onnxruntime
+```
+
+Non-essential requirements installation, only used for model training or other functions.
+
+```
+pip install pandas
+pip install scikit-learn
+pip install tensorflow
+pip install tf2onnx
+pip install lightgbm
+pip install onnxmltools
 ```
 
 ## File Information
@@ -26,41 +36,34 @@ The following lists the storage locations of all relevant code and other related
 
 ```
 PYAS/
-├── Embed/
-│   ├── Dockerfile                   # Deploy an embedded command line antivirus engine
-│   └── ...                          # Other microservice for VirusTotal Integration
+├── Embed/                           # Deploy an embedded command line antivirus engine
+│   ├── Dockerfile
+│   └── ...
 │
-├── Engine/
-│   ├── Pattern/
-│   │   ├── convert.py               # Convert executable files or other files to images
-│   │   ├── train.py                 # TensorFlow CNN model training complete code
-│   │   └── ...                      # Other models folders and files
-│   │
+├── Engine/                          # Complete code for Yara signatures and AI model training
 │   ├── Heuristic/
-│   │   ├── rules.yar                # Yara virus signature rule matching
-│   │   └── ...                      # Other rules folders and files
-│   │
+│   │   └── ...                      # Yara Rules
+│   ├── Pattern/
+│   │   └── ...                      # CNN Model
 │   └── Properties/
-│       ├── convert.py               # Convert executable files to sql database
-│       ├── train.py                 # Lightgbm model training complete code
-│       └── ...                      # Other models folders and files
+│       └── ...                      # LightGBM Model
 │
-├── Plugins/
-│   └── Filter/
-│   │   ├── DriverEntry.cpp          # Main driver entry and initialization logic
-│   │   ├── DriverCommon.h           # Global driver definitions, constants, and functions
-│   │   └── ...                      # Other driver folders and files
-│   │
+├── Interface/                       # Interface Interaction and Icons with WebView2
+│   ├── static/
+│   │   └── ...                      # style.css, main.js, icon.ico
+│   └── templates/
+│       └── ...                      # index.html
+│
+├── Plugins/                         # Main filter driver protect and rules
+│   ├── Filter/
+│   │   └── ...                      # DriverCommon.h, DriverEntry.cpp, ProtectRegistry.cpp, ...
 │   └── Rules/
-│       └── rules.json               # White, block list, and matching logic for files registry
+│       └── ...                      # Rules_Driver_P1.json
 |
-├── PYAS.py                          # Main application entry point and UI to engine interface
-├── PYAS_Config.py                   # Configuration loading, saving, and global parameters
-├── PYAS_Engine.py                   # Core scanning engine: YARA, IP, ONNX model execution
-├── PYAS_Interface.py                # User interface components and event handling
-├── PYAS_Resource.py                 # Static image and icon resource management
+├── PYAS.py                          # Main antivirus application entry point
+├── PYAS_Engine.py                   # Core scanning engine algorithm
 ├── PYAS_Version.py                  # Version metadata for packaging and updates
-└── ...                              # Other supplementary folders and files
+└── ...
 ```
 
 ## Architecture diagram
@@ -75,109 +78,69 @@ graph TD
     classDef storage fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c
     classDef interaction fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,stroke-dasharray: 5 5,color:#1b5e20
 
-    subgraph UserSpace [User Mode Application - PYAS.exe]
-        direction TB
+    subgraph UserMode ["User Mode (Python / Web)"]
+        UI["Web UI (pywebview)"]:::userMode
+        PYASCore["PYAS Core (PYAS.py)"]:::userMode
         
-        GUI[MainWindow_Controller / UI]:::userMode
-        ConfigMgr[Configuration & Rule Manager]:::userMode
+        subgraph Engines ["Scanning Engines (PYAS_Engine.py)"]
+            PEScanner["PE/ML Scanner (pe_scanner)"]:::userMode
+            CNNScanner["CNN Scanner (cnn_scanner)"]:::userMode
+            RuleScanner["YARA Scanner (rule_scanner)"]:::userMode
+            CloudScanner["Cloud API (cloud_scanner)"]:::userMode
+            SignScanner["Signature Verify (sign_scanner)"]:::userMode
+        end
         
-        subgraph DetectionEngine [Analysis Engine - PYAS_Engine.py]
-            direction TB
-            SignScanner[Digital Signature Scanner]:::userMode
-            PEScanner[PE Feature & Entropy Analysis]:::userMode
-            YaraScanner[Heuristic / YARA Scanner]:::userMode
-            CNNScanner[AI / CNN Model Scanner]:::userMode
-            CloudScanner[Cloud API / Hash Check]:::userMode
-        end
-
-        subgraph UserMonitors [User-Mode Protection Threads]
-            direction TB
-            ProcMon[Process Monitor - CreateToolhelp32Snapshot]:::userMode
-            FileMon[File Monitor - ReadDirectoryChangesW]:::userMode
-            NetMon[Network Monitor - GetExtendedTcpTable]:::userMode
-            SysRep[System Repair - MBR/Reg/Wallpaper]:::userMode
-            PopupBlock[Popup Blocker - EnumWindows]:::userMode
-            PipeClient[IPC Client Thread]:::userMode
-        end
-
-        GUI --> ConfigMgr
-        GUI --> DetectionEngine
-        GUI --> UserMonitors
-        UserMonitors --> DetectionEngine
+        CommClient["Filter Communication Client"]:::interaction
     end
 
-    subgraph StorageLayer [File System / Configuration]
-        direction LR
-        JSONRules[JSON Rules Files]:::storage
-        ConfigJSON[Config.json]:::storage
-        Quarantine[Quarantine Folder]:::storage
-    end
+    subgraph KernelMode ["Kernel Mode (C++ Minifilter Driver)"]
+        CommServer["ALPC Port (\\PYAS_Output_Pipe)"]:::interaction
+        DriverCore["Driver Entry (DriverEntry.cpp)"]:::kernelMode
+        RuleEngine["Rules & Trust Cache (ProtectRules.cpp)"]:::kernelMode
 
-    subgraph KernelSpace [Kernel Mode Driver - PYAS_Driver.sys]
-        direction TB
-        
-        DriverEntry[DriverEntry / Initialization]:::kernelMode
-        GlobalData[Global Data & State]:::kernelMode
-        CommServer[Communication Port Server]:::kernelMode
-
-        subgraph KernelLogic [Core Protection Logic]
-            RuleLoader[Rule Loader & Parser]:::kernelMode
-            TrustCache[Trust Cache & Ransom Tracker]:::kernelMode
-            
-            subgraph MiniFilter [File System MiniFilter]
-                PreCreate[PreCreate: HoneyToken / Access Control]:::kernelMode
-                PreWrite[PreWrite: Ransomware / Entropy Check]:::kernelMode
-                PreSetInfo[PreSetInfo: Anti-Rename / Extension]:::kernelMode
-                PreDevCtrl[PreDeviceControl: Boot / Disk Wipe Protect]:::kernelMode
-            end
-
-            subgraph ObjectCallbacks [Object Manager Callbacks]
-                ProcProtect[ObRegisterCallbacks: Handle Stripping]:::kernelMode
-                ImageLoad[PsSetLoadImageNotifyRoutine: Image Blocking]:::kernelMode
-            end
-
-            subgraph RegistryCallbacks [Configuration Manager Callbacks]
-                RegFilter[CmRegisterCallbackEx: Registry Guard]:::kernelMode
-            end
+        subgraph Protections ["Protection Subsystems"]
+            FileProtect["File Minifilter (ProtectFile.cpp)"]:::kernelMode
+            ProcessProtect["ObRegisterCallbacks (ProtectProcess.cpp)"]:::kernelMode
+            RegProtect["CmRegisterCallbackEx (ProtectRegistry.cpp)"]:::kernelMode
+            BootProtect["IRP_MJ_DEVICE_CONTROL (ProtectBoot.cpp)"]:::kernelMode
         end
-
-        DriverEntry --> GlobalData
-        DriverEntry --> CommServer
-        DriverEntry --> MiniFilter
-        DriverEntry --> ProcProtect
-        DriverEntry --> ImageLoad
-        DriverEntry --> RegFilter
-        
-        MiniFilter --> RuleLoader
-        ProcProtect --> RuleLoader
-        RegFilter --> RuleLoader
-        
-        PreWrite --> TrustCache
-        PreCreate --> TrustCache
     end
 
-    %% Cross-Boundary Interactions
-    ConfigMgr -- Writes --> JSONRules
-    ConfigMgr -- Writes --> ConfigJSON
-    RuleLoader -- Reads --> JSONRules
-    
-    GUI -- Service Control (SCM) --> DriverEntry
-    PipeClient -- FltSendMessage (IPC) --> CommServer
-    CommServer -- Notifications --> PipeClient
-    
-    FileMon -- Moves Malicious Files --> Quarantine
-    
-    %% Logic Flow Details
-    ProcProtect -- Protects --> UserSpace
-    RegFilter -- Protects --> StorageLayer
-    PreDevCtrl -- Protects --> StorageLayer
+    subgraph OS ["Windows OS & Storage"]
+        FS["File System (FltMgr)"]:::storage
+        Reg["Registry (CmMgr)"]:::storage
+        ProcMgr["Process/Thread Manager (ObMgr)"]:::storage
+        Disk["Physical Disk / MBR"]:::storage
+    end
+
+    CloudAPI["PYAS Cloud Server"]:::storage
+
+    %% User Mode Internal
+    UI <-->|JS Evaluate / JSON| PYASCore
+    PYASCore -->|Extract Features & Scan| Engines
+    CloudScanner -.->|HTTPS REST API| CloudAPI
+    PYASCore <-->|FilterSendMessage / FilterGetMessage| CommClient
+
+    %% User-Kernel Boundary
+    CommClient <-->|PYAS_MESSAGE / PYAS_USER_MESSAGE| CommServer
+
+    %% Kernel Mode Internal
+    CommServer <-->|Message Dispatch| DriverCore
+    DriverCore --> RuleEngine
+    RuleEngine --> Protections
+
+    %% Kernel-OS Boundary
+    FileProtect -->|IRP_MJ_CREATE, IRP_MJ_WRITE...| FS
+    ProcessProtect -->|PreOpenProcess, PreOpenThread| ProcMgr
+    RegProtect -->|RegNtPreCreateKey, RegNtPreSetValueKey...| Reg
+    BootProtect -->|IOCTL_DISK_FORMAT_TRACKS...| Disk
 ```
 
 ## Support System
 
 | Config    | Permissions   | System version       | Processor | Memory | Storage |
 |-----------|---------------|----------------------|-----------|--------|---------|
-| Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 200MB  | 100MB   |
+| Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 300MB  | 100MB   |
 | Recommend | Administrator | >= Windows 10 (21H2) | 3 GHz     | 500MB  | 200MB   |
 
 ## Packaged Releases

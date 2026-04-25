@@ -1734,6 +1734,18 @@ document.addEventListener('DOMContentLoaded', () => {
             logWidget.value += parts.join(' | ') + '\n';
             logWidget.scrollTop = logWidget.scrollHeight;
         }
+
+        if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || 
+            (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
+            const overlay = document.getElementById('loading_overlay');
+            const appContainer = document.querySelector('.app-container');
+            if (overlay && !overlay.classList.contains('fade-out')) {
+                overlay.classList.add('fade-out');
+                setTimeout(() => {
+                    if (appContainer) appContainer.classList.add('fade-in');
+                }, 400);
+            }
+        }
     };
     
     const websiteBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => el.textContent.includes('官方網站') || el.textContent.includes('Website'));
@@ -1922,16 +1934,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     toggle.checked = !!cfg[switchMap[index]];
                 }
             });
-
-            setTimeout(() => {
-                const overlay = document.getElementById('loading_overlay');
-                const appContainer = document.querySelector('.app-container');
-                if (overlay) overlay.classList.add('fade-out');
-                
-                setTimeout(() => {
-                    if (appContainer) appContainer.classList.add('fade-in');
-                }, 400);
-            }, 100);
         });
         window.pywebview.api.init_ui_ready();
     });

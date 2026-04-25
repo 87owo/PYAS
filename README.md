@@ -2,7 +2,7 @@
 
 Antivirus software written in Python and C++ that blocks threats through deep learning and behavioral monitoring!
 
-<img width="2245" height="1477" alt="PYAS_UI" src="https://github.com/user-attachments/assets/87d40261-7655-49ad-a19c-1ffcca60584f" />
+<img width="1197" height="773" alt="PYAS_State" src="https://github.com/user-attachments/assets/0a68a81f-bcd0-4855-9504-df33e8cd0fed" />
 
 ## Requirements
 

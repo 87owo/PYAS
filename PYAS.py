@@ -135,9 +135,6 @@ class WindowAPI:
             return False
 
     def init_ui_ready(self):
-        for log in self.get_logs():
-            if self._window:
-                self._window.evaluate_js(f"if(window.updateLogs) window.updateLogs({json.dumps(log)});")
         self.start_daemon_thread(self.init_engine_thread)
 
     def set_window(self, window):
@@ -414,6 +411,8 @@ class WindowAPI:
                     with open(self.file_config, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         self.pyas_config = {**self.pyas_default, **data}
+                    
+                    self.pyas_config["version"] = self.pyas_default["version"]
 
                 except Exception as e:
                     self.pyas_config = self.pyas_default.copy()

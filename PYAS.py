@@ -1,5 +1,5 @@
-import os, re, sys, time, json, uuid, queue, msvcrt, winreg, pystray
-import shutil, hashlib, platform, threading, subprocess, pefile
+import os, re, sys, time, json, uuid, stat, queue, msvcrt, winreg
+import shutil, hashlib, platform, threading, subprocess, pefile, pystray
 import socket, requests, webview, webbrowser, ctypes, ctypes.wintypes
 
 from PIL import Image, ImageDraw
@@ -101,6 +101,13 @@ class PYAS_USER_MESSAGE(ctypes.Structure):
         ("Path", ctypes.wintypes.WCHAR * 1024)
     ]
 
+class COPYDATASTRUCT(ctypes.Structure):
+    _fields_ = [
+        ("dwData", ctypes.c_size_t),
+        ("cbData", ctypes.wintypes.DWORD),
+        ("lpData", ctypes.c_void_p)
+    ]
+
 ####################################################################################################
 
 class WindowAPI:
@@ -117,7 +124,28 @@ class WindowAPI:
         if not self.check_singleton("PYAS_Security_Mutex"):
             hwnd = self.user32.FindWindowW(None, "PYAS Security")
             if hwnd:
-                self.user32.ShowWindow(hwnd, 9)
+                if "-scan" in self.args_pyas:
+                    try:
+                        idx = self.args_pyas.index("-scan")
+                        target = self.args_pyas[idx+1]
+                        cds = COPYDATASTRUCT()
+                        cds.dwData = 1
+                        encoded = target.encode('utf-8')
+                        cds.cbData = len(encoded) + 1
+                        buffer = ctypes.create_string_buffer(encoded)
+                        cds.lpData = ctypes.cast(buffer, ctypes.c_void_p)
+                        self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        cds = COPYDATASTRUCT()
+                        cds.dwData = 2
+                        cds.cbData = 0
+                        cds.lpData = None
+                        self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+                    except Exception:
+                        pass
                 self.user32.SetForegroundWindow(hwnd)
             os._exit(0)
             
@@ -135,6 +163,11 @@ class WindowAPI:
             return False
 
     def init_ui_ready(self):
+        with self.lock_config:
+            if self.engine_initialized:
+                return
+            self.engine_initialized = True
+
         self.start_daemon_thread(self.init_engine_thread)
 
     def set_window(self, window):
@@ -206,25 +239,42 @@ class WindowAPI:
 
     def restore_from_tray(self, icon=None, item=None):
         if self._window:
+            self._window.restore()
             self._window.show()
 
             hwnd = self.user32.FindWindowW(None, "PYAS Security")
             if hwnd:
-                self.user32.ShowWindow(hwnd, 9)
                 self.user32.SetForegroundWindow(hwnd)
 
-    def close(self):
-        with self.lock_config:
-            self.pyas_config["process_switch"] = False
-            self.pyas_config["document_switch"] = False
-            self.pyas_config["system_switch"] = False
-            self.pyas_config["driver_switch"] = False
-            self.pyas_config["network_switch"] = False
+    def close(self, *args, **kwargs):
+        if self.tray_icon:
+            try:
+                self.tray_icon.stop()
+            except Exception:
+                pass
+            self.tray_icon = None
 
-        self.stop_system_driver()
         if self._window:
-            self._window.destroy()
-        os._exit(0)
+            try:
+                self._window.hide()
+            except Exception:
+                pass
+
+        def _cleanup_and_exit():
+            with self.lock_config:
+                self.pyas_config["process_switch"] = False
+                self.pyas_config["document_switch"] = False
+                self.pyas_config["system_switch"] = False
+                self.pyas_config["driver_switch"] = False
+                self.pyas_config["network_switch"] = False
+
+            self.stop_system_driver()
+            
+            if self._window:
+                self._window.destroy()
+            os._exit(0)
+
+        threading.Thread(target=_cleanup_and_exit, daemon=True).start()
 
     def get_file_version(self, file_path):
         try:
@@ -257,7 +307,12 @@ class WindowAPI:
 ####################################################################################################
 
     def init_environ(self):
-        self.file_pyas = self.norm_path(sys.argv[0])
+        self.python = sys.executable
+        if getattr(sys, 'frozen', False):
+            self.file_pyas = self.norm_path(sys.executable)
+        else:
+            self.file_pyas = self.norm_path(os.path.abspath(sys.argv[0]))
+            
         self.args_pyas = sys.argv[1:]
         self.path_pyas = os.path.dirname(self.file_pyas)
         self.pid_pyas = int(os.getpid())
@@ -365,6 +420,7 @@ class WindowAPI:
         self.mbr_backup = {}
         self.logs_data = []
         self.tray_icon = None
+        self.engine_initialized = False
 
         self.pyas_default = {
             "version": "3.5.0",
@@ -383,6 +439,7 @@ class WindowAPI:
             "extension_switch": False,
             "sensitive_switch": False,
             "cloud_switch": True,
+            "context_switch": False,
             "custom_rule": [],
             "white_list": [],
             "quarantine": [],
@@ -441,6 +498,8 @@ class WindowAPI:
             self.start_daemon_thread(self.protect_system_thread)
         elif key == "network_switch" and value:
             self.start_daemon_thread(self.protect_net_thread)
+        elif key == "context_switch":
+            self.register_context_menu(value)
         elif key == "driver_switch":
             if value:
                 if self.install_system_driver():
@@ -457,6 +516,40 @@ class WindowAPI:
     def get_config(self):
         with self.lock_config:
             return self.pyas_config.copy()
+
+####################################################################################################
+
+    def register_context_menu(self, enable):
+        paths = [
+            r"Software\Classes\*\shell\PYAS_Scan",
+            r"Software\Classes\Directory\shell\PYAS_Scan"
+        ]
+        
+        if getattr(sys, 'frozen', False):
+            cmd_path = f'"{self.file_pyas}"'
+        else:
+            cmd_path = f'"{self.python}" "{self.file_pyas}"'
+            
+        try:
+            for path in paths:
+                if enable:
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, path) as key:
+                        winreg.SetValue(key, "", winreg.REG_SZ, "PYAS Security Scan")
+                        winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, f'{cmd_path},0')
+                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"{path}\command") as key:
+                        winreg.SetValue(key, "", winreg.REG_SZ, f'{cmd_path} -scan "%1"')
+                else:
+                    try:
+                        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, rf"{path}\command")
+                        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, path)
+                    except FileNotFoundError:
+                        pass
+        except Exception as e:
+            self.write_log("WARN", "register_context_menu", detail=str(e), success=False)
+
+    def trigger_context_scan(self, target):
+        if self._window:
+            self._window.evaluate_js(f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(target.replace(os.sep, '/'))});")
 
 ####################################################################################################
 
@@ -711,6 +804,14 @@ class WindowAPI:
             self.properties.load_path(self.path_properties, callback=log_callback)
             self.write_log("INFO", "System", detail="Engine Initialization Complete")
             
+            if "-scan" in self.args_pyas:
+                try:
+                    idx = self.args_pyas.index("-scan")
+                    target = self.args_pyas[idx+1]
+                    self.trigger_context_scan(target)
+                except Exception:
+                    pass
+            
             with self.lock_config:
                 if self.pyas_config.get("process_switch"): self.start_daemon_thread(self.protect_proc_thread)
                 if self.pyas_config.get("document_switch"): self.start_daemon_thread(self.protect_file_thread)
@@ -724,7 +825,6 @@ class WindowAPI:
 
         except Exception as e:
             self.write_log("WARN", "init_engine_thread", detail=str(e), success=False)
-
 
     def backup_mbr(self, max_drives=26):
         self.mbr_backup = {}
@@ -898,6 +998,8 @@ class WindowAPI:
 
     def solve_scan(self, file_paths):
         deleted_paths = []
+        running_procs = self.get_process_list()
+        
         with self.lock_virus:
             for path in file_paths:
                 if self._window:
@@ -907,9 +1009,18 @@ class WindowAPI:
                     if path in self.virus_lock:
                         self.lock_file(path, False)
 
-                    os.remove(path)
-                    deleted_paths.append(path)
+                    for proc in running_procs:
+                        if self.path_equal(proc["path"], path):
+                            self.kill_process(proc["pid"])
 
+                    try:
+                        os.chmod(path, stat.S_IWRITE)
+                    except Exception:
+                        pass
+
+                    os.remove(path)
+
+                    deleted_paths.append(path)
                     if path in self.virus_results:
                         self.virus_results.remove(path)
 
@@ -1634,6 +1745,10 @@ class WindowAPI:
         self.ntdll.NtSuspendProcess(h)
         try:
             cmdline = self.get_process_cmdline(h)
+            
+            if "-scan" in cmdline and self.path_equal(self.get_process_file(h), self.file_pyas):
+                return
+                
             paths = self.extract_paths_from_cmdline(cmdline)
             with self.lock_config:
                 suffix = self.pyas_config.get("suffix", [])
@@ -1724,6 +1839,10 @@ class WindowAPI:
         hDir = self.kernel32.CreateFileW(self.path_user, 0x0001, 0x00000007, None, 3, 0x02000000, None)
         buffer = ctypes.create_string_buffer(65536)
 
+        temp_prefix = os.path.normcase(self.path_temp)
+        if not temp_prefix.endswith(os.sep):
+            temp_prefix += os.sep
+
         while True:
             with self.lock_config:
                 if not self.pyas_config.get("document_switch", False):
@@ -1741,6 +1860,13 @@ class WindowAPI:
 
                 file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                 if file_path and notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
+                    
+                    norm_path = os.path.normcase(file_path)
+                    if norm_path.startswith(temp_prefix):
+                        sub_path = norm_path[len(temp_prefix):]
+                        if sub_path.startswith("_mei"):
+                            continue
+
                     with self.lock_config:
                         suffix = self.pyas_config.get("suffix", [])
 
@@ -1766,7 +1892,7 @@ class WindowAPI:
                 if not self.pyas_config.get("network_switch", False):
                     break
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 conns = self.get_connections_list()
 
                 for key in conns - self.exist_connections:
@@ -1851,7 +1977,7 @@ class WindowAPI:
             while time.time() - start_time < 5:
                 hwnd = self.user32.GetForegroundWindow()
                 if not hwnd:
-                    time.sleep(0.2)
+                    time.sleep(0.5)
                     continue
                     
                 pid = ctypes.c_ulong(0)
@@ -1870,7 +1996,7 @@ class WindowAPI:
                     if proc_name and not any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows):
                         return {"exe": proc_name, "class": c_str, "title": t_str}
 
-                time.sleep(0.2)
+                time.sleep(0.5)
         except Exception as e:
             self.write_log("WARN", "capture_popup_window", detail=str(e), success=False)
         return None
@@ -2138,24 +2264,20 @@ class WindowAPI:
         WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
         while True:
             try:
-                time.sleep(0.2)
+                time.sleep(0.5)
                 with self.lock_config:
                     rules = self.pyas_config.get("block_list", [])
                     cur_ver = self.pyas_config.get("version", "0.0.0")
 
                 hwnd_list = []
                 def enum_windows_callback(hWnd, lParam):
-                    hwnd_list.append(hWnd)
+                    if self.user32.IsWindowVisible(hWnd):
+                        hwnd_list.append(hWnd)
                     return True
                     
                 self.user32.EnumWindows(WNDENUMPROC(enum_windows_callback), 0)
                 
                 for hWnd in hwnd_list:
-                    length = self.user32.GetWindowTextLengthW(hWnd)
-                    title = ctypes.create_unicode_buffer(length + 1)
-                    self.user32.GetWindowTextW(hWnd, title, length + 1)
-                    class_name = ctypes.create_unicode_buffer(256)
-                    self.user32.GetClassNameW(hWnd, class_name, 256)
                     pid = ctypes.c_ulong(0)
                     self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
                     
@@ -2163,22 +2285,32 @@ class WindowAPI:
                         continue
                         
                     proc_name, file_path = self.get_exe_info(pid.value)
+
+                    if proc_name != "PYAS_Setup.exe" and not rules:
+                        continue
+                    
+                    length = self.user32.GetWindowTextLengthW(hWnd)
+                    title = ctypes.create_unicode_buffer(length + 1)
+                    self.user32.GetWindowTextW(hWnd, title, length + 1)
+                    class_name = ctypes.create_unicode_buffer(256)
+                    self.user32.GetClassNameW(hWnd, class_name, 256)
+                    
                     t_str = str(title.value)
                     c_str = str(class_name.value)
-                    
+
                     if proc_name == "PYAS_Setup.exe" and c_str == "WindowClass_0" and t_str == "PYAS Setup":
                         if file_path:
                             setup_ver = self.get_file_version(file_path)
                             if self.compare_versions(setup_ver, cur_ver):
                                 self.close()
 
+                    if not rules:
+                        continue
+
                     is_pass = any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows)
                     if is_pass:
                         continue
                     
-                    if not rules:
-                        continue
-
                     is_block = any(item.get("exe") == proc_name or item.get("class") == c_str or item.get("title") == t_str for item in rules)
                     if is_block:
                         for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
@@ -2231,11 +2363,13 @@ class NoCacheRequestHandler(SimpleHTTPRequestHandler):
 ####################################################################################################
 
 class WindowHook:
-    def __init__(self, title):
+    def __init__(self, title, api_ref=None):
         self.title = title
+        self.api_ref = api_ref
         self.old_wndproc = None
         self.WM_DPICHANGED = 0x02E0
         self.WM_NCHITTEST = 0x0084
+        self.WM_COPYDATA = 0x004A
         self.HTCAPTION = 2
         self.GWLP_WNDPROC = -4
 
@@ -2275,6 +2409,25 @@ class WindowHook:
         
         if msg == 0x0112 and (wparam & 0xFFF0) == 0xF060:
             return 0
+            
+        if msg == self.WM_COPYDATA:
+            try:
+                cds = ctypes.cast(lparam, ctypes.POINTER(COPYDATASTRUCT)).contents
+                if cds.dwData == 1:
+                    buffer = ctypes.string_at(cds.lpData, cds.cbData)
+                    path = buffer.decode('utf-8').strip('\x00')
+                    if self.api_ref:
+                        if self.api_ref._window:
+                            self.api_ref._window.restore()
+                            self.api_ref._window.show()
+                        threading.Thread(target=self.api_ref.trigger_context_scan, args=(path,), daemon=True).start()
+                elif cds.dwData == 2:
+                    if self.api_ref and self.api_ref._window:
+                        self.api_ref._window.restore()
+                        self.api_ref._window.show()
+            except Exception:
+                pass
+            return 1
 
         if msg == self.WM_NCHITTEST:
             x = lparam & 0xFFFF
@@ -2335,7 +2488,7 @@ if __name__ == "__main__":
         background_color='#e0e0e0', hidden=hide_on_start)
 
     if platform.system() == "Windows":
-        window_hook = WindowHook("PYAS Security")
+        window_hook = WindowHook("PYAS Security", js_api)
         window.events.shown += window_hook.hook
 
     js_api.set_window(window)

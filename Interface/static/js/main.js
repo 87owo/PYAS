@@ -110,7 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "修復映像劫持",
             "修復桌面壁紙": "修復桌面壁紙",
             "正在掃描": "正在掃描",
-            "正在刪除": "正在刪除"
+            "正在刪除": "正在刪除",
+            "選單掃描": "選單掃描",
+            "此選項可以加入右鍵掃描": "此選項可以加入右鍵掃描"
         },
         "simplified_switch": {
             "PYAS Security": "PYAS Security",
@@ -219,7 +221,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "修复映像劫持",
             "修復桌面壁紙": "修复桌面壁纸",
             "正在掃描": "正在扫描",
-            "正在刪除": "正在删除"
+            "正在刪除": "正在删除",
+            "選單掃描": "菜单扫描",
+            "此選項可以加入右鍵掃描": "此选项可以加入右键扫描菜单"
         },
         "english_switch": {
             "PYAS Security": "PYAS Security",
@@ -328,7 +332,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "Repair Image Hijacking",
             "修復桌面壁紙": "Repair Desktop Wallpaper",
             "正在掃描": "Scanning...",
-            "正在刪除": "Deleting..."
+            "正在刪除": "Deleting...",
+            "選單掃描": "Context Menu Scan",
+            "此選項可以加入右鍵掃描": "Add scan option to right-click menu"
         },
         "japanese_switch": {
             "PYAS Security": "PYAS Security",
@@ -437,7 +443,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "イメージハイジャックの修復",
             "修復桌面壁紙": "デスクトップの壁紙を修復",
             "正在掃描": "スキャン中...",
-            "正在刪除": "削除中..."
+            "正在刪除": "削除中...",
+            "選單掃描": "コンテキストメニュースキャン",
+            "此選項可以加入右鍵掃描": "右クリックメニューにスキャンオプションを追加します"
         },
         "korean_switch": {
             "PYAS Security": "PYAS Security",
@@ -546,7 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "이미지 하이재킹 복구",
             "修復桌面壁紙": "바탕 화면 배경 무늬 복구",
             "正在掃描": "스캔 중...",
-            "正在刪除": "삭제 중..."
+            "正在刪除": "삭제 중...",
+            "選單掃描": "컨텍스트 메뉴 스캔",
+            "此選項可以加入右鍵掃描": "마우스 우클릭 메뉴에 스캔 옵션을 추가합니다"
         },
         "french_switch": {
             "PYAS Security": "PYAS Security",
@@ -655,7 +665,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "Réparer le détournement d'image",
             "修復桌面壁紙": "Réparer le fond d'écran du bureau",
             "正在掃描": "Analyse en cours...",
-            "正在刪除": "Suppression en cours..."
+            "正在刪除": "Suppression en cours...",
+            "選單掃描": "Analyse du menu contextuel",
+            "此選項可以加入右鍵掃描": "Ajouter l'option d'analyse au menu contextuel"
         },
         "spanish_switch": {
             "PYAS Security": "PYAS Security",
@@ -764,7 +776,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "Reparar secuestro de imagen",
             "修復桌面壁紙": "Reparar fondo de escritorio",
             "正在掃描": "Escaneando...",
-            "正在刪除": "Eliminando..."
+            "正在刪除": "Eliminando...",
+            "選單掃描": "Escaneo de menú contextual",
+            "此選項可以加入右鍵掃描": "Añadir opción de escaneo al menú contextual"
         },
         "hindi_switch": {
             "PYAS Security": "PYAS Security",
@@ -873,7 +887,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "छवि अपहरण की मरम्मत",
             "修復桌面壁紙": "डेस्कटॉप वॉलपेपर की मरम्मत",
             "正在掃描": "स्कैन कर रहा है...",
-            "正在刪除": "हटा रहा है..."
+            "正在刪除": "हटा रहा है...",
+            "選單掃描": "संदर्भ मेनू स्कैन",
+            "此選項可以加入右鍵掃描": "राइट-क्लिक मेनू में स्कैन विकल्प जोड़ें"
         },
         "arabic_switch": {
             "PYAS Security": "PYAS Security",
@@ -982,7 +998,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "إصلاح اختطاف الصور",
             "修復桌面壁紙": "إصلاح خلفية سطح المكتب",
             "正在掃描": "جاري الفحص...",
-            "正在刪除": "جاري الحذف..."
+            "正在刪除": "جاري الحذف...",
+            "選單掃描": "فحص قائمة السياق",
+            "此選項可以加入右鍵掃描": "إضافة خيار الفحص إلى قائمة النقر الأيمن"
         },
         "russian_switch": {
             "PYAS Security": "PYAS Security",
@@ -1091,7 +1109,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "Восстановление Image Hijacking",
             "修復桌面壁紙": "Восстановление обоев рабочего стола",
             "正在掃描": "Сканирование...",
-            "正在刪除": "Удаление..."
+            "正在刪除": "Удаление...",
+            "選單掃描": "Сканирование из контекстного меню",
+            "此選項可以加入右鍵掃描": "Добавить опцию сканирования в контекстное меню"
         },
         "slovenian_switch": {
             "PYAS Security": "PYAS Security",
@@ -1200,7 +1220,9 @@ document.addEventListener('DOMContentLoaded', () => {
             "修復映像劫持": "Popravilo ugrabitve slike",
             "修復桌面壁紙": "Popravilo ozadja namizja",
             "正在掃描": "Skeniranje...",
-            "正在刪除": "Brisanje..."
+            "正在刪除": "Brisanje...",
+            "選單掃描": "Skeniranje iz kontekstnega menija",
+            "此選項可以加入右鍵掃描": "Dodaj možnost skeniranja v kontekstni meni"
         }
     };
 
@@ -1521,7 +1543,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.revertSwitch = (switchKey) => {
-        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch"];
+        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
         const index = switchMap.indexOf(switchKey);
         if (index !== -1) {
             const toggle = document.querySelectorAll('.toggle-switch input')[index];
@@ -1533,11 +1555,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
         toggle.addEventListener('change', (e) => {
-            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch"];
+            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
             if (window.pywebview && switchMap[index]) {
                 window.pywebview.api.update_config(switchMap[index], e.target.checked);
             }
         });
+    });
+
+    window.triggerContextScan = (path) => {
+        if (isScanning) return;
+        switchPage('scan_window');
+        if (window.pywebview) {
+            isScanning = true;
+            virusList.innerHTML = '';
+            scanMethodSelect.classList.add('hidden');
+            stopBtn.classList.remove('hidden');
+            solveBtn.classList.add('hidden');
+            if (progressTitle) progressTitle.textContent = getMsg("正在掃描");
+            progressText.textContent = getMsg("正在初始化中");
+            window.pywebview.api.start_scan([path]);
+        }
+    };
+
+    window.addEventListener('pywebviewready', () => {
+        window.pywebview.api.get_config().then(cfg => {
+            const theme = cfg.theme || "white_switch";
+            const lang = cfg.language || "english_switch";
+            applyTheme(theme);
+            translateText(lang);
+            updateCustomSelectUI('theme_select', theme);
+            updateCustomSelectUI('lang_select', lang);
+
+            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
+            document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
+                if (switchMap[index]) {
+                    toggle.checked = !!cfg[switchMap[index]];
+                }
+            });
+        });
+        window.pywebview.api.init_ui_ready();
     });
 
     function renderManageList(containerSelector, dataList, displayKey, valKey, defaultChecked = false) {
@@ -1917,24 +1973,5 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-    });
-
-    window.addEventListener('pywebviewready', () => {
-        window.pywebview.api.get_config().then(cfg => {
-            const theme = cfg.theme || "white_switch";
-            const lang = cfg.language || "english_switch";
-            applyTheme(theme);
-            translateText(lang);
-            updateCustomSelectUI('theme_select', theme);
-            updateCustomSelectUI('lang_select', lang);
-
-            const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch"];
-            document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
-                if (switchMap[index]) {
-                    toggle.checked = !!cfg[switchMap[index]];
-                }
-            });
-        });
-        window.pywebview.api.init_ui_ready();
     });
 });

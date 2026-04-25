@@ -138,6 +138,8 @@ graph TD
 
 ## Support System
 
+Please ensure your computer supports Microsoft Visual C++ 2015-2022 Redistributable and Edge Webview2.
+
 | Config    | Permissions   | System version       | Processor | Memory | Storage |
 |-----------|---------------|----------------------|-----------|--------|---------|
 | Minimum   | Administrator | >= Windows 10 (20H1) | 1 GHz     | 300MB  | 100MB   |

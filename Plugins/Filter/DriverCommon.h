@@ -101,6 +101,11 @@ typedef struct _PYAS_MESSAGE {
     WCHAR Path[MAX_PATH_LEN];
 } PYAS_MESSAGE, * PPYAS_MESSAGE;
 
+typedef struct _PYAS_USER_MESSAGE {
+    ULONG Command;
+    WCHAR Path[MAX_PATH_LEN];
+} PYAS_USER_MESSAGE, * PPYAS_USER_MESSAGE;
+
 typedef struct _DRIVER_DATA {
     PDRIVER_OBJECT DriverObject;
     PFLT_FILTER FilterHandle;
@@ -138,6 +143,9 @@ VOID UnloadRules();
 
 VOID InitializeRulesEngine();
 VOID UninitializeRulesEngine();
+
+VOID AddDynamicWhitelist(PUNICODE_STRING RuleStr);
+VOID RemoveDynamicWhitelist(PUNICODE_STRING RuleStr);
 
 VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
 

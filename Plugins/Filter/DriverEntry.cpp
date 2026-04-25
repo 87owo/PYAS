@@ -53,6 +53,37 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     return STATUS_SUCCESS;
 }
 
+static NTSTATUS PortMessage(PVOID PortCookie, PVOID InputBuffer, ULONG InputBufferLength, PVOID OutputBuffer, ULONG OutputBufferLength, PULONG ReturnOutputBufferLength) {
+    UNREFERENCED_PARAMETER(PortCookie);
+    UNREFERENCED_PARAMETER(OutputBuffer);
+    UNREFERENCED_PARAMETER(OutputBufferLength);
+
+    if (InputBuffer && InputBufferLength >= sizeof(PYAS_USER_MESSAGE)) {
+        PPYAS_USER_MESSAGE msg = (PPYAS_USER_MESSAGE)InputBuffer;
+        if (msg->Command == 1 || msg->Command == 2) {
+
+            msg->Path[MAX_PATH_LEN - 1] = L'\0';
+
+            UNICODE_STRING us;
+            RtlInitUnicodeString(&us, msg->Path);
+
+            if (us.Length > 0) {
+                if (msg->Command == 1) {
+                    AddDynamicWhitelist(&us);
+                }
+                else {
+                    RemoveDynamicWhitelist(&us);
+                }
+            }
+        }
+    }
+
+    if (ReturnOutputBufferLength) {
+        *ReturnOutputBufferLength = 0;
+    }
+    return STATUS_SUCCESS;
+}
+
 static NTSTATUS PortConnect(PFLT_PORT ClientPort, PVOID ServerPortCookie, PVOID ConnectionContext, ULONG SizeOfContext, PVOID* ConnectionPortCookie) {
     UNREFERENCED_PARAMETER(ServerPortCookie);
     UNREFERENCED_PARAMETER(ConnectionContext);
@@ -136,7 +167,7 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     if (NT_SUCCESS(status)) {
         RtlInitUnicodeString(&name, PYAS_PORT_NAME);
         InitializeObjectAttributes(&oa, &name, OBJ_KERNEL_HANDLE | OBJ_CASE_INSENSITIVE, NULL, sd);
-        status = FltCreateCommunicationPort(GlobalData.FilterHandle, &GlobalData.ServerPort, &oa, NULL, PortConnect, PortDisconnect, NULL, 1);
+        status = FltCreateCommunicationPort(GlobalData.FilterHandle, &GlobalData.ServerPort, &oa, NULL, PortConnect, PortDisconnect, PortMessage, 1);
         FltFreeSecurityDescriptor(sd);
     }
 

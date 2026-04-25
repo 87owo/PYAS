@@ -3,7 +3,7 @@ Signature   = "$WINDOWS NT$"
 Class       = ActivityMonitor
 ClassGuid   = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider    = %ManufacturerName%
-DriverVer   = 12/29/2025,1.0.0.0
+DriverVer   = 04/12/2026,3.5.0.0
 CatalogFile = PYAS_Driver.cat
 PnpLockdown = 1
 

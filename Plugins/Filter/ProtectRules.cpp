@@ -57,6 +57,14 @@ static VOID FreeList(PRULE_NODE* Head) {
 static VOID AddRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
     if (!RuleStr || !RuleStr->Buffer) return;
 
+    PRULE_NODE Check = *Head;
+    while (Check) {
+        if (RtlEqualUnicodeString(&Check->Pattern, RuleStr, TRUE)) {
+            return;
+        }
+        Check = Check->Next;
+    }
+
     PRULE_NODE Node = (PRULE_NODE)PyasAllocate(sizeof(RULE_NODE));
     if (!Node) return;
 
@@ -261,6 +269,56 @@ VOID UninitializeRulesEngine() {
     g_CacheInitialized = FALSE;
 }
 
+static VOID RemoveRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
+    if (!RuleStr || !RuleStr->Buffer) return;
+    PRULE_NODE Current = *Head;
+    PRULE_NODE Previous = NULL;
+
+    while (Current) {
+        if (RtlEqualUnicodeString(&Current->Pattern, RuleStr, TRUE)) {
+            PRULE_NODE ToDelete = Current;
+
+            if (Previous) {
+                Previous->Next = Current->Next;
+            }
+            else {
+                *Head = Current->Next;
+            }
+
+            Current = Current->Next;
+
+            if (ToDelete->Pattern.Buffer) PyasFree(ToDelete->Pattern.Buffer);
+            PyasFree(ToDelete);
+        }
+        else {
+            Previous = Current;
+            Current = Current->Next;
+        }
+    }
+}
+
+VOID AddDynamicWhitelist(PUNICODE_STRING RuleStr) {
+    ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
+    AddRule(&g_ProcessTrustedPaths, RuleStr);
+    AddRule(&g_FileExceptionPaths, RuleStr);
+
+    ExAcquireFastMutex(&TrustCacheLock);
+    RtlZeroMemory(TrustCache, sizeof(TrustCache));
+    ExReleaseFastMutex(&TrustCacheLock);
+    ExReleaseResourceLite(&RuleLock);
+}
+
+VOID RemoveDynamicWhitelist(PUNICODE_STRING RuleStr) {
+    ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
+    RemoveRule(&g_ProcessTrustedPaths, RuleStr);
+    RemoveRule(&g_FileExceptionPaths, RuleStr);
+
+    ExAcquireFastMutex(&TrustCacheLock);
+    RtlZeroMemory(TrustCache, sizeof(TrustCache));
+    ExReleaseFastMutex(&TrustCacheLock);
+    ExReleaseResourceLite(&RuleLock);
+}
+
 NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
     NTSTATUS status = STATUS_SUCCESS;
     HANDLE FileHandle = NULL;
@@ -461,38 +519,33 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isTrusted = FALSE;
 
-    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
-        ExAcquireResourceSharedLite(&RuleLock, TRUE);
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
+    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
         PRULE_NODE Node = g_ProcessExploitable;
         while (Node) {
             if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
-                ExReleaseResourceLite(&RuleLock);
-                goto cleanup;
+                goto update_cache;
             }
             Node = Node->Next;
         }
 
         if (IsWindowsSystemApp(imageFileName->Buffer, imageFileName->Length)) {
             isTrusted = TRUE;
-            ExReleaseResourceLite(&RuleLock);
-            goto cleanup;
+            goto update_cache;
         }
 
         Node = g_ProcessTrustedPaths;
         while (Node) {
             if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
                 isTrusted = TRUE;
-                ExReleaseResourceLite(&RuleLock);
-                goto cleanup;
+                goto update_cache;
             }
             Node = Node->Next;
         }
-
-        ExReleaseResourceLite(&RuleLock);
     }
 
-cleanup:
+update_cache:
     if (g_CacheInitialized) {
         ExAcquireFastMutex(&TrustCacheLock);
         ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
@@ -501,6 +554,8 @@ cleanup:
         KeQuerySystemTime(&TrustCache[Hash].CacheTime);
         ExReleaseFastMutex(&TrustCacheLock);
     }
+
+    ExReleaseResourceLite(&RuleLock);
 
     if (imageFileName) ExFreePool(imageFileName);
     ObDereferenceObject(Process);

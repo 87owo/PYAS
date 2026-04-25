@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PYAS Security</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script defer src="/static/js/main.js"></script>
+</head>
+<body>
+    <div id="loading_overlay">
+        <svg class="spinner" viewBox="0 0 50 50">
+            <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+        </svg>
+    </div>
+    <div class="app-container" style="opacity: 0; transition: opacity 0.5s ease;">
+        <header class="navigate-window pywebview-drag-region">
+            <div class="navigate-title" data-i18n>PYAS Security</div>
+            <div class="window-controls">
+                <button class="ctrl-btn" id="about_button" data-target="about_window">
+                    <svg viewBox="0 0 24 24" class="theme-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </button>
+                <button class="ctrl-btn" id="minimize_button">
+                    <svg viewBox="0 0 24 24" class="theme-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+                <button class="ctrl-btn" id="close_button">
+                    <svg viewBox="0 0 24 24" class="theme-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <aside class="options-window pywebview-drag-region">
+                <button class="nav-btn active" data-target="home_window">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                </button>
+                <button class="nav-btn" data-target="scan_window">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+                <button class="nav-btn" data-target="tool_window">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                </button>
+                <button class="nav-btn" data-target="protect_window">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                </button>
+                <div class="spacer"></div>
+                <button class="nav-btn" data-target="setting_window">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </aside>
+
+            <main class="content-window">
+                <section id="home_window" class="page active">
+                    <div class="home-top-widget">
+                        <div class="state-widget">
+                            <svg viewBox="0 0 24 24" class="state-icon theme-svg" style="width: 120px; height: 120px;" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline></svg>
+                            <h2 class="state-title" data-i18n>此裝置已受到防護</h2>
+                        </div>
+                        <div class="quick-actions">
+                            <div class="list-item" style="cursor: pointer;" id="quick_scan_btn" data-action="scan">
+                                <div class="item-info">
+                                    <h2 data-i18n>智能掃描</h2><p data-i18n>此選項可以快速掃病毒</p>
+                                </div>
+                                <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                            </div>
+                            <div class="list-item" style="cursor: pointer;" data-target="log_export_window">
+                                <div class="item-info">
+                                    <h2 data-i18n>日誌導出</h2><p data-i18n>此選項可以篩選導出日誌</p>
+                                </div>
+                                <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="log-widget">
+                        <textarea class="log-text" readonly></textarea>
+                    </div>
+                </section>
+
+                <section id="scan_window" class="page">
+                    <div class="progress-widget">
+                        <div class="header-group">
+                            <h2 class="section-title" data-i18n>病毒掃描</h2>
+                            <p class="section-desc" id="progress_text" data-i18n>此選項可以選擇掃描方式</p>
+                        </div>
+                        <div class="action-group modern-action-group">
+                            <button class="action-btn modern-btn danger-btn hidden" id="solve_btn" data-i18n>刪除</button>
+                            <select id="scan_method_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n>選擇</option>
+                                <option value="smart" data-i18n>智能</option>
+                                <option value="file" data-i18n>檔案</option>
+                                <option value="path" data-i18n>路徑</option>
+                                <option value="full" data-i18n>全盤</option>
+                            </select>
+                            <button class="action-btn modern-btn hidden" id="stop_btn" data-i18n>停止</button>
+                        </div>
+                    </div>
+                    <div class="scan-content">
+                        <div class="virus-widget">
+                            <ul class="virus-list" id="virus_list"></ul>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="protect_window" class="page">
+                    <div class="list-widget">
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>進程防護</h2><p data-i18n>此選項可以攔截進程病毒</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>檔案防護</h2><p data-i18n>此選項可以攔截檔案變更</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>系統防護</h2><p data-i18n>此選項可以攔截系統項目</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>驅動防護</h2><p data-i18n>此選項可以增強自身防護</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>網路防護</h2><p data-i18n>此選項可以攔截網路通訊</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="custom_protect_window">
+                            <div class="item-info">
+                                <h2 data-i18n>自訂防護</h2><p data-i18n>此選項可以導入自訂防護</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="tool_window" class="page">
+                    <div class="list-widget">
+                        <div class="list-item" style="cursor: pointer;" data-target="taskmgr_window">
+                            <div class="item-info">
+                                <h2 data-i18n>進程管理</h2><p data-i18n>此選項可以實時查看系統進程</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="junk_window">
+                            <div class="item-info">
+                                <h2 data-i18n>垃圾清理</h2><p data-i18n>此選項可以清理暫存垃圾檔案</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="repair_window">
+                            <div class="item-info">
+                                <h2 data-i18n>系統修復</h2><p data-i18n>此選項可以修復系統註冊項目</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="popup_window">
+                            <div class="item-info">
+                                <h2 data-i18n>彈窗攔截</h2><p data-i18n>此選項可以選擇指定窗口攔截</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="whitelist_window">
+                            <div class="item-info">
+                                <h2 data-i18n>白名單</h2><p data-i18n>此選項可以管理系統白名單</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="quarantine_window">
+                            <div class="item-info">
+                                <h2 data-i18n>隔離區</h2><p data-i18n>此選項可以管理已隔離的檔案</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="setting_window" class="page">
+                    <div class="list-widget">
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>增強模式</h2><p data-i18n>此選項可以增強掃描引擎</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox"><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>擴展引擎</h2><p data-i18n>此選項可以使用擴展引擎</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox"><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>雲端服務</h2><p data-i18n>此選項可以上報雲端引擎</p>
+                            </div>
+                            <label class="toggle-switch"><input type="checkbox" checked><span class="slider"></span></label>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>顯色主題</h2><p data-i18n>此選項可以選擇主題顏色</p>
+                            </div>
+                            <select id="theme_select" class="modern-select">
+                                <option value="white_switch" data-i18n>白色主題</option>
+                                <option value="red_switch" data-i18n>紅色主題</option>
+                                <option value="yellow_switch" data-i18n>黃色主題</option>
+                                <option value="green_switch" data-i18n>綠色主題</option>
+                                <option value="blue_switch" data-i18n>藍色主題</option>
+                                <option value="black_switch" data-i18n>黑色主題</option>
+                            </select>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>顯示語言</h2><p data-i18n>此選項可以選擇顯示語言</p>
+                            </div>
+                            <select id="lang_select" class="modern-select">
+                                <option value="english_switch">English</option>
+                                <option value="traditional_switch">繁體中文</option>
+                                <option value="simplified_switch">简体中文</option>
+                                <option value="japanese_switch">日本語</option>
+                                <option value="korean_switch">한국어</option>
+                                <option value="french_switch">Français</option>
+                                <option value="spanish_switch">Español</option>
+                                <option value="hindi_switch">हिन्दी</option>
+                                <option value="arabic_switch">العربية</option>
+                                <option value="russian_switch">Русский</option>
+                                <option value="slovenian_switch">Slovenščina</option>
+                            </select>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>重置選項</h2><p data-i18n>此選項可以重置所有設定</p>
+                            </div>
+                            <button class="action-btn modern-btn danger-btn" data-i18n>執行</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="about_window" class="page">
+                    <div class="list-widget">
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>產品金鑰</h2><p data-i18n>此選項可以啟用產品金鑰</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg></button>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>官方網站</h2><p data-i18n>此選項可以前往官方網站</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></button>
+                        </div>
+                        <div class="list-item">
+                            <div class="item-info">
+                                <h2 data-i18n>檢查更新</h2><p data-i18n>此選項可以檢查可用更新</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></button>
+                        </div>
+                        <div class="license-widget">
+                            <textarea class="license-text" readonly>87owo Publicly Available Source Code License Agreement
+Last updated: 2025-12-19
+
+1. License and Ownership
+   - This software and its source code are source available for public view.
+   - Access or execution of certain features may require an activation key.
+   - 87owo reserves all legal rights, no intellectual property is transferred.
+   - All project archives, source code, and binaries remain fully proprietary.
+
+2. Use and Prohibitions
+   - You may view, download, and modify the code for local and personal use.
+   - Redistribution of any original or modified code requires prior consent.
+   - Commercial hosting or SaaS deployment is prohibited without permission.
+   - Reverse engineering, license removal, or illegal use is strictly barred.
+
+3. Data and Privacy
+   - This project may collect operational data for optimization and analysis.
+   - All collected data is strictly anonymized to ensure the user's privacy.
+   - Transmission of information is encrypted to prevent unauthorized access.
+
+4. Updates and Terms
+   - New releases may include critical patches, enhancements, or UI changes.
+   - Continued use of these services constitutes acceptance of updated terms.
+   - The author reserves the right to modify these license terms at any time.
+
+5. Warranty and Liability
+   - All services and assets are provided "as is" without any form of warranty.
+   - 87owo is not liable for any direct or indirect damages from software use.
+   - Users assume all risks regarding performance, data, and system integrity.
+
+© 2020-2026 87owo (PYAS Security). All rights reserved.</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="taskmgr_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>進程管理</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋進程..." placeholder="搜尋進程...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>查看</button>
+                        <button class="action-btn modern-btn danger-btn" data-i18n>結束</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="whitelist_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>白名單管理</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋檔案..." placeholder="搜尋檔案...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
+                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="quarantine_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>隔離區管理</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋檔案..." placeholder="搜尋檔案...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
+                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="junk_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>垃圾清理</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋檔案..." placeholder="搜尋檔案...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>掃描</button>
+                        <button class="action-btn modern-btn danger-btn" data-i18n>刪除</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="repair_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>系統修復</h2>
+                        <div class="spacer"></div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>掃描</button>
+                        <button class="action-btn modern-btn danger-btn" data-i18n>修復</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="popup_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>彈窗攔截</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋窗口..." placeholder="搜尋窗口...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
+                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="custom_protect_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="protect_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>自訂防護</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋規則..." placeholder="搜尋規則...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
+                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+                
+                <section id="log_export_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="home_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>日誌導出</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋日誌..." placeholder="搜尋日誌...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>導出</button>
+                        <button class="action-btn modern-btn danger-btn" data-i18n>刪除</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+            </main>
+        </div>
+    </div>
+</body>
+</html>

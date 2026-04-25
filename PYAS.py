@@ -1,15 +1,13 @@
-import os, gc, re, sys, time, json, uuid, queue
-import ctypes, ctypes.wintypes, threading
-import requests, webbrowser, winreg, msvcrt
-import traceback, hashlib, subprocess, shutil
+import os, re, sys, time, json, uuid, queue, msvcrt, winreg, pystray
+import shutil, hashlib, platform, threading, subprocess, pefile
+import socket, requests, webview, webbrowser, ctypes, ctypes.wintypes
 
-from PYAS_Config import *
-from PYAS_Engine import *
-from PYAS_Interface import *
+from PIL import Image, ImageDraw
+from concurrent.futures import ThreadPoolExecutor
+from http.server import SimpleHTTPRequestHandler
+from socketserver import TCPServer
 
-from PySide6.QtWidgets import *
-from PySide6.QtCore import *
-from PySide6.QtGui import *
+from PYAS_Engine import sign_scanner, cnn_scanner, rule_scanner, pe_scanner, cloud_scanner
 
 ####################################################################################################
 
@@ -24,7 +22,8 @@ class PROCESSENTRY32W(ctypes.Structure):
         ("th32ParentProcessID", ctypes.wintypes.DWORD),
         ("pcPriClassBase", ctypes.wintypes.LONG),
         ("dwFlags", ctypes.wintypes.DWORD),
-        ("szExeFile", ctypes.wintypes.WCHAR * 260)]
+        ("szExeFile", ctypes.wintypes.WCHAR * 260)
+    ]
 
 class MIB_TCPROW_OWNER_PID(ctypes.Structure):
     _fields_ = [
@@ -33,19 +32,22 @@ class MIB_TCPROW_OWNER_PID(ctypes.Structure):
         ("dwLocalPort", ctypes.wintypes.DWORD),
         ("dwRemoteAddr", ctypes.wintypes.DWORD),
         ("dwRemotePort", ctypes.wintypes.DWORD),
-        ("dwOwningPid", ctypes.wintypes.DWORD)]
+        ("dwOwningPid", ctypes.wintypes.DWORD)
+    ]
 
 class MIB_TCPTABLE_OWNER_PID(ctypes.Structure):
     _fields_ = [
         ("dwNumEntries", ctypes.wintypes.DWORD),
-        ("table", MIB_TCPROW_OWNER_PID * 1)]
+        ("table", MIB_TCPROW_OWNER_PID * 1)
+    ]
 
 class FILE_NOTIFY_INFORMATION(ctypes.Structure):
     _fields_ = [
         ("NextEntryOffset", ctypes.wintypes.DWORD),
         ("Action", ctypes.wintypes.DWORD),
         ("FileNameLength", ctypes.wintypes.DWORD),
-        ("FileName", ctypes.wintypes.WCHAR * 1024)]
+        ("FileName", ctypes.wintypes.WCHAR * 1024)
+    ]
 
 class SERVICE_STATUS(ctypes.Structure):
     _fields_ = [
@@ -55,7 +57,8 @@ class SERVICE_STATUS(ctypes.Structure):
         ("dwWin32ExitCode", ctypes.wintypes.DWORD),
         ("dwServiceSpecificExitCode", ctypes.wintypes.DWORD),
         ("dwCheckPoint", ctypes.wintypes.DWORD),
-        ("dwWaitHint", ctypes.wintypes.DWORD),]
+        ("dwWaitHint", ctypes.wintypes.DWORD)
+    ]
 
 class PROCESS_BASIC_INFORMATION(ctypes.Structure):
     _fields_ = [
@@ -63,141 +66,196 @@ class PROCESS_BASIC_INFORMATION(ctypes.Structure):
         ("PebBaseAddress", ctypes.wintypes.LPVOID),
         ("Reserved2", ctypes.wintypes.LPVOID * 2),
         ("UniqueProcessId", ctypes.wintypes.LPVOID),
-        ("Reserved3", ctypes.wintypes.LPVOID)]
+        ("Reserved3", ctypes.wintypes.LPVOID)
+    ]
 
 class UNICODE_STRING(ctypes.Structure):
     _fields_ = [
         ("Length", ctypes.wintypes.USHORT),
         ("MaximumLength", ctypes.wintypes.USHORT),
-        ("Buffer", ctypes.c_void_p)]
+        ("Buffer", ctypes.c_void_p)
+    ]
 
 class FILTER_MESSAGE_HEADER(ctypes.Structure):
     _fields_ = [
         ("ReplyLength", ctypes.wintypes.ULONG),
-        ("MessageId", ctypes.c_uint64)]
+        ("MessageId", ctypes.c_uint64)
+    ]
 
 class PYAS_MESSAGE(ctypes.Structure):
     _fields_ = [
         ("MessageCode", ctypes.wintypes.ULONG),
         ("ProcessId", ctypes.wintypes.ULONG),
-        ("Path", ctypes.wintypes.WCHAR * 1024)]
+        ("Path", ctypes.wintypes.WCHAR * 1024)
+    ]
 
 class PYAS_FULL_MESSAGE(ctypes.Structure):
     _fields_ = [
         ("Header", FILTER_MESSAGE_HEADER),
-        ("Data", PYAS_MESSAGE)]
+        ("Data", PYAS_MESSAGE)
+    ]
+
+class PYAS_USER_MESSAGE(ctypes.Structure):
+    _fields_ = [
+        ("Command", ctypes.wintypes.ULONG),
+        ("Path", ctypes.wintypes.WCHAR * 1024)
+    ]
 
 ####################################################################################################
 
-class MainWindow_Controller(QMainWindow):
-    scan_progress_signal = Signal(str)
-    scan_add_virus_signal = Signal(str)
-    scan_result_signal = Signal(str)
-    scan_reset_signal = Signal()
-    scan_update_signal = Signal(str, str)
-    scan_remove_signal = Signal(str)
-    progress_title_signal = Signal(str)
-    init_log_signal = Signal(str)
-
+class WindowAPI:
     def __init__(self):
-        super().__init__()
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self._window = None
+        self.lock_config = threading.RLock()
+        self.lock_logs = threading.RLock()
+        self.lock_virus = threading.RLock()
+        self.lock_file_ops = threading.RLock()
+        
         self.init_environ()
-        self.init_clean_logs()
-        self.init_variable()
-        self.load_config()
-        self.init_interface()
         self.init_windll()
-        self.show_startup()
+        
+        if not self.check_singleton("PYAS_Security_Mutex"):
+            hwnd = self.user32.FindWindowW(None, "PYAS Security")
+            if hwnd:
+                self.user32.ShowWindow(hwnd, 9)
+                self.user32.SetForegroundWindow(hwnd)
+            os._exit(0)
+            
+        self.init_variables()
+        self.load_config()
+        self.load_logs()
 
-####################################################################################################
+    def check_singleton(self, name):
+        try:
+            self.h_mutex = self.kernel32.CreateMutexW(None, False, name)
+            if ctypes.get_last_error() == 183:
+                return False
+            return True
+        except Exception:
+            return False
 
-    def init_variable(self):
-        self.ui = Ui_main_window()
-        self.ui.setupUi(self)
-        self.python = sys.executable
-        self.process_timer = QTimer(self)
-        self.lock_mutex = threading.Lock()
+    def init_ui_ready(self):
+        for log in self.get_logs():
+            if self._window:
+                self._window.evaluate_js(f"if(window.updateLogs) window.updateLogs({json.dumps(log)});")
+        self.start_daemon_thread(self.init_engine_thread)
 
-        self.sign = sign_scanner()
-        self.sign.init_windll(["wintrust"])
-        self.pattern = cnn_scanner()
-        self.heuristic = rule_scanner()
-        self.properties = pe_scanner()
-        self.cloud = cloud_scanner()
-        self.cloud_queue = queue.Queue()
-        self.init_cloud_worker()
+    def set_window(self, window):
+        self._window = window
 
-        self.mouse_flag = 0
-        self.mouse_pos = 0
-        self.current_opacity = 0
+    def minimize(self):
+        hwnd = self.user32.FindWindowW(None, "PYAS Security")
+        if hwnd:
+            self.user32.ShowWindow(hwnd, 6)
+        elif self._window:
+            self._window.minimize()
 
-        self.driver_port = None
-        self.scan_running = False
-        self.scan_finished = False
-        self.virus_lock = {}
-        self.virus_results = []
-        self.scan_count = 0
-        self.mbr_backup = {}
+    def hide_window(self):
+        if self._window:
+            self._window.hide()
 
-        self.theme_names = [
-            "white_switch", "red_switch", "yellow_switch",
-            "green_switch", "blue_switch", "black_switch",
-        ]
-        self.lang_names = [
-            "traditional_switch", "simplified_switch", "english_switch",
-            "japanese_switch", "korean_switch", "french_switch", "spanish_switch",
-            "hindi_switch", "arabic_switch", "russian_switch", "slovenian_switch",
-        ]
-        self.pyas_default = {
-            "version": "3.4.6",
-            "api_host": "https://pyas-security.com/",
-            "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
-            "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
-            "block": [3001, 5001, 6001],
-            "size": 100 * 1024 * 1024,
-            "language": "english_switch",
-            "theme": "white_switch",
-            "process_switch": True,
-            "document_switch": True,
-            "system_switch": True,
-            "driver_switch": True,
-            "network_switch": True,
-            "extension_switch": False,
-            "sensitive_switch": False,
-            "cloud_switch": True,
-            "custom_rule": [],
+    def get_app_icon(self):
+        icon_path = os.path.join(self.path_pyas, "Interface", "static", "img", "icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                return Image.open(icon_path)
+            except Exception:
+                pass
+
+    def get_tray_text(self, key):
+        with self.lock_config:
+            lang = self.pyas_config.get("language", "traditional_switch")
+
+        texts = {
+            "open_ui": {
+                "traditional_switch": "開啟介面",
+                "simplified_switch": "打开界面",
+                "english_switch": "Open PYAS",
+                "japanese_switch": "PYAS を開く",
+                "korean_switch": "PYAS 열기",
+                "french_switch": "Ouvrir PYAS",
+                "spanish_switch": "Abrir PYAS",
+                "hindi_switch": "PYAS खोलें",
+                "arabic_switch": "فتح PYAS",
+                "russian_switch": "Открыть PYAS",
+                "slovenian_switch": "Odpri PYAS"
+            },
+            "exit_app": {
+                "traditional_switch": "退出防護",
+                "simplified_switch": "退出防护",
+                "english_switch": "Exit Security",
+                "japanese_switch": "保護を終了",
+                "korean_switch": "보호 종료",
+                "french_switch": "Quitter la sécurité",
+                "spanish_switch": "Salir de la seguridad",
+                "hindi_switch": "सुरक्षा से बाहर निकलें",
+                "arabic_switch": "خروج من الحماية",
+                "russian_switch": "Выйти из защиты",
+                "slovenian_switch": "Izhod iz zaščite"
+            }
         }
-        self.pass_windows = [
-            {"exe": "System Idle Process", "class": "", "title": ""},
-            {"exe": "", "class": "Windows.UI.Core.CoreWindow", "title": ""},
-            {"exe": "", "class": "Qt691QWindowIcon", "title": "PYAS"},
-            {"exe": "explorer.exe", "class": "", "title": ""},
-        ]
-        self.block_replace = {
-            "FILE_BLOCK": "檔案行為攔截",
-            "RANSOM_BLOCK": "勒索行為攔截",
-            "RANSOM_ROLLBACK": "勒索檔案回滾",
-            "BOOT_BLOCK": "引導行為攔截",
-            "REG_BLOCK": "註冊表行為攔截",
-            "CLR_BLOCK": "執行環境攔截",
-            "SHELLCODE_BLOCK": "殼碼加載攔截",
-            "THREAD_BLOCK": "線程行為攔截",
-            "INJECT_BLOCK": "注入行為攔截",
-            "PROC_BLOCK": "進程行為攔截",
-            "REMOTE_BLOCK": "遠控行為攔截",
-            "SCREEN_BLOCK": "監控行為攔截",
-            "KILL_ATTEMPT": "終止行為攔截",
-        }
-        self.block_rules = {
-            2001: "FILE_BLOCK",
-            3001: "REG_BLOCK",
-            4001: "BOOT_BLOCK",
-            5001: "RANSOM_BLOCK",
-            6001: "INJECT_BLOCK",
-            7002: "RANSOM_ROLLBACK",
-        }
+        return texts.get(key, {}).get(lang, texts[key]["traditional_switch"])
+
+    def show_tray(self):
+        if self.tray_icon is not None:
+            return
+
+        menu = pystray.Menu(
+            pystray.MenuItem(lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True),
+            pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close)
+        )
+        self.tray_icon = pystray.Icon("PYAS", self.get_app_icon(), "PYAS Security", menu)
+        self.tray_icon.run_detached()
+
+    def restore_from_tray(self, icon=None, item=None):
+        if self._window:
+            self._window.show()
+
+            hwnd = self.user32.FindWindowW(None, "PYAS Security")
+            if hwnd:
+                self.user32.ShowWindow(hwnd, 9)
+                self.user32.SetForegroundWindow(hwnd)
+
+    def close(self):
+        with self.lock_config:
+            self.pyas_config["process_switch"] = False
+            self.pyas_config["document_switch"] = False
+            self.pyas_config["system_switch"] = False
+            self.pyas_config["driver_switch"] = False
+            self.pyas_config["network_switch"] = False
+
+        self.stop_system_driver()
+        if self._window:
+            self._window.destroy()
+        os._exit(0)
+
+    def get_file_version(self, file_path):
+        try:
+            pe = pefile.PE(file_path, fast_load=True)
+            pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']])
+            if hasattr(pe, 'FileInfo'):
+                for fileinfo_list in pe.FileInfo:
+                    for info in fileinfo_list:
+                        if getattr(info, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
+                            for st in getattr(info, 'StringTable', []):
+                                for key, val in st.entries.items():
+                                    k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
+                                    v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
+                                    if k == 'FileVersion':
+                                        pe.close()
+                                        return v.strip()
+            pe.close()
+        except Exception:
+            pass
+        return "0.0.0.0"
+
+    def compare_versions(self, v1, v2):
+        try:
+            t1 = tuple(int(x) for x in re.findall(r"\d+", v1))
+            t2 = tuple(int(x) for x in re.findall(r"\d+", v2))
+            return t1 >= t2
+        except Exception:
+            return False
 
 ####################################################################################################
 
@@ -216,8 +274,7 @@ class MainWindow_Controller(QMainWindow):
 
         self.path_systemp = os.path.join(self.path_system, "Temp")
         self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
-        self.file_log = os.path.join(self.path_config, "PYAS", "Report.log")
-
+        self.file_log = os.path.join(self.path_config, "PYAS", "Report.json")
         self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
         self.path_pattern = os.path.join(self.path_pyas, "Engine", "Pattern")
         self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
@@ -231,39 +288,31 @@ class MainWindow_Controller(QMainWindow):
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
-                self.send_message(f"init_windll | {e}", "warn", False)
+                self.write_log("WARN", "init_windll", detail=str(e), success=False)
 
         self.advapi32.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
         self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
-
         self.advapi32.CreateServiceW.argtypes = [
             ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD,
             ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_wchar_p,
             ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_wchar_p, ctypes.c_wchar_p,
             ctypes.c_wchar_p]
         self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
-
         self.advapi32.OpenServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
         self.advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
-
         self.advapi32.StartServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.c_wchar_p)]
         self.advapi32.StartServiceW.restype = ctypes.wintypes.BOOL
-
         self.advapi32.ControlService.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(SERVICE_STATUS)]
         self.advapi32.ControlService.restype = ctypes.wintypes.BOOL
-
         self.advapi32.DeleteService.argtypes = [ctypes.wintypes.HANDLE]
         self.advapi32.DeleteService.restype = ctypes.wintypes.BOOL
-
         self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
         self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
 
         self.ntdll.NtQueryInformationProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.ULONG, ctypes.c_void_p, ctypes.wintypes.ULONG, ctypes.POINTER(ctypes.wintypes.ULONG)]
         self.ntdll.NtQueryInformationProcess.restype = ctypes.wintypes.ULONG
-
         self.ntdll.NtSuspendProcess.argtypes = [ctypes.wintypes.HANDLE]
         self.ntdll.NtSuspendProcess.restype = ctypes.c_ulong
-
         self.ntdll.NtResumeProcess.argtypes = [ctypes.wintypes.HANDLE]
         self.ntdll.NtResumeProcess.restype = ctypes.c_ulong
 
@@ -274,644 +323,432 @@ class MainWindow_Controller(QMainWindow):
         self.fltlib.FilterConnectCommunicationPort.restype = ctypes.c_long
         self.fltlib.FilterGetMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p]
         self.fltlib.FilterGetMessage.restype = ctypes.c_long
+        self.fltlib.FilterSendMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD)]
+        self.fltlib.FilterSendMessage.restype = ctypes.c_long
 
         self.kernel32.CreateToolhelp32Snapshot.restype = ctypes.wintypes.HANDLE
         self.kernel32.CreateToolhelp32Snapshot.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.DWORD]
-        
         self.kernel32.Process32FirstW.restype = ctypes.wintypes.BOOL
         self.kernel32.Process32FirstW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
-        
         self.kernel32.Process32NextW.restype = ctypes.wintypes.BOOL
         self.kernel32.Process32NextW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
-        
         self.kernel32.OpenProcess.restype = ctypes.wintypes.HANDLE
         self.kernel32.OpenProcess.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.BOOL, ctypes.wintypes.DWORD]
-        
         self.kernel32.CloseHandle.restype = ctypes.wintypes.BOOL
         self.kernel32.CloseHandle.argtypes = [ctypes.wintypes.HANDLE]
-        
         self.kernel32.TerminateProcess.restype = ctypes.wintypes.BOOL
         self.kernel32.TerminateProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_uint]
-        
         self.kernel32.CreateMutexW.restype = ctypes.wintypes.HANDLE
         self.kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.wintypes.BOOL, ctypes.c_wchar_p]
-        
         self.kernel32.CreateFileW.restype = ctypes.wintypes.HANDLE
         self.kernel32.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.HANDLE]
-        
         self.kernel32.ReadProcessMemory.restype = ctypes.wintypes.BOOL
         self.kernel32.ReadProcessMemory.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
+        self.kernel32.QueryFullProcessImageNameW.restype = ctypes.wintypes.BOOL
+        self.kernel32.QueryFullProcessImageNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD)]
 
 ####################################################################################################
 
-    def save_config(self, file_path, config):
-        try:
-            filter_config = {}
-            for k, v in config.items():
-                if k.endswith("_button") and isinstance(v, bool) and k.replace("_button", "_window") in self.widgets:
-                    continue
-                filter_config[k] = v
-                
-            path = os.path.dirname(file_path)
-            if not os.path.exists(path):
-                os.makedirs(path)
+    def init_variables(self):
+        self.python = sys.executable
+        self.sign = sign_scanner()
+        self.sign.init_windll(["wintrust"])
+        self.pattern = cnn_scanner()
+        self.heuristic = rule_scanner()
+        self.properties = pe_scanner()
+        self.cloud = cloud_scanner()
+        self.cloud_queue = queue.Queue()
+        
+        self.driver_port = None
+        self.scan_running = False
+        self.scan_finished = False
+        self.virus_lock = {}
+        self.virus_results = []
+        self.scan_count = 0
+        self.mbr_backup = {}
+        self.logs_data = []
+        self.tray_icon = None
 
-            if os.path.exists(file_path):
-                old_config = self.read_config(file_path, {})
-                changes = []
-                
-                for k, v in filter_config.items():
-                    if k not in old_config:
-                        changes.append(f"增加 [{k}]")
+        self.pyas_default = {
+            "version": "3.5.0",
+            "api_host": "https://pyas-security.com/",
+            "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
+            "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
+            "block": [2001, 3001, 5001, 6001],
+            "size": 100 * 1024 * 1024,
+            "language": "english_switch",
+            "theme": "white_switch",
+            "process_switch": True,
+            "document_switch": True,
+            "system_switch": True,
+            "driver_switch": True,
+            "network_switch": True,
+            "extension_switch": False,
+            "sensitive_switch": False,
+            "cloud_switch": True,
+            "custom_rule": [],
+            "white_list": [],
+            "quarantine": [],
+            "block_list": []
+        }
+        
+        self.pass_windows = [
+            {"exe": "System Idle Process", "class": "", "title": ""},
+            {"exe": "", "class": "Windows.UI.Core.CoreWindow", "title": ""},
+            {"exe": "explorer.exe", "class": "", "title": ""}
+        ]
 
-                    elif old_config[k] != v:
-                        if isinstance(v, (list, dict)):
-                            changes.append(f"更新 [{k}]")
-                        else:
-                            changes.append(f"更新 [{k}]: {old_config[k]} -> {v}")
-                            
-                for k in old_config:
-                    if k not in filter_config:
-                        changes.append(f"刪除 [{k}]")
+        self.thread_pool = ThreadPoolExecutor(max_workers=8)
+        for _ in range(2):
+            self.start_daemon_thread(self.cloud_worker)
 
-                if changes:
-                    self.send_message(f"配置更新 | {', '.join(changes)}", "config", True)
-
-            with open(file_path, "w", encoding="utf-8", errors="ignore") as f:
-                f.write(json.dumps(filter_config, indent=4, ensure_ascii=False))
-        except Exception as e:
-            self.send_message(f"save_config | {e}", "warn", False)
-
-    def read_config(self, file_path, default_value):
-        try:
-            config_value = {}
-            if os.path.exists(file_path):
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    config_value = json.load(f)
-            for key, value in default_value.items():
-                config_value.setdefault(key, value)
-            return config_value
-        except Exception as e:
-            self.send_message(f"read_config | {e}", "warn", False)
-            return default_value.copy()
+####################################################################################################
 
     def load_config(self):
-        existed = os.path.exists(self.file_config)
-        self.pyas_config = self.read_config(self.file_config, self.pyas_default)
-        if existed:
-            dv = str(self.pyas_default.get("version", "")).strip()
-            cv = str(self.pyas_config.get("version", "")).strip()
-            if dv and dv != cv:
-                self.pyas_config["version"] = dv
-                self.save_config(self.file_config, self.pyas_config)
-
-    def config_list(self, key):
-        if key not in self.pyas_config:
-            self.pyas_config[key] = []
-        return self.pyas_config[key]
-
-####################################################################################################
-
-    def init_engine_thread(self):
-        try:
-            self.backup_mbr()
-            self.relock_file()
-            self.init_whitelist()
-            self.init_thread()
-
-            self.heuristic.load_path(self.path_heuristic, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
-            self.pattern.load_path(self.path_pattern, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
-            self.properties.load_path(self.path_properties, callback=lambda x: self.init_log_signal.emit(os.path.basename(x)))
-            self.init_log_signal.emit("引擎加載完成")
-        except Exception as e:
-            self.send_message(f"init_engine_thread | {e}", "warn", False)
-
-####################################################################################################
-
-    def init_interface(self):
-        self.widgets = {k: v for k, v in self.ui.__dict__.items() if isinstance(v, QWidget)}
-
-        self.menu_window = [self.widgets.get(x) for x in ["options_window", "navigate_window"]]
-        self.sub_window = [self.widgets.get(x) for x in ["method_window", "solve_button"]]
-        self.blank_window = [self.widgets.get("blank_window")]
-        self.main_window = [self.widgets.get(x) for x in [
-            "about_window", "setting_window", "protect_window",
-            "taskmgr_window", "tool_window", "scan_window", "home_window"]]
-
-        for w in self.sub_window:
-            if w:
-                w.hide()
-        for w in self.main_window + self.menu_window:
-            if w:
-                w.raise_()
-        for w in self.menu_window + self.blank_window:
-            if w:
-                w.setAttribute(Qt.WA_StyledBackground, True)
-                w.setGraphicsEffect(self.create_shadow())
-
-        self.last_widget = self.widgets.get("home_window")
-        self.setup_theme_mapping()
-        self.setup_process_menu()
-        self.setup_scan_menu()
-
-    def create_shadow(self):
-        shadow = QGraphicsDropShadowEffect(self)
-        shadow.setOffset(0, 0)
-        shadow.setBlurRadius(15)
-        shadow.setColor(QColor(175, 175, 175))
-        return shadow
-
-####################################################################################################
-
-    def init_connect(self):
-        self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(r":/icon/logo_black.png"))
-        self.tray_icon.activated.connect(self.show_button)
-        self.tray_icon.show()
-
-        self.scan_progress_signal.connect(self.slot_scan_progress)
-        self.scan_add_virus_signal.connect(self.slot_scan_add_virus)
-        self.scan_result_signal.connect(self.slot_scan_result)
-        self.scan_reset_signal.connect(self.slot_scan_reset)
-        self.scan_update_signal.connect(self.slot_scan_update)
-        self.scan_remove_signal.connect(self.slot_scan_remove)
-        self.progress_title_signal.connect(self.slot_progress_title)
-        self.init_log_signal.connect(self.slot_init_log)
-
-        for name, widget in self.widgets.items():
-            if hasattr(widget, "setCheckable") and widget.isCheckable():
-                if name in self.lang_names:
-                    widget.toggled.connect(lambda checked, ln=name: self.on_language_radio(ln, checked))
-                    if self.pyas_config.get("language") == name:
-                        widget.setChecked(True)
-                elif name in self.theme_names:
-                    widget.toggled.connect(lambda checked, tn=name: self.on_theme_radio(tn, checked))
-                    if self.pyas_config.get("theme") == name:
-                        widget.setChecked(True)
-                elif "_switch" in name:
-                    widget.toggled.connect(lambda checked, n=name: self.save_state(n, checked))
-                    if name in self.pyas_config:
-                        try:
-                            widget.setChecked(self.pyas_config[name])
-                        except Exception:
-                            pass
-
-            if "_button" in name and hasattr(widget, "clicked"):
-                wn = name.replace("_button", "_window")
-                if self.widgets.get(wn):
-                    widget.clicked.connect(lambda _, wn=wn: self.change_window(wn))
-                elif hasattr(self, name):
-                    widget.clicked.connect(getattr(self, name))
-
-    def on_language_radio(self, ln, checked):
-        if checked:
-            self.pyas_config["language"] = ln
-            self.save_config(self.file_config, self.pyas_config)
-            self.apply_settings()
-
-    def on_theme_radio(self, tn, checked):
-        if checked:
-            self.pyas_config["theme"] = tn
-            self.save_config(self.file_config, self.pyas_config)
-            self.apply_settings()
-
-####################################################################################################
-
-    def save_state(self, name, checked):
-        self.pyas_config[name] = bool(checked)
-        if name == "sensitive_switch":
-            if checked:
-                if not self.isVisible():
-                    self.save_config(self.file_config, self.pyas_config)
-                elif self.send_message("增強模式可能會誤報檔案，您確定要啟用嗎?", "quest", True):
-                    self.save_config(self.file_config, self.pyas_config)
-                else:
-                    self.pyas_config[name] = False
-                    if name in self.widgets:
-                        QTimer.singleShot(0, lambda: self.widgets[name].setChecked(False))
+        with self.lock_config:
+            if not os.path.exists(self.file_config):
+                self.pyas_config = self.pyas_default.copy()
+                self.save_config()
             else:
-                self.save_config(self.file_config, self.pyas_config)
+                try:
+                    with open(self.file_config, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        self.pyas_config = {**self.pyas_default, **data}
 
-        elif name == "extension_switch":
-            self.save_config(self.file_config, self.pyas_config)
-        elif name == "cloud_switch":
-            self.save_config(self.file_config, self.pyas_config)
+                except Exception as e:
+                    self.pyas_config = self.pyas_default.copy()
+                    self.write_log("WARN", "load_config", detail=str(e), success=False)
 
-        elif name == "process_switch":
-            if checked:
-                self.start_daemon_thread(self.protect_proc_thread)
-            self.save_config(self.file_config, self.pyas_config)
-        elif name == "document_switch":
-            if checked:
-                self.start_daemon_thread(self.protect_file_thread)
-            self.save_config(self.file_config, self.pyas_config)
-        elif name == "system_switch":
-            if checked:
-                self.start_daemon_thread(self.protect_system_thread)
-            self.save_config(self.file_config, self.pyas_config)
-        elif name == "network_switch":
-            if checked:
-                self.start_daemon_thread(self.protect_net_thread)
-            self.save_config(self.file_config, self.pyas_config)
-        elif name == "driver_switch":
-            if checked:
+    def save_config(self):
+        with self.lock_config:
+            try:
+                os.makedirs(os.path.dirname(self.file_config), exist_ok=True)
+                with open(self.file_config, "w", encoding="utf-8") as f:
+                    json.dump(self.pyas_config, f, indent=4, ensure_ascii=False)
+
+            except Exception as e:
+                self.write_log("WARN", "save_config", detail=str(e), success=False)
+
+    def update_config(self, key, value):
+        with self.lock_config:
+            self.pyas_config[key] = value
+            self.save_config()
+            
+        if key == "process_switch" and value:
+            self.start_daemon_thread(self.protect_proc_thread)
+        elif key == "document_switch" and value:
+            self.start_daemon_thread(self.protect_file_thread)
+        elif key == "system_switch" and value:
+            self.start_daemon_thread(self.protect_system_thread)
+        elif key == "network_switch" and value:
+            self.start_daemon_thread(self.protect_net_thread)
+        elif key == "driver_switch":
+            if value:
                 if self.install_system_driver():
                     self.start_daemon_thread(self.pipe_server_thread)
                 else:
-                    self.pyas_config[name] = False
-                    if name in self.widgets:
-                        QTimer.singleShot(0, lambda: self.widgets[name].setChecked(False))
-                    self.send_message("驅動防護啟用失敗", "warn", True)
+                    with self.lock_config:
+                        self.pyas_config[key] = False
+                        self.save_config()
+                    if self._window:
+                        self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
             else:
                 self.stop_system_driver()
-            self.save_config(self.file_config, self.pyas_config)
-        else:
-            self.send_message(f"此功能不支持使用", "info", True)
 
-    def init_thread(self):
-        self.start_daemon_thread(self.popup_intercept_thread)
+    def get_config(self):
+        with self.lock_config:
+            return self.pyas_config.copy()
+
+####################################################################################################
+
+    def show_notification(self, title, message):
+        try:
+            if self.tray_icon:
+                self.tray_icon.notify(message, title)
+        except Exception as e:
+            self.write_log("WARN", "show_notification", detail=str(e), success=False)
+
+####################################################################################################
+
+    def load_logs(self):
+        with self.lock_logs:
+            if os.path.exists(self.file_log):
+                try:
+                    with open(self.file_log, "r", encoding="utf-8") as f:
+                        self.logs_data = json.load(f)
+
+                except Exception:
+                    self.logs_data = []
+
+    def write_log(self, level, action, detail=None, code=None, pid=None, file_hash=None, source=None, target=None, operate=None, success=True):
+        with self.lock_logs:
+            entry = {
+                "id": str(uuid.uuid4()),
+                "timestamp": time.time(),
+                "time_str": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "level": level,
+                "action": action,
+                "detail": detail,
+                "code": code,
+                "pid": pid,
+                "hash": file_hash,
+                "source": source,
+                "target": target,
+                "operate": operate,
+                "success": success
+            }
+            self.logs_data.append(entry)
+            if len(self.logs_data) > 10000:
+                self.logs_data = self.logs_data[-10000:]
+
+            try:
+                os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
+                with open(self.file_log, "w", encoding="utf-8") as f:
+                    json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
+            except Exception:
+                pass
+
+            if self._window:
+                self._window.evaluate_js(f"if(window.updateLogs) window.updateLogs({json.dumps(entry)});")
+
+        if level == "BLOCK" and self.tray_icon:
+            self.trigger_block_notification(action, source, target, code)
+
+    def trigger_block_notification(self, action, source, target, code):
+        if action not in ["Process Block", "File Block", "Network Block", "Driver Block"]:
+            return
+
+        with self.lock_config:
+            lang = self.pyas_config.get("language", "traditional_switch")
+
+        path = source or ""
+
+        titles = {
+            "Process Block": {
+                "traditional_switch": "進程防護", "simplified_switch": "进程防护", "english_switch": "Process Protection",
+                "japanese_switch": "プロセス保護", "korean_switch": "프로세스 보호", "french_switch": "Protection des Processus",
+                "spanish_switch": "Protección de Procesos", "hindi_switch": "प्रक्रिया सुरक्षा", "arabic_switch": "حماية العمليات",
+                "russian_switch": "Защита процессов", "slovenian_switch": "Zaščita procesov"
+            },
+            "File Block": {
+                "traditional_switch": "檔案防護", "simplified_switch": "文件防护", "english_switch": "File Protection",
+                "japanese_switch": "ファイル保護", "korean_switch": "파일 보호", "french_switch": "Protection des Fichiers",
+                "spanish_switch": "Protección de Archivos", "hindi_switch": "फ़ाइल सुरक्षा", "arabic_switch": "حماية الملفات",
+                "russian_switch": "Защита файлов", "slovenian_switch": "Zaščita datotek"
+            },
+            "Network Block": {
+                "traditional_switch": "網路防護", "simplified_switch": "网络防护", "english_switch": "Network Protection",
+                "japanese_switch": "ネットワーク保護", "korean_switch": "네트워크 보호", "french_switch": "Protection Réseau",
+                "spanish_switch": "Protección de Red", "hindi_switch": "नेटवर्क सुरक्षा", "arabic_switch": "حماية الشبكة",
+                "russian_switch": "Сетевая защита", "slovenian_switch": "Omrežna zaščita"
+            },
+            "Driver Block": {
+                "traditional_switch": "驅動防護", "simplified_switch": "驱动防护", "english_switch": "Driver Protection",
+                "japanese_switch": "ドライバー保護", "korean_switch": "드라이버 보호", "french_switch": "Protection des Pilotes",
+                "spanish_switch": "Protección de Controladores", "hindi_switch": "ड्राइवर सुरक्षा", "arabic_switch": "حماية برامج التشغيل",
+                "russian_switch": "Защита драйверов", "slovenian_switch": "Zaščita gonilnikov"
+            }
+        }
+
+        messages = {
+            "traditional_switch": f"威脅已終止: {path}",
+            "simplified_switch": f"威胁已终止: {path}",
+            "english_switch": f"Threat terminated: {path}",
+            "japanese_switch": f"脅威が終了しました: {path}",
+            "korean_switch": f"위협이 종료되었습니다: {path}",
+            "french_switch": f"Menace terminée : {path}",
+            "spanish_switch": f"Amenaza terminada: {path}",
+            "hindi_switch": f"खतरा समाप्त: {path}",
+            "arabic_switch": f"تم إنهاء التهديد: {path}",
+            "russian_switch": f"Угроза устранена: {path}",
+            "slovenian_switch": f"Grožnja odpravljena: {path}"
+        }
+
+        title = titles.get(action, {}).get(lang, titles.get(action, {})["traditional_switch"])
+        message = messages.get(lang, messages["traditional_switch"])
+        
+        try:
+            self.tray_icon.notify(message, title)
+        except Exception:
+            pass
+
+    def get_logs(self):
+        with self.lock_logs:
+            return self.logs_data.copy()
+
+    def clear_logs(self, log_ids=None):
+        with self.lock_logs:
+            if log_ids is None:
+                self.logs_data = []
+            else:
+                self.logs_data = [log for log in self.logs_data if log['id'] not in log_ids]
+
+            try:
+                if not self.logs_data:
+                    if os.path.exists(self.file_log):
+                        os.remove(self.file_log)
+                else:
+                    os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
+                    with open(self.file_log, "w", encoding="utf-8") as f:
+                        json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
+            except Exception:
+                pass
+
+    def export_logs(self, log_ids=None):
+        if self._window:
+            path = self._window.create_file_dialog(webview.FileDialog.SAVE, directory='', save_filename='PYAS_Logs.json')
+            if path:
+                target_path = path[0] if isinstance(path, (tuple, list)) else path
+                with self.lock_logs:
+                    export_data = self.logs_data
+                    if log_ids is not None:
+                        export_data = [log for log in self.logs_data if log['id'] in log_ids]
+
+                    try:
+                        with open(target_path, 'w', encoding='utf-8') as f:
+                            json.dump(export_data, f, indent=4, ensure_ascii=False)
+                        return True
+
+                    except Exception:
+                        pass
+        return False
+
+####################################################################################################
+
+    def sync_driver_whitelist(self, file_path, is_add=True):
+        if not self.driver_port:
+            return False
+            
+        driver_path = str(file_path)
+        drive_letter = os.path.splitdrive(driver_path)[0]
+        if drive_letter:
+            driver_path = "*" + driver_path[len(drive_letter):]
+            
+        msg = PYAS_USER_MESSAGE()
+        msg.Command = 1 if is_add else 2
+        msg.Path = driver_path
+        bytes_returned = ctypes.wintypes.DWORD(0)
+        
+        try:
+            hr = self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned))
+            return hr == 0
+        except Exception:
+            return False
+
+    def show_alert(self, title, message, style="info"):
+        MB_OK = 0x00000000
+        MB_ICONINFORMATION = 0x00000040
+        MB_ICONWARNING = 0x00000030
+        MB_ICONERROR = 0x00000010
+
+        flags = MB_OK
+        if style == "error":
+            flags |= MB_ICONERROR
+        elif style == "warning":
+            flags |= MB_ICONWARNING
+        else:
+            flags |= MB_ICONINFORMATION
+
+        self.user32.MessageBoxW(0, message, title, flags)
+        return True
+
+    def show_confirm(self, title, message):
+        MB_YESNO = 0x00000004
+        MB_ICONQUESTION = 0x00000020
+        IDYES = 6
+        return self.user32.MessageBoxW(0, message, title, MB_YESNO | MB_ICONQUESTION) == IDYES
+
+    def prompt_virus_action(self, path):
+        with self.lock_config:
+            lang = self.pyas_config.get("language", "traditional_switch")
+            
+        messages = {
+            "traditional_switch": (f"對 {path} 執行動作:\n\n[是] 加入白名單\n[否] 加入隔離區\n[取消] 不做任何事", "操作選擇"),
+            "simplified_switch": (f"对 {path} 执行动作:\n\n[是] 加入白名单\n[否] 加入隔离区\n[取消] 不做任何事", "操作选择"),
+            "english_switch": (f"Action for {path}:\n\n[Yes] Add to Whitelist\n[No] Add to Quarantine\n[Cancel] Do nothing", "Operation Selection"),
+            "japanese_switch": (f"{path} に対するアクション:\n\n[はい] ホワイトリストに追加\n[いいえ] 隔離に追加\n[キャンセル] 何もしない", "操作の選択"),
+            "korean_switch": (f"{path}에 대한 작업:\n\n[예] 화이트리스트에 추가\n[아니요] 격리소에 추가\n[취소] 아무 작업도 하지 않음", "작업 선택"),
+            "french_switch": (f"Action pour {path} :\n\n[Oui] Ajouter à la liste blanche\n[Non] Ajouter à la quarantaine\n[Annuler] Ne rien faire", "Sélection d'opération"),
+            "spanish_switch": (f"Acción para {path}:\n\n[Sí] Añadir a la lista blanca\n[No] Añadir a la cuarentena\n[Cancelar] No hacer nada", "Selección de operación"),
+            "hindi_switch": (f"{path} के लिए कार्रवाई:\n\n[हाँ] श्वेतसूची में जोड़ें\n[नहीं] संगरोध में जोड़ें\n[रद्द करें] कुछ न करें", "ऑपरेशन चयन"),
+            "arabic_switch": (f"إجراء لـ {path}:\n\n[نعم] إضافة إلى القائمة البيضاء\n[لا] إضافة إلى الحجر الصحي\n[إلغاء] لا تفعل شيئًا", "تحديد العملية"),
+            "russian_switch": (f"Действие для {path}:\n\n[Да] Добавить в белый список\n[Нет] Добавить в карантин\n[Отмена] Ничего не делать", "Выбор операции"),
+            "slovenian_switch": (f"Dejanje za {path}:\n\n[Da] Dodaj na seznam dovoljenih\n[Ne] Dodaj v karanteno\n[Prekliči] Ne naredi ničesar", "Izbira operacije")
+        }
+        
+        msg, title = messages.get(lang, messages["traditional_switch"])
+
+        MB_YESNOCANCEL = 0x00000003
+        MB_ICONQUESTION = 0x00000020
+        IDYES = 6
+        IDNO = 7
+
+        res = self.user32.MessageBoxW(0, msg, title, MB_YESNOCANCEL | MB_ICONQUESTION)
+        if res == IDYES:
+            return "1"
+        elif res == IDNO:
+            return "2"
+        return "0"
+
+####################################################################################################
 
     def start_daemon_thread(self, target, *args, **kwargs):
         t = threading.Thread(target=target, args=args, kwargs=kwargs, daemon=True)
         t.start()
         return t
 
-####################################################################################################
-
-    def setup_theme_mapping(self):
-        for name, widget in self.widgets.items():
-            mapping = {}
-            base_name = name.replace("_button", "").replace("_window", "")
-            theme_icon_map = {
-                theme: f":/icon/{base_name}_{'white' if theme == 'black_switch' else 'black'}.png"
-                for theme in self.theme_names}
-
-            if hasattr(widget, "setPixmap"):
-                mapping["pixmap"] = theme_icon_map
-            if hasattr(widget, "setIcon"):
-                mapping["icon"] = theme_icon_map
-            if mapping:
-                widget._theme_mapping = mapping
-
-####################################################################################################
-
-    def apply_settings(self):
-        lang = self.pyas_config.get("language", "english_switch")
-        theme = self.pyas_config.get("theme", "white_switch")
-        lang_map = translate_dict.get(lang, {})
-        theme_map = translate_dict.get(theme, {})
-
-        for name, widget in self.widgets.items():
-            if "_switch" in name and hasattr(widget, "setText") and hasattr(widget, "isChecked"):
-                if name not in self.lang_names + self.theme_names:
-                    checked = widget.isChecked()
-                    widget.setText(lang_map.get("開啟", "開啟") if checked else lang_map.get("關閉", "關閉"))
-
-                    if not widget.property("_connected_toggle"):
-                        widget.toggled.connect(lambda checked, b=widget: self.toggle_switch_text(b, checked))
-                        widget.setProperty("_connected_toggle", True)
-                else:
-                    if not hasattr(widget, "_origin_text"):
-                        widget._origin_text = self.get_widget_text(widget)
-                    widget.setText(self.trans(lang, widget._origin_text))
-
-            elif hasattr(widget, "setText"):
-                if name in ["log_text","license_text"]:
-                    pass
-                else:
-                    if not hasattr(widget, "_origin_text"):
-                        widget._origin_text = self.get_widget_text(widget)
-                    widget.setText(self.trans(lang, widget._origin_text))
-
-            if hasattr(widget, "setStyleSheet"):
-                if not hasattr(widget, "_origin_style"):
-                    widget._origin_style = widget.styleSheet()
-                style = widget._origin_style
-                for k, v in theme_map.items():
-                    style = style.replace(str(k), str(v))
-                
-                widget.setStyleSheet(style)
-                widget.style().unpolish(widget)
-                widget.style().polish(widget)
-                
-                try:
-                    widget.update()
-                except TypeError:
-                    if hasattr(widget, "viewport"):
-                        widget.viewport().update()
-                
-                effect = widget.graphicsEffect()
-                if effect:
-                    effect.update()
-
-            mapping = getattr(widget, "_theme_mapping", None)
-            if isinstance(mapping, dict):
-                if "icon" in mapping and hasattr(widget, "setIcon"):
-                    icon_path = mapping["icon"].get(theme)
-                    if icon_path and (os.path.exists(icon_path) or icon_path.startswith(":")):
-                        widget.setIcon(QIcon(icon_path))
-                        widget.icon_path = icon_path
-
-                if "pixmap" in mapping and hasattr(widget, "setPixmap"):
-                    pm_path = mapping["pixmap"].get(theme)
-                    if pm_path and pm_path.startswith(":"):
-                        pix = QPixmap(pm_path)
-                        if not pix.isNull():
-                            widget.setPixmap(pix)
-                            widget.pixmap_path = pm_path
-
-####################################################################################################
-
-    def toggle_switch_text(self, btn, checked):
-        lang = self.pyas_config.get("language", "traditional_switch")
-        switch_map = translate_dict.get(lang, {})
-        btn.setText(switch_map.get("開啟", "開啟") if checked else switch_map.get("關閉", "關閉"))
-
-    def get_widget_text(self, widget):
-        for method in ["text", "toPlainText", "currentText"]:
-            if hasattr(widget, method) and callable(getattr(widget, method)):
-                return getattr(widget, method)()
-        return ""
-
-    def trans(self, language, text):
-        for key, value in translate_dict.get(language, translate_dict).items():
-            text = str(text).replace(str(key), str(value))
-        return text.rstrip()
-
-####################################################################################################
-
-    def change_opacity(self, widget, current, target, duration=200):
-        self.cleanup_animation(widget, "opacity_animation")
-        anim = QPropertyAnimation(widget, b"windowOpacity")
-        anim.setStartValue(current / 100.0)
-        anim.setEndValue(target / 100.0)
-        anim.setDuration(duration)
-        anim.setEasingCurve(QEasingCurve.Linear)
-        anim.valueChanged.connect(lambda v: self.update_opacity(widget, v))
-        anim.start()
-        widget.opacity_animation = anim
-
-    def update_opacity(self, widget, value):
-        widget.setWindowOpacity(value)
-        widget.current_opacity = value * 100
-        widget.setVisible(value > 0)
-
-    def cleanup_animation(self, widget, attr):
-        anim = getattr(widget, attr, None)
-        if anim:
-            anim.stop()
-            anim.deleteLater()
-            setattr(widget, attr, None)
-
-####################################################################################################
-
-    def change_window(self, widget_name, duration=200):
-        widget = self.widgets.get(widget_name)
-        if widget and widget != self.last_widget:
-            scan_win = self.widgets.get("scan_window")
-            method_win = self.widgets.get("method_window")
-
-            if self.last_widget in (scan_win, method_win) and widget in self.main_window and widget != scan_win:
-                if getattr(self, "scan_finished", False):
-                    def delayed_reset():
-                        if self.last_widget not in (scan_win, method_win):
-                            self.scan_finished = False
-                            self.scan_running = False
-                            self.virus_results.clear()
-                            self.scan_reset_signal.emit()
-                            lang = self.pyas_config.get("language", "english_switch")
-                            self.scan_progress_signal.emit(self.trans(lang, "此選項可以選擇掃描方式"))
-                            self.progress_title_signal.emit(self.trans(lang, "病毒掃描"))
-                    
-                    QTimer.singleShot(duration, delayed_reset)
-
-            widget.raise_()
-            widget.hide()
-            for window in self.menu_window:
-                window.raise_()
-            for window in self.sub_window:
-                window.hide()
-
-            if widget in (scan_win, method_win):
-                if getattr(self, "scan_finished", False):
-                    self.widgets["solve_button"].setVisible(False)
-                    self.widgets["stop_button"].hide()
-                    self.widgets["method_button"].show()
-
-            self.animate_geometry(widget, duration)
-            self.last_widget = widget
-
-            if widget_name == "taskmgr_window":
-                self.start_process_timer()
-            else:
-                self.stop_process_timer()
-
-    def animate_geometry(self, widget, duration):
-        click = widget.mapFromGlobal(QCursor.pos())
-        w, h = widget.width(), widget.height()
-        final_radius = int(((max(click.x(), w - click.x())) ** 2 + (max(click.y(), h - click.y())) ** 2) ** 0.5)
-        anim = QVariantAnimation(widget)
-        anim.setStartValue(0)
-        anim.setEndValue(final_radius)
-        anim.setDuration(duration)
-        anim.valueChanged.connect(lambda val: self.update_geometry(widget, click, val))
-        anim.start()
-
-    def update_geometry(self, widget, click, value):
-        widget.setMask(QRegion(click.x() - value, click.y() - value, 2 * value, 2 * value, QRegion.Ellipse))
-        widget.setVisible(value > 0)
-
-####################################################################################################
-
-    def mousePressEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton:
-            self.mouse_flag = True
-            self.mouse_pos = event.globalPosition().toPoint() - self.pos()
-            self.change_opacity(self, self.current_opacity, 80, 100)
-            event.accept()
-
-    def mouseMoveEvent(self, event: QMouseEvent):
-        if self.mouse_flag:
-            new_top_left = event.globalPosition().toPoint() - self.mouse_pos
-            self.move(new_top_left)
-            event.accept()
-
-    def mouseReleaseEvent(self, event: QMouseEvent):
-        if event.button() == Qt.LeftButton and self.mouse_flag:
-            self.mouse_flag = False
-            self.setCursor(QCursor(Qt.ArrowCursor))
-            self.change_opacity(self, self.current_opacity, 100, 100)
-            event.accept()
-
-####################################################################################################
-
-    def nativeEvent(self, eventType, message):
-        event = ctypes.wintypes.MSG.from_address(int(message))
-        if event.message in [0x0010, 0x0002, 0x0012, 0x0112, 0x0212]:
-            return True, 0
-        return super().nativeEvent(eventType, message)
-
-    def show_startup(self):
+    def init_engine_thread(self):
         try:
-            if not self.singleton_mutex("pyas_security"):
-                sys.exit(0)
-
-            self.init_connect()
-            self.apply_settings()
-
-            current_version = self.pyas_config.get("version", "None")
-            self.send_message(f"當前版本 | {current_version}", "version", True)
-
-            param = self.args_pyas[0].replace("/", "-") if self.args_pyas else ""
-            if "-h" not in param:
-                self.show_button()
-
-            self.start_daemon_thread(self.init_engine_thread)
-        except Exception as e:
-            self.send_message(f"show_startup | {e}", "warn", False)
-
-    def show_button(self):
-        self.show()
-        self.activateWindow()
-        self.repaint()
-        self.change_opacity(self, self.current_opacity, 100, 200)
-
-    def minimize_button(self):
-        self.change_opacity(self, self.current_opacity, 0, 200)
-
-    def close_button(self):
-        if self.send_message("您確定要退出所有防護嗎?", "quest", True):
-            self.pyas_config["process_switch"] = False
-            self.pyas_config["document_switch"] = False
-            self.pyas_config["system_switch"] = False
-            self.pyas_config["driver_switch"] = False
-            self.pyas_config["network_switch"] = False
-
-            self.stop_button()
-            self.stop_system_driver()
-
-            self.minimize_button()
-            while self.isVisible():
-                QApplication.processEvents()
-            if hasattr(self, "tray_icon"):
-                self.tray_icon.hide()
-                self.tray_icon.deleteLater()
-            QApplication.quit()
-
-    def reset_button(self):
-        if self.send_message("您確定要重置所有設定嗎?", "quest", True):
-            self.pyas_config = self.pyas_default.copy()
-            self.save_config(self.file_config, self.pyas_config)
-            self.close_button()
-
-    def singleton_mutex(self, name):
-        try:
-            self.h_mutex = self.kernel32.CreateMutexW(None, False, name)
-            if self.kernel32.GetLastError() == 183:
-                return False
-            return True
-        except Exception:
-            return False
-
-####################################################################################################
-
-    def send_message(self, message, mode, translate=True):
-        if QThread.currentThread() != QApplication.instance().thread():
-            QMetaObject.invokeMethod(self, "send_message_thread", Qt.QueuedConnection,
-                Q_ARG("QString", str(message)), Q_ARG("QString", mode), Q_ARG("bool", translate))
-            return False
-        return self.send_message_thread(message, mode, translate)
-
-    @Slot(str, str, bool)
-    def send_message_thread(self, message, mode, translate=True):
-        try:
-            yes, no, ok = QMessageBox.Yes, QMessageBox.No, QMessageBox.Ok
-            select = None
-
-            if not isinstance(message, str):
-                message = str(message)
-            if message and translate:
-                lang = self.pyas_config.get("language", "english_switch")
-                message = self.trans(lang, message)
-
-            m = mode.lower()
-            if m == "quest":
-                select = QMessageBox.question(self, "Quest", message, yes | no) == yes
-            elif m == "info":
-                select = QMessageBox.information(self, "Info", message, ok) == ok
-            elif m == "error":
-                select = QMessageBox.critical(self, "Error", message, ok) == ok
-            elif m == "notify":
-                now = time.strftime("%Y-%m-%d %H:%M:%S")
-                self.tray_icon.showMessage(now, message, QSystemTrayIcon.Information, 5000)
-            elif m == "files":
-                select = QFileDialog.getOpenFileNames(self, message)[0]
-            elif m == "file":
-                select = QFileDialog.getOpenFileName(self, message)[0]
-            elif m == "path":
-                select = QFileDialog.getExistingDirectory(self, message)
-            elif m == "save":
-                select = QFileDialog.getSaveFileName(self, message)[0]
-
-            select = select or None
-            now = time.strftime("%Y-%m-%d %H:%M:%S")
-            output = f"[{now}] | {mode} | {message} | {select}"
-            log_widget = self.widgets.get("log_text")
-            if log_widget:
-                log_widget.append(output)
+            self.backup_mbr()
+            self.relock_file()
+            self.init_whitelist()
+            self.start_daemon_thread(self.popup_intercept_thread)
             
-            self.write_log(output)
-            return select
-        except Exception:
-            traceback.print_exc()
-            return False
+            def log_callback(x):
+                self.write_log("INFO", "Load Engine", source=os.path.basename(x))
+                
+            self.heuristic.load_path(self.path_heuristic, callback=log_callback)
+            self.pattern.load_path(self.path_pattern, callback=log_callback)
+            self.properties.load_path(self.path_properties, callback=log_callback)
+            self.write_log("INFO", "System", detail="Engine Initialization Complete")
+            
+            with self.lock_config:
+                if self.pyas_config.get("process_switch"): self.start_daemon_thread(self.protect_proc_thread)
+                if self.pyas_config.get("document_switch"): self.start_daemon_thread(self.protect_file_thread)
+                if self.pyas_config.get("system_switch"): self.start_daemon_thread(self.protect_system_thread)
+                if self.pyas_config.get("network_switch"): self.start_daemon_thread(self.protect_net_thread)
+                if self.pyas_config.get("driver_switch"):
+                    if self.install_system_driver():
+                        self.start_daemon_thread(self.pipe_server_thread)
+                    else:
+                        self.update_config("driver_switch", False)
 
-    def write_log(self, text):
-        try:
-            os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
-            with open(self.file_log, "a", encoding="utf-8", errors="ignore") as f:
-                f.write(f"{text}\n")
-        except Exception:
-            pass
+        except Exception as e:
+            self.write_log("WARN", "init_engine_thread", detail=str(e), success=False)
 
-    def init_clean_logs(self):
-        try:
-            if not os.path.exists(self.file_log):
-                return
-            cutoff_time = time.time() - 30 * 86400
-            cutoff_str = time.strftime("[%Y-%m-%d", time.localtime(cutoff_time))
-            with open(self.file_log, "r", encoding="utf-8", errors="ignore") as f:
-                lines = f.readlines()
-            with open(self.file_log, "w", encoding="utf-8", errors="ignore") as f:
-                for line in lines:
-                    if len(line) >= 11 and line[:11] >= cutoff_str:
-                        f.write(line)
-        except Exception:
-            pass
 
-####################################################################################################
+    def backup_mbr(self, max_drives=26):
+        self.mbr_backup = {}
+        mbr_signature = b"\x55\xAA"
+        for drive in range(max_drives):
+            drive_path = rf"\\.\PhysicalDrive{drive}"
+            try:
+                with open(drive_path, "rb") as f:
+                    mbr = f.read(512)
+                    if len(mbr) == 512 and mbr[510:512] == mbr_signature:
+                        self.mbr_backup[drive] = mbr
 
-    def invoke_method(self, obj, method, *args):
-        q_args = []
-        for arg in args:
-            if isinstance(arg, int):
-                q_args.append(Q_ARG("int", arg))
-            elif isinstance(arg, QSystemTrayIcon.MessageIcon):
-                q_args.append(Q_ARG("QSystemTrayIcon::MessageIcon", arg))
-            else:
-                q_args.append(Q_ARG("QString", str(arg)))
-        QMetaObject.invokeMethod(obj, method, Qt.QueuedConnection, *q_args)
+            except Exception:
+                continue
 
     def norm_path(self, path, must_exist=True):
         if isinstance(path, list):
             return [p for p in (self.norm_path(x, must_exist) for x in path) if p]
-        if isinstance(path, tuple):
-            return tuple(p for p in (self.norm_path(x, must_exist) for x in path) if p)
-        if isinstance(path, set):
-            return {p for p in (self.norm_path(x, must_exist) for x in path) if p}
+
         if isinstance(path, str):
             ap = os.path.normpath(os.path.abspath(path))
             return ap if (not must_exist or os.path.exists(ap)) else None
+
         return path
 
     def path_equal(self, a, b):
@@ -919,149 +756,103 @@ class MainWindow_Controller(QMainWindow):
         pb = self.norm_path(b, must_exist=False)
         if not pa or not pb:
             return False
+
         return os.path.normcase(pa) == os.path.normcase(pb)
 
-####################################################################################################
-
-    @Slot()
-    def slot_scan_reset(self):
-        count = len(self.virus_results)
-        self.widgets["solve_button"].setVisible(False)
-        self.widgets["virus_list"].clear()
-        self.widgets["method_window"].hide()
-        self.widgets["stop_button"].setVisible(self.scan_running)
-        self.widgets["method_button"].setVisible(not self.scan_running)
-
-    @Slot(str)
-    def slot_progress_title(self, text: str):
-        self.widgets["progress_title"].setText(text)
-
-    @Slot(str)
-    def slot_scan_progress(self, text):
-        self.widgets["progress_text"].setText(text)
-
-    @Slot(str)
-    def slot_scan_add_virus(self, item_text):
-        item = QListWidgetItem(item_text)
-        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        item.setCheckState(Qt.Checked)
-        self.widgets["virus_list"].addItem(item)
-
-    @Slot(str)
-    def slot_scan_result(self, msg):
-        self.scan_finished = True
-        count = len(self.virus_results)
-        self.widgets["solve_button"].setVisible(count > 0)
-        self.widgets["progress_text"].setText(msg)
-        self.widgets["stop_button"].hide()
-        self.widgets["method_button"].show()
-        self.send_message(msg, "notify", True)
-
-    @Slot(str)
-    def slot_init_log(self, text):
-        self.send_message(text, "load", True)
-        
-    @Slot(str, str)
-    def slot_scan_update(self, old_text, new_text):
-        items = self.widgets["virus_list"].findItems(old_text, Qt.MatchExactly)
-        if items:
-            items[0].setText(new_text)
-
-    @Slot(str)
-    def slot_scan_remove(self, text):
-        items = self.widgets["virus_list"].findItems(text, Qt.MatchExactly)
-        if items:
-            row = self.widgets["virus_list"].row(items[0])
-            self.widgets["virus_list"].takeItem(row)
-
-####################################################################################################
-
-    def init_scan(self):
-        try:
+    def start_scan(self, targets):
+        with self.lock_virus:
             self.scan_running = True
             self.scan_finished = False
             self.virus_results = []
             self.scan_count = 0
             self.scan_start = time.time()
-            self.last_widget = self.widgets.get("scan_window")
-            self.scan_reset_signal.emit()
 
-            lang = self.pyas_config.get("language", "english_switch")
-            self.scan_progress_signal.emit(self.trans(lang, "正在初始化中"))
-        except Exception as e:
-            self.send_message(f"init_scan | {e}", "warn", False)
+        self.thread_pool.submit(self.scan_worker, targets)
 
-    def file_button(self):
-        targets = self.send_message("檔案掃描", "files", True)
-        if targets:
-            self.init_scan()
-            self.start_daemon_thread(self.scan_worker, targets)
-
-    def path_button(self):
-        targets = self.send_message("路徑掃描", "path", True)
-        if targets:
-            self.init_scan()
-            self.start_daemon_thread(self.scan_worker, targets)
-
-    def full_button(self):
-        targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
-        if targets:
-            self.init_scan()
-            self.start_daemon_thread(self.scan_worker, targets)
+    def stop_scan(self):
+        with self.lock_virus:
+            self.scan_running = False
 
 ####################################################################################################
 
     def scan_worker(self, targets):
         try:
             for file_path in self.yield_files(targets):
-                if not self.scan_running:
-                    break
+                with self.lock_virus:
+                    if not self.scan_running:
+                        break
                 
                 norm_path = self.norm_path(file_path)
+                if not norm_path:
+                    continue
+
                 was_locked = False
-                
                 try:
-                    if norm_path in self.virus_lock:
-                        self.lock_file(norm_path, False)
-                        was_locked = True
+                    with self.lock_file_ops:
+                        if norm_path in self.virus_lock:
+                            self.lock_file(norm_path, False)
+                            was_locked = True
 
                     if self.is_in_whitelist(norm_path):
                         continue
-                    self.scan_count += 1
 
-                    suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
+                    with self.lock_virus:
+                        self.scan_count += 1
+                        
+                    with self.lock_config:
+                        suffix = self.pyas_config.get("suffix", [])
+                        
                     ext = os.path.splitext(norm_path)[-1].lower()
                     if ext not in suffix:
                         continue
 
                     result = self.scan_engine(norm_path)
                     if result:
-                        self.virus_results.append(norm_path)
-                        self.scan_add_virus_signal.emit(f"[{result}] > {norm_path}")
-                        self.start_daemon_thread(self.cloud_check, norm_path)
-                        self.send_message(f"病毒掃描 | scan_worker | None | None | {norm_path}", "scan", True)
+                        with self.lock_virus:
+                            self.virus_results.append(norm_path)
+                        if self._window:
+                            self._window.evaluate_js(f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});")
+                        self.cloud_check(norm_path)
+                        self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
 
-                    lang = self.pyas_config.get("language", "english_switch")
-                    self.progress_title_signal.emit(self.trans(lang, "正在掃描"))
-                    self.scan_progress_signal.emit(norm_path)
-                    gc.collect()
+                    if self._window:
+                        self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
+
                 except Exception as e:
-                    self.send_message(f"scan_worker | {e}", "warn", False)
+                    self.write_log("WARN", "Scan Engine", source=norm_path, detail=str(e), success=False)
                 finally:
                     if was_locked:
-                        try:
-                            self.lock_file(norm_path, True)
-                        except Exception:
-                            pass
+                        self.lock_file(norm_path, True)
         finally:
-            count = len(self.virus_results)
-            elapsed = int(time.time() - self.scan_start)
-            result = (
-                f"發現 {count} 個病毒，共掃描 {self.scan_count} 檔案，耗時 {elapsed} 秒"
-                if count else f"未發現病毒，共掃描 {self.scan_count} 檔案，耗時 {elapsed} 秒")
-            lang = self.pyas_config.get("language", "english_switch")
-            self.progress_title_signal.emit(self.trans(lang, "病毒掃描"))
-            self.scan_result_signal.emit(self.trans(lang, result))
+            with self.lock_virus:
+                self.scan_finished = True
+                count = len(self.virus_results)
+                elapsed = int(time.time() - self.scan_start)
+                scanned = self.scan_count
+            
+            with self.lock_config:
+                lang = self.pyas_config.get("language", "traditional_switch")
+
+            messages = {
+                "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
+                "simplified_switch": f"发现 {count} 个病毒，扫描 {scanned} 个文件，耗时 {elapsed} 秒",
+                "english_switch": f"Found {count} viruses, scanned {scanned} files, time {elapsed}s",
+                "japanese_switch": f"{count} 個のウイルスを発見し、{scanned} 個のファイルをスキャンしました（所要時間 {elapsed} 秒）",
+                "korean_switch": f"바이러스 {count}개 발견, 파일 {scanned}개 검사, 소요 시간 {elapsed}초",
+                "french_switch": f"{count} virus trouvés, {scanned} fichiers analysés, temps {elapsed}s",
+                "spanish_switch": f"Se encontraron {count} virus, {scanned} archivos escaneados, tiempo {elapsed}s",
+                "hindi_switch": f"{count} वायरस मिले, {scanned} फ़ाइलें स्कैन की गईं, समय {elapsed}s",
+                "arabic_switch": f"تم العثور على {count} فيروسات، تم فحص {scanned} ملفات، الوقت {elapsed} ثانية",
+                "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
+                "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
+            }
+            result_msg = messages.get(lang, messages["traditional_switch"])
+
+            if self._window:
+                self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(result_msg)}, {count});")
+            self.write_log("INFO", "Scan Completed", detail=f"Found {count} viruses, scanned {scanned} files, time {elapsed}s")
+
+####################################################################################################
 
     def yield_files(self, targets):
         if isinstance(targets, str):
@@ -1071,39 +862,155 @@ class MainWindow_Controller(QMainWindow):
                         yield self.norm_path(os.path.join(root, f))
             elif os.path.isfile(targets):
                 yield self.norm_path(targets)
+
         elif isinstance(targets, (list, tuple, set)):
             for t in targets:
                 yield from self.yield_files(t)
 
     def scan_engine(self, file_path):
         try:
-            pe_label, pe_score = self.properties.pe_scan(file_path)
+            pe_label, _ = self.properties.pe_scan(file_path)
             if pe_label:
                 return pe_label
-        except Exception as e:
-            self.send_message(f"pe_scan | {e}", "warn", False)
+        except Exception: pass
+        
+        with self.lock_config:
+            ext_switch = self.pyas_config.get("extension_switch", False)
+            sen_switch = self.pyas_config.get("sensitive_switch", False)
+            
         try:
-            if self.pyas_config.get("extension_switch", False):
-                yara_label, yara_level = self.heuristic.yara_scan(file_path)
+            if ext_switch:
+                yara_label, _ = self.heuristic.yara_scan(file_path)
                 if yara_label:
                     return yara_label
-        except Exception as e:
-            self.send_message(f"yara_scan | {e}", "warn", False)
+        except Exception:
+            pass
+        
         try:
-            if self.pyas_config.get("sensitive_switch", False):
-                cnn_label, cnn_score = self.pattern.model_scan(file_path)
+            if sen_switch:
+                cnn_label, _ = self.pattern.model_scan(file_path)
                 if cnn_label:
                     return cnn_label
-        except Exception as e:
-            self.send_message(f"cnn_scan | {e}", "warn", False)
+        except Exception:
+            pass
         return False
 
 ####################################################################################################
 
-    def init_cloud_worker(self):
-        for _ in range(4):
-            t = threading.Thread(target=self.cloud_worker, daemon=True)
-            t.start()
+    def solve_scan(self, file_paths):
+        deleted_paths = []
+        with self.lock_virus:
+            for path in file_paths:
+                if self._window:
+                    self._window.evaluate_js(f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});")
+                    
+                try:
+                    if path in self.virus_lock:
+                        self.lock_file(path, False)
+
+                    os.remove(path)
+                    deleted_paths.append(path)
+
+                    if path in self.virus_results:
+                        self.virus_results.remove(path)
+
+                    self.write_log("INFO", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), operate=True, success=True)
+
+                except Exception as e:
+                    self.write_log("SCAN", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), detail=str(e), operate=True, success=False)
+
+            remaining = len(self.virus_results)
+        
+        with self.lock_config:
+            lang = self.pyas_config.get("language", "traditional_switch")
+
+        messages = {
+            "traditional_switch": f"剩餘 {remaining} 個病毒，已刪除 {len(deleted_paths)} 個檔案。",
+            "simplified_switch": f"剩余 {remaining} 个病毒，已删除 {len(deleted_paths)} 个文件。",
+            "english_switch": f"Remaining {remaining} viruses, deleted {len(deleted_paths)} files.",
+            "japanese_switch": f"残りのウイルス {remaining} 個、削除されたファイル {len(deleted_paths)} 個。",
+            "korean_switch": f"남은 바이러스 {remaining}개, 삭제된 파일 {len(deleted_paths)}개.",
+            "french_switch": f"Virus restants : {remaining}, fichiers supprimés : {len(deleted_paths)}.",
+            "spanish_switch": f"Virus restantes: {remaining}, archivos eliminados: {len(deleted_paths)}.",
+            "hindi_switch": f"शेष वायरस {remaining}, हटाए गए फ़ाइलें {len(deleted_paths)}.",
+            "arabic_switch": f"الفيروسات المتبقية {remaining}، تم حذف {len(deleted_paths)} ملفات.",
+            "russian_switch": f"Осталось вирусов: {remaining}, удалено файлов: {len(deleted_paths)}.",
+            "slovenian_switch": f"Preostalih virusov: {remaining}, izbrisanih datotek: {len(deleted_paths)}."
+        }
+        result_msg = messages.get(lang, messages["traditional_switch"])
+
+        if self._window:
+            self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(result_msg)}, {remaining});")
+        return deleted_paths
+
+####################################################################################################
+
+    def trigger_scan(self, method):
+        with self.lock_config:
+            lang = self.pyas_config.get("language", "traditional_switch")
+            
+        messages = {
+            "traditional_switch": "已取消掃描",
+            "simplified_switch": "已取消扫描",
+            "english_switch": "Scan cancelled",
+            "japanese_switch": "スキャンがキャンセルされました",
+            "korean_switch": "스캔이 취소되었습니다",
+            "french_switch": "Analyse annulée",
+            "spanish_switch": "Escaneo cancelado",
+            "hindi_switch": "स्कैन रद्द कर दिया गया",
+            "arabic_switch": "تم إلغاء الفحص",
+            "russian_switch": "Сканирование отменено",
+            "slovenian_switch": "Skeniranje preklicano"
+        }
+        cancel_msg = messages.get(lang, messages["traditional_switch"])
+
+        targets = []
+        if method == "smart":
+            for folder in ["Desktop", "Downloads", "AppData"]:
+                fp = os.path.join(self.path_user, folder)
+                if os.path.exists(fp):
+                    targets.append(fp)
+                
+            if os.path.exists(self.path_config):
+                targets.append(self.path_config)
+                
+            for proc in self.get_process_list():
+                if proc["path"] and proc["path"] != "None":
+                    targets.append(proc["path"])
+            self.start_scan(list(set(targets)))
+
+        elif method == "file":
+            targets = self.select_files()
+            if targets: 
+                self.start_scan(targets)
+            else:
+                if self._window:
+                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan('{cancel_msg}', 0);")
+
+        elif method == "path":
+            targets = self.select_folder()
+            if targets: 
+                self.start_scan(targets)
+            else:
+                if self._window:
+                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan('{cancel_msg}', 0);")
+
+        elif method == "full":
+            targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
+            self.start_scan(targets)
+
+####################################################################################################
+
+    def open_file_location(self, file_path):
+        if file_path and os.path.exists(file_path):
+            try:
+                subprocess.Popen(f'explorer /select,"{file_path}"')
+                return True
+            except Exception:
+                pass
+        return False
+
+####################################################################################################
 
     def cloud_worker(self):
         while True:
@@ -1114,49 +1021,46 @@ class MainWindow_Controller(QMainWindow):
             except Exception:
                 pass
 
-    def cloud_check(self, file_path, get_result=False):
-        if get_result:
-            return self.perform_cloud_scan(file_path, get_result=True)
+    def cloud_check(self, file_path):
         self.cloud_queue.put(file_path)
 
-    def perform_cloud_scan(self, file_path, get_result=False):
+    def perform_cloud_scan(self, file_path):
         was_locked = False
         try:
-            if not self.pyas_config.get("cloud_switch", True):
-                return False
-            if not os.path.exists(file_path):
-                return False
-            if not os.path.isfile(file_path): 
+            with self.lock_config:
+                if not self.pyas_config.get("cloud_switch", True):
+                    return False
+                api_host = self.pyas_config.get("api_host")
+                api_key = self.pyas_config.get("api_key")
+                max_size = self.pyas_config.get("size", 100 * 1024 * 1024)
+
+            if not os.path.exists(file_path) or not os.path.isfile(file_path): 
                 return False
 
-            if file_path in self.virus_lock:
-                self.lock_file(file_path, False)
-                was_locked = True
+            with self.lock_file_ops:
+                if file_path in self.virus_lock:
+                    self.lock_file(file_path, False)
+                    was_locked = True
 
             size = os.path.getsize(file_path)
-            if size > self.pyas_config.get("size", 100 * 1024 * 1024):
+            if size > max_size:
                 if was_locked:
                     self.lock_file(file_path, True)
                 return False
 
-            api_host = self.pyas_config.get("api_host", "https://pyas-security.com/")
-            api_key = self.pyas_config.get("api_key", "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ")
             success, sha256 = self.cloud.upload_file(file_path, api_host, api_key)
-
+            
             if was_locked:
                 self.lock_file(file_path, True)
                 was_locked = False
 
-            if success and sha256:
-                if get_result:
-                    return self.cloud.get_result(sha256, api_host, api_key)
-            else:
-                self.send_message(f"雲端服務 | 通訊服務錯誤 | None | {file_path} | None", "warn", True)
+            if not success:
+                self.write_log("WARN", "Cloud API", source=file_path, detail="Failed", success=False)
 
         except Exception as e:
-            self.send_message(f"perform_cloud_scan | {e}", "warn", False)
+            self.write_log("WARN", "perform_cloud_scan", detail=str(e), success=False)
         finally:
-            if 'was_locked' in locals() and was_locked:
+            if was_locked:
                 try:
                     self.lock_file(file_path, True)
                 except Exception:
@@ -1165,120 +1069,310 @@ class MainWindow_Controller(QMainWindow):
 
 ####################################################################################################
 
-    def solve_button(self):
-        if self.send_message("您確定要刪除檔案嗎?", "quest"):
-            self.widgets["solve_button"].setVisible(False)
-            deleted = 0
-            virus_list = self.widgets["virus_list"]
-            start_ts = time.time()
+    def scan_system_junk(self):
+        junk_list = []
+        try:
+            for path in [self.path_temp, self.path_systemp]:
+                if os.path.exists(path):
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            full_path = os.path.join(root, file)
+                            try:
+                                size = os.path.getsize(full_path)
+                                junk_list.append({"path": full_path, "size": size})
+                            except Exception:
+                                pass
+            return junk_list
 
-            for i in reversed(range(virus_list.count())):
-                item = virus_list.item(i)
-                if item.checkState() == Qt.Checked:
-                    file_path = self.norm_path(item.text().split(">")[1].strip())
-                    lang = self.pyas_config.get("language", "english_switch")
-                    self.progress_title_signal.emit(self.trans(lang, "正在刪除"))
-                    self.scan_progress_signal.emit(file_path)
+        except Exception as e:
+            self.write_log("WARN", "scan_system_junk", detail=str(e), success=False)
+            return []
 
+    def clean_system_junk(self, paths_to_delete=None):
+        total_deleted = 0
+        try:
+            if paths_to_delete is not None:
+                for path in paths_to_delete:
                     try:
-                        self.manage_named_list("quarantine", [file_path], action="remove", lock_func=self.lock_file)
-                        os.remove(file_path)
-                        deleted += 1
-                        virus_list.takeItem(i)
-                        if file_path in self.virus_results:
-                            self.virus_results.remove(file_path)
-                    except Exception as e:
-                        self.send_message(f"solve_button | {e}", "warn", False)
-                    QApplication.processEvents()
+                        size = os.path.getsize(path)
+                        os.remove(path)
+                        total_deleted += size
+                    except Exception:
+                        pass
+            else:
+                for path in [self.path_temp, self.path_systemp]:
+                    total_deleted += self._traverse_delete(path)
+            
+            self.write_log("INFO", "Clean Junk", detail=f"Deleted {total_deleted // 1024} KB", operate=True)
+            return total_deleted
 
-        count = len(self.virus_results)
-        self.widgets["solve_button"].setVisible(count > 0)
-        elapsed = int(time.time() - start_ts)
-        result = (
-            f"剩餘 {count} 個病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒"
-            if count else f"未剩餘病毒，共刪除 {deleted} 檔案，耗時 {elapsed} 秒")
-        lang = self.pyas_config.get("language", "english_switch")
-        self.progress_title_signal.emit(self.trans(lang, "病毒掃描"))
-        self.scan_result_signal.emit(self.trans(lang, result))
+        except Exception as e:
+            self.write_log("WARN", "clean_system_junk", detail=str(e), operate=True, success=False)
+            return 0
 
-    def stop_button(self):
-        self.scan_running = False
-        self.widgets["stop_button"].hide()
+    def remove_list_items(self, list_key, paths_to_remove):
+        with self.lock_config:
+            target_list = self.pyas_config.get(list_key, [])
+            original_len = len(target_list)
+            
+            if list_key == "quarantine":
+                for item in target_list:
+                    if isinstance(item, dict) and item.get("file") in paths_to_remove:
+                        self.lock_file(item["file"], False)
+            
+            new_list = []
+            for item in target_list:
+                if isinstance(item, dict):
+                    val = item.get("file") or item.get("exe") or item.get("title")
+                    if val not in paths_to_remove:
+                        new_list.append(item)
+                    else:
+                        if list_key == "white_list":
+                            self.sync_driver_whitelist(val, False)
+                else:
+                    if item not in paths_to_remove:
+                        new_list.append(item)
+                    else:
+                        if list_key == "white_list":
+                            self.sync_driver_whitelist(item, False)
+            
+            self.pyas_config[list_key] = new_list
+            
+            if len(self.pyas_config[list_key]) < original_len:
+                self.save_config()
+                return True
+        return False
+
+    def _traverse_delete(self, path):
+        deleted = 0
+        if not os.path.exists(path):
+            return deleted
+
+        for fd in os.listdir(path):
+            file = os.path.join(path, fd)
+            try:
+                if os.path.isdir(file):
+                    deleted += self._traverse_delete(file)
+                    try:
+                        os.rmdir(file)
+                    except Exception:
+                        pass
+                else:
+                    size = os.path.getsize(file)
+                    os.remove(file)
+                    deleted += size
+            except Exception:
+                continue
+        return deleted
 
 ####################################################################################################
 
-    def setup_scan_menu(self):
-        widget = self.widgets.get("virus_list")
-        if widget:
-            widget.setContextMenuPolicy(Qt.CustomContextMenu)
-            widget.customContextMenuRequested.connect(self.show_scan_menu)
+    def scan_system_repair(self):
+        items = []
 
-    def show_scan_menu(self, pos):
-        widget = self.widgets.get("virus_list")
-        if not widget:
-            return
-        item = widget.itemAt(pos)
-        if not item:
-            return
+        if self.check_system_mbr():
+            items.append({"display": "修復系統 MBR", "value": "mbr"})
+        if self.check_system_restrict():
+            items.append({"display": "修復系統限制", "value": "restrict"})
+        if self.check_system_file_type():
+            items.append({"display": "修復檔案關聯", "value": "file_type"})
+        if self.check_system_file_icon():
+            items.append({"display": "修復檔案圖標", "value": "file_icon"})
+        if self.check_system_image():
+            items.append({"display": "修復映像劫持", "value": "image"})
+        if self.check_system_wallpaper():
+            items.append({"display": "修復桌面壁紙", "value": "wallpaper"})
 
-        lang = self.pyas_config.get("language", "english_switch")
-        menu = QMenu()
-        copy_action = menu.addAction(self.trans(lang, "複製路徑"))
-        del_action = menu.addAction(self.trans(lang, "刪除檔案"))
-        white_action = menu.addAction(self.trans(lang, "增加白名單"))
-        quarantine_action = menu.addAction(self.trans(lang, "增加隔離區"))
-        act = menu.exec(widget.viewport().mapToGlobal(pos))
+        return items
 
-        text = item.text()
-        if ">" in text:
-            path = text.split(">", 1)[1].strip()
-        else:
-            path = text.strip()
+    def check_system_mbr(self):
+        if not self.mbr_backup:
+            return False
 
-        if act == copy_action:
-            QGuiApplication.clipboard().setText(str(path or "").replace("/", "\\"))
+        for drive, mbr_value in self.mbr_backup.items():
+            drive_path = rf"\\.\PhysicalDrive{drive}"
+            try:
+                with open(drive_path, "rb") as f:
+                    if f.read(512) != mbr_value:
+                        return True
 
-        elif act == del_action:
-            file_path = self.norm_path(path)
-            if file_path and self.send_message("您確定要刪除檔案嗎?", "quest"):
+            except Exception:
+                pass
+        return False
+
+    def _get_restrict_lists(self):
+        permissions = [
+            "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoStartMenuPinnedList",
+            "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoDesktop",
+            "NoLogoff", "NoFolderOptions", "RestrictRun", "NoViewContextMenu", "HideClock",
+            "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD", "NoAddingComponents",
+            "NoWinKeys", "NoStartMenuLogOff", "NoSimpleNetIDList", "NoLowDiskSpaceChecks",
+            "DisableLockWorkstation","Restrict_Run", "DisableTaskMgr", "DisableRegistryTools",
+            "DisableChangePassword", "Wallpaper", "NoComponents", "NoStartMenuMorePrograms",
+            "NoActiveDesktop", "NoSetActiveDesktop", "NoRecentDocsMenu", "NoWindowsUpdate",
+            "NoChangeStartMenu", "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar",
+            "NoSMHelp", "NoTrayContextMenu", "NoManageMyComputerVerb", "NoRealMode", "NoRun",
+            "ClearRecentDocsOnExit", "NoActiveDesktopChanges", "NoStartMenuNetworkPlaces"
+        ]
+        paths = [
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\MMC"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"),
+            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System")
+        ]
+        return permissions, paths
+
+    def check_system_restrict(self):
+        permissions, restrict_paths = self._get_restrict_lists()
+        for hkey, path in restrict_paths:
+            try:
+                with winreg.OpenKey(hkey, path, 0, winreg.KEY_READ) as reg:
+                    for val in permissions:
+                        try:
+                            winreg.QueryValueEx(reg, val)
+                            return True
+                        except FileNotFoundError:
+                            pass
+            except Exception:
+                pass
+        return False
+
+    def check_system_file_type(self):
+        for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+            for ext in [".exe", ".bat", ".cmd", ".com"]:
                 try:
-                    self.manage_named_list("quarantine", [file_path], action="remove", lock_func=self.lock_file)
-                    os.remove(file_path)
-                    widget.takeItem(widget.row(item))
-                    if file_path in self.virus_results:
-                        self.virus_results.remove(file_path)
-                except Exception as e:
-                    self.send_message(f"show_scan_menu | {e}", "warn", False)
-
-        elif act == white_action:
-            file_path = self.norm_path(path)
-            if file_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
+                    with winreg.OpenKey(root, rf"SOFTWARE\Classes\{ext}", 0, winreg.KEY_READ) as reg:
+                        val, _ = winreg.QueryValueEx(reg, "")
+                        if val != ("exefile" if ext == ".exe" else ext[1:]+"file"): 
+                            return True
+                except Exception:
+                    pass
+            for shell_cmd in ["open", "runas"]:
                 try:
-                    self.manage_named_list("quarantine", [file_path], action="remove", lock_func=self.lock_file)
-                    n = self.manage_named_list("white_list", [file_path], action="add", with_hash=True)
-                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
-                    widget.takeItem(widget.row(item))
-                    if file_path in self.virus_results:
-                        self.virus_results.remove(file_path)
-                except Exception as e:
-                    self.send_message(f"show_scan_menu | {e}", "warn", False)
+                    with winreg.OpenKey(root, rf"SOFTWARE\Classes\exefile\shell\{shell_cmd}\command", 0, winreg.KEY_READ) as reg:
+                        val, _ = winreg.QueryValueEx(reg, "")
+                        if val != '"%1" %*': 
+                            return True
+                except Exception:
+                    pass
+        return False
 
-        elif act == quarantine_action:
-            file_path = self.norm_path(path)
-            if file_path and self.send_message("您確定要增加到隔離區嗎?", "quest"):
-                try:
-                    n = self.manage_named_list("quarantine", [file_path], action="add", with_hash=True, lock_func=self.lock_file)
-                    self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
-                    widget.takeItem(widget.row(item))
-                    if file_path in self.virus_results:
-                        self.virus_results.remove(file_path)
-                except Exception as e:
-                    self.send_message(f"show_scan_menu | {e}", "warn", False)
+    def check_system_file_icon(self):
+        for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+            try:
+                with winreg.OpenKey(root, r"SOFTWARE\Classes\exefile\DefaultIcon", 0, winreg.KEY_READ) as reg:
+                    val, _ = winreg.QueryValueEx(reg, "")
+                    if val != "%1":
+                        return True
+            except Exception:
+                pass
+        return False
+
+    def check_system_image(self):
+        key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_READ) as reg:
+                i = 0
+                while True:
+                    try:
+                        subkey = winreg.EnumKey(reg, i)
+                        with winreg.OpenKey(reg, subkey, 0, winreg.KEY_READ) as sub_reg:
+                            for value in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
+                                try:
+                                    winreg.QueryValueEx(sub_reg, value)
+                                    return True
+                                except FileNotFoundError:
+                                    pass
+                        i += 1
+                    except OSError:
+                        break
+        except Exception:
+            pass
+        return False
+
+    def check_system_wallpaper(self):
+        try:
+            wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop", 0, winreg.KEY_READ) as reg:
+                val, _ = winreg.QueryValueEx(reg, "Wallpaper")
+                if val != wallpaper:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def execute_system_repair(self, items):
+        try:
+            if "mbr" in items:
+                self.repair_system_mbr()
+            if "restrict" in items:
+                self.repair_system_restrict()
+            if "file_type" in items:
+                self.repair_system_file_type()
+            if "file_icon" in items:
+                self.repair_system_file_icon()
+            if "image" in items:
+                self.repair_system_image()
+            if "wallpaper" in items:
+                self.repair_system_wallpaper()
+
+            self.write_log("INFO", "System Repair", detail=f"Repaired {len(items)} items", operate=True)
+            return True
+        except Exception as e:
+            self.write_log("WARN", "execute_system_repair", detail=str(e), operate=True, success=False)
+            return False
+
+####################################################################################################
+
+    def reset_config(self):
+        with self.lock_config:
+            self.pyas_config = self.pyas_default.copy()
+            self.save_config()
+        return True
+
+    def open_website(self):
+        try:
+            webbrowser.open("https://pyas-security.com/antivirus")
+            return True
+        except Exception:
+            return False
+
+    def open_url(self, url):
+        try:
+            webbrowser.open(url)
+            return True
+        except Exception:
+            return False
+
+    def check_update(self):
+        try:
+            current = self.pyas_config.get("version", "0.0.0")
+            j = requests.get("https://api.github.com/repos/87owo/PYAS/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "PYAS"}, timeout=10).json()
+            latest = str(j.get("tag_name") or j.get("name") or "").strip()
+            page = j.get("html_url") or "https://github.com/87owo/PYAS/releases"
+            
+            if latest:
+                rl = re.sub(r"^[vV]\s*", "", latest)
+                cl = re.sub(r"^[vV]\s*", "", current)
+                tr = tuple(int(x) for x in re.findall(r"\d+", rl))
+                tl = tuple(int(x) for x in re.findall(r"\d+", cl))
+                if tr > tl:
+                    return {"has_update": True, "latest": latest, "current": current, "url": page}
+                return {"has_update": False, "latest": latest, "current": current, "url": page}
+
+        except Exception:
+            pass
+        return {"error": True}
 
 ####################################################################################################
 
     def list_process(self):
-        pe = self.get_process_entry()
+        pe = PROCESSENTRY32W()
+        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
         result = []
         
@@ -1288,37 +1382,70 @@ class MainWindow_Controller(QMainWindow):
         success = self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
         while success:
             pid = pe.th32ProcessID
-            name, file_path = (None, None)
+            name, file_path = None, None
             if pid > 4:
                 name, file_path = self.get_exe_info(pid)
-
             if not name:
                 try:
                     name = pe.szExeFile
                 except Exception:
-                    name = None
-
-            result.append((pid, name, file_path))
+                    name = "Unknown"
+            result.append({"pid": pid, "name": name, "path": file_path or "None"})
             success = self.kernel32.Process32NextW(snapshot, ctypes.byref(pe))
             
         self.kernel32.CloseHandle(snapshot)
         return result
 
-    def refresh_process(self):
-        procs = self.list_process()
-        self.proc_pid_map = [pid for pid, _, _ in procs]
-        widget = self.widgets.get("manage_list")
-        info_text = self.widgets.get("info_text")
+    def kill_process(self, pid):
+        try:
+            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            if h:
+                try:
+                    file_path = self.norm_path(self.get_process_file(h))
+                    if self.path_equal(file_path, self.file_pyas):
+                        return False
+                    else:
+                        self.kernel32.TerminateProcess(h, 0)
+                        return True
+                finally:
+                    self.kernel32.CloseHandle(h)
 
-        if widget:
-            model = QStringListModel([f"{name or 'None'} | {pid} | {file_path or 'None'}" for pid, name, file_path in procs])
-            widget.setModel(model)
-        if info_text:
-            info_text.setText(str(len(self.proc_pid_map)))
+        except Exception as e:
+            self.write_log("WARN", "kill_process", pid=pid, detail=str(e), operate=True, success=False)
+        return False
+
+####################################################################################################
+
+    def get_process_file(self, h_process):
+        buf = ctypes.create_unicode_buffer(1024)
+        if self.psapi.GetProcessImageFileNameW(h_process, buf, 1024):
+            return self.norm_path(self.device_path_to_drive(buf.value))
+        return ""
+
+    def get_exe_info(self, pid):
+        name, file_path = None, None
+        h = self.kernel32.OpenProcess(0x1000, False, pid)
+        if h:
+            buf = ctypes.create_unicode_buffer(1024)
+            size = ctypes.wintypes.DWORD(1024)
+            if self.kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+                file_path = self.norm_path(buf.value)
+                if file_path:
+                    name = os.path.basename(file_path)
+            else:
+                if self.psapi.GetProcessImageFileNameW(h, buf, 1024):
+                    path = self.norm_path(self.device_path_to_drive(buf.value))
+                    if path:
+                        file_path = path
+                        name = os.path.basename(path)
+
+            self.kernel32.CloseHandle(h)
+        return name, file_path
 
     def device_path_to_drive(self, path):
         if not path:
             return ""
+
         for d in range(65, 91):
             drive = f"{chr(d)}:"
             buf = ctypes.create_unicode_buffer(1024)
@@ -1328,545 +1455,49 @@ class MainWindow_Controller(QMainWindow):
                     return path.replace(dev, drive, 1)
         return path
 
-    def start_process_timer(self):
-        if hasattr(self, "process_timer") and self.process_timer.isActive():
-            return
-
-        self.process_timer = QTimer(self)
-        self.process_timer.timeout.connect(self.refresh_process)
-        self.process_timer.start(0)
-
-    def stop_process_timer(self):
-        if hasattr(self, "process_timer"):
-            self.process_timer.stop()
-
-    def setup_process_menu(self):
-        widget = self.widgets.get("manage_list")
-        if widget:
-            widget.setContextMenuPolicy(Qt.CustomContextMenu)
-            widget.customContextMenuRequested.connect(self.show_process_menu)
-
-    def show_process_menu(self, pos):
-        widget = self.widgets.get("manage_list")
-        if not widget:
-            return
-        idx = widget.indexAt(pos)
-        if not idx.isValid() or idx.row() >= len(self.proc_pid_map):
-            return
-
-        lang = self.pyas_config.get("language", "english_switch")
-        menu = QMenu()
-        copy_action = menu.addAction(self.trans(lang, "複製路徑"))
-        kill_action = menu.addAction(self.trans(lang, "結束進程"))
-        white_action = menu.addAction(self.trans(lang, "增加白名單"))
-        quarantine_action = menu.addAction(self.trans(lang, "增加隔離區"))
-        act = menu.exec(widget.viewport().mapToGlobal(pos))
-
-        pid = self.proc_pid_map[idx.row()]
-        name, file_path = self.get_exe_info(pid)
-
-        if act == copy_action:
-            QGuiApplication.clipboard().setText(str(file_path or "").replace("/", "\\"))
-
-        elif act == kill_action:
-            self.kill_process(pid)
-
-        elif act == white_action:
-            target_path = self.norm_path(file_path)
-            if target_path and self.send_message("您確定要增加到白名單嗎?", "quest"):
-                try:
-                    n = self.manage_named_list("white_list", [target_path], action="add", with_hash=True)
-                    self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
-                except Exception as e:
-                    self.send_message(f"show_process_menu | {e}", "warn", False)
-
-        elif act == quarantine_action:
-            target_path = self.norm_path(file_path)
-            if target_path and self.send_message("您確定要增加到隔離區嗎?", "quest"):
-                try:
-                    n = self.manage_named_list("quarantine", [target_path], action="add", with_hash=True, lock_func=self.lock_file)
-                    self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
-                except Exception as e:
-                    self.send_message(f"show_process_menu | {e}", "warn", False)
-
-    def kill_process(self, pid):
-        try:
-            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-            if h:
-                try:
-                    file_path = self.norm_path(self.get_process_file(h))
-                    if self.path_equal(file_path, self.file_pyas):
-                        self.close_button()
-                    else:
-                        self.kernel32.TerminateProcess(h, 0)
-                finally:
-                    self.kernel32.CloseHandle(h)
-        except Exception as e:
-            self.send_message(f"kill_process | {e}", "warn", False)
-        self.refresh_process()
-
 ####################################################################################################
 
-    def clean_button(self):
-        try:
-            if self.send_message("您確定要清理系統垃圾嗎?", "quest", True):
-                self.total_deleted_size = 0
-                for path in [self.path_temp, self.path_systemp]:
-                    self.traverse_temp(path)
-                size_text = self.format_size(self.total_deleted_size)
-                self.send_message(f"成功清理了 {size_text} 系統垃圾", "info", True)
-        except Exception as e:
-            self.send_message(f"clean_button | {e}", "warn", False)
-
-    def traverse_temp(self, path):
-        try:
-            if not os.path.exists(path):
-                return
-            for fd in os.listdir(path):
-                file = os.path.join(path, fd)
-                try:
-                    QApplication.processEvents()
-                    if os.path.isdir(file):
-                        self.traverse_temp(file)
+    def lock_file(self, file, lock):
+        with self.lock_file_ops:
+            try:
+                if lock:
+                    if file not in self.virus_lock:
+                        fd = os.open(file, os.O_RDWR | os.O_BINARY)
                         try:
-                            os.rmdir(file)
-                        except Exception:
-                            pass
-                    else:
-                        file_size = os.path.getsize(file)
-                        os.remove(file)
-                        self.total_deleted_size += file_size
-                except Exception:
-                    continue
-        except Exception as e:
-            self.send_message(f"traverse_temp | {e}", "warn", False)
-
-    def format_size(self, size):
-        units = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
-        for unit in units:
-            if size < 1024 or unit == units[-1]:
-                return f"{size:.2f} {unit}"
-            size /= 1024
-
-####################################################################################################
-
-    def repair_button(self):
-        try:
-            if self.send_message("您確定要修復系統檔案嗎?", "quest", True):
-                self.repair_system_mbr()
-                self.repair_system_wallpaper()
-                self.repair_system_restrict()
-                self.repair_system_file_type()
-                self.repair_system_file_icon()
-                self.repair_system_image()
-                self.send_message("修復系統檔案成功", "info", True)
-        except Exception as e:
-            self.send_message(f"repair_button | {e}", "warn", False)
-
-    def backup_mbr(self, max_drives=26):
-        self.mbr_backup = {}
-        mbr_signature = b"\x55\xAA"
-        
-        for drive in range(max_drives):
-            drive_path = rf"\\.\PhysicalDrive{drive}"
-            try:
-                with open(drive_path, "rb") as f:
-                    mbr = f.read(512)
-                    if len(mbr) == 512 and mbr[510:512] == mbr_signature:
-                        self.mbr_backup[drive] = mbr
-            except (FileNotFoundError, PermissionError, OSError):
-                continue
-            except Exception as e:
-                self.send_message(str(e), "warn", False)
-
-    def repair_system_mbr(self):
-        if not hasattr(self, "mbr_backup") or not self.mbr_backup:
-            return
-
-        for drive, mbr_value in self.mbr_backup.items():
-            drive_path = rf"\\.\PhysicalDrive{drive}"
-            try:
-                with open(drive_path, "rb+") as f:
-                    current = f.read(512)
-                    if current != mbr_value:
-                        f.seek(0)
-                        f.write(mbr_value)
-            except PermissionError as e:
-                continue
-            except Exception as e:
-                self.send_message(f"repair_system_mbr | {e}", "warn", False)
-
-    def repair_system_wallpaper(self):
-        try:
-            wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
-            if not os.path.exists(wallpaper):
-                return
-
-            key = r"Control Panel\\Desktop"
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE) as reg:
-                winreg.SetValueEx(reg, "Wallpaper", 0, winreg.REG_SZ, wallpaper)
-
-            theme_dir = os.path.join(self.path_appdata, "Microsoft", "Windows", "Themes")
-            for fname in ["TranscodedWallpaper", "TranscodedWallpaper.tmp"]:
-                fpath = os.path.join(theme_dir, fname)
-                if os.path.exists(fpath):
-                    try:
-                        os.remove(fpath)
-                    except Exception:
-                        pass
-
-            cache_dir = os.path.join(theme_dir, "CachedFiles")
-            if os.path.exists(cache_dir):
-                try:
-                    shutil.rmtree(cache_dir, ignore_errors=True)
-                except Exception:
-                    pass
-            self.user32.SystemParametersInfoW(20, 0, wallpaper, 3)
-        except Exception as e:
-            self.send_message(f"repair_system_wallpaper | {e}", "warn", False)
-
-    def repair_system_restrict(self):
-        try:
-            permissions = [
-                "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoStartMenuPinnedList",
-                "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoDesktop",
-                "NoLogoff", "NoFolderOptions", "RestrictRun", "NoViewContextMenu", "HideClock",
-                "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD", "NoAddingComponents",
-                "NoWinKeys", "NoStartMenuLogOff", "NoSimpleNetIDList", "NoLowDiskSpaceChecks",
-                "DisableLockWorkstation","Restrict_Run", "DisableTaskMgr", "DisableRegistryTools",
-                "DisableChangePassword", "Wallpaper", "NoComponents", "NoStartMenuMorePrograms",
-                "NoActiveDesktop", "NoSetActiveDesktop", "NoRecentDocsMenu", "NoWindowsUpdate",
-                "NoChangeStartMenu", "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar",
-                "NoSMHelp", "NoTrayContextMenu", "NoManageMyComputerVerb", "NoRealMode", "NoRun",
-                "ClearRecentDocsOnExit", "NoActiveDesktopChanges", "NoStartMenuNetworkPlaces"
-            ]
-            restrict_paths = [
-                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\MMC"),
-                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"),
-                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"),
-                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System"),
-            ]
-
-            for hkey, path in restrict_paths:
-                try:
-                    with winreg.OpenKey(hkey, path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WRITE) as reg:
-                        for value in permissions:
                             try:
-                                winreg.DeleteValue(reg, value)
-                            except FileNotFoundError:
-                                continue
-                except FileNotFoundError:
-                    continue
-        except Exception as e:
-            self.send_message(f"repair_system_restrict | {e}", "warn", False)
+                                size = os.path.getsize(file)
+                            except Exception:
+                                size = 1
 
-    def repair_system_file_type(self):
-        try:
-            file_types = [".exe", ".bat", ".cmd", ".com"]
-            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
-                for ext in file_types:
-                    try:
-                        with winreg.CreateKey(root, rf"SOFTWARE\Classes\{ext}") as reg:
-                            winreg.SetValue(reg, "", winreg.REG_SZ, "exefile" if ext == ".exe" else ext[1:]+"file")
-                    except Exception:
-                        continue
+                            lock_size = size if size > 0 else 1
+                            msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
+                            self.virus_lock[file] = (fd, lock_size)
 
-                for shell_cmd in ["open", "runas"]:
-                    try:
-                        with winreg.CreateKey(root, r"SOFTWARE\Classes\exefile\shell\{}\command".format(shell_cmd)) as reg:
-                            winreg.SetValue(reg, "", winreg.REG_SZ, '"%1" %*')
-                    except Exception:
-                        continue
-        except Exception as e:
-            self.send_message(f"repair_system_file_type | {e}", "warn", False)
-
-    def repair_system_file_icon(self):
-        try:
-            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
-                try:
-                    with winreg.CreateKey(root, r"SOFTWARE\Classes\exefile\DefaultIcon") as reg:
-                        winreg.SetValue(reg, "", winreg.REG_SZ, "%1")
-                except Exception:
-                    continue
-        except Exception as e:
-            self.send_message(f"repair_system_file_icon | {e}", "warn", False)
-
-    def repair_system_image(self):
-        try:
-            key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_ALL_ACCESS) as reg:
-                i = 0
-                while True:
-                    try:
-                        subkey = winreg.EnumKey(reg, i)
-                        subkey_path = key_path + "\\" + subkey
-                        with winreg.OpenKey(reg, subkey, 0, winreg.KEY_ALL_ACCESS) as sub_reg:
-                            for value in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
-                                try:
-                                    winreg.DeleteValue(sub_reg, value)
-                                except FileNotFoundError:
-                                    continue
-                        i += 1
-                    except OSError:
-                        break
-        except Exception as e:
-            self.send_message(f"repair_system_image | {e}", "warn", False)
-
-####################################################################################################
-
-    def check_process_survival(self):
-        target_map = {
-            "explorer.exe": "explorer.exe"
-        }
-        try:
-            running = set()
-            pe = self.get_process_entry()
-            snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-            if self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe)):
-                while True:
-                    try:
-                        name = pe.szExeFile.lower()
-                        running.add(name)
-                    except Exception:
-                        pass
-                    if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)):
-                        break
-            self.kernel32.CloseHandle(snapshot)
-
-            for name, cmd in target_map.items():
-                if name.lower() not in running:
-                    subprocess.Popen(cmd, shell=True)
-                    self.send_message(f"系統防護 | 系統進程重啟 | None | None | {name}", "notify", True)
-
-        except Exception as e:
-            self.send_message(f"check_process_survival | {e}", "warn", False)
-
-####################################################################################################
-
-    def popup_button(self):
-        self.config_list("block_list")
-        self.block_window = False
-        if self.send_message("請選擇要攔截的軟體彈窗", "quest", True):
-            while True:
-                QApplication.processEvents()
-
-                title, class_name, proc_name = self.get_window_info(self.user32.GetForegroundWindow())
-                if proc_name and not any(self.window_rule_match(item, proc_name, class_name, title) for item in self.pass_windows):
-                    if self.send_message(f"您確定要攔截 {proc_name} ({title}) 嗎?", "quest", True):
-                        if self.add_window_rule(self.pyas_config["block_list"], proc_name, class_name, title):
-                            self.send_message(f"成功增加到彈窗攔截: {proc_name} ({title})", "info", True)
-                        else:
-                            self.send_message("已存在彈窗攔截", "info", True)
-                    break
-        self.start_daemon_thread(self.popup_intercept_thread)
-
-    def popup_button_2(self):
-        self.config_list("block_list")
-        self.block_window = False
-        if self.send_message("請選擇要取消攔截的軟體彈窗", "quest", True):
-            while True:
-                QApplication.processEvents()
-
-                title, class_name, proc_name = self.get_window_info(self.user32.GetForegroundWindow())
-                if proc_name and not any(self.window_rule_match(item, proc_name, class_name, title) for item in self.pass_windows):
-                    if self.send_message(f"您確定要取消攔截 {proc_name} ({title}) 嗎?", "quest", True):
-                        if self.remove_window_rule(self.pyas_config["block_list"], proc_name, class_name, title):
-                            self.send_message(f"成功取消彈窗攔截: {proc_name} ({title})", "info", True)
-                        else:
-                            self.send_message("未找到彈窗攔截", "info", True)
-                    break
-        self.start_daemon_thread(self.popup_intercept_thread)
-
-    def window_rule_match(self, item, proc_name, class_name, title):
-        for k, v in zip(["exe", "class", "title"], [proc_name, class_name, title]):
-            if item.get(k, "") and item.get(k, "") != v:
-                return False
-        return True
-
-    def add_window_rule(self, rule_list, proc_name, class_name, title):
-        if not any(self.window_rule_match(item, proc_name, class_name, title) for item in rule_list):
-            rule_list.append({"exe": proc_name, "class": class_name, "title": title})
-            self.save_config(self.file_config, self.pyas_config)
-            return True
-        return False
-
-    def remove_window_rule(self, rule_list, proc_name, class_name, title):
-        before = len(rule_list)
-        rule_list[:] = [item for item in rule_list if not self.window_rule_match(item, proc_name, class_name, title)]
-        if len(rule_list) < before:
-            self.save_config(self.file_config, self.pyas_config)
-            return True
-        return False
-
-    def popup_intercept_thread(self):
-        self.block_window = True
-        while self.block_window:
-            try:
-                time.sleep(0.2)
-                rules = self.pyas_config.get("block_list", [])
-                if not rules:
-                    continue
-
-                for hWnd in self.get_all_windows():
-                    title, class_name, proc_name = self.get_window_info(hWnd)
-                    if (not any(self.window_rule_match(item, proc_name, class_name, title) for item in self.pass_windows) and
-                        any(self.window_rule_match(item, proc_name, class_name, title) for item in rules)):
-                        closed = False
-
-                        for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
-                            if self.user32.SendMessageW(hWnd, msg, 0xF060, 0) != 0:
-                                closed = True
-                                break
-
-                        if not closed and proc_name:
-                            pid = ctypes.c_ulong()
-                            self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
-                            if pid.value:
-                                h = self.kernel32.OpenProcess(0x1F0FFF, False, pid.value)
-                                if h:
-                                    self.kernel32.TerminateProcess(h, 0)
-                                    self.kernel32.CloseHandle(h)
-            except Exception as e:
-                self.send_message(f"popup_intercept_thread | {e}", "warn", False)
-
-####################################################################################################
-
-    def get_all_windows(self):
-        self.hwnd_list = []
-        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
-        self.user32.EnumWindows(WNDENUMPROC(self.enum_windows_callback), 0)
-        return self.hwnd_list
-
-    def enum_windows_callback(self, hWnd, lParam):
-        self.hwnd_list.append(hWnd)
-        return True
-
-    def get_window_info(self, hWnd):
-        length = self.user32.GetWindowTextLengthW(hWnd)
-        title = ctypes.create_unicode_buffer(length + 1)
-        self.user32.GetWindowTextW(hWnd, title, length + 1)
-        class_name = ctypes.create_unicode_buffer(256)
-        self.user32.GetClassNameW(hWnd, class_name, 256)
-        pid = ctypes.c_ulong()
-        self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
-
-        proc_name = self.get_process_name(pid.value)
-        return str(title.value), str(class_name.value), proc_name
-
-    def get_process_name(self, pid):
-        try:
-            result_name = ""
-            name, _ = self.get_exe_info(pid)
-            if name:
-                return name
-
-            snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-            if snapshot == -1:
-                return result_name
-
-            entry = PROCESSENTRY32W()
-            entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
-
-            if self.kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
-                while True:
-                    if entry.th32ProcessID == pid:
-                        result_name = entry.szExeFile
-                        break
-                    if not self.kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
-                        break
-
-            self.kernel32.CloseHandle(snapshot)
-            return result_name
-        except Exception:
-            pass
-        return result_name
-
-####################################################################################################
-
-    def whitelist_button(self):
-        self.config_list("white_list")
-        files = self.send_message("選擇檔案", "files", True)
-        if files and self.send_message("您確定要增加到白名單嗎?", "quest"):
-            n = self.manage_named_list("white_list", files, action="add", with_hash=True)
-            self.send_message(f"成功增加到白名單，共 {n} 個檔案", "info", True)
-
-    def whitelist_button_2(self):
-        self.config_list("white_list")
-        files = self.send_message("選擇檔案", "files", True)
-        if files and self.send_message("您確定要移除白名單嗎?", "quest"):
-            n = self.manage_named_list("white_list", files, action="remove", with_hash=True)
-            self.send_message(f"成功移除白名單，共 {n} 個檔案", "info", True)
-
-    def quarantine_button(self):
-        self.config_list("quarantine")
-        files = self.send_message("選擇檔案", "files", True)
-        if files and self.send_message("您確定要增加到隔離區嗎?", "quest"):
-            n = self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
-            self.send_message(f"成功增加到隔離區，共 {n} 個檔案", "info", True)
-
-    def quarantine_button_2(self):
-        self.config_list("quarantine")
-        quarantine_dir = os.path.join(self.path_config, "quarantine")
-        files = self.send_message("選擇檔案", "files", True)
-        if files and self.send_message("您確定要移除隔離區嗎?", "quest"):
-            n = self.manage_named_list("quarantine", files, action="remove", with_hash=True, lock_func=self.lock_file)
-            self.send_message(f"成功移除隔離區，共 {n} 個檔案", "info", True)
-
-    def add_to_quarantine(self, files):
-        self.config_list("quarantine")
-        return self.manage_named_list("quarantine", files, action="add", with_hash=True, lock_func=self.lock_file)
-
-    def is_in_whitelist(self, file_path):
-        p = self.norm_path(file_path)
-        if not p:
-            return False
-        file_hash = self.calc_file_hash(p)
-        return any(os.path.normcase(item["file"]) == p and
-            item.get("hash", "") == file_hash for item in self.pyas_config.get("white_list", []))
-
-    def init_whitelist(self):
-        self.manage_named_list("white_list", [self.file_pyas], action="add", with_hash=True)
-
-####################################################################################################
-
-    def manage_named_list(self, list_key, files, action="add", with_hash=True, lock_func=None):
-        norm_paths = self.norm_path(files or [], must_exist=True)
-        if isinstance(norm_paths, str):
-            norm_paths = [norm_paths] if norm_paths else []
-
-        n = 0
-        if action == "add":
-            for path in norm_paths:
-                file_hash = self.calc_file_hash(path) if with_hash else ""
-                if not any(self.norm_path(item["file"]) == path and
-                    (not with_hash or item.get("hash", "") == file_hash)
-                    for item in self.config_list(list_key)):
-                    if lock_func:
+                        except Exception:
+                            os.close(fd)
+                            raise
+                else:
+                    if file in self.virus_lock:
+                        fd, lock_size = self.virus_lock[file]
                         try:
-                            lock_func(path, True)
-                        except Exception as e:
-                            self.send_message(f"manage_named_list | {e}", "warn", False)
-                    self.config_list(list_key).append({"file": path, "hash": file_hash})
-                    n += 1
+                            msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
+                        finally:
+                            os.close(fd)
+                            del self.virus_lock[file]
 
-        elif action == "remove":
-            for item in [item for item in self.config_list(list_key)
-                if self.norm_path(item["file"]) in norm_paths]:
-                try:
-                    if lock_func:
-                        lock_func(item["file"], False)
-                    self.config_list(list_key).remove(item)
-                    n += 1
-                except Exception as e:
-                    self.send_message(f"manage_named_list | {e}", "warn", False)
+            except Exception as e:
+                self.write_log("WARN", "lock_file", source=file, detail=str(e), success=False)
 
-        if n:
-            self.save_config(self.file_config, self.pyas_config)
-        return n
+    def relock_file(self):
+        with self.lock_config:
+            quarantine_list = self.pyas_config.get("quarantine", [])
+
+        for item in quarantine_list:
+            file = item["file"]
+            if os.path.exists(file):
+                self.lock_file(file, True)
+
+####################################################################################################
 
     def calc_file_hash(self, file_path, block_size=65536):
         try:
@@ -1874,158 +1505,112 @@ class MainWindow_Controller(QMainWindow):
             with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(block_size), b""):
                     h.update(chunk)
+
             return h.hexdigest()
         except Exception:
-            return ""
+            return None
 
-####################################################################################################
+    def manage_named_list(self, list_key, files, action="add", lock_func=None):
+        if list_key == "quarantine" and lock_func is None:
+            lock_func = self.lock_file
 
-    def website_button(self):
-        try:
-            webbrowser.open("https://pyas-security.com/antivirus")
-            return True
-        except Exception as e:
-            self.send_message(f"website_button | {e}", "warn", False)
+        norm_paths = self.norm_path(files or [], must_exist=True)
+        if isinstance(norm_paths, str):
+            norm_paths = [norm_paths] if norm_paths else []
+
+        n = 0
+        with self.lock_config:
+            target_list = self.pyas_config.setdefault(list_key, [])
+            
+            if action == "add":
+                for path in norm_paths:
+                    exists = any(self.norm_path(item.get("file", "")) == path for item in target_list if isinstance(item, dict))
+                    if not exists:
+                        if lock_func:
+                            lock_func(path, True)
+                        target_list.append({"file": path})
+                        n += 1
+                        if list_key == "white_list":
+                            self.sync_driver_whitelist(path, True)
+            elif action == "remove":
+                for item in list(target_list):
+                    if isinstance(item, dict) and self.norm_path(item.get("file", "")) in norm_paths:
+                        if lock_func:
+                            lock_func(item.get("file", ""), False)
+                        target_list.remove(item)
+                        n += 1
+                        if list_key == "white_list":
+                            self.sync_driver_whitelist(item.get("file", ""), False)
+
+            if n:
+                self.save_config()
+        return n
+
+    def is_in_whitelist(self, file_path):
+        p = self.norm_path(file_path)
+        if not p:
             return False
 
-    def update_button(self):
-        try:
-            current = str(self.pyas_config.get("version", "")).strip()
-            page = "https://github.com/87owo/PYAS/releases"
-            latest = ""
+        with self.lock_config:
+            whitelist = self.pyas_config.get("white_list", [])
             
-            try:
-                j = requests.get("https://api.github.com/repos/87owo/PYAS/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "PYAS"}, timeout=10).json()
-                latest = str(j.get("tag_name") or j.get("name") or "").strip()
-                page = j.get("html_url") or page
-            except Exception:
-                try:
-                    u = requests.get("https://github.com/87owo/PYAS/releases/latest", headers={"User-Agent": "PYAS"}, allow_redirects=True, timeout=10).url
-                    page = u or page
-                    m = re.search(r"/tag/([^/]+)$", str(u))
-                    latest = m.group(1).strip() if m else ""
-                except Exception:
-                    pass
+        p_norm = os.path.normcase(p)
+        return any(os.path.normcase(item.get("file", "")) == p_norm for item in whitelist if isinstance(item, dict))
 
-            if not latest:
-                self.send_message("檢查更新失敗", "error", True)
-                return False
-
-            rl = re.sub(r"^[vV]\s*", "", latest)
-            cl = re.sub(r"^[vV]\s*", "", current)
-            tr = tuple(int(x) for x in re.findall(r"\d+", rl))
-            tl = tuple(int(x) for x in re.findall(r"\d+", cl))
-            
-            if tr and (not tl or tr > tl):
-                if self.send_message(f"發現新版本 {latest}，您確定要前往更新嗎?", "quest", True):
-                    webbrowser.open(page)
-            else:
-                if cl:
-                    self.send_message(f"當前已是最新版本 {current}", "info", True)
-                else:
-                    webbrowser.open(page)
-            return True
-            
-        except Exception as e:
-            self.send_message(f"update_button | {e}", "error", False)
-            return False
-
-####################################################################################################
-
-    def lock_file(self, file, lock):
-        try:
-            with self.lock_mutex:
-                if lock:
-                    if file not in self.virus_lock:
-                        self.virus_lock[file] = os.open(file, os.O_RDWR)
-                    msvcrt.locking(self.virus_lock[file], msvcrt.LK_NBRLCK, os.path.getsize(file))
-                else:
-                    if file in self.virus_lock:
-                        msvcrt.locking(self.virus_lock[file], msvcrt.LK_UNLCK, os.path.getsize(file))
-                        os.close(self.virus_lock[file])
-                        del self.virus_lock[file]
-        except Exception as e:
-            self.send_message(f"lock_file | {e}", "warn", False)
-
-    def relock_file(self):
-        quarantine_list = self.pyas_config.get("quarantine", [])
-        for item in quarantine_list:
-            file = item["file"]
-            if os.path.exists(file):
-                try:
-                    self.lock_file(file, True)
-                except Exception as e:
-                    self.send_message(f"relock_file | {e}", "warn", False)
+    def init_whitelist(self):
+        self.manage_named_list("white_list", [self.file_pyas], action="add")
 
 ####################################################################################################
 
     def protect_proc_thread(self):
-        self.exist_process = self.get_process_list()
-        while self.pyas_config.get("process_switch", False):
+        self.exist_process = self.get_process_list_pids()
+        while True:
+            with self.lock_config:
+                if not self.pyas_config.get("process_switch", False):
+                    break
             try:
                 time.sleep(0.1)
-                cur = self.get_process_list()
+                cur = self.get_process_list_pids()
                 new_pids = cur - self.exist_process
                 for pid in new_pids:
-                    self.start_daemon_thread(self.handle_new_process, pid)
+                    self.thread_pool.submit(self.handle_new_process, pid)
                 self.exist_process = cur
+
             except Exception as e:
-                self.send_message(f"protect_proc_thread | {e}", "warn", False)
-
-    def handle_new_process(self, pid):
-        h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-        if not h:
-            return
-
-        self.suspend_process(h, True)
-        try:
-            cmdline = self.get_process_cmdline(h)
-            paths = []
-            for arg in self.split_commandline(cmdline):
-                paths.extend(self.extract_paths_from_arg(arg))
-
-            seen = set()
-            paths = [p for p in paths if p and (p not in seen and not seen.add(p))]
-
-            suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
-
-            for p in paths:
-                file_path = self.norm_path(self.device_path_to_drive(p))
-                if not file_path or not os.path.isfile(file_path):
-                    continue
-
-                ext = os.path.splitext(file_path)[-1].lower()
-                if ext not in suffix:
-                    continue
-                if self.is_in_whitelist(file_path):
-                    continue
-
-                self.start_daemon_thread(self.cloud_check, file_path)
-
-                if self.scan_engine(file_path):
-                    self.kernel32.TerminateProcess(h, 0)
-                    self.send_message(f"進程防護 | 靜態掃描攔截 | {pid} | None | {file_path}", "notify", True)
-                    break
-                
-        except Exception as e:
-            self.send_message(f"handle_new_process | {e}", "warn", False)
-        finally:
-            self.suspend_process(h, False)
-            self.kernel32.CloseHandle(h)
-
-    def suspend_process(self, h_process, suspend):
-        try:
-            if suspend:
-                self.ntdll.NtSuspendProcess(h_process)
-            else:
-                self.ntdll.NtResumeProcess(h_process)
-        except Exception as e:
-            self.send_message(f"suspend_process | {e}", "warn", False)
-
-####################################################################################################
+                self.write_log("WARN", "protect_proc_thread", detail=str(e), success=False)
 
     def get_process_list(self):
-        exist_process, pe = set(), self.get_process_entry()
+        pe = PROCESSENTRY32W()
+        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+        snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        result = []
+        
+        if snapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
+            return result
+            
+        success = self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
+        while success:
+            pid = pe.th32ProcessID
+            name, file_path = None, None
+            if pid > 4:
+                name, file_path = self.get_exe_info(pid)
+
+            if not name:
+                try:
+                    name = pe.szExeFile
+                except Exception:
+                    name = "Unknown"
+
+            result.append({"pid": pid, "name": name, "path": file_path or "None"})
+            success = self.kernel32.Process32NextW(snapshot, ctypes.byref(pe))
+            
+        self.kernel32.CloseHandle(snapshot)
+        return result
+
+    def get_process_list_pids(self):
+        exist_process = set()
+        pe = PROCESSENTRY32W()
+        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
         hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
         
         if hSnapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
@@ -2036,32 +1621,43 @@ class MainWindow_Controller(QMainWindow):
                 exist_process.add(pe.th32ProcessID)
                 if not self.kernel32.Process32NextW(hSnapshot, ctypes.byref(pe)):
                     break
+
         self.kernel32.CloseHandle(hSnapshot)
         return exist_process
 
-    def get_process_file(self, h_process):
-        buf = ctypes.create_unicode_buffer(1024)
-        if self.psapi.GetProcessImageFileNameW(h_process, buf, 1024):
-            return self.norm_path(self.device_path_to_drive(buf.value))
-        return ""
+####################################################################################################
 
-    def get_process_entry(self):
-        pe = PROCESSENTRY32W()
-        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
-        return pe
+    def handle_new_process(self, pid):
+        h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+        if not h:
+            return
 
-    def get_exe_info(self, pid):
-        name, file_path = None, None
-        h = self.kernel32.OpenProcess(0x1000, False, pid)
-        if h:
-            buf = ctypes.create_unicode_buffer(1024)
-            if self.psapi.GetProcessImageFileNameW(h, buf, 1024):
-                path = self.norm_path(self.device_path_to_drive(buf.value))
-                if path:
-                    file_path = path
-                    name = os.path.basename(path)
+        self.ntdll.NtSuspendProcess(h)
+        try:
+            cmdline = self.get_process_cmdline(h)
+            paths = self.extract_paths_from_cmdline(cmdline)
+            with self.lock_config:
+                suffix = self.pyas_config.get("suffix", [])
+                
+            for p in paths:
+                file_path = self.norm_path(self.device_path_to_drive(p))
+                if not file_path or not os.path.isfile(file_path):
+                    continue
+
+                ext = os.path.splitext(file_path)[-1].lower()
+                if ext not in suffix:
+                    continue
+                if self.is_in_whitelist(file_path):
+                    continue
+                
+                self.cloud_check(file_path)
+                if self.scan_engine(file_path):
+                    self.kernel32.TerminateProcess(h, 0)
+                    self.write_log("BLOCK", "Process Block", pid=pid, source=file_path, file_hash=self.calc_file_hash(file_path))
+                    break
+        finally:
+            self.ntdll.NtResumeProcess(h)
             self.kernel32.CloseHandle(h)
-        return name, file_path
 
 ####################################################################################################
 
@@ -2077,6 +1673,7 @@ class MainWindow_Controller(QMainWindow):
         read_buf = (ctypes.c_ubyte * pointer_size)()
         lpNumberOfBytesRead = ctypes.c_size_t(0)
         offset_process_parameters = 0x20 if pointer_size == 8 else 0x10
+
         addr_pp = peb_address + offset_process_parameters
         if not addr_pp:
             return ""
@@ -2101,7 +1698,7 @@ class MainWindow_Controller(QMainWindow):
             return ""
         return "".join(buf)
 
-    def split_commandline(self, cmdline):
+    def extract_paths_from_cmdline(self, cmdline):
         if not cmdline:
             return []
 
@@ -2112,22 +1709,14 @@ class MainWindow_Controller(QMainWindow):
 
         args = [argv[i] for i in range(argc.value)]
         self.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
-        return args
 
-    def extract_paths_from_arg(self, arg):
-        patterns = [
-            r'([A-Za-z]:\\[^"\']+)',
-            r'(\\\\[^"\']+)',
-            r'(\.\\[^"\']+)',
-            r'(\./[^"\']+)',
-            r'([A-Za-z]:/[^"\']+)',
-            r'([^\s]*\\[^\s]+)'
-        ]
+        patterns = [r'([A-Za-z]:\\[^"\']+)', r'(\\\\[^"\']+)', r'(\.\\[^"\']+)', r'(\./[^"\']+)', r'([A-Za-z]:/[^"\']+)', r'([^\s]*\\[^\s]+)']
         found = []
-        for p in patterns:
-            for m in re.finditer(p, arg):
-                val = m.group(1).strip('"').strip("'")
-                found.append(val)
+        for arg in args:
+            for p in patterns:
+                for m in re.finditer(p, arg):
+                    found.append(m.group(1).strip('"').strip("'"))
+
         return list(dict.fromkeys(found))
 
 ####################################################################################################
@@ -2136,11 +1725,13 @@ class MainWindow_Controller(QMainWindow):
         hDir = self.kernel32.CreateFileW(self.path_user, 0x0001, 0x00000007, None, 3, 0x02000000, None)
         buffer = ctypes.create_string_buffer(65536)
 
-        while self.pyas_config.get("document_switch", False):
+        while True:
+            with self.lock_config:
+                if not self.pyas_config.get("document_switch", False):
+                    break
             try:
                 bytes_returned = ctypes.wintypes.DWORD()
-                res = self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True,
-                    0x0000001F, ctypes.byref(bytes_returned), None, None)
+                res = self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True, 0x0000001F, ctypes.byref(bytes_returned), None, None)
                 if not res:
                     continue
 
@@ -2151,52 +1742,55 @@ class MainWindow_Controller(QMainWindow):
 
                 file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                 if file_path and notify.Action in [2, 3, 4] and not self.is_in_whitelist(file_path):
+                    with self.lock_config:
+                        suffix = self.pyas_config.get("suffix", [])
 
-                    suffix = self.pyas_config.get("suffix", [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"])
                     ext = os.path.splitext(file_path)[-1].lower()
                     if ext not in suffix:
                         continue
 
-                    state = self.scan_engine(file_path)
-                    if state:
-                        self.add_to_quarantine([file_path])
-                        self.send_message(f"檔案防護 | 靜態掃描攔截 | None | None | {file_path}", "notify", True)
-                        self.start_daemon_thread(self.cloud_check, file_path)
+                    if self.scan_engine(file_path):
+                        self.manage_named_list("quarantine", [file_path], action="add", lock_func=self.lock_file)
+                        self.write_log("BLOCK", "File Block", source=file_path, file_hash=self.calc_file_hash(file_path))
+                        self.cloud_check(file_path)
+
             except Exception as e:
-                self.send_message(f"protect_file_thread | {e}", "warn", False)
+                self.write_log("WARN", "protect_file_thread", detail=str(e), success=False)
         self.kernel32.CloseHandle(hDir)
 
 ####################################################################################################
 
     def protect_net_thread(self):
-        while self.pyas_config.get("network_switch", False):
+        self.exist_connections = set()
+        while True:
+            with self.lock_config:
+                if not self.pyas_config.get("network_switch", False):
+                    break
             try:
                 time.sleep(0.2)
                 conns = self.get_connections_list()
-                if not hasattr(self, "exist_connections") or self.exist_connections is None:
-                    self.exist_connections = set()
-                if conns is None:
-                    conns = set()
 
                 for key in conns - self.exist_connections:
-                    self.handle_new_connection(key)
+                    self.thread_pool.submit(self.handle_new_connection, key)
                 self.exist_connections = conns
+
             except Exception as e:
-                self.send_message(f"protect_net_thread | {e}", "warn", False)
+                self.write_log("WARN", "protect_net_thread", detail=str(e), success=False)
+
         self.exist_connections = set()
 
     def get_connections_list(self):
+        connections = set()
         try:
-            connections = set()
             size = ctypes.wintypes.DWORD()
             ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
             if ret != 122:
-                raise ctypes.WinError(ret)
+                return connections
 
             buf = ctypes.create_string_buffer(size.value)
             ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
             if ret != 0:
-                raise ctypes.WinError(ret)
+                return connections
 
             num_entries = ctypes.cast(buf, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
             row_size = ctypes.sizeof(MIB_TCPROW_OWNER_PID)
@@ -2206,10 +1800,10 @@ class MainWindow_Controller(QMainWindow):
                 entry_addr = ctypes.addressof(buf) + offset + i * row_size
                 row = MIB_TCPROW_OWNER_PID.from_address(entry_addr)
                 connections.add((row.dwOwningPid, row.dwRemoteAddr, row.dwRemotePort))
-            return connections
-        except Exception as e:
-            self.send_message(f"get_connections_list | {e}", "warn", False)
-            return set()
+
+        except Exception:
+            pass
+        return connections
 
     def handle_new_connection(self, key):
         pid, remote_addr, remote_port = key
@@ -2217,21 +1811,27 @@ class MainWindow_Controller(QMainWindow):
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if not h:
                 return
+
             remote_ip = f"{remote_addr & 0xFF}.{(remote_addr >> 8) & 0xFF}.{(remote_addr >> 16) & 0xFF}.{(remote_addr >> 24) & 0xFF}"
 
             file_path = self.norm_path(self.get_process_file(h))
             if file_path and not self.is_in_whitelist(file_path):
+
                 if hasattr(self.heuristic, "network") and remote_ip in self.heuristic.network:
                     self.kernel32.TerminateProcess(h, 0)
-                    self.send_message(f"網路防護 | 規則列表攔截 | {pid} | {file_path} | {remote_ip}", "notify", True)
+                    self.write_log("BLOCK", "Network Block", pid=pid, source=file_path, target=remote_ip, file_hash=self.calc_file_hash(file_path))
             self.kernel32.CloseHandle(h)
+
         except Exception as e:
-            self.send_message(f"handle_new_connection | {e}", "warn", False)
+            self.write_log("WARN", "handle_new_connection", pid=key[0], detail=str(e), success=False)
 
 ####################################################################################################
 
     def protect_system_thread(self):
-        while self.pyas_config.get("system_switch", False):
+        while True:
+            with self.lock_config:
+                if not self.pyas_config.get("system_switch", False):
+                    break
             try:
                 self.repair_system_mbr()
                 self.repair_system_restrict()
@@ -2240,25 +1840,208 @@ class MainWindow_Controller(QMainWindow):
                 self.repair_system_image()
                 self.check_process_survival()
                 time.sleep(0.5)
+
             except Exception as e:
-                self.send_message(f"protect_system_thread | {e}", "warn", False)
+                self.write_log("WARN", "protect_system_thread", detail=str(e), success=False)
+
+####################################################################################################
+
+    def capture_popup_window(self):
+        try:
+            start_time = time.time()
+            while time.time() - start_time < 5:
+                hwnd = self.user32.GetForegroundWindow()
+                if not hwnd:
+                    time.sleep(0.2)
+                    continue
+                    
+                pid = ctypes.c_ulong(0)
+                self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+                
+                if pid.value != self.pid_pyas and pid.value > 4:
+                    length = self.user32.GetWindowTextLengthW(hwnd)
+                    title = ctypes.create_unicode_buffer(length + 1)
+                    self.user32.GetWindowTextW(hwnd, title, length + 1)
+                    class_name = ctypes.create_unicode_buffer(256)
+                    self.user32.GetClassNameW(hwnd, class_name, 256)
+                    
+                    proc_name, _ = self.get_exe_info(pid.value)
+                    t_str, c_str = str(title.value), str(class_name.value)
+                    
+                    if proc_name and not any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows):
+                        return {"exe": proc_name, "class": c_str, "title": t_str}
+
+                time.sleep(0.2)
+        except Exception as e:
+            self.write_log("WARN", "capture_popup_window", detail=str(e), success=False)
+        return None
+
+    def add_popup_rule(self, rule):
+        if not rule:
+            return False
+
+        with self.lock_config:
+            target_list = self.pyas_config.setdefault("block_list", [])
+            for item in target_list:
+                if item.get("exe") == rule.get("exe") and item.get("class") == rule.get("class") and item.get("title") == rule.get("title"):
+                    return False
+
+            target_list.append(rule)
+            self.save_config()
+            return True
+
+####################################################################################################
+
+    def repair_system_restrict(self):
+        try:
+            permissions, restrict_paths = self._get_restrict_lists()
+            for hkey, path in restrict_paths:
+                try:
+                    with winreg.OpenKey(hkey, path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WRITE) as reg:
+                        for val in permissions:
+                            try:
+                                winreg.DeleteValue(reg, val)
+                            except FileNotFoundError:
+                                pass
+                except Exception:
+                    pass
+        except Exception as e:
+            self.write_log("WARN", "repair_system_restrict", detail=str(e), success=False)
+
+    def repair_system_file_type(self):
+        try:
+            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+                for ext in [".exe", ".bat", ".cmd", ".com"]:
+                    try:
+                        with winreg.CreateKey(root, rf"SOFTWARE\Classes\{ext}") as reg:
+                            winreg.SetValue(reg, "", winreg.REG_SZ, "exefile" if ext == ".exe" else ext[1:]+"file")
+                    except Exception:
+                        pass
+                for shell_cmd in ["open", "runas"]:
+                    try:
+                        with winreg.CreateKey(root, rf"SOFTWARE\Classes\exefile\shell\{shell_cmd}\command") as reg:
+                            winreg.SetValue(reg, "", winreg.REG_SZ, '"%1" %*')
+                    except Exception:
+                        pass
+        except Exception as e:
+            self.write_log("WARN", "repair_system_file_type", detail=str(e), success=False)
+
+    def repair_system_file_icon(self):
+        try:
+            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+                try:
+                    with winreg.CreateKey(root, r"SOFTWARE\Classes\exefile\DefaultIcon") as reg:
+                        winreg.SetValue(reg, "", winreg.REG_SZ, "%1")
+                except Exception:
+                    pass
+        except Exception as e:
+            self.write_log("WARN", "repair_system_file_icon", detail=str(e), success=False)
+
+    def repair_system_image(self):
+        key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_ALL_ACCESS) as reg:
+                i = 0
+                while True:
+                    try:
+                        subkey = winreg.EnumKey(reg, i)
+                        with winreg.OpenKey(reg, subkey, 0, winreg.KEY_ALL_ACCESS) as sub_reg:
+                            for value in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
+                                try:
+                                    winreg.DeleteValue(sub_reg, value)
+                                except FileNotFoundError:
+                                    pass
+                        i += 1
+                    except OSError:
+                        break
+        except Exception as e:
+            self.write_log("WARN", "repair_system_image", detail=str(e), success=False)
+
+    def repair_system_wallpaper(self):
+        try:
+            wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
+            if not os.path.exists(wallpaper):
+                return
+
+            key = r"Control Panel\Desktop"
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE) as reg:
+                winreg.SetValueEx(reg, "Wallpaper", 0, winreg.REG_SZ, wallpaper)
+
+            theme_dir = os.path.join(self.path_appdata, "Microsoft", "Windows", "Themes")
+            for fname in ["TranscodedWallpaper", "TranscodedWallpaper.tmp"]:
+                fpath = os.path.join(theme_dir, fname)
+                if os.path.exists(fpath):
+                    try:
+                        os.remove(fpath)
+                    except Exception:
+                        pass
+
+            cache_dir = os.path.join(theme_dir, "CachedFiles")
+            if os.path.exists(cache_dir):
+                try:
+                    shutil.rmtree(cache_dir, ignore_errors=True)
+                except Exception:
+                    pass
+
+            self.user32.SystemParametersInfoW(20, 0, wallpaper, 3)
+        except Exception as e:
+            self.write_log("WARN", "repair_system_wallpaper", detail=str(e), success=False)
+
+    def repair_system_mbr(self):
+        if not self.mbr_backup:
+            return
+
+        for drive, mbr_value in self.mbr_backup.items():
+            drive_path = rf"\\.\PhysicalDrive{drive}"
+            try:
+                with open(drive_path, "rb+") as f:
+                    current = f.read(512)
+                    if current != mbr_value:
+                        f.seek(0)
+                        f.write(mbr_value)
+                        self.write_log("INFO", "MBR Repaired", source=drive_path, operate=True)
+
+            except Exception:
+                pass
+
+####################################################################################################
+
+    def check_process_survival(self):
+        target_map = {"explorer.exe": "explorer.exe"}
+        try:
+            running = set()
+            pe = PROCESSENTRY32W()
+            pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+            snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+
+            if self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe)):
+                while True:
+                    try:
+                        running.add(pe.szExeFile.lower())
+                    except Exception:
+                        pass
+
+                    if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)):
+                        break
+
+            self.kernel32.CloseHandle(snapshot)
+
+            for name, cmd in target_map.items():
+                if name.lower() not in running:
+                    subprocess.Popen(cmd, shell=True)
+                    self.write_log("INFO", "System Restart", source=name)
+
+        except Exception:
+            pass
 
 ####################################################################################################
 
     def install_system_driver(self):
         try:
             service_name = "PYAS_Driver"
-            bin_path = self.path_drivers
-            cmd = [
-                "sc", "create", service_name,
-                f"binPath={bin_path}",
-                "type=kernel",
-                "start=demand",
-                "error=normal",
-                "depend=FltMgr",
-                "group=\"FSFilter Activity Monitor\""]
+            cmd = f'sc create {service_name} binPath="{self.path_drivers}" type=kernel start=demand error=normal depend=FltMgr group="FSFilter Activity Monitor"'
             subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-
+            
             key_path = r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances"
             with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
                 winreg.SetValueEx(key, "DefaultInstance", 0, winreg.REG_SZ, "PYAS Instance")
@@ -2266,11 +2049,11 @@ class MainWindow_Controller(QMainWindow):
             with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, rf"{key_path}\PYAS Instance") as key:
                 winreg.SetValueEx(key, "Altitude", 0, winreg.REG_SZ, "320000")
                 winreg.SetValueEx(key, "Flags", 0, winreg.REG_DWORD, 0)
-
+                
             subprocess.run(["sc", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return self.check_system_driver()
-        except Exception as e:
-            self.send_message(f"install_system_driver | {e}", "warn", False)
+
+        except Exception:
             return False
 
     def stop_system_driver(self):
@@ -2283,24 +2066,18 @@ class MainWindow_Controller(QMainWindow):
                     pass
 
             time.sleep(0.5)
-            service_name = "PYAS_Driver"
-            subprocess.run(["sc", "stop", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            subprocess.run(["sc", "delete", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            subprocess.run(["sc", "stop", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            subprocess.run(["sc", "delete", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return True
+
         except Exception:
             return False
 
     def check_system_driver(self):
         try:
-            service_name = "PYAS_Driver"
-            result = subprocess.run(
-                ["sc", "query", service_name],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                shell=True
-            )
+            result = subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
             return "RUNNING" in result.stdout
+
         except Exception:
             return False
 
@@ -2309,15 +2086,25 @@ class MainWindow_Controller(QMainWindow):
     def pipe_server_thread(self):
         try:
             port_name = "\\PYAS_Output_Pipe"
-            self.driver_port = ctypes.wintypes.HANDLE()
 
-            while self.pyas_config.get("driver_switch", False):
+            while True:
+                with self.lock_config:
+                    if not self.pyas_config.get("driver_switch", False): break
+
+                self.driver_port = ctypes.wintypes.HANDLE()
+
                 hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(self.driver_port))
-                
                 if hr == 0:
-                    message = PYAS_FULL_MESSAGE()
+                    with self.lock_config:
+                        whitelist = self.pyas_config.get("white_list", [])
+                    for item in whitelist:
+                        if isinstance(item, dict) and item.get("file"):
+                            self.sync_driver_whitelist(item["file"], True)
 
-                    while self.pyas_config.get("driver_switch", False):
+                    message = PYAS_FULL_MESSAGE()
+                    while True:
+                        with self.lock_config:
+                            if not self.pyas_config.get("driver_switch", False): break
                         try:
                             hr_get = self.fltlib.FilterGetMessage(self.driver_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None)
                         except OSError:
@@ -2329,31 +2116,230 @@ class MainWindow_Controller(QMainWindow):
                             raw_path = self.get_exe_info(pid)[1]
                             target = message.Data.Path
 
-                            rule_name = self.block_rules.get(code, "Unknown")
-                            display_rule = self.block_replace.get(rule_name, rule_name)
-                            self.send_message(f"驅動防護 | {display_rule} | {pid} | {raw_path} | {target}", "notify", True)
+                            with self.lock_config:
+                                block_codes = self.pyas_config.get("block", [])
 
-                            if code in self.pyas_config.get("block", []) and not self.is_in_whitelist(raw_path):
-                                try:
-                                    h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-                                    if h:
-                                        self.kernel32.TerminateProcess(h, 0)
-                                        self.kernel32.CloseHandle(h)
-                                except Exception:
-                                    pass
+                            if code in block_codes and not self.is_in_whitelist(raw_path):
+                                self.kill_process(pid)
+                                self.write_log("BLOCK", "Driver Block", pid=pid, source=raw_path, target=target, code=code, file_hash=self.calc_file_hash(raw_path))
                         else:
                             break
+
                     if self.driver_port:
                         self.kernel32.CloseHandle(self.driver_port)
                         self.driver_port = None
+
                 time.sleep(0.2)
         except Exception as e:
-            self.send_message(f"pipe_server_thread | {e}", "warn", False)
+            self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
+
+####################################################################################################
+
+    def popup_intercept_thread(self):
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+        while True:
+            try:
+                time.sleep(0.2)
+                with self.lock_config:
+                    rules = self.pyas_config.get("block_list", [])
+                    cur_ver = self.pyas_config.get("version", "0.0.0")
+
+                hwnd_list = []
+                def enum_windows_callback(hWnd, lParam):
+                    hwnd_list.append(hWnd)
+                    return True
+                    
+                self.user32.EnumWindows(WNDENUMPROC(enum_windows_callback), 0)
+                
+                for hWnd in hwnd_list:
+                    length = self.user32.GetWindowTextLengthW(hWnd)
+                    title = ctypes.create_unicode_buffer(length + 1)
+                    self.user32.GetWindowTextW(hWnd, title, length + 1)
+                    class_name = ctypes.create_unicode_buffer(256)
+                    self.user32.GetClassNameW(hWnd, class_name, 256)
+                    pid = ctypes.c_ulong(0)
+                    self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
+                    
+                    if pid.value <= 4:
+                        continue
+                        
+                    proc_name, file_path = self.get_exe_info(pid.value)
+                    t_str = str(title.value)
+                    c_str = str(class_name.value)
+                    
+                    if proc_name == "PYAS_Setup.exe" and c_str == "WindowClass_0" and t_str == "PYAS Setup":
+                        if file_path:
+                            setup_ver = self.get_file_version(file_path)
+                            if self.compare_versions(setup_ver, cur_ver):
+                                self.close()
+
+                    is_pass = any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows)
+                    if is_pass:
+                        continue
+                    
+                    if not rules:
+                        continue
+
+                    is_block = any(item.get("exe") == proc_name or item.get("class") == c_str or item.get("title") == t_str for item in rules)
+                    if is_block:
+                        for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
+                            self.user32.SendMessageW(hWnd, msg, 0xF060, 0)
+                        if proc_name:
+                            self.kill_process(pid.value)
+
+            except Exception:
+                pass
+
+####################################################################################################
+
+    def select_files(self):
+        if self._window:
+            result = self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=True)
+            return result or []
+        return []
+
+    def select_folder(self):
+        if self._window:
+            result = self._window.create_file_dialog(webview.FileDialog.FOLDER)
+            return result or []
+        return []
+
+####################################################################################################
+
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+####################################################################################################
+
+class NoCacheRequestHandler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        web_dir = os.path.join(get_base_path(), "Interface")
+        super().__init__(*args, directory=web_dir, **kwargs)
+
+    def do_GET(self):
+        if self.path == '/':
+            self.path = '/templates/index.html'
+        return super().do_GET()
+
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+        self.send_header("Expires", "0")
+        self.send_header("Pragma", "no-cache")
+        super().end_headers()
+
+####################################################################################################
+
+class WindowHook:
+    def __init__(self, title):
+        self.title = title
+        self.old_wndproc = None
+        self.WM_DPICHANGED = 0x02E0
+        self.WM_NCHITTEST = 0x0084
+        self.HTCAPTION = 2
+        self.GWLP_WNDPROC = -4
+
+        class RECT(ctypes.Structure):
+            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), 
+                        ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+        self.RECT = RECT
+        
+        self.WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p)
+        self.new_wndproc_cb = self.WNDPROC(self.wndproc)
+        self.user32 = ctypes.windll.user32
+
+        self.user32.CallWindowProcW.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p]
+        self.user32.CallWindowProcW.restype = ctypes.c_void_p
+
+        if ctypes.sizeof(ctypes.c_void_p) == 8:
+            self.SetWindowLong = self.user32.SetWindowLongPtrW
+            self.GetWindowLong = self.user32.GetWindowLongPtrW
+        else:
+            self.SetWindowLong = self.user32.SetWindowLongW
+            self.GetWindowLong = self.user32.GetWindowLongW
+
+        self.SetWindowLong.argtypes = [ctypes.c_void_p, ctypes.c_int, self.WNDPROC]
+        self.SetWindowLong.restype = ctypes.c_void_p
+        self.GetWindowLong.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        self.GetWindowLong.restype = ctypes.c_void_p
+
+    def hook(self):
+        hwnd = self.user32.FindWindowW(None, self.title)
+        if hwnd:
+            self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
+            self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
+
+    def wndproc(self, hwnd, msg, wparam, lparam):
+        if msg in [0x0010, 0x0002, 0x0012, 0x0212]:
+            return 0
+        
+        if msg == 0x0112 and (wparam & 0xFFF0) == 0xF060:
+            return 0
+
+        if msg == self.WM_NCHITTEST:
+            x = lparam & 0xFFFF
+            if x >= 32768: x -= 65536
+            y = (lparam >> 16) & 0xFFFF
+            if y >= 32768: y -= 65536
+            
+            rect = self.RECT()
+            self.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+            
+            if rect.top <= y <= rect.top + 44 and rect.left <= x <= rect.right - 150:
+                return self.HTCAPTION
+
+        if msg == self.WM_DPICHANGED:
+            rect = ctypes.cast(lparam, ctypes.POINTER(self.RECT)).contents
+            self.user32.SetWindowPos(hwnd, None, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0004 | 0x0010 | 0x0020)
+
+        if self.old_wndproc:
+            return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam)
+
+        return self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
+
+####################################################################################################
+
+def get_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('127.0.0.1', 0))
+        return s.getsockname()[1]
+
+def start_api(port):
+    TCPServer.allow_reuse_address = True
+    with TCPServer(("127.0.0.1", port), NoCacheRequestHandler) as httpd:
+        httpd.serve_forever()
 
 ####################################################################################################
 
 if __name__ == "__main__":
-    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-    app = QApplication(sys.argv)
-    MainWindow_Controller()
-    sys.exit(app.exec())
+    hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
+    init_width, init_height = 980, 670
+
+    port = get_free_port()
+
+    api_thread = threading.Thread(target=start_api, args=(port,), daemon=True)
+    api_thread.start()
+
+    js_api = WindowAPI()
+
+    user32 = ctypes.windll.user32
+    screen_width = user32.GetSystemMetrics(0)
+    screen_height = user32.GetSystemMetrics(1)
+    pos_x = (screen_width - init_width) // 2
+    pos_y = (screen_height - init_height) // 2
+
+    window = webview.create_window(
+        title="PYAS Security", url=f"http://127.0.0.1:{port}/",
+        width=init_width, height=init_height, x=pos_x, y=pos_y,
+        frameless=True, easy_drag=False, js_api=js_api,
+        background_color='#e0e0e0', hidden=hide_on_start)
+
+    if platform.system() == "Windows":
+        window_hook = WindowHook("PYAS Security")
+        window.events.shown += window_hook.hook
+
+    js_api.set_window(window)
+    js_api.show_tray()
+
+    webview.start()

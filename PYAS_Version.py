@@ -2,9 +2,9 @@ import pyinstaller_versionfile
 
 pyinstaller_versionfile.create_versionfile(
 output_file="versionfile.txt",
-version='3.4.6',
+version='3.5.0.0',
 company_name="PYAS Security",
-file_description="Python Antivirus Software",
+file_description="PYAS Security Antivirus",
 internal_name="PYAS",
 legal_copyright="PYAS Security",
 original_filename="PYAS.exe",

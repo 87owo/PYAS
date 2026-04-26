@@ -707,6 +707,11 @@ static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
     return FALSE;
 }
 
+static BOOLEAN IsUserDirectoryPath(PCUNICODE_STRING FileName) {
+    if (!FileName || !FileName->Buffer) return FALSE;
+    return WildcardMatch(L"*\\Users\\*", FileName->Buffer, FileName->Length);
+}
+
 static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
     if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
     PUNICODE_STRING imageFileName = NULL;
@@ -720,6 +725,10 @@ static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
 }
 
 BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID WriteBuffer, ULONG WriteLength, BOOLEAN IsWrite) {
+    if (!IsUserDirectoryPath(FileName)) {
+        return FALSE;
+    }
+
     if (IsNoisyRansomPath(FileName)) {
         return FALSE;
     }

@@ -1,5 +1,5 @@
 import os, re, yara, time, math, json, numpy, base64, datetime, requests
-import ctypes, ctypes.wintypes, hashlib, pefile, onnxruntime
+import ctypes, ctypes.wintypes, hashlib, pefile, threading, onnxruntime
 
 ####################################################################################################
 
@@ -699,17 +699,26 @@ class cloud_scanner:
         self.api_host = None
         self.api_key = None
         self.timeout = 30
+        self.lock = threading.RLock()
 
     def _init_session(self, api_host, api_key):
-        if self.session is None or self.api_host != api_host or self.api_key != api_key:
-            self.api_host = api_host.rstrip('/')
-            self.api_key = api_key
-            self.session = requests.Session()
-            self.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.2"})
+        with self.lock:
+            if self.session is None or self.api_host != api_host or self.api_key != api_key:
+                self.api_host = api_host.rstrip('/')
+                self.api_key = api_key
+                self.session = requests.Session()
+                self.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.1"})
 
     def _request(self, method, endpoint, **kwargs):
+        with self.lock:
+            current_session = self.session
+            current_host = self.api_host
+            
+        if not current_session:
+            return None
+            
         try:
-            r = self.session.request(method, f"{self.api_host}{endpoint}", timeout=self.timeout, **kwargs)
+            r = current_session.request(method, f"{current_host}{endpoint}", timeout=self.timeout, **kwargs)
             if r.status_code == 200:
                 return r
         except Exception:

@@ -1,6 +1,6 @@
 # PYAS
 
-Antivirus software written in Python and C++ that blocks threats through deep learning and behavioral monitoring!
+Antivirus software written in Python and C++ that blocks threats through Machine Learning and behavioral monitoring!
 
 <img width="2440" height="1600" alt="PYAS_All" src="https://github.com/user-attachments/assets/1991aad3-64cc-4266-ac67-dab70c891ce7" />
 
@@ -24,8 +24,6 @@ Non-essential requirements installation, only used for model training or other f
 ```
 pip install pandas
 pip install scikit-learn
-pip install tensorflow
-pip install tf2onnx
 pip install lightgbm
 pip install onnxmltools
 ```
@@ -43,8 +41,6 @@ PYAS/
 ├── Engine/                          # Complete code for Yara signatures and AI model training
 │   ├── Heuristic/
 │   │   └── ...                      # Yara Rules
-│   ├── Pattern/
-│   │   └── ...                      # CNN Model
 │   └── Properties/
 │       └── ...                      # LightGBM Model
 │
@@ -84,7 +80,6 @@ graph TD
         
         subgraph Engines ["Scanning Engines (PYAS_Engine.py)"]
             PEScanner["PE/ML Scanner (pe_scanner)"]:::userMode
-            CNNScanner["CNN Scanner (cnn_scanner)"]:::userMode
             RuleScanner["YARA Scanner (rule_scanner)"]:::userMode
             CloudScanner["Cloud API (cloud_scanner)"]:::userMode
             SignScanner["Signature Verify (sign_scanner)"]:::userMode

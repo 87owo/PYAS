@@ -1002,7 +1002,15 @@ class WindowAPI:
         deleted_paths = []
         running_procs = self.get_process_list()
         
+        proc_map = {}
+        for proc in running_procs:
+            if proc["path"] and proc["path"] != "None":
+                norm_p = self.norm_path(proc["path"], must_exist=False)
+                if norm_p:
+                    proc_map.setdefault(os.path.normcase(norm_p), []).append(proc["pid"])
+
         with self.lock_virus:
+            deleted_set = set()
             for raw_path in file_paths:
                 path = self.norm_path(raw_path, must_exist=False)
                 if not path:
@@ -1015,9 +1023,10 @@ class WindowAPI:
                     if path in self.virus_lock:
                         self.lock_file(path, False)
 
-                    for proc in running_procs:
-                        if self.path_equal(proc["path"], path):
-                            self.kill_process(proc["pid"])
+                    path_key = os.path.normcase(path)
+                    if path_key in proc_map:
+                        for pid in proc_map[path_key]:
+                            self.kill_process(pid)
 
                     try:
                         os.chmod(path, stat.S_IWRITE)
@@ -1026,16 +1035,18 @@ class WindowAPI:
 
                     self.remove_list_items("quarantine", [path])
                     os.remove(path)
-                    deleted_paths.append(raw_path) 
                     
-                    if path in self.virus_results:
-                        self.virus_results.remove(path)
+                    deleted_paths.append(raw_path) 
+                    deleted_set.add(path)
 
                     self.write_log("INFO", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), operate=True, success=True)
 
                 except Exception as e:
                     self.write_log("SCAN", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), detail=str(e), operate=True, success=False)
 
+            if deleted_set:
+                self.virus_results = [p for p in self.virus_results if p not in deleted_set]
+            
             remaining = len(self.virus_results)
         
         with self.lock_config:
@@ -1059,6 +1070,12 @@ class WindowAPI:
         if self._window:
             self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(result_msg)}, {remaining});")
         return deleted_paths
+
+    def remove_virus_result(self, paths):
+        with self.lock_virus:
+            norm_paths = set(self.norm_path(p, must_exist=False) for p in paths)
+            self.virus_results = [p for p in self.virus_results if p not in norm_paths]
+            return len(self.virus_results)
 
 ####################################################################################################
 

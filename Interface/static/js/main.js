@@ -1362,15 +1362,6 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (oldActive.id === 'repair_window') {
                 const list = document.querySelector('#repair_window .manage-list');
                 if (list) list.innerHTML = '';
-            } else if (oldActive.id === 'scan_window' && !isScanning) {
-                virusList.innerHTML = '';
-                scanMethodSelect.value = 'none';
-                scanMethodSelect.classList.remove('hidden');
-                stopBtn.classList.add('hidden');
-                solveBtn.classList.add('hidden');
-                if (progressTitle) progressTitle.textContent = getMsg("病毒掃描");
-                progressText.textContent = getMsg("此選項可以選擇掃描方式");
-                if (window.pywebview) window.pywebview.api.stop_scan();
             }
         }
 
@@ -1437,50 +1428,83 @@ document.addEventListener('DOMContentLoaded', () => {
     const progressTitle = document.querySelector('#scan_window .section-title');
     const virusList = document.getElementById('virus_list');
 
+    const virusState = new Map();
+
     window.addVirusResult = (label, path) => {
-        const li = document.createElement('li');
-        li.className = 'manage-list-item';
-        li.innerHTML = `
-            <input type="checkbox" value="${path}" checked>
-            <div class="manage-list-item-content"><strong>${label}</strong> | ${path}</div>
-        `;
-        li.addEventListener('click', (e) => {
-            if (e.target.tagName !== 'INPUT') {
-                const cb = li.querySelector('input');
-                cb.checked = !cb.checked;
-            }
-        });
+        if (!virusState.has(path)) {
+            virusState.set(path, true);
+            const li = document.createElement('li');
+            li.className = 'manage-list-item';
+            li.dataset.path = path;
+            li.innerHTML = `
+                <input type="checkbox" value="${path}" checked>
+                <div class="manage-list-item-content"><strong>${label}</strong> | ${path}</div>
+            `;
+            virusList.appendChild(li);
+        }
+    };
+
+    virusList.addEventListener('click', (e) => {
+        const li = e.target.closest('.manage-list-item');
+        if (!li) return;
         
-        li.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (window.pywebview) {
-                window.pywebview.api.prompt_virus_action(path).then(action => {
-                    if (action === '1') {
-                        window.pywebview.api.manage_named_list('white_list', [path], 'add').then(() => li.remove());
-                    } else if (action === '2') {
-                        window.pywebview.api.manage_named_list('quarantine', [path], 'add').then(() => li.remove());
-                    }
+        const cb = li.querySelector('input');
+        if (e.target.tagName !== 'INPUT') {
+            cb.checked = !cb.checked;
+        }
+        virusState.set(li.dataset.path, cb.checked);
+    });
+
+    virusList.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        const li = e.target.closest('.manage-list-item');
+        if (!li || !window.pywebview) return;
+        
+        const path = li.dataset.path;
+        window.pywebview.api.prompt_virus_action(path).then(action => {
+            if (action === '1') {
+                window.pywebview.api.manage_named_list('white_list', [path], 'add').then(() => {
+                    window.pywebview.api.remove_virus_result([path]).then(() => {
+                        virusState.delete(path);
+                        li.remove();
+                        if (virusState.size === 0) solveBtn.classList.add('hidden');
+                    });
+                });
+            } else if (action === '2') {
+                window.pywebview.api.manage_named_list('quarantine', [path], 'add').then(() => {
+                    window.pywebview.api.remove_virus_result([path]).then(() => {
+                        virusState.delete(path);
+                        li.remove();
+                        if (virusState.size === 0) solveBtn.classList.add('hidden');
+                    });
                 });
             }
         });
-        virusList.appendChild(li);
-    };
+    });
 
     solveBtn?.addEventListener('click', () => {
         if (!window.pywebview) return;
-        const cbs = Array.from(virusList.querySelectorAll('input[type="checkbox"]:checked'));
-        const paths = cbs.map(cb => cb.value);
+        
+        const paths = Array.from(virusState.entries())
+            .filter(([_, isChecked]) => isChecked)
+            .map(([path, _]) => path);
+
         if (paths.length === 0) return;
         
         solveBtn.disabled = true;
         window.pywebview.api.solve_scan(paths).then((deletedPaths) => {
             solveBtn.disabled = false;
-            cbs.forEach(cb => {
-                if (deletedPaths.includes(cb.value)) {
-                    cb.parentElement.remove();
+            
+            const deletedSet = new Set(deletedPaths);
+            deletedPaths.forEach(p => virusState.delete(p));
+            
+            Array.from(virusList.children).forEach(li => {
+                if (deletedSet.has(li.dataset.path)) {
+                    li.remove();
                 }
             });
-            if (virusList.children.length === 0) solveBtn.classList.add('hidden');
+            
+            if (virusState.size === 0) solveBtn.classList.add('hidden');
         });
     });
 
@@ -1500,16 +1524,18 @@ document.addEventListener('DOMContentLoaded', () => {
         progressText.textContent = msg;
         stopBtn.classList.add('hidden');
         scanMethodSelect.classList.remove('hidden');
-        scanMethodSelect.value = 'none';
+        updateCustomSelectUI('scan_method_select', 'none');
         if (count > 0) solveBtn.classList.remove('hidden');
     };
 
     function triggerScan(method) {
         if (!window.pywebview) return;
         isScanning = true;
+        virusState.clear();
         virusList.innerHTML = '';
         scanMethodSelect.classList.add('hidden');
         stopBtn.classList.remove('hidden');
+        stopBtn.disabled = false;
         solveBtn.classList.add('hidden');
         if (progressTitle) progressTitle.textContent = getMsg("正在掃描");
         progressText.textContent = getMsg("正在初始化中");
@@ -1524,12 +1550,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     stopBtn?.addEventListener('click', () => {
         if (window.pywebview) window.pywebview.api.stop_scan();
-        isScanning = false;
-        stopBtn.classList.add('hidden');
-        scanMethodSelect.classList.remove('hidden');
-        scanMethodSelect.value = 'none';
-        if (progressTitle) progressTitle.textContent = getMsg("病毒掃描");
-        progressText.textContent = getMsg("停止");
+        stopBtn.disabled = true;
     });
 
     document.getElementById('theme_select').addEventListener('change', (e) => {
@@ -1567,6 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
         switchPage('scan_window');
         if (window.pywebview) {
             isScanning = true;
+            virusState.clear();
             virusList.innerHTML = '';
             scanMethodSelect.classList.add('hidden');
             stopBtn.classList.remove('hidden');

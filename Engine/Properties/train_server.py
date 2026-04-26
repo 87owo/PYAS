@@ -12,7 +12,7 @@ from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
 
 DB_PATH = "pe_features.db"
 MODEL_FILE = "model.txt"
-ONNX_FILE = "model.onnx"
+ONNX_FILE = "Pefile_General_S1.onnx"
 FEATURE_FILE = "features.json"
 TEST_SIZE = 0.0001
 RANDOM_SEED = 42
@@ -114,7 +114,7 @@ def train_process(X, y):
     n_neg = (y_train == 0).sum()
     
     base_weight = n_neg / n_pos if n_pos > 0 else 1.0
-    weight_ratio_target = 0.1
+    weight_ratio_target = 0.01
     final_pos_weight = base_weight * weight_ratio_target
     
     print(f"[*] Balance Report: Safe={n_neg}, Malware={n_pos}")

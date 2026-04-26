@@ -1,4 +1,4 @@
-# PYAS
+# PYAS Security
 
 Antivirus software written in Python and C++ that blocks threats through Machine Learning and behavioral monitoring!
 

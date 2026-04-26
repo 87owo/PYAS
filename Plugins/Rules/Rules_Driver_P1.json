@@ -163,9 +163,9 @@
   ],
   "Rule_File_ProtectedPaths": [
     "*\\PYAS.exe",
-    "*\\PYAS_Driver.sys",
-    "*\\ProgramData\\PYAS\\*.json",
+    "*\\Plugins\\Filter\\PYAS_Driver.sys",
     "*\\Plugins\\Rules\\Rules_Driver_P1.json",
+    "*\\ProgramData\\PYAS\\*.json",
     "*\\Engine\\Pattern\\*.onnx",
     "*\\Engine\\Properties\\*.onnx",
     

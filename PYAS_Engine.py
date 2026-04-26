@@ -1,8 +1,5 @@
-import os, yara, time, numpy, base64, requests, pefile, math, json, re, datetime
-import ctypes, ctypes.wintypes, hashlib, onnxruntime
-
-from PIL import Image
-from io import BytesIO
+import os, re, yara, time, math, json, numpy, base64, datetime, requests
+import ctypes, ctypes.wintypes, hashlib, pefile, onnxruntime
 
 ####################################################################################################
 
@@ -161,114 +158,6 @@ class rule_scanner:
             return False, False
         except Exception:
             return False, False
-
-####################################################################################################
-
-class cnn_scanner:
-    def __init__(self):
-        self.models = []
-        self.labels = ["White:WinPE/Unknown", "General:WinPE/Unknown"]
-        self.detect_set = {"General:WinPE/Unknown"}
-        self.resize = (224, 224)
-
-    def load_path(self, path, callback=None):
-        for root, _, files in os.walk(path):
-            for file in files:
-                full_path = os.path.join(root, file)
-                if callback:
-                    callback(full_path)
-                self.load_file(full_path)
-
-    def load_file(self, file):
-        if file.lower().endswith('.onnx'):
-            try:
-                session = onnxruntime.InferenceSession(file, providers=['CPUExecutionProvider'])
-                self.models.append(session)
-            except Exception:
-                return False
-
-####################################################################################################
-
-    def model_scan(self, file_path, full_output=False):
-        if not self.models:
-            return (False, False) if not full_output else ([], str(file_path), None)
-
-        data = self.get_data(file_path)
-        if not data:
-            return (False, False) if not full_output else ([], str(file_path), None)
-
-        image = self.preprocess_image(data, self.resize)
-        if not image:
-            return (False, False) if not full_output else ([], str(file_path), None)
-
-        arr = numpy.asarray(image).astype('float32') / 255.0
-        arr = numpy.expand_dims(arr, axis=0)
-        if arr.ndim == 3:
-            arr = numpy.expand_dims(arr, axis=-1)
-
-        results = []
-        best_malicious = None
-
-        for model in self.models:
-            input_meta = model.get_inputs()[0]
-            input_name = input_meta.name
-            input_shape = input_meta.shape
-            
-            curr_arr = arr.copy()
-            if len(input_shape) == 4:
-                if input_shape[1] in (1, 3) and input_shape[3] not in (1, 3):
-                    curr_arr = curr_arr.transpose(0, 3, 1, 2)
-            
-            try:
-                probs = model.run(None, {input_name: curr_arr})[0]
-                pred_prob = float(probs[0][0]) if hasattr(probs[0], '__len__') else float(probs[0])
-            except Exception:
-                continue
-
-            is_malicious = pred_prob > 0.5
-            idx = 1 if is_malicious else 0
-            label = self.labels[idx]
-            
-            conf = pred_prob if is_malicious else (1.0 - pred_prob)
-            conf = round(conf * 100, 2)
-
-            if full_output:
-                results.append(("Whole File", label, conf, self.pil_to_base64(image)))
-            
-            if label in self.detect_set:
-                if best_malicious is None or conf > best_malicious[1]:
-                    best_malicious = (f"{label}.{int(conf)}!dl", int(conf))
-
-        if full_output:
-            results.sort(key=lambda x: (x[1] not in self.detect_set, -x[2]))
-            malicious_count = sum(1 for _, lbl, _, _ in results if lbl in self.detect_set)
-            total = len(results)
-            return results, str(file_path), f"{malicious_count}/{total}"
-
-        return best_malicious if best_malicious else (False, False)
-
-####################################################################################################
-
-    def pil_to_base64(self, img):
-        buf = BytesIO()
-        img.save(buf, format='PNG')
-        return base64.b64encode(buf.getvalue()).decode()
-
-    def preprocess_image(self, data, size, channels=1):
-        width, height = size
-        wah = int(numpy.ceil(numpy.sqrt(len(data) / channels)))
-        arr = numpy.frombuffer(data, dtype=numpy.uint8)
-        imgbuf = numpy.zeros(wah * wah * channels, dtype=numpy.uint8)
-        imgbuf[:len(arr)] = arr
-        image = Image.fromarray(imgbuf.reshape((wah, wah)), 'L')
-        return image.resize((width, height), Image.Resampling.NEAREST)
-
-    def get_data(self, file_path):
-        try:
-            with open(file_path, 'rb') as f:
-                return f.read()
-        except Exception:
-            return None
 
 ####################################################################################################
 
@@ -762,7 +651,7 @@ class pe_scanner:
 
 ####################################################################################################
 
-    def pe_scan(self, file_path):
+    def pe_scan(self, file_path, enhanced_mode=False):
         if not self.model:
             return False, False
         try:
@@ -792,8 +681,12 @@ class pe_scanner:
                     prob = float(result[0][1])
 
             score = int(prob * 100)
-            if prob > 0.5:
-                return f"General:WinPE/Unknown.{score}!ml", score
+            
+            if score >= 80:
+                return f"General:WinPE/Malware.{score}!ml", score
+            elif enhanced_mode and score >= 50:
+                return f"General:WinPE/Suspicious.{score}!ml", score
+
             return False, False
         except Exception:
             return False, False

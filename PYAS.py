@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler
 from socketserver import TCPServer
 
-from PYAS_Engine import sign_scanner, cnn_scanner, rule_scanner, pe_scanner, cloud_scanner
+from PYAS_Engine import sign_scanner, rule_scanner, pe_scanner, cloud_scanner
 
 ####################################################################################################
 
@@ -405,7 +405,6 @@ class WindowAPI:
         self.python = sys.executable
         self.sign = sign_scanner()
         self.sign.init_windll(["wintrust"])
-        self.pattern = cnn_scanner()
         self.heuristic = rule_scanner()
         self.properties = pe_scanner()
         self.cloud = cloud_scanner()
@@ -423,7 +422,7 @@ class WindowAPI:
         self.engine_initialized = False
 
         self.pyas_default = {
-            "version": "3.5.0",
+            "version": "3.5.1",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
@@ -800,7 +799,6 @@ class WindowAPI:
                 self.write_log("INFO", "Load Engine", source=os.path.basename(x))
                 
             self.heuristic.load_path(self.path_heuristic, callback=log_callback)
-            self.pattern.load_path(self.path_pattern, callback=log_callback)
             self.properties.load_path(self.path_properties, callback=log_callback)
             self.write_log("INFO", "System", detail="Engine Initialization Complete")
             
@@ -967,15 +965,16 @@ class WindowAPI:
                 yield from self.yield_files(t)
 
     def scan_engine(self, file_path):
-        try:
-            pe_label, _ = self.properties.pe_scan(file_path)
-            if pe_label:
-                return pe_label
-        except Exception: pass
-        
         with self.lock_config:
             ext_switch = self.pyas_config.get("extension_switch", False)
             sen_switch = self.pyas_config.get("sensitive_switch", False)
+            
+        try:
+            pe_label, _ = self.properties.pe_scan(file_path, enhanced_mode=sen_switch)
+            if pe_label:
+                return pe_label
+        except Exception: 
+            pass
             
         try:
             if ext_switch:
@@ -984,14 +983,7 @@ class WindowAPI:
                     return yara_label
         except Exception:
             pass
-        
-        try:
-            if sen_switch:
-                cnn_label, _ = self.pattern.model_scan(file_path)
-                if cnn_label:
-                    return cnn_label
-        except Exception:
-            pass
+            
         return False
 
 ####################################################################################################

@@ -2406,7 +2406,16 @@ class WindowAPI:
                     if is_pass:
                         continue
                     
-                    is_block = any(item.get("exe") == proc_name or item.get("class") == c_str or item.get("title") == t_str for item in rules)
+                    is_block = False
+                    for item in rules:
+                        match_exe = item.get("exe") and item.get("exe") == proc_name
+                        match_class = item.get("class") and item.get("class") == c_str
+                        match_title = item.get("title") and item.get("title") == t_str
+                        
+                        if match_exe and (match_class or match_title):
+                            is_block = True
+                            break
+
                     if is_block:
                         for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
                             self.user32.SendMessageW(hWnd, msg, 0xF060, 0)

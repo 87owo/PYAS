@@ -1307,6 +1307,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.dataset.originPlaceholder = el.getAttribute('placeholder'); });
     document.querySelectorAll("option[data-i18n]").forEach(el => { el.dataset.originText = el.textContent.trim(); });
 
+    const langMap = {
+        traditional_switch: "zh-Hant",
+        simplified_switch: "zh-Hans",
+        english_switch: "en",
+        japanese_switch: "ja",
+        korean_switch: "ko",
+        french_switch: "fr",
+        spanish_switch: "es",
+        hindi_switch: "hi",
+        arabic_switch: "ar",
+        russian_switch: "ru",
+        slovenian_switch: "sl"
+    };
+
     const translateText = (lang) => {
         currentLang = lang;
         const currentDict = dict[lang] || dict["english_switch"];
@@ -1318,6 +1332,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const originText = el.dataset.originPlaceholder;
             el.setAttribute('placeholder', currentDict[originText] || originText);
         });
+
+        document.documentElement.lang = langMap[currentLang] || "en";
     };
 
     const applyTheme = (theme) => {

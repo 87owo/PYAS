@@ -1658,6 +1658,15 @@ class WindowAPI:
         if isinstance(norm_paths, str):
             norm_paths = [norm_paths] if norm_paths else []
 
+        if not norm_paths:
+            return 0
+
+        if action == "add":
+            if list_key == "white_list":
+                self.remove_list_items("quarantine", norm_paths)
+            elif list_key == "quarantine":
+                self.remove_list_items("white_list", norm_paths)
+
         acted_items = []
         with self.lock_config:
             target_list = self.pyas_config.setdefault(list_key, [])

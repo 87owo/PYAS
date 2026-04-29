@@ -1,4 +1,0 @@
-onnxruntime
-numpy
-pefile
-signify[full]

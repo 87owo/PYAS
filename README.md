@@ -34,10 +34,6 @@ The following lists the storage locations of all relevant code and other related
 
 ```
 PYAS/
-├── Embed/                           # Deploy an embedded command line antivirus engine
-│   ├── Dockerfile
-│   └── ...
-│
 ├── Engine/                          # Complete code for Yara signatures and AI model training
 │   ├── Heuristic/
 │   │   └── ...                      # Yara Rules

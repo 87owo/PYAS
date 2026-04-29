@@ -424,6 +424,7 @@ class WindowAPI:
         self.cloud_queue = queue.Queue()
         
         self.lock_driver = threading.RLock()
+        self.lock_update = threading.RLock()
         self.driver_port = None
         self.scan_running = False
         self.scan_finished = False
@@ -503,36 +504,41 @@ class WindowAPI:
                 self.write_log("WARN", "save_config", detail=str(e), success=False)
 
     def update_config(self, key, value):
-        with self.lock_config:
-            old_value = self.pyas_config.get(key)
-            if old_value != value:
+        with self.lock_update:
+            with self.lock_config:
+                old_value = self.pyas_config.get(key)
+                if old_value == value:
+                    return value
                 self.pyas_config[key] = value
                 self.write_log("INFO", "Config Update", detail=f"[{key}] {old_value} -> {value}")
                 self.save_config()
-            
-        if key == "process_switch" and value:
-            self.start_daemon_thread(self.protect_proc_thread)
-        elif key == "document_switch" and value:
-            self.start_daemon_thread(self.protect_file_thread)
-        elif key == "system_switch" and value:
-            self.start_daemon_thread(self.protect_system_thread)
-        elif key == "network_switch" and value:
-            self.start_daemon_thread(self.protect_net_thread)
-        elif key == "context_switch":
-            self.register_context_menu(value)
-        elif key == "driver_switch":
-            if value:
-                if self.install_system_driver():
-                    self.start_daemon_thread(self.pipe_server_thread)
+                
+            if key == "process_switch" and value:
+                self.start_daemon_thread(self.protect_proc_thread)
+            elif key == "document_switch" and value:
+                self.start_daemon_thread(self.protect_file_thread)
+            elif key == "system_switch" and value:
+                self.start_daemon_thread(self.protect_system_thread)
+            elif key == "network_switch" and value:
+                self.start_daemon_thread(self.protect_net_thread)
+            elif key == "context_switch":
+                self.register_context_menu(value)
+            elif key == "driver_switch":
+                if value:
+                    if self.install_system_driver():
+                        self.start_daemon_thread(self.pipe_server_thread)
+                    else:
+                        with self.lock_config:
+                            self.pyas_config[key] = False
+                            self.write_log("INFO", "Config Update", detail=f"[{key}] True -> False")
+                            self.save_config()
+                        if self._window:
+                            self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
+                        return False
                 else:
-                    with self.lock_config:
-                        self.pyas_config[key] = False
-                        self.write_log("INFO", "Config Update", detail=f"[{key}] True -> False")
-                        self.save_config()
-                    if self._window:
-                        self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
-            else:
-                self.stop_system_driver()
+                    self.stop_system_driver()
+            
+            return value
 
     def get_config(self):
         with self.lock_config:

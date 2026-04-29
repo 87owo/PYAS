@@ -1591,10 +1591,21 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
-        toggle.addEventListener('change', (e) => {
+        toggle.addEventListener('change', async (e) => {
             const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
-            if (window.pywebview && switchMap[index]) {
-                window.pywebview.api.update_config(switchMap[index], e.target.checked);
+            const key = switchMap[index];
+            if (window.pywebview && key) {
+                toggle.disabled = true;
+                try {
+                    const result = await window.pywebview.api.update_config(key, e.target.checked);
+                    if (result !== undefined && result !== null) {
+                        toggle.checked = result;
+                    }
+                } catch (err) {
+                    toggle.checked = !e.target.checked;
+                } finally {
+                    toggle.disabled = false;
+                }
             }
         });
     });
@@ -1639,7 +1650,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchInput = document.querySelector(`${containerSelector} .search-box input`);
         if (!container) return;
 
-        const render = (filterText = "") => {
+        container.renderData = (filterText = "") => {
             container.innerHTML = '';
             dataList.forEach(item => {
                 const displayStr = typeof item === 'object' ? item[displayKey] : item;
@@ -1665,11 +1676,10 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        render(searchInput ? searchInput.value : "");
+        container.renderData(searchInput ? searchInput.value : "");
         
-        if (searchInput && !searchInput.dataset.bound) {
-            searchInput.addEventListener('input', (e) => render(e.target.value));
-            searchInput.dataset.bound = true;
+        if (searchInput) {
+            searchInput.oninput = (e) => container.renderData(e.target.value);
         }
     }
 
@@ -1829,6 +1839,21 @@ document.addEventListener('DOMContentLoaded', () => {
             logWidget.scrollTop = logWidget.scrollHeight;
         }
 
+        const exportWindow = document.getElementById('log_export_window');
+        if (exportWindow && exportWindow.classList.contains('active')) {
+            if (window.pywebview) {
+                window.pywebview.api.get_logs().then(logs => {
+                    const logList = logs.reverse().map(log => {
+                        let displayStr = `[${log.time_str}] ${log.level} | ${log.action}`;
+                        if (log.source) displayStr += ` | ${log.source.split('\\').pop().split('/').pop()}`;
+                        if (log.detail) displayStr += ` | ${log.detail}`;
+                        return { display: displayStr, value: log.id };
+                    });
+                    renderManageList('#log_export_window', logList, 'display', 'value', true);
+                });
+            }
+        }
+
         if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || 
             (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
             const overlay = document.getElementById('loading_overlay');
@@ -1908,8 +1933,14 @@ document.addEventListener('DOMContentLoaded', () => {
             window.pywebview.api.show_confirm(getMsg("提示"), confirmMsg).then(res => {
                 if (res) {
                     window.pywebview.api.clear_logs(checkedIds).then(() => {
-                        document.querySelectorAll('#log_export_window .manage-list-item input[type="checkbox"]:checked').forEach(cb => {
-                            cb.parentElement.remove();
+                        window.pywebview.api.get_logs().then(logs => {
+                            const logList = logs.reverse().map(log => {
+                                let displayStr = `[${log.time_str}] ${log.level} | ${log.action}`;
+                                if (log.source) displayStr += ` | ${log.source.split('\\').pop().split('/').pop()}`;
+                                if (log.detail) displayStr += ` | ${log.detail}`;
+                                return { display: displayStr, value: log.id };
+                            });
+                            renderManageList('#log_export_window', logList, 'display', 'value', true);
                         });
                         const successMsg = getMsg("選取的日誌已刪除。");
                         window.pywebview.api.show_alert(getMsg("提示"), successMsg, "info");

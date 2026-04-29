@@ -34,6 +34,36 @@ VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INF
     }
 }
 
+static BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId) {
+    if (ProcessId == (HANDLE)4) return TRUE;
+
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
+
+    NTSTATUS status;
+    BOOLEAN isCritical = FALSE;
+    PEPROCESS Process = NULL;
+    PUNICODE_STRING imageFileName = NULL;
+
+    status = PsLookupProcessByProcessId(ProcessId, &Process);
+    if (!NT_SUCCESS(status)) return FALSE;
+
+    status = SeLocateProcessImageName(Process, &imageFileName);
+
+    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
+        if (WildcardMatch(L"*\\Windows\\System32\\csrss.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*\\Windows\\System32\\lsass.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*\\Windows\\System32\\services.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*\\Windows\\System32\\wininit.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*\\Windows\\System32\\smss.exe", imageFileName->Buffer, imageFileName->Length)) {
+            isCritical = TRUE;
+        }
+        ExFreePool(imageFileName);
+    }
+
+    ObDereferenceObject(Process);
+    return isCritical;
+}
+
 static BOOLEAN IsBlacklistedAdminTool(HANDLE ProcessId) {
     if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
 
@@ -79,6 +109,8 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
 
     if (IsTargetProtected(TargetPid)) {
+        if (IsCriticalSystemProcess(SourcePid)) return OB_PREOP_SUCCESS;
+
         BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
 
         if (bIsTrusted) {
@@ -99,10 +131,10 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
             PROCESS_SET_INFORMATION |
             PROCESS_SET_QUOTA;
 
-        OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~DenyMask;
+        OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
 
         if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
-            OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= ~DenyMask;
+            OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
         }
     }
 
@@ -128,6 +160,8 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
     if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
 
     if (IsTargetProtected(TargetPid)) {
+        if (IsCriticalSystemProcess(SourcePid)) return OB_PREOP_SUCCESS;
+
         BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
 
         if (bIsTrusted) {
@@ -144,10 +178,10 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
             THREAD_SET_INFORMATION |
             THREAD_SET_THREAD_TOKEN;
 
-        OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= ~DenyMask;
+        OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
 
         if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
-            OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= ~DenyMask;
+            OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
         }
     }
 

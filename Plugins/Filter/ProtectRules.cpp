@@ -10,19 +10,21 @@ constexpr auto TRUST_CACHE_TTL_SEC = 300;
 
 typedef struct _RANSOM_TRACKER {
     PEPROCESS Process;
+    LARGE_INTEGER ProcessCreateTime;
     ULONG ActivityCount;
     LARGE_INTEGER LastActivityTime;
 } RANSOM_TRACKER, * PRANSOM_TRACKER;
 
 typedef struct _TRUST_CACHE_ENTRY {
     PEPROCESS Process;
+    LARGE_INTEGER ProcessCreateTime;
     BOOLEAN IsTrusted;
     LARGE_INTEGER CacheTime;
 } TRUST_CACHE_ENTRY, * PTRUST_CACHE_ENTRY;
 
 static RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
 static TRUST_CACHE_ENTRY TrustCache[TRUST_CACHE_SIZE];
-static FAST_MUTEX TrustCacheLock;
+static KSPIN_LOCK TrustCacheLock;
 static BOOLEAN g_CacheInitialized = FALSE;
 
 static ERESOURCE RuleLock;
@@ -107,7 +109,7 @@ static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
 }
 
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
-    if (!Pattern || !String) return FALSE;
+    if (Pattern == NULL || String == NULL) return FALSE;
 
     USHORT StringLenChars = StringLengthBytes / sizeof(WCHAR);
     PCWSTR mp = NULL;
@@ -123,7 +125,7 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
             Pattern++;
             String++;
         }
-        else if (mp) {
+        else if (mp != NULL) {
             Pattern = mp;
             String = cp++;
         }
@@ -134,7 +136,8 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
     while (*Pattern == L'*') {
         Pattern++;
     }
-    return !*Pattern;
+
+    return (*Pattern == L'\0') ? TRUE : FALSE;
 }
 
 static ULONG ProcessJsonUnescape(PWCHAR Buffer, ULONG LengthChars) {
@@ -202,17 +205,23 @@ static VOID ParseAndLoadRules(PCHAR JsonContent, ULONG ContentLength, PCSTR KeyN
 
                     while (Ptr < End) {
                         SkipWhitespace(&Ptr, End);
-                        if (Ptr >= End) break;
-
-                        if (*Ptr == ']') {
-                            Ptr++;
+                        if (Ptr >= End || *Ptr == ']') {
+                            if (Ptr < End) Ptr++;
                             return;
                         }
 
                         if (*Ptr == '"') {
                             PCHAR StartQuote = ++Ptr;
+                            BOOLEAN Escaped = FALSE;
+
                             while (Ptr < End) {
-                                if (*Ptr == '"' && *(Ptr - 1) != '\\') break;
+                                if (*Ptr == '"' && Escaped == FALSE) break;
+                                if (*Ptr == '\\') {
+                                    Escaped = (Escaped == FALSE) ? TRUE : FALSE;
+                                }
+                                else {
+                                    Escaped = FALSE;
+                                }
                                 Ptr++;
                             }
 
@@ -242,9 +251,6 @@ static VOID ParseAndLoadRules(PCHAR JsonContent, ULONG ContentLength, PCSTR KeyN
                                 Ptr++;
                             }
                         }
-                        else if (*Ptr == ',') {
-                            Ptr++;
-                        }
                         else {
                             Ptr++;
                         }
@@ -259,7 +265,7 @@ static VOID ParseAndLoadRules(PCHAR JsonContent, ULONG ContentLength, PCSTR KeyN
 
 VOID InitializeRulesEngine() {
     ExInitializeResourceLite(&RuleLock);
-    ExInitializeFastMutex(&TrustCacheLock);
+    KeInitializeSpinLock(&TrustCacheLock);
     RtlZeroMemory(TrustCache, sizeof(TrustCache));
     g_CacheInitialized = TRUE;
 }
@@ -298,25 +304,33 @@ static VOID RemoveRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
 }
 
 VOID AddDynamicWhitelist(PUNICODE_STRING RuleStr) {
+    KeEnterCriticalRegion();
     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
     AddRule(&g_ProcessTrustedPaths, RuleStr);
     AddRule(&g_FileExceptionPaths, RuleStr);
 
-    ExAcquireFastMutex(&TrustCacheLock);
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
     RtlZeroMemory(TrustCache, sizeof(TrustCache));
-    ExReleaseFastMutex(&TrustCacheLock);
+    KeReleaseSpinLock(&TrustCacheLock, OldIrql);
+
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
 }
 
 VOID RemoveDynamicWhitelist(PUNICODE_STRING RuleStr) {
+    KeEnterCriticalRegion();
     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
     RemoveRule(&g_ProcessTrustedPaths, RuleStr);
     RemoveRule(&g_FileExceptionPaths, RuleStr);
 
-    ExAcquireFastMutex(&TrustCacheLock);
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
     RtlZeroMemory(TrustCache, sizeof(TrustCache));
-    ExReleaseFastMutex(&TrustCacheLock);
+    KeReleaseSpinLock(&TrustCacheLock, OldIrql);
+
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
 }
 
 NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
@@ -359,58 +373,58 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
     }
 
     if (Info->Type == REG_EXPAND_SZ || Info->Type == REG_SZ) {
-        PathBufferSize = ResultLength + 1024;
+        PathBufferSize = Info->DataLength + 1024;
         PathBuffer = (PWCHAR)PyasAllocate(PathBufferSize);
 
         if (PathBuffer) {
             RtlZeroMemory(PathBuffer, PathBufferSize);
-            PWCHAR Src = (PWCHAR)Info->Data;
+            if (Info->DataLength > 0) {
+                RtlCopyMemory(PathBuffer, Info->Data, Info->DataLength);
+            }
 
-            if (NT_SUCCESS(RtlStringCbCopyW(PathBuffer, PathBufferSize, Src))) {
-                PWCHAR LastSlash = NULL;
-                PWCHAR Current = PathBuffer;
-                while (*Current) {
-                    if (*Current == L'\\') LastSlash = Current;
-                    Current++;
-                }
+            PWCHAR LastSlash = NULL;
+            PWCHAR Current = PathBuffer;
+            while (*Current) {
+                if (*Current == L'\\') LastSlash = Current;
+                Current++;
+            }
 
-                if (LastSlash) {
-                    *LastSlash = L'\0';
+            if (LastSlash) {
+                *LastSlash = L'\0';
 
-                    SIZE_T CurrentPathLen = wcslen(PathBuffer);
-                    const WCHAR FilterSuffix[] = L"\\Filter";
-                    SIZE_T FilterLen = (sizeof(FilterSuffix) / sizeof(WCHAR)) - 1;
+                SIZE_T CurrentPathLen = wcslen(PathBuffer);
+                const WCHAR FilterSuffix[] = L"\\Filter";
+                SIZE_T FilterLen = (sizeof(FilterSuffix) / sizeof(WCHAR)) - 1;
 
-                    if (CurrentPathLen >= FilterLen) {
-                        PWCHAR SuffixStart = PathBuffer + CurrentPathLen - FilterLen;
-                        BOOLEAN Match = TRUE;
-                        for (SIZE_T i = 0; i < FilterLen; i++) {
-                            if (RtlDowncaseUnicodeChar(SuffixStart[i]) != RtlDowncaseUnicodeChar(FilterSuffix[i])) {
-                                Match = FALSE;
-                                break;
-                            }
-                        }
-                        if (Match) {
-                            *SuffixStart = L'\0';
+                if (CurrentPathLen >= FilterLen) {
+                    PWCHAR SuffixStart = PathBuffer + CurrentPathLen - FilterLen;
+                    BOOLEAN Match = TRUE;
+                    for (SIZE_T i = 0; i < FilterLen; i++) {
+                        if (RtlDowncaseUnicodeChar(SuffixStart[i]) != RtlDowncaseUnicodeChar(FilterSuffix[i])) {
+                            Match = FALSE;
+                            break;
                         }
                     }
-
-                    RtlStringCbCatW(PathBuffer, PathBufferSize, L"\\Rules\\Rules_Driver_P1.json");
-
-                    if (wcsncmp(PathBuffer, L"\\??\\", 4) != 0 &&
-                        wcsncmp(PathBuffer, L"\\SystemRoot", 11) != 0 &&
-                        wcsncmp(PathBuffer, L"\\DosDevices\\", 12) != 0) {
-
-                        PWCHAR TmpBuffer = (PWCHAR)PyasAllocate(PathBufferSize + 16);
-                        if (TmpBuffer) {
-                            RtlStringCbCopyW(TmpBuffer, PathBufferSize + 16, L"\\??\\");
-                            RtlStringCbCatW(TmpBuffer, PathBufferSize + 16, PathBuffer);
-                            PyasFree(PathBuffer);
-                            PathBuffer = TmpBuffer;
-                        }
+                    if (Match) {
+                        *SuffixStart = L'\0';
                     }
-                    RtlInitUnicodeString(&FinalPath, PathBuffer);
                 }
+
+                RtlStringCbCatW(PathBuffer, PathBufferSize, L"\\Rules\\Rules_Driver_P1.json");
+
+                if (wcsncmp(PathBuffer, L"\\??\\", 4) != 0 &&
+                    wcsncmp(PathBuffer, L"\\SystemRoot", 11) != 0 &&
+                    wcsncmp(PathBuffer, L"\\DosDevices\\", 12) != 0) {
+
+                    PWCHAR TmpBuffer = (PWCHAR)PyasAllocate(PathBufferSize + 16);
+                    if (TmpBuffer) {
+                        RtlStringCbCopyW(TmpBuffer, PathBufferSize + 16, L"\\??\\");
+                        RtlStringCbCatW(TmpBuffer, PathBufferSize + 16, PathBuffer);
+                        PyasFree(PathBuffer);
+                        PathBuffer = TmpBuffer;
+                    }
+                }
+                RtlInitUnicodeString(&FinalPath, PathBuffer);
             }
         }
     }
@@ -435,6 +449,7 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
                 if (NT_SUCCESS(status)) {
                     ((PCHAR)FileBuffer)[FileInfo.EndOfFile.LowPart] = '\0';
 
+                    KeEnterCriticalRegion();
                     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Registry_BlockList", &g_RegistryBlockList);
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Registry_TrustedList", &g_RegistryTrustedList);
@@ -444,6 +459,7 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_ExceptionPaths", &g_FileExceptionPaths);
                     ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_RansomwareExtensions", &g_FileRansomExts);
                     ExReleaseResourceLite(&RuleLock);
+                    KeLeaveCriticalRegion();
                 }
                 PyasFree(FileBuffer);
             }
@@ -456,6 +472,7 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
 }
 
 VOID UnloadRules() {
+    KeEnterCriticalRegion();
     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
     FreeList(&g_RegistryBlockList);
     FreeList(&g_RegistryTrustedList);
@@ -465,9 +482,14 @@ VOID UnloadRules() {
     FreeList(&g_FileExceptionPaths);
     FreeList(&g_FileRansomExts);
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
 }
 
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) {
+        return STATUS_UNSUCCESSFUL;
+    }
+
     NTSTATUS status;
     PEPROCESS Process = NULL;
 
@@ -492,33 +514,42 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
 
-    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
-
     PEPROCESS Process = NULL;
     if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) {
         return FALSE;
     }
 
+    LARGE_INTEGER createTime;
+    createTime.QuadPart = PsGetProcessCreateTimeQuadPart(Process);
+
     if (g_CacheInitialized) {
-        ExAcquireFastMutex(&TrustCacheLock);
+        KIRQL OldIrql;
+        KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
         ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
-        if (TrustCache[Hash].Process == Process) {
+
+        if (TrustCache[Hash].Process == Process && TrustCache[Hash].ProcessCreateTime.QuadPart == createTime.QuadPart) {
             LARGE_INTEGER Now;
             KeQuerySystemTime(&Now);
             if ((Now.QuadPart - TrustCache[Hash].CacheTime.QuadPart) < (TRUST_CACHE_TTL_SEC * 10000000LL)) {
                 BOOLEAN cachedResult = TrustCache[Hash].IsTrusted;
-                ExReleaseFastMutex(&TrustCacheLock);
+                KeReleaseSpinLock(&TrustCacheLock, OldIrql);
                 ObDereferenceObject(Process);
                 return cachedResult;
             }
         }
-        ExReleaseFastMutex(&TrustCacheLock);
+        KeReleaseSpinLock(&TrustCacheLock, OldIrql);
+    }
+
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) {
+        ObDereferenceObject(Process);
+        return FALSE;
     }
 
     PUNICODE_STRING imageFileName = NULL;
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isTrusted = FALSE;
 
+    KeEnterCriticalRegion();
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
     if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
@@ -547,15 +578,18 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
 
 update_cache:
     if (g_CacheInitialized) {
-        ExAcquireFastMutex(&TrustCacheLock);
+        KIRQL OldIrql;
+        KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
         ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
         TrustCache[Hash].Process = Process;
+        TrustCache[Hash].ProcessCreateTime = createTime;
         TrustCache[Hash].IsTrusted = isTrusted;
         KeQuerySystemTime(&TrustCache[Hash].CacheTime);
-        ExReleaseFastMutex(&TrustCacheLock);
+        KeReleaseSpinLock(&TrustCacheLock, OldIrql);
     }
 
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
 
     if (imageFileName) ExFreePool(imageFileName);
     ObDereferenceObject(Process);
@@ -575,12 +609,14 @@ BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
         return FALSE;
     }
 
+    KeEnterCriticalRegion();
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
     PRULE_NODE AllowNode = g_RegistryTrustedList;
     while (AllowNode) {
         if (WildcardMatch(AllowNode->Pattern.Buffer, KeyName->Buffer, KeyName->Length)) {
             ExReleaseResourceLite(&RuleLock);
+            KeLeaveCriticalRegion();
             return FALSE;
         }
         AllowNode = AllowNode->Next;
@@ -596,18 +632,21 @@ BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
         Node = Node->Next;
     }
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
     return Match;
 }
 
 BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
     if (!FileName || !FileName->Buffer) return FALSE;
 
+    KeEnterCriticalRegion();
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
     PRULE_NODE ExNode = g_FileExceptionPaths;
     while (ExNode) {
         if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
             ExReleaseResourceLite(&RuleLock);
+            KeLeaveCriticalRegion();
             return FALSE;
         }
         ExNode = ExNode->Next;
@@ -623,6 +662,7 @@ BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
         Node = Node->Next;
     }
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
     return Match;
 }
 
@@ -633,12 +673,14 @@ BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
         return FALSE;
     }
 
+    KeEnterCriticalRegion();
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
     PRULE_NODE ExNode = g_FileExceptionPaths;
     while (ExNode) {
         if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
             ExReleaseResourceLite(&RuleLock);
+            KeLeaveCriticalRegion();
             return FALSE;
         }
         ExNode = ExNode->Next;
@@ -654,13 +696,16 @@ BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
         Node = Node->Next;
     }
     ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
     return Match;
 }
 
 static BOOLEAN IsHighEntropy(PVOID Buffer, ULONG Length) {
     if (!Buffer || Length < 256) return FALSE;
 
-    ULONG Histogram[256] = { 0 };
+    PUSHORT Histogram = (PUSHORT)PyasAllocate(256 * sizeof(USHORT));
+    if (!Histogram) return FALSE;
+
     PUCHAR Ptr = (PUCHAR)Buffer;
     ULONG ScanLen = (Length > 1024) ? 1024 : Length;
 
@@ -670,16 +715,20 @@ static BOOLEAN IsHighEntropy(PVOID Buffer, ULONG Length) {
         }
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
+        PyasFree(Histogram);
         return FALSE;
     }
 
-    ULONG MaxFreq = 0;
+    USHORT MaxFreq = 0;
     for (int i = 0; i < 256; i++) {
         if (Histogram[i] > MaxFreq) MaxFreq = Histogram[i];
     }
 
     ULONG ExpectedAvg = ScanLen / 256;
-    return (MaxFreq < (ExpectedAvg + HIGH_ENTROPY_THRESHOLD));
+    BOOLEAN Result = (MaxFreq < (ExpectedAvg + HIGH_ENTROPY_THRESHOLD));
+
+    PyasFree(Histogram);
+    return Result;
 }
 
 static BOOLEAN IsNaturallyCompressed(PCUNICODE_STRING FileName) {
@@ -713,14 +762,19 @@ static BOOLEAN IsUserDirectoryPath(PCUNICODE_STRING FileName) {
 }
 
 static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
-    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
+    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
+
     PUNICODE_STRING imageFileName = NULL;
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isExplorer = FALSE;
-    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
-        if (HasSuffix(imageFileName, L"\\explorer.exe")) isExplorer = TRUE;
+
+    if (NT_SUCCESS(status) && imageFileName) {
+        if (imageFileName->Buffer && HasSuffix(imageFileName, L"\\explorer.exe")) {
+            isExplorer = TRUE;
+        }
         ExFreePool(imageFileName);
     }
+
     return isExplorer;
 }
 
@@ -755,9 +809,12 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
 
     LARGE_INTEGER Now = { 0 };
     KeQuerySystemTime(&Now);
+    LARGE_INTEGER createTime;
+    createTime.QuadPart = PsGetProcessCreateTimeQuadPart(Process);
     BOOLEAN Result = FALSE;
 
-    ExAcquireFastMutex(&GlobalData.TrackerMutex);
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&GlobalData.TrackerMutex, &OldIrql);
 
     PRANSOM_TRACKER Tracker = NULL;
     PRANSOM_TRACKER CandidateSlot = NULL;
@@ -770,7 +827,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
             LruSlot = Current;
         }
 
-        if (Current->Process == Process) {
+        if (Current->Process == Process && Current->ProcessCreateTime.QuadPart == createTime.QuadPart) {
             Tracker = Current;
             break;
         }
@@ -798,6 +855,7 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
         }
 
         Tracker->Process = Process;
+        Tracker->ProcessCreateTime = createTime;
         Tracker->ActivityCount = 0;
         Tracker->LastActivityTime = Now;
     }
@@ -817,7 +875,8 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
     if (Tracker->ActivityCount >= RANSOM_COUNT_THRESHOLD) {
         Result = TRUE;
     }
-    ExReleaseFastMutex(&GlobalData.TrackerMutex);
+
+    KeReleaseSpinLock(&GlobalData.TrackerMutex, OldIrql);
     ObDereferenceObject(Process);
     return Result;
 }
@@ -825,34 +884,48 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize) {
     if (KeGetCurrentIrql() > APC_LEVEL) return STATUS_UNSUCCESSFUL;
 
-    PYAS_MESSAGE msg;
-    RtlZeroMemory(&msg, sizeof(msg));
-    msg.MessageCode = Code;
-    msg.ProcessId = Pid;
-
-    if (Path && PathSize > 0) {
-        size_t MaxSize = sizeof(msg.Path) - sizeof(WCHAR);
-        size_t BytesToCopy = PathSize;
-        if (BytesToCopy > MaxSize) BytesToCopy = MaxSize;
-
-        __try {
-            RtlCopyMemory(msg.Path, Path, BytesToCopy);
-            msg.Path[BytesToCopy / sizeof(WCHAR)] = L'\0';
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            return STATUS_ACCESS_VIOLATION;
-        }
-    }
-
     if (!ExAcquireRundownProtection(&GlobalData.PortRundown)) {
         return STATUS_PORT_DISCONNECTED;
     }
 
     NTSTATUS status = STATUS_PORT_DISCONNECTED;
+
     if (GlobalData.ClientPort) {
-        LARGE_INTEGER timeout;
-        timeout.QuadPart = -(5 * 10000);
-        status = FltSendMessage(GlobalData.FilterHandle, &GlobalData.ClientPort, &msg, sizeof(msg), NULL, NULL, &timeout);
+        PPYAS_MESSAGE msg = (PPYAS_MESSAGE)PyasAllocate(sizeof(PYAS_MESSAGE));
+        if (msg) {
+            msg->MessageCode = Code;
+            msg->ProcessId = Pid;
+
+            if (Path && PathSize > 0) {
+                size_t MaxSize = sizeof(msg->Path) - sizeof(WCHAR);
+                size_t BytesToCopy = PathSize > MaxSize ? MaxSize : PathSize;
+
+                __try {
+                    RtlCopyMemory(msg->Path, Path, BytesToCopy);
+                    msg->Path[BytesToCopy / sizeof(WCHAR)] = L'\0';
+                }
+                __except (EXCEPTION_EXECUTE_HANDLER) {
+                    PyasFree(msg);
+                    ExReleaseRundownProtection(&GlobalData.PortRundown);
+                    return STATUS_ACCESS_VIOLATION;
+                }
+            }
+
+            LARGE_INTEGER timeout;
+            if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
+                timeout.QuadPart = -(5 * 10000);
+            }
+            else {
+                timeout.QuadPart = 0;
+            }
+
+            status = FltSendMessage(GlobalData.FilterHandle, &GlobalData.ClientPort, msg, sizeof(PYAS_MESSAGE), NULL, NULL, &timeout);
+
+            PyasFree(msg);
+        }
+        else {
+            status = STATUS_INSUFFICIENT_RESOURCES;
+        }
     }
 
     ExReleaseRundownProtection(&GlobalData.PortRundown);

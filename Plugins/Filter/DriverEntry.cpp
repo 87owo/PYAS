@@ -90,7 +90,8 @@ static NTSTATUS PortConnect(PFLT_PORT ClientPort, PVOID ServerPortCookie, PVOID 
     UNREFERENCED_PARAMETER(SizeOfContext);
     UNREFERENCED_PARAMETER(ConnectionPortCookie);
 
-    ExAcquireFastMutex(&GlobalData.PortMutex);
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
 
     GlobalData.ClientPort = ClientPort;
     GlobalData.PyasPid = (ULONG)(ULONG_PTR)PsGetCurrentProcessId();
@@ -98,7 +99,7 @@ static NTSTATUS PortConnect(PFLT_PORT ClientPort, PVOID ServerPortCookie, PVOID 
 
     ExReInitializeRundownProtection(&GlobalData.PortRundown);
 
-    ExReleaseFastMutex(&GlobalData.PortMutex);
+    KeReleaseSpinLock(&GlobalData.PortMutex, OldIrql);
 
     return STATUS_SUCCESS;
 }
@@ -106,9 +107,14 @@ static NTSTATUS PortConnect(PFLT_PORT ClientPort, PVOID ServerPortCookie, PVOID 
 static VOID PortDisconnect(PVOID ConnectionCookie) {
     UNREFERENCED_PARAMETER(ConnectionCookie);
 
-    ExAcquireFastMutex(&GlobalData.PortMutex);
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
+
     GlobalData.ClientPort = NULL;
-    ExReleaseFastMutex(&GlobalData.PortMutex);
+    GlobalData.PyasPid = 0;
+    GlobalData.PyasProcess = NULL;
+
+    KeReleaseSpinLock(&GlobalData.PortMutex, OldIrql);
 
     ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 }
@@ -147,8 +153,8 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
 
     RtlZeroMemory(&GlobalData, sizeof(GlobalData));
     GlobalData.DriverObject = DriverObject;
-    ExInitializeFastMutex(&GlobalData.PortMutex);
-    ExInitializeFastMutex(&GlobalData.TrackerMutex);
+    KeInitializeSpinLock(&GlobalData.PortMutex);
+    KeInitializeSpinLock(&GlobalData.TrackerMutex);
 
     ExInitializeRundownProtection(&GlobalData.PortRundown);
 

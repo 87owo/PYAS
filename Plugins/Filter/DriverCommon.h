@@ -114,8 +114,8 @@ typedef struct _DRIVER_DATA {
     PEPROCESS PyasProcess;
     ULONG PyasPid;
     LARGE_INTEGER Cookie;
-    FAST_MUTEX PortMutex;
-    FAST_MUTEX TrackerMutex;
+    KSPIN_LOCK PortMutex;
+    KSPIN_LOCK TrackerMutex;
     EX_RUNDOWN_REF PortRundown;
 } DRIVER_DATA, * PDRIVER_DATA;
 

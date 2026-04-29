@@ -149,30 +149,32 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
                             (Info->ValueName ? Info->ValueName->Length : 0) +
                             sizeof(WCHAR);
 
-                        PWCHAR Buffer = (PWCHAR)PyasAllocate(FullSize);
-                        if (Buffer) {
-                            UNICODE_STRING FullPath;
-                            FullPath.Buffer = Buffer;
-                            FullPath.Length = 0;
-                            FullPath.MaximumLength = (USHORT)FullSize;
+                        if (FullSize <= 0xFFFF) {
+                            PWCHAR Buffer = (PWCHAR)PyasAllocate(FullSize);
+                            if (Buffer) {
+                                UNICODE_STRING FullPath;
+                                FullPath.Buffer = Buffer;
+                                FullPath.Length = 0;
+                                FullPath.MaximumLength = (USHORT)FullSize;
 
-                            RtlCopyUnicodeString(&FullPath, KeyName);
+                                RtlCopyUnicodeString(&FullPath, KeyName);
 
-                            if (Info->ValueName && Info->ValueName->Length > 0) {
-                                if (FullPath.Length > 0 && FullPath.Buffer[(FullPath.Length / sizeof(WCHAR)) - 1] != L'\\') {
-                                    RtlAppendUnicodeToString(&FullPath, L"\\");
+                                if (Info->ValueName && Info->ValueName->Length > 0) {
+                                    if (FullPath.Length > 0 && FullPath.Buffer[(FullPath.Length / sizeof(WCHAR)) - 1] != L'\\') {
+                                        RtlAppendUnicodeToString(&FullPath, L"\\");
+                                    }
+                                    RtlAppendUnicodeStringToString(&FullPath, Info->ValueName);
                                 }
-                                RtlAppendUnicodeStringToString(&FullPath, Info->ValueName);
-                            }
 
-                            if (CheckRegistryRule(&FullPath)) {
-                                HANDLE Pid = PsGetCurrentProcessId();
-                                if (!IsProcessTrusted(Pid)) {
-                                    SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
-                                    status = STATUS_ACCESS_DENIED;
+                                if (CheckRegistryRule(&FullPath)) {
+                                    HANDLE Pid = PsGetCurrentProcessId();
+                                    if (!IsProcessTrusted(Pid)) {
+                                        SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
+                                        status = STATUS_ACCESS_DENIED;
+                                    }
                                 }
+                                PyasFree(Buffer);
                             }
-                            PyasFree(Buffer);
                         }
                     }
                 }
@@ -194,30 +196,32 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
                             (Info->ValueName ? Info->ValueName->Length : 0) +
                             sizeof(WCHAR);
 
-                        PWCHAR Buffer = (PWCHAR)PyasAllocate(FullSize);
-                        if (Buffer) {
-                            UNICODE_STRING FullPath;
-                            FullPath.Buffer = Buffer;
-                            FullPath.Length = 0;
-                            FullPath.MaximumLength = (USHORT)FullSize;
+                        if (FullSize <= 0xFFFF) {
+                            PWCHAR Buffer = (PWCHAR)PyasAllocate(FullSize);
+                            if (Buffer) {
+                                UNICODE_STRING FullPath;
+                                FullPath.Buffer = Buffer;
+                                FullPath.Length = 0;
+                                FullPath.MaximumLength = (USHORT)FullSize;
 
-                            RtlCopyUnicodeString(&FullPath, KeyName);
+                                RtlCopyUnicodeString(&FullPath, KeyName);
 
-                            if (Info->ValueName && Info->ValueName->Length > 0) {
-                                if (FullPath.Length > 0 && FullPath.Buffer[(FullPath.Length / sizeof(WCHAR)) - 1] != L'\\') {
-                                    RtlAppendUnicodeToString(&FullPath, L"\\");
+                                if (Info->ValueName && Info->ValueName->Length > 0) {
+                                    if (FullPath.Length > 0 && FullPath.Buffer[(FullPath.Length / sizeof(WCHAR)) - 1] != L'\\') {
+                                        RtlAppendUnicodeToString(&FullPath, L"\\");
+                                    }
+                                    RtlAppendUnicodeStringToString(&FullPath, Info->ValueName);
                                 }
-                                RtlAppendUnicodeStringToString(&FullPath, Info->ValueName);
-                            }
 
-                            if (CheckRegistryRule(&FullPath)) {
-                                HANDLE Pid = PsGetCurrentProcessId();
-                                if (!IsProcessTrusted(Pid)) {
-                                    SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
-                                    status = STATUS_ACCESS_DENIED;
+                                if (CheckRegistryRule(&FullPath)) {
+                                    HANDLE Pid = PsGetCurrentProcessId();
+                                    if (!IsProcessTrusted(Pid)) {
+                                        SendMessageToUser(3001, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
+                                        status = STATUS_ACCESS_DENIED;
+                                    }
                                 }
+                                PyasFree(Buffer);
                             }
-                            PyasFree(Buffer);
                         }
                     }
                 }

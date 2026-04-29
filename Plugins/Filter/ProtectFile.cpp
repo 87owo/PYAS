@@ -199,6 +199,7 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RE
     UNREFERENCED_PARAMETER(FltObjects);
 
     if (Data->RequestorMode == KernelMode) return FLT_PREOP_SUCCESS_NO_CALLBACK;
+    if (KeGetCurrentIrql() > APC_LEVEL) return FLT_PREOP_SUCCESS_NO_CALLBACK;
 
     if (Data->Iopb->IrpFlags & (IRP_PAGING_IO | IRP_SYNCHRONOUS_PAGING_IO | IRP_NOCACHE)) {
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
@@ -235,12 +236,10 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RE
                 SystemBuffer = MmGetSystemAddressForMdlSafe(Mdl, NormalPagePriority | MdlMappingNoExecute);
             }
 
-            if (SystemBuffer) {
-                if (CheckRansomActivity(Pid, &nameInfo->Name, SystemBuffer, WriteLength, TRUE)) {
-                    SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
-                    Data->IoStatus.Status = STATUS_ACCESS_DENIED;
-                    callbackStatus = FLT_PREOP_COMPLETE;
-                }
+            if (CheckRansomActivity(Pid, &nameInfo->Name, SystemBuffer, WriteLength, TRUE)) {
+                SendMessageToUser(5001, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
+                Data->IoStatus.Status = STATUS_ACCESS_DENIED;
+                callbackStatus = FLT_PREOP_COMPLETE;
             }
         }
     }

@@ -124,7 +124,16 @@ class WindowAPI:
         if not self.check_singleton("PYAS_Security_Mutex"):
             hwnd = self.user32.FindWindowW(None, "PYAS Security")
             if hwnd:
-                if "-scan" in self.args_pyas:
+                if "-quit" in self.args_pyas:
+                    try:
+                        cds = COPYDATASTRUCT()
+                        cds.dwData = 3
+                        cds.cbData = 0
+                        cds.lpData = None
+                        self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+                    except Exception:
+                        pass
+                elif "-scan" in self.args_pyas:
                     try:
                         idx = self.args_pyas.index("-scan")
                         target = self.args_pyas[idx+1]
@@ -135,6 +144,7 @@ class WindowAPI:
                         buffer = ctypes.create_string_buffer(encoded)
                         cds.lpData = ctypes.cast(buffer, ctypes.c_void_p)
                         self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+                        self.user32.SetForegroundWindow(hwnd)
                     except Exception:
                         pass
                 else:
@@ -144,9 +154,12 @@ class WindowAPI:
                         cds.cbData = 0
                         cds.lpData = None
                         self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+                        self.user32.SetForegroundWindow(hwnd)
                     except Exception:
                         pass
-                self.user32.SetForegroundWindow(hwnd)
+            os._exit(0)
+            
+        if "-quit" in self.args_pyas:
             os._exit(0)
             
         self.init_variables()
@@ -2376,7 +2389,9 @@ class WindowAPI:
                 time.sleep(0.5)
                 with self.lock_config:
                     rules = self.pyas_config.get("block_list", [])
-                    cur_ver = self.pyas_config.get("version", "0.0.0")
+
+                if not rules:
+                    continue
 
                 hwnd_list.clear()
                 self.user32.EnumWindows(enum_cb, 0)
@@ -2388,10 +2403,7 @@ class WindowAPI:
                     if pid.value <= 4:
                         continue
                         
-                    proc_name, file_path = self.get_exe_info(pid.value)
-
-                    if proc_name != "PYAS_Setup.exe" and not rules:
-                        continue
+                    proc_name, _ = self.get_exe_info(pid.value)
                     
                     length = self.user32.GetWindowTextLengthW(hWnd)
                     title = ctypes.create_unicode_buffer(length + 1)
@@ -2401,15 +2413,6 @@ class WindowAPI:
                     
                     t_str = str(title.value)
                     c_str = str(class_name.value)
-
-                    if proc_name == "PYAS_Setup.exe" and c_str == "WindowClass_0" and t_str == "PYAS Setup":
-                        if file_path:
-                            setup_ver = self.get_file_version(file_path)
-                            if self.compare_versions(setup_ver, cur_ver):
-                                self.close()
-
-                    if not rules:
-                        continue
 
                     is_pass = any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows)
                     if is_pass:
@@ -2538,6 +2541,9 @@ class WindowHook:
                     if self.api_ref and self.api_ref._window:
                         self.api_ref._window.restore()
                         self.api_ref._window.show()
+                elif cds.dwData == 3:
+                    if self.api_ref:
+                        self.api_ref.close()
             except Exception:
                 pass
             return 1
@@ -2565,15 +2571,15 @@ class WindowHook:
 
 ####################################################################################################
 
-def get_free_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('127.0.0.1', 0))
-        return s.getsockname()[1]
-
-def start_api(port):
+def start_api(port_container, ready_event):
     TCPServer.allow_reuse_address = True
-    with TCPServer(("127.0.0.1", port), NoCacheRequestHandler) as httpd:
-        httpd.serve_forever()
+    try:
+        with TCPServer(("127.0.0.1", 0), NoCacheRequestHandler) as httpd:
+            port_container.append(httpd.server_address[1])
+            ready_event.set()
+            httpd.serve_forever()
+    except Exception:
+        ready_event.set()
 
 ####################################################################################################
 
@@ -2581,10 +2587,20 @@ if __name__ == "__main__":
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
     init_width, init_height = 980, 670
 
-    port = get_free_port()
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--proxy-bypass-list=127.0.0.1,localhost"
 
-    api_thread = threading.Thread(target=start_api, args=(port,), daemon=True)
+    port_container = []
+    server_ready = threading.Event()
+
+    api_thread = threading.Thread(target=start_api, args=(port_container, server_ready), daemon=True)
     api_thread.start()
+
+    server_ready.wait(timeout=5.0)
+
+    if not port_container:
+        os._exit(1)
+
+    port = port_container[0]
 
     js_api = WindowAPI()
 

@@ -156,4 +156,4 @@ Source Issues : https://github.com/87owo/PYAS/issues
 
 Official Email : service@pyas-security.com
 
-Reşat   Elif Miray Özcan
+Reşat   Elif Miray Özcan Ersin Özdoğan

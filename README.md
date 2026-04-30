@@ -156,7 +156,6 @@ Source Issues : https://github.com/87owo/PYAS/issues
 
 Official Email : service@pyas-security.com
 
-
 Furkan AR 
 
 Reşat Kahraman
@@ -166,6 +165,4 @@ Beril Ay Kaplan
 Ersin Özdoğan
 
 Elif Miray Özcan
-
-
 

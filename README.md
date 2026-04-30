@@ -160,7 +160,7 @@ Furkan AR
 
 Reşat Kahraman
 
-Beril Ay Kaplan
+Beril AY Kaplan
 
 Ersin Özdoğan
 

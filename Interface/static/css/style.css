@@ -510,13 +510,16 @@ body {
 
 .custom-select-wrapper {
     position: relative;
-    min-width: 120px;
+    min-width: 100px;
+    display: inline-grid;
+    vertical-align: middle;
     user-select: none;
 }
 select.hidden + .custom-select-wrapper {
     display: none !important;
 }
 .custom-select-trigger {
+    grid-area: 1 / 1;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -530,7 +533,24 @@ select.hidden + .custom-select-wrapper {
     cursor: pointer;
     transition: border-color 0.2s, box-shadow 0.2s;
     gap: 12px;
+    box-sizing: border-box;
 }
+.custom-select-phantom {
+    grid-area: 1 / 1;
+    visibility: hidden;
+    pointer-events: none;
+    display: grid; 
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    box-sizing: border-box;
+}
+.custom-select-phantom span {
+    grid-area: 1 / 1; 
+    white-space: nowrap;
+    padding-right: 28px; 
+}
+
 .custom-select-wrapper.open .custom-select-trigger,
 .custom-select-trigger:hover {
     border-color: var(--accent-color); 
@@ -550,7 +570,10 @@ select.hidden + .custom-select-wrapper {
     position: absolute;
     top: calc(100% + 8px);
     left: 0;
-    right: 0;
+    min-width: 100%;
+    width: max-content;
+    white-space: nowrap;
+    
     background-color: var(--bg-panel);
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -558,12 +581,10 @@ select.hidden + .custom-select-wrapper {
     z-index: 100;
     list-style: none;
     margin: 0;
-    
     max-height: 0;
     padding: 0 6px;
     border-width: 0;
     overflow: hidden;
-    
     opacity: 0;
     visibility: hidden;
     transform: translateY(-10px);

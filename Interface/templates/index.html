@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PYAS Security</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script defer src="/static/js/i18n.js"></script>
     <script defer src="/static/js/main.js"></script>
 </head>
 <body>
@@ -83,13 +84,12 @@
                             <p class="section-desc" id="progress_text" data-i18n>此選項可以選擇掃描方式</p>
                         </div>
                         <div class="action-group modern-action-group">
-                            <button class="action-btn modern-btn danger-btn hidden" id="solve_btn" data-i18n>刪除</button>
                             <select id="scan_method_select" class="modern-select">
                                 <option value="none" selected disabled data-i18n>選擇</option>
-                                <option value="smart" data-i18n>智能</option>
-                                <option value="file" data-i18n>檔案</option>
-                                <option value="path" data-i18n>路徑</option>
-                                <option value="full" data-i18n>全盤</option>
+                                <option value="smart" data-i18n>智能掃描</option>
+                                <option value="file" data-i18n>檔案掃描</option>
+                                <option value="path" data-i18n>路徑掃描</option>
+                                <option value="full" data-i18n>全盤掃描</option>
                             </select>
                             <button class="action-btn modern-btn hidden" id="stop_btn" data-i18n>停止</button>
                         </div>

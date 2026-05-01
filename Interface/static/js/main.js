@@ -13,6 +13,39 @@ document.addEventListener('DOMContentLoaded', () => {
         "blue_switch": { "--bg-window": "246, 249, 253", "--bg-nav": "235, 244, 255", "--bg-panel": "255, 255, 255", "--bg-hover": "rgba(0,122,255,0.05)", "--text-primary": "29, 29, 31", "--text-secondary": "134, 134, 139", "--border-color":"220, 230, 250", "--accent-color":"0, 122, 255", "--accent-alpha":"rgba(0, 122, 255, 0.1)", "--accent-shadow":"rgba(0, 122, 255, 0.2)", "--accent-hover":"rgba(0, 122, 255, 0.3)" }
     };
 
+    const cols = {
+        log: [
+            {key: 'time_str', label: '日期', flex: 1.5},
+            {key: 'level', label: '類型', flex: 0.8},
+            {key: 'action', label: '功能', flex: 1.2},
+            {key: 'source', label: '路徑', flex: 3}
+        ],
+        process: [
+            {key: 'name', label: '名稱', flex: 1.5},
+            {key: 'pid', label: 'PID', flex: 0.5},
+            {key: 'path', label: '路徑', flex: 3}
+        ],
+        virus: [
+            {key: 'label', label: '類型', flex: 1},
+            {key: 'path', label: '路徑', flex: 3}
+        ],
+        pathOnly: [
+            {key: 'path', label: '路徑', flex: 1}
+        ],
+        junk: [
+            {key: 'path', label: '路徑', flex: 3},
+            {key: 'sizeStr', label: '大小', flex: 1}
+        ],
+        popup: [
+            {key: 'exe', label: '程式', flex: 1},
+            {key: 'class', label: '類別', flex: 1},
+            {key: 'title', label: '標題', flex: 2}
+        ],
+        repair: [
+            {key: 'display', label: '修復項目', flex: 1}
+        ]
+    };
+
     const getMsg = (key) => (dict[currentLang] || dict["english_switch"])[key] || key;
 
     function initCustomSelects() {
@@ -112,7 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const originText = el.dataset.originPlaceholder;
             el.setAttribute('placeholder', currentDict[originText] || originText);
         });
-
+        document.querySelectorAll('.manage-widget, .virus-widget').forEach(widget => {
+            if (widget.renderData) widget.renderData();
+        });
         document.documentElement.lang = langMap[currentLang] || "en";
     };
 
@@ -145,19 +180,222 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function renderDataGrid(containerSelector, dataList, columns, valKey, defaultChecked = false) {
+        const widget = document.querySelector(`${containerSelector} .manage-widget`) || document.querySelector(`${containerSelector} .virus-widget`);
+        const listUl = document.querySelector(`${containerSelector} .manage-list`) || document.querySelector(`${containerSelector} .virus-list`);
+        const searchInput = document.querySelector(`${containerSelector} .search-box input`);
+        if (!widget || !listUl) return;
+
+        if (!widget.gridState) {
+            let containerWidth = widget.clientWidth || 800;
+            let availableWidth = Math.max(containerWidth - 60 - (columns.length * 16), 400); 
+            let totalFlex = columns.reduce((sum, c) => sum + (c.flex || 1), 0);
+            
+            widget.gridState = { 
+                sortKey: columns[0]?.key || '', 
+                sortAsc: true, 
+                filterText: "",
+                colWidths: columns.map(c => Math.max(((c.flex || 1) / totalFlex) * availableWidth, 60))
+            };
+            
+            widget.gridState.colWidths.forEach((w, idx) => {
+                widget.style.setProperty(`--col-${idx}`, `${w}px`);
+            });
+        }
+        const state = widget.gridState;
+
+        widget.renderData = (filterText = state.filterText) => {
+            state.filterText = filterText;
+            
+            let header = widget.querySelector('.manage-list-header');
+            if (!header) {
+                header = document.createElement('div');
+                header.className = 'manage-list-header';
+                widget.insertBefore(header, widget.firstChild);
+            }
+
+            let headerColsHtml = columns.map((col, idx) => 
+                `<div class="col-header" data-key="${col.key}" data-idx="${idx}" style="width: var(--col-${idx}); flex: 0 0 auto;">
+                    <span class="header-text">${getMsg(col.label)}</span>
+                    <span class="sort-icon">${state.sortKey === col.key ? (state.sortAsc ? '▲' : '▼') : ''}</span>
+                    <div class="col-resizer"></div>
+                </div>`
+            ).join('');
+
+            header.innerHTML = `
+                <input type="checkbox" class="select-all-cb" title="${getMsg('全選')}">
+                <div class="header-cols-container">${headerColsHtml}</div>
+            `;
+
+            header.querySelectorAll('.col-header').forEach(el => {
+                el.addEventListener('click', () => {
+                    const key = el.dataset.key;
+                    if (state.sortKey === key) {
+                        state.sortAsc = !state.sortAsc;
+                    } else {
+                        state.sortKey = key;
+                        state.sortAsc = true;
+                    }
+                    widget.renderData();
+                });
+            });
+
+            header.querySelectorAll('.col-resizer').forEach(resizer => {
+                resizer.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    const headerCell = resizer.parentElement;
+                    const idx = parseInt(headerCell.dataset.idx);
+                    const startX = e.clientX;
+                    const startWidth = state.colWidths[idx];
+
+                    const onMouseMove = (moveEvent) => {
+                        const newWidth = Math.max(startWidth + (moveEvent.clientX - startX), 40);
+                        state.colWidths[idx] = newWidth;
+                        widget.style.setProperty(`--col-${idx}`, `${newWidth}px`);
+                    };
+
+                    const onMouseUp = () => {
+                        document.body.style.userSelect = '';
+                        document.body.style.cursor = '';
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    };
+
+                    document.body.style.userSelect = 'none';
+                    document.body.style.cursor = 'col-resize';
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                });
+                resizer.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+            });
+
+            const selectAllCb = header.querySelector('.select-all-cb');
+            selectAllCb.addEventListener('change', (e) => {
+                const isChecked = e.target.checked;
+                listUl.querySelectorAll('.manage-list-item input[type="checkbox"]').forEach(cb => {
+                    cb.checked = isChecked;
+                    if (containerSelector === '#scan_window') {
+                        virusState.set(cb.value, isChecked);
+                    }
+                });
+                if (containerSelector === '#scan_window') checkVirusListEmpty();
+            });
+
+            let displayData = dataList.filter(item => {
+                if (!filterText) return true;
+                const ft = filterText.toLowerCase();
+                return columns.some(col => String(item[col.key] || '').toLowerCase().includes(ft));
+            });
+
+            displayData.sort((a, b) => {
+                let valA = a[state.sortKey];
+                let valB = b[state.sortKey];
+                if (valA === undefined || valA === null) valA = '';
+                if (valB === undefined || valB === null) valB = '';
+
+                let numA = parseFloat(valA);
+                let numB = parseFloat(valB);
+                if (!isNaN(numA) && !isNaN(numB) && String(valA).trim() !== '' && String(valB).trim() !== '') {
+                    return state.sortAsc ? numA - numB : numB - numA;
+                }
+                return state.sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+            });
+
+            const existingCheckboxes = listUl.querySelectorAll('input[type="checkbox"]');
+            const hadPreviousData = existingCheckboxes.length > 0;
+            const currentChecked = new Set();
+            if (hadPreviousData) {
+                existingCheckboxes.forEach(cb => {
+                    if (cb.checked) currentChecked.add(cb.value);
+                });
+            }
+
+            listUl.innerHTML = '';
+
+            displayData.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'manage-list-item';
+                
+                let isChecked = defaultChecked;
+                if (containerSelector === '#scan_window') {
+                    isChecked = virusState.get(item[valKey]) ?? true;
+                    virusState.set(item[valKey], isChecked);
+                } else if (hadPreviousData) {
+                    isChecked = currentChecked.has(String(item[valKey]));
+                }
+                const checkedAttr = isChecked ? 'checked' : '';
+                
+                let rowColsHtml = columns.map((col, idx) => 
+                    `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${String(item[col.key] || '').replace(/"/g, '&quot;')}">${item[col.key] || ''}</div>`
+                ).join('');
+
+                li.innerHTML = `
+                    <input type="checkbox" value="${item[valKey]}" ${checkedAttr} data-path="${item.path || ''}">
+                    <div class="manage-list-item-content">${rowColsHtml}</div>
+                `;
+                
+                li.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = li.querySelector('input');
+                        cb.checked = !cb.checked;
+                    }
+                    if (containerSelector === '#scan_window') {
+                        const cb = li.querySelector('input');
+                        virusState.set(item[valKey], cb.checked);
+                        checkVirusListEmpty();
+                    }
+                    updateSelectAllState();
+                });
+
+                listUl.appendChild(li);
+            });
+
+            function updateSelectAllState() {
+                const total = listUl.querySelectorAll('input[type="checkbox"]').length;
+                const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
+                selectAllCb.checked = (total > 0 && total === checked);
+                selectAllCb.indeterminate = (checked > 0 && checked < total);
+            }
+            updateSelectAllState();
+        };
+
+        widget.renderData();
+        if (searchInput) {
+            searchInput.oninput = (e) => widget.renderData(e.target.value);
+        }
+    }
+
+    function getCheckedValues(containerSelector) {
+        const checkboxes = document.querySelectorAll(`${containerSelector} .manage-list-item input[type="checkbox"]:checked`);
+        return Array.from(checkboxes).map(cb => cb.value);
+    }
+
     let processInterval = null;
+    let currentJunkList = [];
+    window.virusResults = [];
+
+    renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+    renderDataGrid('#taskmgr_window', [], cols.process, 'pid', false);
+    renderDataGrid('#junk_window', [], cols.junk, 'path', true);
+    renderDataGrid('#repair_window', [], cols.repair, 'value', true);
+    renderDataGrid('#whitelist_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#quarantine_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#custom_protect_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#popup_window', [], cols.popup, 'value', false);
+    renderDataGrid('#log_export_window', [], cols.log, 'id', true);
+    
     const switchPage = (targetId) => {
         const oldActive = document.querySelector('.page.active');
         if (oldActive && oldActive.id !== targetId) {
             if (oldActive.id === 'junk_window') {
                 currentJunkList = [];
-                const list = document.querySelector('#junk_window .manage-list');
-                if (list) list.innerHTML = '';
+                renderDataGrid('#junk_window', [], cols.junk, 'path', true);
                 const searchInput = document.querySelector('#junk_window .search-box input');
                 if (searchInput) searchInput.value = '';
             } else if (oldActive.id === 'repair_window') {
-                const list = document.querySelector('#repair_window .manage-list');
-                if (list) list.innerHTML = '';
+                renderDataGrid('#repair_window', [], cols.repair, 'value', true);
             }
         }
 
@@ -189,16 +427,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (targetId === 'log_export_window' && window.pywebview) {
             window.pywebview.api.get_logs().then(logs => {
-                const logList = logs.reverse().map(log => {
-                    let displayStr = `[${log.time_str}] ${log.level} | ${log.action}`;
-                    if (log.source) displayStr += ` | ${log.source.split('\\').pop().split('/').pop()}`;
-                    if (log.detail) displayStr += ` | ${log.detail}`;
-                    return {
-                        display: displayStr,
-                        value: log.id
-                    };
-                });
-                renderManageList('#log_export_window', logList, 'display', 'value', true);
+                const logList = logs.reverse().map(log => ({
+                    time_str: `[${log.time_str}]`,
+                    level: log.level,
+                    action: log.action,
+                    source: log.source ? log.source : '-',
+                    id: log.id
+                }));
+                renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
             });
         }
     };
@@ -212,17 +448,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('quick_scan_btn')?.addEventListener('click', () => {
         switchPage('scan_window');
-        if (window.pywebview) {
-            triggerScan('smart');
-        }
+        if (window.pywebview) triggerScan('smart');
     });
 
     const scanMethodSelect = document.getElementById('scan_method_select');
     const stopBtn = document.getElementById('stop_btn');
     const progressText = document.getElementById('progress_text');
     const progressTitle = document.querySelector('#scan_window .section-title');
-    const virusList = document.getElementById('virus_list');
-
     const virusState = new Map();
 
     function rebuildCustomSelect(selectId) {
@@ -263,7 +495,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         Array.from(select.options).forEach(option => {
             if(option.disabled) return;
-
             const li = document.createElement('li');
             li.className = 'custom-select-option';
             li.textContent = option.textContent;
@@ -331,16 +562,12 @@ document.addEventListener('DOMContentLoaded', () => {
             el.dataset.originText = el.textContent.trim();
             el.textContent = getMsg(el.dataset.originText);
         });
-
         rebuildCustomSelect('scan_method_select');
     }
 
     function handleVirusActions(action) {
         if (!window.pywebview) return;
-        
-        const paths = Array.from(virusState.entries())
-            .filter(([_, isChecked]) => isChecked)
-            .map(([path, _]) => path);
+        const paths = Array.from(virusState.entries()).filter(([_, isChecked]) => isChecked).map(([path, _]) => path);
 
         if (paths.length === 0) {
             updateCustomSelectUI('scan_method_select', 'none');
@@ -359,25 +586,22 @@ document.addEventListener('DOMContentLoaded', () => {
             window.pywebview.api.solve_scan(paths).then((deletedPaths) => {
                 const deletedSet = new Set(deletedPaths);
                 deletedPaths.forEach(p => virusState.delete(p));
-                Array.from(virusList.children).forEach(li => {
-                    if (deletedSet.has(li.dataset.path)) li.remove();
-                });
+                window.virusResults = window.virusResults.filter(v => !deletedSet.has(v.path));
+                renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
                 finalizeAction();
             });
         } else if (action === 'ignore') {
             paths.forEach(p => virusState.delete(p));
-            Array.from(virusList.children).forEach(li => {
-                if (paths.includes(li.dataset.path)) li.remove();
-            });
+            window.virusResults = window.virusResults.filter(v => !paths.includes(v.path));
+            renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
             finalizeAction();
         } else if (action === 'quarantine' || action === 'whitelist') {
             const listKey = action === 'quarantine' ? 'quarantine' : 'white_list';
             window.pywebview.api.manage_named_list(listKey, paths, 'add').then(() => {
                 window.pywebview.api.remove_virus_result(paths).then(() => {
                     paths.forEach(p => virusState.delete(p));
-                    Array.from(virusList.children).forEach(li => {
-                        if (paths.includes(li.dataset.path)) li.remove();
-                    });
+                    window.virusResults = window.virusResults.filter(v => !paths.includes(v.path));
+                    renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
                     finalizeAction();
                 });
             });
@@ -392,56 +616,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.addVirusResult = (label, path) => {
-        if (!virusState.has(path)) {
+        if (!window.virusResults.some(v => v.path === path)) {
+            window.virusResults.push({ label: label, path: path });
             virusState.set(path, true);
-            const li = document.createElement('li');
-            li.className = 'manage-list-item';
-            li.dataset.path = path;
-            li.innerHTML = `
-                <input type="checkbox" value="${path}" checked>
-                <div class="manage-list-item-content"><strong>${label}</strong> | ${path}</div>
-            `;
-            virusList.appendChild(li);
+            renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
         }
     };
-
-    virusList.addEventListener('click', (e) => {
-        const li = e.target.closest('.manage-list-item');
-        if (!li) return;
-        
-        const cb = li.querySelector('input');
-        if (e.target.tagName !== 'INPUT') {
-            cb.checked = !cb.checked;
-        }
-        virusState.set(li.dataset.path, cb.checked);
-    });
-
-    virusList.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        const li = e.target.closest('.manage-list-item');
-        if (!li || !window.pywebview) return;
-        
-        const path = li.dataset.path;
-        window.pywebview.api.prompt_virus_action(path).then(action => {
-            if (action === '1') {
-                window.pywebview.api.manage_named_list('white_list', [path], 'add').then(() => {
-                    window.pywebview.api.remove_virus_result([path]).then(() => {
-                        virusState.delete(path);
-                        li.remove();
-                        checkVirusListEmpty();
-                    });
-                });
-            } else if (action === '2') {
-                window.pywebview.api.manage_named_list('quarantine', [path], 'add').then(() => {
-                    window.pywebview.api.remove_virus_result([path]).then(() => {
-                        virusState.delete(path);
-                        li.remove();
-                        checkVirusListEmpty();
-                    });
-                });
-            }
-        });
-    });
 
     window.updateScanProgress = (path) => {
         if (progressTitle) progressTitle.textContent = getMsg("正在掃描");
@@ -472,7 +652,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.pywebview) return;
         isScanning = true;
         virusState.clear();
-        virusList.innerHTML = '';
+        window.virusResults = [];
+        renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
         changeScanSelectMode('scan');
         scanMethodSelect.classList.add('hidden');
         stopBtn.classList.remove('hidden');
@@ -515,9 +696,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const index = switchMap.indexOf(switchKey);
         if (index !== -1) {
             const toggle = document.querySelectorAll('.toggle-switch input')[index];
-            if (toggle) {
-                toggle.checked = false;
-            }
+            if (toggle) toggle.checked = false;
         }
     };
 
@@ -547,7 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (window.pywebview) {
             isScanning = true;
             virusState.clear();
-            virusList.innerHTML = '';
+            window.virusResults = [];
+            renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
             scanMethodSelect.classList.add('hidden');
             stopBtn.classList.remove('hidden');
             changeScanSelectMode('scan');
@@ -576,49 +756,6 @@ document.addEventListener('DOMContentLoaded', () => {
         window.pywebview.api.init_ui_ready();
     });
 
-    function renderManageList(containerSelector, dataList, displayKey, valKey, defaultChecked = false) {
-        const container = document.querySelector(`${containerSelector} .manage-list`);
-        const searchInput = document.querySelector(`${containerSelector} .search-box input`);
-        if (!container) return;
-
-        container.renderData = (filterText = "") => {
-            container.innerHTML = '';
-            dataList.forEach(item => {
-                const displayStr = typeof item === 'object' ? item[displayKey] : item;
-                const valueStr = typeof item === 'object' ? item[valKey] : item;
-                
-                if (filterText && !String(displayStr).toLowerCase().includes(filterText.toLowerCase())) return;
-
-                const li = document.createElement('li');
-                li.className = 'manage-list-item';
-                const checkedAttr = defaultChecked ? 'checked' : '';
-                li.innerHTML = `
-                    <input type="checkbox" value="${valueStr}" ${checkedAttr}>
-                    <div class="manage-list-item-content">${displayStr}</div>
-                `;
-                
-                li.addEventListener('click', (e) => {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = li.querySelector('input');
-                        cb.checked = !cb.checked;
-                    }
-                });
-                container.appendChild(li);
-            });
-        };
-
-        container.renderData(searchInput ? searchInput.value : "");
-        
-        if (searchInput) {
-            searchInput.oninput = (e) => container.renderData(e.target.value);
-        }
-    }
-
-    function getCheckedValues(containerSelector) {
-        const checkboxes = document.querySelectorAll(`${containerSelector} .manage-list-item input[type="checkbox"]:checked`);
-        return Array.from(checkboxes).map(cb => cb.value);
-    }
-
     function formatSize(bytes) {
         if (bytes === 0) return '0 B';
         const k = 1024;
@@ -627,8 +764,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
-    let currentJunkList = [];
-    
     document.querySelector('#junk_window .primary-btn')?.addEventListener('click', () => {
         if (!window.pywebview) return;
         const btn = document.querySelector('#junk_window .primary-btn');
@@ -636,10 +771,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         window.pywebview.api.scan_system_junk().then(list => {
             currentJunkList = list.map(item => ({
-                display: `${item.path} (${formatSize(item.size)})`,
-                value: item.path
+                path: item.path,
+                sizeStr: formatSize(item.size),
+                size: item.size
             }));
-            renderManageList('#junk_window', currentJunkList, 'display', 'value', true);
+            renderDataGrid('#junk_window', currentJunkList, cols.junk, 'path', true);
             btn.textContent = getMsg("掃描");
         });
     });
@@ -652,90 +788,75 @@ document.addEventListener('DOMContentLoaded', () => {
         window.pywebview.api.clean_system_junk(checkedPaths).then(deletedSize => {
             const msg = getMsg("已清理 ");
             window.pywebview.api.show_alert(getMsg("提示"), `${msg}${formatSize(deletedSize)}`, "info");
-            currentJunkList = currentJunkList.filter(item => !checkedPaths.includes(item.value));
-            renderManageList('#junk_window', currentJunkList, 'display', 'value', true);
+            currentJunkList = currentJunkList.filter(item => !checkedPaths.includes(item.path));
+            renderDataGrid('#junk_window', currentJunkList, cols.junk, 'path', true);
         });
     });
 
     function refreshConfigLists() {
         if (!window.pywebview) return;
         window.pywebview.api.get_config().then(cfg => {
-            renderManageList('#whitelist_window', cfg.white_list || [], 'file', 'file');
-            renderManageList('#quarantine_window', cfg.quarantine || [], 'file', 'file');
-            renderManageList('#custom_protect_window', cfg.custom_rule || [], 'file', 'file');
+            renderDataGrid('#whitelist_window', (cfg.white_list || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
+            renderDataGrid('#quarantine_window', (cfg.quarantine || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
+            renderDataGrid('#custom_protect_window', (cfg.custom_rule || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
             
             const popupRules = (cfg.block_list || []).map(item => ({
-                display: `${item.exe || '*'} | ${item.class || '*'} | ${item.title || '*'}`,
+                exe: item.exe || '*',
+                class: item.class || '*',
+                title: item.title || '*',
                 value: item.exe || item.title 
             }));
-            renderManageList('#popup_window', popupRules, 'display', 'value');
+            renderDataGrid('#popup_window', popupRules, cols.popup, 'value');
         });
     }
 
     document.querySelector('#whitelist_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
         if (!window.pywebview) return;
         const checked = getCheckedValues('#whitelist_window');
-        if (checked.length > 0) {
-            window.pywebview.api.remove_list_items('white_list', checked).then(refreshConfigLists);
-        }
+        if (checked.length > 0) window.pywebview.api.remove_list_items('white_list', checked).then(refreshConfigLists);
     });
 
     document.querySelector('#quarantine_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
         if (!window.pywebview) return;
         const checked = getCheckedValues('#quarantine_window');
-        if (checked.length > 0) {
-            window.pywebview.api.remove_list_items('quarantine', checked).then(refreshConfigLists);
-        }
+        if (checked.length > 0) window.pywebview.api.remove_list_items('quarantine', checked).then(refreshConfigLists);
     });
 
     document.querySelector('#popup_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
         if (!window.pywebview) return;
         const checked = getCheckedValues('#popup_window');
-        if (checked.length > 0) {
-            window.pywebview.api.remove_list_items('block_list', checked).then(refreshConfigLists);
-        }
+        if (checked.length > 0) window.pywebview.api.remove_list_items('block_list', checked).then(refreshConfigLists);
     });
 
     document.querySelector('#custom_protect_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
         if (!window.pywebview) return;
         const checked = getCheckedValues('#custom_protect_window');
-        if (checked.length > 0) {
-            window.pywebview.api.remove_list_items('custom_rule', checked).then(refreshConfigLists);
-        }
+        if (checked.length > 0) window.pywebview.api.remove_list_items('custom_rule', checked).then(refreshConfigLists);
     });
 
     document.querySelector('#whitelist_window .primary-btn')?.addEventListener('click', () => {
         window.pywebview?.api.select_files().then(files => {
-            if (files && files.length > 0) {
-                window.pywebview.api.manage_named_list('white_list', files, 'add').then(refreshConfigLists);
-            }
+            if (files && files.length > 0) window.pywebview.api.manage_named_list('white_list', files, 'add').then(refreshConfigLists);
         });
     });
     
     document.querySelector('#quarantine_window .primary-btn')?.addEventListener('click', () => {
         window.pywebview?.api.select_files().then(files => {
-            if (files && files.length > 0) {
-                window.pywebview.api.manage_named_list('quarantine', files, 'add').then(refreshConfigLists);
-            }
+            if (files && files.length > 0) window.pywebview.api.manage_named_list('quarantine', files, 'add').then(refreshConfigLists);
         });
     });
 
     document.querySelector('#custom_protect_window .primary-btn')?.addEventListener('click', () => {
         window.pywebview?.api.select_files().then(files => {
-            if (files && files.length > 0) {
-                window.pywebview.api.manage_named_list('custom_rule', files, 'add').then(refreshConfigLists);
-            }
+            if (files && files.length > 0) window.pywebview.api.manage_named_list('custom_rule', files, 'add').then(refreshConfigLists);
         });
     });
 
     document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
         if (!window.pywebview) return;
         window.pywebview.api.scan_system_repair().then(list => {
-            const translatedList = list.map(item => ({
-                display: getMsg(item.display),
-                value: item.value
-            }));
-            renderManageList('#repair_window', translatedList, 'display', 'value', true);
+            const repairData = list.map(item => ({ display: getMsg(item.display), value: item.value }));
+            renderDataGrid('#repair_window', repairData, cols.repair, 'value', true);
         });
     });
     
@@ -746,7 +867,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.pywebview.api.execute_system_repair(checkedPaths).then(() => {
             const msg = getMsg("已修復選取項目");
             window.pywebview.api.show_alert(getMsg("提示"), msg, "info");
-            document.querySelector('#repair_window .manage-list').innerHTML = '';
+            renderDataGrid('#repair_window', [], cols.repair, 'value');
         });
     });
 
@@ -774,13 +895,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (exportWindow && exportWindow.classList.contains('active')) {
             if (window.pywebview) {
                 window.pywebview.api.get_logs().then(logs => {
-                    const logList = logs.reverse().map(log => {
-                        let displayStr = `[${log.time_str}] ${log.level} | ${log.action}`;
-                        if (log.source) displayStr += ` | ${log.source.split('\\').pop().split('/').pop()}`;
-                        if (log.detail) displayStr += ` | ${log.detail}`;
-                        return { display: displayStr, value: log.id };
-                    });
-                    renderManageList('#log_export_window', logList, 'display', 'value', true);
+                    const logList = logs.reverse().map(log => ({
+                        time_str: `[${log.time_str}]`,
+                        level: log.level,
+                        action: log.action,
+                        source: log.source ? log.source : '-',
+                        id: log.id
+                    }));
+                    renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
                 });
             }
         }
@@ -865,13 +987,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res) {
                     window.pywebview.api.clear_logs(checkedIds).then(() => {
                         window.pywebview.api.get_logs().then(logs => {
-                            const logList = logs.reverse().map(log => {
-                                let displayStr = `[${log.time_str}] ${log.level} | ${log.action}`;
-                                if (log.source) displayStr += ` | ${log.source.split('\\').pop().split('/').pop()}`;
-                                if (log.detail) displayStr += ` | ${log.detail}`;
-                                return { display: displayStr, value: log.id };
-                            });
-                            renderManageList('#log_export_window', logList, 'display', 'value', true);
+                            const logList = logs.reverse().map(log => ({
+                                time_str: `[${log.time_str}]`,
+                                level: log.level,
+                                action: log.action,
+                                source: log.source ? log.source : '-',
+                                id: log.id
+                            }));
+                            renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
                         });
                         const successMsg = getMsg("選取的日誌已刪除。");
                         window.pywebview.api.show_alert(getMsg("提示"), successMsg, "info");
@@ -882,50 +1005,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     let currentProcessList = [];
-    function renderProcessList(filterText = "") {
-        const list = document.querySelector('#taskmgr_window .manage-list');
-        if (!list) return;
-        list.innerHTML = '';
-        currentProcessList.forEach(p => {
-            if (filterText && !p.name.toLowerCase().includes(filterText.toLowerCase())) return;
-            const li = document.createElement('li');
-            li.className = 'manage-list-item';
-            const unknownPathText = getMsg("未知路徑");
-            const pathText = p.path && p.path !== "None" ? p.path : unknownPathText;
-            li.innerHTML = `
-                <input type="checkbox" value="${p.pid}" data-path="${p.path || ''}">
-                <div class="manage-list-item-content">${p.name} | PID: ${p.pid} | ${pathText}</div>
-            `;
-            li.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'INPUT') {
-                    const cb = li.querySelector('input');
-                    cb.checked = !cb.checked;
-                }
-            });
-            li.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                const confirmMsg = getMsg("結束進程?");
-                if (window.pywebview) {
-                    window.pywebview.api.show_confirm(getMsg("提示"), confirmMsg).then(res => {
-                        if (res) {
-                            window.pywebview.api.kill_process(p.pid).then(() => window.pywebview.api.get_process_list().then(updateProcessList));
-                        }
-                    });
-                }
-            });
-            list.appendChild(li);
-        });
-    }
-
     function updateProcessList(procs) {
-        currentProcessList = procs;
-        const searchInput = document.querySelector('#taskmgr_window .search-box input');
-        renderProcessList(searchInput ? searchInput.value : "");
-    }
-    
-    const procSearchInput = document.querySelector('#taskmgr_window .search-box input');
-    if (procSearchInput) {
-        procSearchInput.addEventListener('input', (e) => renderProcessList(e.target.value));
+        currentProcessList = procs.map(p => ({
+            name: p.name,
+            pid: p.pid,
+            path: p.path && p.path !== "None" ? p.path : getMsg("未知路徑")
+        }));
+        renderDataGrid('#taskmgr_window', currentProcessList, cols.process, 'pid', false);
     }
 
     document.querySelector('#taskmgr_window .primary-btn')?.addEventListener('click', () => {

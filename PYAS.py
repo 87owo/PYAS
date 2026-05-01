@@ -440,7 +440,7 @@ class WindowAPI:
         self.lock_net = threading.RLock()
 
         self.pyas_default = {
-            "version": "3.5.1",
+            "version": "3.5.2",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
@@ -523,6 +523,12 @@ class WindowAPI:
                 self.start_daemon_thread(self.protect_net_thread)
             elif key == "context_switch":
                 self.register_context_menu(value)
+            elif key == "language":
+                if self.tray_icon:
+                    try:
+                        self.tray_icon.update_menu()
+                    except Exception:
+                        pass
             elif key == "driver_switch":
                 if value:
                     if self.install_system_driver():

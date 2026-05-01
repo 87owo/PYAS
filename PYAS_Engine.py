@@ -742,7 +742,7 @@ class cloud_scanner:
         r = self._request("POST", f"/api/rescan/{sha256}")
         return r is not None and r.json().get('status') == 'success'
 
-    def upload_file(self, file_path, api_host, api_key, chunk_size=5242880):
+    def upload_file(self, file_path, api_host, api_key, chunk_size=5242880, need_rescan=False):
         try:
             self._init_session(api_host, api_key)
             sha256 = self.calc_hash(file_path)
@@ -750,9 +750,16 @@ class cloud_scanner:
                 return False, None
 
             status_req = self._request("GET", f"/api/processing_status/{sha256}")
-            if status_req and status_req.json().get('status') != 'missing':
-                self.rescan(sha256, api_host, api_key)
-                return True, sha256
+            if status_req:
+                status_data = status_req.json()
+                current_status = status_data.get('status')
+                
+                if current_status == 'done':
+                    if need_rescan:
+                        self.rescan(sha256, api_host, api_key)
+                    return True, sha256
+                elif current_status in ('queued', 'processing'):
+                    return True, sha256
 
             file_size = os.path.getsize(file_path)
             if file_size > 104857600:

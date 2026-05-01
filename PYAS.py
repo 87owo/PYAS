@@ -825,9 +825,9 @@ class WindowAPI:
 
     def init_engine_thread(self):
         try:
-            self.backup_mbr()
-            self.relock_file()
-            self.init_whitelist()
+            self.start_daemon_thread(self.backup_mbr)
+            self.start_daemon_thread(self.relock_file)
+            self.start_daemon_thread(self.init_whitelist)
             self.start_daemon_thread(self.popup_intercept_thread)
             
             def log_callback(x):

@@ -440,7 +440,7 @@ class WindowAPI:
         self.lock_net = threading.RLock()
 
         self.pyas_default = {
-            "version": "3.5.2",
+            "version": "3.5.3",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
@@ -908,6 +908,7 @@ class WindowAPI:
 ####################################################################################################
 
     def scan_worker(self, targets):
+        last_update = 0.0
         try:
             for file_path in self.yield_files(targets):
                 with self.lock_virus:
@@ -947,8 +948,11 @@ class WindowAPI:
                         self.cloud_check(norm_path)
                         self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
 
-                    if self._window:
-                        self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
+                    current_time = time.time()
+                    if current_time - last_update > 0.1:
+                        if self._window:
+                            self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
+                        last_update = current_time
 
                 except Exception as e:
                     self.write_log("WARN", "Scan Engine", source=norm_path, detail=str(e), success=False)

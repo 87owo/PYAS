@@ -14,7 +14,7 @@ DB_PATH = "pe_features.db"
 MODEL_FILE = "model.txt"
 ONNX_FILE = "Pefile_General_S1.onnx"
 FEATURE_FILE = "features.json"
-TEST_SIZE = 0.0001
+TEST_SIZE = 0.1
 RANDOM_SEED = 42
 
 LGBM_PARAMS = {
@@ -31,8 +31,8 @@ LGBM_PARAMS = {
     'n_jobs': -1,
     'max_depth': -1,
     'min_data_in_leaf': 10,
-    'lambda_l1': 0.1,
-    'lambda_l2': 0.1,
+    'lambda_l1': 0.05,
+    'lambda_l2': 0.05,
 }
 
 ####################################################################################################
@@ -170,11 +170,24 @@ def evaluate_and_save(model, X_test, y_test):
     acc = accuracy_score(y_test, y_pred)
     auc = roc_auc_score(y_test, y_prob)
     
+    tp = np.sum((y_test == 1) & (y_pred == 1))
+    fn = np.sum((y_test == 1) & (y_pred == 0))
+    tn = np.sum((y_test == 0) & (y_pred == 0))
+    fp = np.sum((y_test == 0) & (y_pred == 1))
+    
+    total_malware = tp + fn
+    total_safe = tn + fp
+    
+    detection_rate = (tp / total_malware * 100) if total_malware > 0 else 0.0
+    fpr = (fp / total_safe * 100) if total_safe > 0 else 0.0
+    
     print(f"Accuracy : {acc:.4f}")
-    print(f"ROC AUC  : {auc:.4f}")
-    print("\n" + classification_report(y_test, y_pred, zero_division=0))
+    print(f"ROC AUC  : {auc:.4f}\n")
+    
+    print(f"True Positive (Class 1) : {detection_rate:.3f}% ({tp}/{total_malware})")
+    print(f"False Positive (Class 0) : {fpr:.3f}% ({fp}/{total_safe})")
 
-    print("---------------------------------------------------------\n")
+    print("\n---------------------------------------------------------\n")
     print("[*] Top 20 Features (Importance by Gain):")
     
     feature_names = model.feature_name()

@@ -948,11 +948,8 @@ class WindowAPI:
                         self.cloud_check(norm_path)
                         self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
 
-                    current_time = time.time()
-                    if current_time - last_update > 0.1:
-                        if self._window:
-                            self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
-                        last_update = current_time
+                    if self._window:
+                        self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
 
                 except Exception as e:
                     self.write_log("WARN", "Scan Engine", source=norm_path, detail=str(e), success=False)

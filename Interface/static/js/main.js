@@ -149,6 +149,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (widget.renderData) widget.renderData();
         });
         document.documentElement.lang = langMap[currentLang] || "en";
+
+        const progressText = document.getElementById('progress_text');
+        if (progressText && progressText.dataset.dynamicMsg) {
+            try {
+                const msgs = JSON.parse(progressText.dataset.dynamicMsg);
+                if (msgs[lang]) {
+                    progressText.textContent = msgs[lang];
+                }
+            } catch (e) {}
+        }
     };
 
     const applyTheme = (theme) => {
@@ -618,6 +628,17 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCustomSelectUI('scan_method_select', 'none');
         if (virusState.size === 0) {
             changeScanSelectMode('scan');
+            if (progressTitle) {
+                progressTitle.setAttribute('data-i18n', '');
+                progressTitle.dataset.originText = "病毒掃描";
+                progressTitle.textContent = getMsg("病毒掃描");
+            }
+            if (progressText) {
+                progressText.setAttribute('data-i18n', '');
+                progressText.removeAttribute('data-dynamic-msg');
+                progressText.dataset.originText = "此選項可以選擇掃描方式";
+                progressText.textContent = getMsg("此選項可以選擇掃描方式");
+            }
         }
     }
 
@@ -654,19 +675,48 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.updateScanProgress = (path) => {
-        if (progressTitle) progressTitle.textContent = getMsg("正在掃描");
-        progressText.textContent = path;
+        if (progressTitle) {
+            progressTitle.setAttribute('data-i18n', '');
+            progressTitle.dataset.originText = "正在掃描";
+            progressTitle.textContent = getMsg("正在掃描");
+        }
+        if (progressText) {
+            progressText.removeAttribute('data-i18n');
+            progressText.removeAttribute('data-dynamic-msg');
+            progressText.textContent = path;
+        }
     };
 
     window.updateDeleteProgress = (path) => {
-        if (progressTitle) progressTitle.textContent = getMsg("正在刪除");
-        progressText.textContent = path;
+        if (progressTitle) {
+            progressTitle.setAttribute('data-i18n', '');
+            progressTitle.dataset.originText = "正在刪除";
+            progressTitle.textContent = getMsg("正在刪除");
+        }
+        if (progressText) {
+            progressText.removeAttribute('data-i18n');
+            progressText.removeAttribute('data-dynamic-msg');
+            progressText.textContent = path;
+        }
     };
 
-    window.finishScan = (msg, count) => {
+    window.finishScan = (msgData, count) => {
         isScanning = false;
-        if (progressTitle) progressTitle.textContent = getMsg("病毒掃描");
-        progressText.textContent = msg;
+        if (progressTitle) {
+            progressTitle.setAttribute('data-i18n', '');
+            progressTitle.dataset.originText = "病毒掃描";
+            progressTitle.textContent = getMsg("病毒掃描");
+        }
+        if (progressText) {
+            progressText.removeAttribute('data-i18n');
+            if (typeof msgData === 'object' && msgData !== null) {
+                progressText.dataset.dynamicMsg = JSON.stringify(msgData);
+                progressText.textContent = msgData[currentLang] || msgData["english_switch"];
+            } else {
+                progressText.removeAttribute('data-dynamic-msg');
+                progressText.textContent = msgData;
+            }
+        }
         stopBtn.classList.add('hidden');
         scanMethodSelect.classList.remove('hidden');
         
@@ -688,8 +738,17 @@ document.addEventListener('DOMContentLoaded', () => {
         scanMethodSelect.classList.add('hidden');
         stopBtn.classList.remove('hidden');
         stopBtn.disabled = false;
-        if (progressTitle) progressTitle.textContent = getMsg("正在掃描");
-        progressText.textContent = getMsg("正在初始化中");
+        if (progressTitle) {
+            progressTitle.setAttribute('data-i18n', '');
+            progressTitle.dataset.originText = "正在掃描";
+            progressTitle.textContent = getMsg("正在掃描");
+        }
+        if (progressText) {
+            progressText.setAttribute('data-i18n', '');
+            progressText.removeAttribute('data-dynamic-msg');
+            progressText.dataset.originText = "正在初始化中";
+            progressText.textContent = getMsg("正在初始化中");
+        }
         window.pywebview.api.trigger_scan(method);
     }
 
@@ -761,8 +820,17 @@ document.addEventListener('DOMContentLoaded', () => {
             scanMethodSelect.classList.add('hidden');
             stopBtn.classList.remove('hidden');
             changeScanSelectMode('scan');
-            if (progressTitle) progressTitle.textContent = getMsg("正在掃描");
-            progressText.textContent = getMsg("正在初始化中");
+            if (progressTitle) {
+                progressTitle.setAttribute('data-i18n', '');
+                progressTitle.dataset.originText = "正在掃描";
+                progressTitle.textContent = getMsg("正在掃描");
+            }
+            if (progressText) {
+                progressText.setAttribute('data-i18n', '');
+                progressText.removeAttribute('data-dynamic-msg');
+                progressText.dataset.originText = "正在初始化中";
+                progressText.textContent = getMsg("正在初始化中");
+            }
             window.pywebview.api.start_scan([path]);
         }
     };

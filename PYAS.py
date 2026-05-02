@@ -976,9 +976,6 @@ class WindowAPI:
                 count = len(self.virus_results)
                 elapsed = int(time.time() - self.scan_start)
                 scanned = self.scan_count
-            
-            with self.lock_config:
-                lang = self.pyas_config.get("language", "traditional_switch")
 
             messages = {
                 "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
@@ -993,10 +990,9 @@ class WindowAPI:
                 "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
                 "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
             }
-            result_msg = messages.get(lang, messages["traditional_switch"])
 
             if self._window:
-                self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(result_msg)}, {count});")
+                self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});")
             self.write_log("INFO", "Scan Completed", detail=f"Found {count} viruses, scanned {scanned} files, time {elapsed}s")
 
 ####################################################################################################
@@ -1088,9 +1084,6 @@ class WindowAPI:
                 self.virus_results = [p for p in self.virus_results if p not in deleted_set]
             
             remaining = len(self.virus_results)
-        
-        with self.lock_config:
-            lang = self.pyas_config.get("language", "traditional_switch")
 
         messages = {
             "traditional_switch": f"剩餘 {remaining} 個病毒，已刪除 {len(deleted_paths)} 個檔案。",
@@ -1105,10 +1098,9 @@ class WindowAPI:
             "russian_switch": f"Осталось вирусов: {remaining}, удалено файлов: {len(deleted_paths)}.",
             "slovenian_switch": f"Preostalih virusov: {remaining}, izbrisanih datotek: {len(deleted_paths)}."
         }
-        result_msg = messages.get(lang, messages["traditional_switch"])
 
         if self._window:
-            self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(result_msg)}, {remaining});")
+            self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {remaining});")
         return deleted_paths
 
     def remove_virus_result(self, paths):
@@ -1120,9 +1112,6 @@ class WindowAPI:
 ####################################################################################################
 
     def trigger_scan(self, method):
-        with self.lock_config:
-            lang = self.pyas_config.get("language", "traditional_switch")
-            
         messages = {
             "traditional_switch": "已取消掃描",
             "simplified_switch": "已取消扫描",
@@ -1136,7 +1125,6 @@ class WindowAPI:
             "russian_switch": "Сканирование отменено",
             "slovenian_switch": "Skeniranje preklicano"
         }
-        cancel_msg = messages.get(lang, messages["traditional_switch"])
 
         targets = []
         if method == "smart":
@@ -1159,7 +1147,7 @@ class WindowAPI:
                 self.start_scan(targets)
             else:
                 if self._window:
-                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan('{cancel_msg}', 0);")
+                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
 
         elif method == "path":
             targets = self.select_folder()
@@ -1167,7 +1155,7 @@ class WindowAPI:
                 self.start_scan(targets)
             else:
                 if self._window:
-                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan('{cancel_msg}', 0);")
+                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
 
         elif method == "full":
             targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]

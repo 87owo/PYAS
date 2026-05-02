@@ -127,6 +127,12 @@ graph TD
     BootProtect -->|IOCTL_DISK_FORMAT_TRACKS...| Disk
 ```
 
+## Machine Learning
+
+The machine learning-based virus scanning engine training achieved extremely high accuracy.
+
+<img width="991" height="1191" alt="train" src="https://github.com/user-attachments/assets/82e4b9bf-ccae-4dde-8632-120ebc0765fb" />
+
 ## Support System
 
 Please ensure your computer supports Microsoft Visual C++ 2015-2022 Redistributable and Edge Webview2.

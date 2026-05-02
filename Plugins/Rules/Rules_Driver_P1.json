@@ -125,6 +125,7 @@
     "*\\XLLiveUD.exe",
     "*\\PC4399_WPFLauncher.exe",
     "*\\bin\\APlayer.exe",
+    "*\\hrkill-*.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",

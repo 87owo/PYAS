@@ -598,26 +598,40 @@ document.addEventListener('DOMContentLoaded', () => {
             checkVirusListEmpty();
         };
 
+        const removeListItems = (removedPaths) => {
+            const removedSet = new Set(removedPaths);
+            removedPaths.forEach(p => virusState.delete(p));
+            window.virusResults = window.virusResults.filter(v => !removedSet.has(v.path));
+            
+            const listUl = document.querySelector('#scan_window .virus-list');
+            if (listUl) {
+                listUl.querySelectorAll('.manage-list-item').forEach(li => {
+                    const cb = li.querySelector('input[type="checkbox"]');
+                    if (cb && removedSet.has(cb.value)) {
+                        li.remove();
+                    }
+                });
+            }
+            
+            const widget = document.querySelector('#scan_window .virus-widget');
+            if (widget && typeof widget.updateSelectAllState === 'function') {
+                widget.updateSelectAllState();
+            }
+        };
+
         if (action === 'delete') {
             window.pywebview.api.solve_scan(paths).then((deletedPaths) => {
-                const deletedSet = new Set(deletedPaths);
-                deletedPaths.forEach(p => virusState.delete(p));
-                window.virusResults = window.virusResults.filter(v => !deletedSet.has(v.path));
-                renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+                removeListItems(deletedPaths);
                 finalizeAction();
             });
         } else if (action === 'ignore') {
-            paths.forEach(p => virusState.delete(p));
-            window.virusResults = window.virusResults.filter(v => !paths.includes(v.path));
-            renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+            removeListItems(paths);
             finalizeAction();
         } else if (action === 'quarantine' || action === 'whitelist') {
             const listKey = action === 'quarantine' ? 'quarantine' : 'white_list';
             window.pywebview.api.manage_named_list(listKey, paths, 'add').then(() => {
                 window.pywebview.api.remove_virus_result(paths).then(() => {
-                    paths.forEach(p => virusState.delete(p));
-                    window.virusResults = window.virusResults.filter(v => !paths.includes(v.path));
-                    renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+                    removeListItems(paths);
                     finalizeAction();
                 });
             });

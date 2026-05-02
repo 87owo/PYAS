@@ -201,6 +201,25 @@ document.addEventListener('DOMContentLoaded', () => {
             widget.gridState.colWidths.forEach((w, idx) => {
                 widget.style.setProperty(`--col-${idx}`, `${w}px`);
             });
+
+            listUl.addEventListener('click', (e) => {
+                const li = e.target.closest('.manage-list-item');
+                if (!li) return;
+                
+                const cb = li.querySelector('input[type="checkbox"]');
+                if (e.target.tagName !== 'INPUT') {
+                    cb.checked = !cb.checked;
+                }
+                
+                if (containerSelector === '#scan_window') {
+                    virusState.set(cb.value, cb.checked);
+                    if (typeof checkVirusListEmpty === 'function') checkVirusListEmpty();
+                }
+                
+                if (typeof widget.updateSelectAllState === 'function') {
+                    widget.updateSelectAllState();
+                }
+            });
         }
         const state = widget.gridState;
 
@@ -280,7 +299,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         virusState.set(cb.value, isChecked);
                     }
                 });
-                if (containerSelector === '#scan_window') checkVirusListEmpty();
+                if (containerSelector === '#scan_window' && typeof checkVirusListEmpty === 'function') {
+                    checkVirusListEmpty();
+                }
             });
 
             let displayData = dataList.filter(item => {
@@ -312,12 +333,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            listUl.innerHTML = '';
+            widget.updateSelectAllState = () => {
+                const total = listUl.querySelectorAll('input[type="checkbox"]').length;
+                const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
+                selectAllCb.checked = (total > 0 && total === checked);
+                selectAllCb.indeterminate = (checked > 0 && checked < total);
+            };
 
+            let htmlContent = '';
             displayData.forEach(item => {
-                const li = document.createElement('li');
-                li.className = 'manage-list-item';
-                
                 let isChecked = defaultChecked;
                 if (containerSelector === '#scan_window') {
                     isChecked = virusState.get(item[valKey]) ?? true;
@@ -331,34 +355,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${String(item[col.key] || '').replace(/"/g, '&quot;')}">${item[col.key] || ''}</div>`
                 ).join('');
 
-                li.innerHTML = `
-                    <input type="checkbox" value="${item[valKey]}" ${checkedAttr} data-path="${item.path || ''}">
-                    <div class="manage-list-item-content">${rowColsHtml}</div>
+                htmlContent += `
+                    <li class="manage-list-item">
+                        <input type="checkbox" value="${item[valKey]}" ${checkedAttr} data-path="${item.path || ''}">
+                        <div class="manage-list-item-content">${rowColsHtml}</div>
+                    </li>
                 `;
-                
-                li.addEventListener('click', (e) => {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = li.querySelector('input');
-                        cb.checked = !cb.checked;
-                    }
-                    if (containerSelector === '#scan_window') {
-                        const cb = li.querySelector('input');
-                        virusState.set(item[valKey], cb.checked);
-                        checkVirusListEmpty();
-                    }
-                    updateSelectAllState();
-                });
-
-                listUl.appendChild(li);
             });
 
-            function updateSelectAllState() {
-                const total = listUl.querySelectorAll('input[type="checkbox"]').length;
-                const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
-                selectAllCb.checked = (total > 0 && total === checked);
-                selectAllCb.indeterminate = (checked > 0 && checked < total);
-            }
-            updateSelectAllState();
+            listUl.innerHTML = htmlContent;
+            widget.updateSelectAllState();
         };
 
         widget.renderData();
@@ -625,37 +631,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const widget = document.querySelector('#scan_window .virus-widget');
             
             if (listUl && widget && widget.gridState) {
-                const li = document.createElement('li');
-                li.className = 'manage-list-item';
-                
                 const rowColsHtml = cols.virus.map((col, idx) => 
                     `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${String(item[col.key] || '').replace(/"/g, '&quot;')}">${item[col.key] || ''}</div>`
                 ).join('');
 
-                li.innerHTML = `
-                    <input type="checkbox" value="${path}" checked data-path="${path}">
-                    <div class="manage-list-item-content">${rowColsHtml}</div>
+                const liHtml = `
+                    <li class="manage-list-item">
+                        <input type="checkbox" value="${path}" checked data-path="${path}">
+                        <div class="manage-list-item-content">${rowColsHtml}</div>
+                    </li>
                 `;
                 
-                li.addEventListener('click', (e) => {
-                    if (e.target.tagName !== 'INPUT') {
-                        const cb = li.querySelector('input');
-                        cb.checked = !cb.checked;
-                    }
-                    virusState.set(path, li.querySelector('input').checked);
-                    checkVirusListEmpty();
-                    
-                    const header = widget.querySelector('.manage-list-header');
-                    if (header) {
-                        const selectAllCb = header.querySelector('.select-all-cb');
-                        const total = listUl.querySelectorAll('input[type="checkbox"]').length;
-                        const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
-                        selectAllCb.checked = (total > 0 && total === checked);
-                        selectAllCb.indeterminate = (checked > 0 && checked < total);
-                    }
-                });
-
-                listUl.appendChild(li);
+                listUl.insertAdjacentHTML('beforeend', liHtml);
+                
+                if (typeof widget.updateSelectAllState === 'function') {
+                    widget.updateSelectAllState();
+                }
             } else {
                 renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
             }

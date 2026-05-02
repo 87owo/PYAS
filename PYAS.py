@@ -435,6 +435,7 @@ class WindowAPI:
         self.logs_data = []
         self.tray_icon = None
         self.engine_initialized = False
+        self.logs_dirty = False
 
         self.lock_proc = threading.RLock()
         self.lock_net = threading.RLock()
@@ -470,6 +471,8 @@ class WindowAPI:
         ]
 
         self.thread_pool = ThreadPoolExecutor(max_workers=8)
+        self.start_daemon_thread(self.log_flush_thread)
+
         for _ in range(2):
             self.start_daemon_thread(self.cloud_worker)
 
@@ -605,6 +608,21 @@ class WindowAPI:
                 except Exception:
                     self.logs_data = []
 
+    def log_flush_thread(self):
+        while True:
+            time.sleep(5)
+
+            with self.lock_logs:
+                if getattr(self, 'logs_dirty', False):
+                    try:
+                        os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
+                        with open(self.file_log, "w", encoding="utf-8") as f:
+                            json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
+
+                        self.logs_dirty = False
+                    except Exception:
+                        pass
+
     def write_log(self, level, action, detail=None, code=None, pid=None, file_hash=None, source=None, target=None, operate=None, success=True):
         with self.lock_logs:
             entry = {
@@ -623,15 +641,11 @@ class WindowAPI:
                 "success": success
             }
             self.logs_data.append(entry)
-            if len(self.logs_data) > 10000:
-                self.logs_data = self.logs_data[-10000:]
+            
+            if len(self.logs_data) > 1000:
+                self.logs_data = self.logs_data[-1000:]
 
-            try:
-                os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
-                with open(self.file_log, "w", encoding="utf-8") as f:
-                    json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
-            except Exception:
-                pass
+            self.logs_dirty = True
 
             if self._window:
                 self._window.evaluate_js(f"if(window.updateLogs) window.updateLogs({json.dumps(entry)});")

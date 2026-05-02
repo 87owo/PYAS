@@ -616,10 +616,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     window.addVirusResult = (label, path) => {
-        if (!window.virusResults.some(v => v.path === path)) {
-            window.virusResults.push({ label: label, path: path });
+        if (!virusState.has(path)) {
+            const item = { label: label, path: path };
+            window.virusResults.push(item);
             virusState.set(path, true);
-            renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+            
+            const listUl = document.querySelector('#scan_window .virus-list');
+            const widget = document.querySelector('#scan_window .virus-widget');
+            
+            if (listUl && widget && widget.gridState) {
+                const li = document.createElement('li');
+                li.className = 'manage-list-item';
+                
+                const rowColsHtml = cols.virus.map((col, idx) => 
+                    `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${String(item[col.key] || '').replace(/"/g, '&quot;')}">${item[col.key] || ''}</div>`
+                ).join('');
+
+                li.innerHTML = `
+                    <input type="checkbox" value="${path}" checked data-path="${path}">
+                    <div class="manage-list-item-content">${rowColsHtml}</div>
+                `;
+                
+                li.addEventListener('click', (e) => {
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = li.querySelector('input');
+                        cb.checked = !cb.checked;
+                    }
+                    virusState.set(path, li.querySelector('input').checked);
+                    checkVirusListEmpty();
+                    
+                    const header = widget.querySelector('.manage-list-header');
+                    if (header) {
+                        const selectAllCb = header.querySelector('.select-all-cb');
+                        const total = listUl.querySelectorAll('input[type="checkbox"]').length;
+                        const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
+                        selectAllCb.checked = (total > 0 && total === checked);
+                        selectAllCb.indeterminate = (checked > 0 && checked < total);
+                    }
+                });
+
+                listUl.appendChild(li);
+            } else {
+                renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+            }
         }
     };
 

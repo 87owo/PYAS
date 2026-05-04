@@ -125,6 +125,8 @@
     "*\\PC4399_WPFLauncher.exe",
     "*\\bin\\APlayer.exe",
     "*\\hrkill-*.exe",
+    "*\\bin\\HipsDaemon.exe",
+    "*\\360Safe.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",
@@ -203,6 +205,7 @@
     "*\\ventoy\\Boot\\*",
     "*\\AdminRegionConfig.*",
     "*\\nt_qq\\nt_*\\*",
+    "*\\cache\\*",
   ],
   "Rule_File_RansomwareExtensions": [
     ".zip", ".7z", ".rar", ".tar", ".gz",

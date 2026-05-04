@@ -650,8 +650,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (progressText) {
                 progressText.setAttribute('data-i18n', '');
                 progressText.removeAttribute('data-dynamic-msg');
-                progressText.dataset.originText = "此選項可以選擇掃描方式";
-                progressText.textContent = getMsg("此選項可以選擇掃描方式");
+                progressText.dataset.originText = "此選項可以選擇進階掃描方式";
+                progressText.textContent = getMsg("此選項可以選擇進階掃描方式");
             }
         }
     }

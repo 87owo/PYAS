@@ -1174,7 +1174,8 @@ class WindowAPI:
     def open_file_location(self, file_path):
         if file_path and os.path.exists(file_path):
             try:
-                subprocess.Popen(f'explorer /select,"{file_path}"')
+                norm_path = os.path.normpath(file_path)
+                subprocess.Popen(f'explorer /select,"{norm_path}"')
                 return True
             except Exception:
                 pass

@@ -1172,4 +1172,65 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+    
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'custom-context-menu';
+    contextMenu.innerHTML = `
+        <div class="custom-context-menu-item" id="ctx_open_location">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            <span data-i18n>打開檔案所在位置</span>
+        </div>
+    `;
+    document.body.appendChild(contextMenu);
+
+    const ctxSpan = contextMenu.querySelector('span[data-i18n]');
+    ctxSpan.dataset.originText = ctxSpan.textContent.trim();
+
+    let contextMenuTarget = null;
+
+    document.addEventListener('contextmenu', (e) => {
+        const listItem = e.target.closest('.manage-list-item');
+        if (listItem) {
+            const cb = listItem.querySelector('input[type="checkbox"]');
+            const path = cb ? cb.dataset.path : null;
+            
+            if (path && path !== "Unknown" && path !== "None") {
+                e.preventDefault();
+                contextMenuTarget = path;
+                
+                ctxSpan.textContent = getMsg(ctxSpan.dataset.originText);
+                
+                contextMenu.style.left = `${e.clientX}px`;
+                contextMenu.style.top = `${e.clientY}px`;
+                contextMenu.classList.add('show');
+                
+                const rect = contextMenu.getBoundingClientRect();
+                if (rect.right > window.innerWidth) {
+                    contextMenu.style.left = `${window.innerWidth - rect.width - 5}px`;
+                }
+                if (rect.bottom > window.innerHeight) {
+                    contextMenu.style.top = `${window.innerHeight - rect.height - 5}px`;
+                }
+                return;
+            }
+        }
+        contextMenu.classList.remove('show');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.custom-context-menu')) {
+            contextMenu.classList.remove('show');
+        }
+    });
+
+    document.addEventListener('scroll', () => {
+        contextMenu.classList.remove('show');
+    }, true);
+
+    document.getElementById('ctx_open_location').addEventListener('click', () => {
+        if (window.pywebview && contextMenuTarget) {
+            window.pywebview.api.open_file_location(contextMenuTarget);
+        }
+        contextMenu.classList.remove('show');
+    });
 });

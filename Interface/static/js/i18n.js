@@ -124,7 +124,8 @@ window.AppI18n = {
             "類別": "類別",
             "標題": "標題",
             "修復項目": "修復項目",
-            "全選": "全選"
+            "全選": "全選",
+            "打開檔案所在位置": "打開檔案所在位置"
         },
         "simplified_switch": {
             "PYAS Security": "PYAS Security",
@@ -250,7 +251,8 @@ window.AppI18n = {
             "類別": "类别",
             "標題": "标题",
             "修復項目": "修复项目",
-            "全選": "全选"
+            "全選": "全选",
+            "打開檔案所在位置": "打开文件所在位置"
         },
         "english_switch": {
             "PYAS Security": "PYAS Security",
@@ -376,7 +378,8 @@ window.AppI18n = {
             "類別": "Class",
             "標題": "Title",
             "修復項目": "Repair Items",
-            "全選": "Select All"
+            "全選": "Select All",
+            "打開檔案所在位置": "Open file location"
         },
         "japanese_switch": {
             "PYAS Security": "PYAS Security",
@@ -502,7 +505,8 @@ window.AppI18n = {
             "類別": "クラス",
             "標題": "タイトル",
             "修復項目": "修復項目",
-            "全選": "すべて選択"
+            "全選": "すべて選択",
+            "打開檔案所在位置": "ファイルの場所を開く"
         },
         "korean_switch": {
             "PYAS Security": "PYAS Security",
@@ -628,7 +632,8 @@ window.AppI18n = {
             "類別": "클래스",
             "標題": "제목",
             "修復項目": "복구 항목",
-            "全選": "전체 선택"
+            "全選": "전체 선택",
+            "打開檔案所在位置": "파일 위치 열기"
         },
         "french_switch": {
             "PYAS Security": "PYAS Security",
@@ -754,7 +759,8 @@ window.AppI18n = {
             "類別": "Classe",
             "標題": "Titre",
             "修復項目": "Éléments de réparation",
-            "全選": "Tout sélectionner"
+            "全選": "Tout sélectionner",
+            "打開檔案所在位置": "Ouvrir l'emplacement du fichier"
         },
         "spanish_switch": {
             "PYAS Security": "PYAS Security",
@@ -880,7 +886,8 @@ window.AppI18n = {
             "類別": "Clase",
             "標題": "Título",
             "修復項目": "Elementos de reparación",
-            "全選": "Seleccionar todo"
+            "全選": "Seleccionar todo",
+            "打開檔案所在位置": "Abrir ubicación de archivo"
         },
         "hindi_switch": {
             "PYAS Security": "PYAS Security",
@@ -1006,7 +1013,8 @@ window.AppI18n = {
             "類別": "वर्ग",
             "標題": "शीर्षक",
             "修復項目": "मरम्मत आइटम",
-            "全選": "सभी चुनें"
+            "全選": "सभी चुनें",
+            "打開檔案所在位置": "फ़ाइल स्थान खोलें"
         },
         "arabic_switch": {
             "PYAS Security": "PYAS Security",
@@ -1132,7 +1140,8 @@ window.AppI18n = {
             "類別": "الفئة",
             "標題": "العنوان",
             "修復項目": "عناصر الإصلاح",
-            "全選": "تحديد الكل"
+            "全選": "تحديد الكل",
+            "打開檔案所在位置": "فتح موقع الملف"
         },
         "russian_switch": {
             "PYAS Security": "PYAS Security",
@@ -1258,7 +1267,8 @@ window.AppI18n = {
             "類別": "Класс",
             "標題": "Заголовок",
             "修復項目": "Элементы восстановления",
-            "全選": "Выбрать все"
+            "全選": "Выбрать все",
+            "打開檔案所在位置": "Открыть расположение файла"
         },
         "slovenian_switch": {
             "PYAS Security": "PYAS Security",
@@ -1384,7 +1394,8 @@ window.AppI18n = {
             "類別": "Razred",
             "標題": "Naslov",
             "修復項目": "Predmeti za popravilo",
-            "全選": "Izberi vse"
+            "全選": "Izberi vse",
+            "打開檔案所在位置": "Odpri mesto datoteke"
         }
     },
     langMap: {

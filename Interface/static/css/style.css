@@ -797,6 +797,44 @@ body.resizing-active * {
     color: var(--text-primary);
 }
 
+.custom-context-menu {
+    position: absolute;
+    z-index: 10000;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    display: none;
+    min-width: 160px;
+}
+
+.custom-context-menu.show {
+    display: block;
+}
+
+.custom-context-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background-color 0.2s;
+}
+
+.custom-context-menu-item:hover {
+    background-color: var(--bg-hover);
+}
+
+.custom-context-menu-item svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+}
+
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }

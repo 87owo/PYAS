@@ -1832,8 +1832,9 @@ class WindowAPI:
         self.ntdll.NtSuspendProcess(h)
         try:
             cmdline = self.get_process_cmdline(h)
+            process_file = self.get_process_file(h)
             
-            if "-scan" in cmdline and self.path_equal(self.get_process_file(h), self.file_pyas):
+            if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas):
                 return
                 
             paths = self.extract_paths_from_cmdline(cmdline)
@@ -1851,6 +1852,9 @@ class WindowAPI:
                 if self.is_in_whitelist(file_path):
                     continue
                 
+                if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower():
+                    continue
+
                 self.cloud_check(file_path)
                 if self.scan_engine(file_path):
                     self.kernel32.TerminateProcess(h, 0)

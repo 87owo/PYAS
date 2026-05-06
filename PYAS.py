@@ -933,6 +933,12 @@ class WindowAPI:
                 if not norm_path:
                     continue
 
+                current_time = time.time()
+                if current_time - last_update >= 0.05:
+                    if self._window:
+                        self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
+                    last_update = current_time
+
                 was_locked = False
                 try:
                     with self.lock_file_ops:
@@ -961,9 +967,6 @@ class WindowAPI:
                             self._window.evaluate_js(f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});")
                         self.cloud_check(norm_path)
                         self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
-
-                    if self._window:
-                        self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
 
                 except Exception as e:
                     self.write_log("WARN", "Scan Engine", source=norm_path, detail=str(e), success=False)
@@ -1045,6 +1048,8 @@ class WindowAPI:
                 if norm_p:
                     proc_map.setdefault(os.path.normcase(norm_p), []).append(proc["pid"])
 
+        last_update = 0.0
+
         with self.lock_virus:
             deleted_set = set()
             for raw_path in file_paths:
@@ -1052,8 +1057,11 @@ class WindowAPI:
                 if not path:
                     continue
 
-                if self._window:
-                    self._window.evaluate_js(f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});")
+                current_time = time.time()
+                if current_time - last_update >= 0.05:
+                    if self._window:
+                        self._window.evaluate_js(f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});")
+                    last_update = current_time
                     
                 try:
                     if path in self.virus_lock:

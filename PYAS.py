@@ -187,11 +187,12 @@ class WindowAPI:
         self._window = window
 
     def minimize(self):
-        hwnd = self.user32.FindWindowW(None, "PYAS Security")
-        if hwnd:
-            self.user32.ShowWindow(hwnd, 6)
-        elif self._window:
+        if self._window:
             self._window.minimize()
+        else:
+            hwnd = self.user32.FindWindowW(None, "PYAS Security")
+            if hwnd:
+                self.user32.ShowWindow(hwnd, 6)
 
     def hide_window(self):
         if self._window:
@@ -354,6 +355,13 @@ class WindowAPI:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
                 self.write_log("WARN", "init_windll", detail=str(e), success=False)
+
+        self.user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+        self.user32.FindWindowW.restype = ctypes.wintypes.HWND
+        self.user32.ShowWindow.argtypes = [ctypes.wintypes.HWND, ctypes.c_int]
+        self.user32.ShowWindow.restype = ctypes.wintypes.BOOL
+        self.user32.SendMessageTimeoutW.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.UINT, ctypes.wintypes.WPARAM, ctypes.c_void_p, ctypes.wintypes.UINT, ctypes.wintypes.UINT, ctypes.c_void_p]
+        self.user32.SendMessageTimeoutW.restype = ctypes.wintypes.LPARAM
 
         self.advapi32.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
         self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
@@ -2523,9 +2531,11 @@ class WindowHook:
         self.RECT = RECT
         
         self.WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p)
-        self.new_wndproc_cb = self.WNDPROC(self.wndproc)
         self.user32 = ctypes.windll.user32
 
+        self.user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
+        self.user32.FindWindowW.restype = ctypes.wintypes.HWND
+        
         self.user32.CallWindowProcW.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p]
         self.user32.CallWindowProcW.restype = ctypes.c_void_p
 

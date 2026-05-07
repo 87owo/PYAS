@@ -14,7 +14,7 @@ DB_PATH = "pe_features.db"
 MODEL_FILE = "model.txt"
 ONNX_FILE = "Pefile_General_T1.onnx"
 FEATURE_FILE = "features.json"
-TEST_SIZE = 0.1
+TEST_SIZE = 0.0001
 RANDOM_SEED = 42
 
 LGBM_PARAMS = {
@@ -30,7 +30,7 @@ LGBM_PARAMS = {
     'seed': RANDOM_SEED,
     'n_jobs': -1,
     'max_depth': -1,
-    'min_data_in_leaf': 10,
+    'min_data_in_leaf': 20,
     'lambda_l1': 0.05,
     'lambda_l2': 0.05,
 }

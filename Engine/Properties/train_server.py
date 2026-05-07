@@ -14,14 +14,14 @@ DB_PATH = "pe_features.db"
 MODEL_FILE = "model.txt"
 ONNX_FILE = "Pefile_General_S1.onnx"
 FEATURE_FILE = "features.json"
-TEST_SIZE = 0.1
+TEST_SIZE = 0.0001
 RANDOM_SEED = 42
 
 LGBM_PARAMS = {
     'objective': 'binary',
     'metric': ['binary_logloss', 'auc'],
     'boosting_type': 'gbdt',
-    'num_leaves': 512,
+    'num_leaves': 256,
     'learning_rate': 0.05,
     'feature_fraction': 0.8,
     'bagging_fraction': 0.8,
@@ -30,7 +30,7 @@ LGBM_PARAMS = {
     'seed': RANDOM_SEED,
     'n_jobs': -1,
     'max_depth': -1,
-    'min_data_in_leaf': 10,
+    'min_data_in_leaf': 20,
     'lambda_l1': 0.05,
     'lambda_l2': 0.05,
 }

@@ -918,8 +918,11 @@ class WindowAPI:
             return [p for p in (self.norm_path(x, must_exist) for x in path) if p]
 
         if isinstance(path, str):
-            ap = os.path.normpath(os.path.abspath(path))
-            return ap if (not must_exist or os.path.exists(ap)) else None
+            try:
+                ap = os.path.normpath(os.path.abspath(path))
+                return ap if (not must_exist or os.path.exists(ap)) else None
+            except Exception:
+                return None
 
         return path
 
@@ -1356,6 +1359,9 @@ class WindowAPI:
 
     def start_scan(self, targets):
         with self.lock_virus:
+            if getattr(self, 'scan_running', False):
+                return
+
             self.scan_running = True
             self.scan_finished = False
             self.virus_results = []

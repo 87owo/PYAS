@@ -203,7 +203,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const searchInput = document.querySelector(`${containerSelector} .search-box input`);
         if (!widget || !listUl) return;
 
-        if (!widget.gridState) {
+        const escapeHtml = (unsafe) => {
+            if (typeof unsafe !== 'string') return unsafe;
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        };
+
+        const isInit = !widget.gridState;
+
+        if (isInit) {
             let containerWidth = widget.clientWidth || 800;
             let availableWidth = Math.max(containerWidth - 60 - (columns.length * 16), 400); 
             let totalFlex = columns.reduce((sum, c) => sum + (c.flex || 1), 0);
@@ -212,12 +224,96 @@ document.addEventListener('DOMContentLoaded', () => {
                 sortKey: columns[0]?.key || '', 
                 sortAsc: true, 
                 filterText: "",
-                colWidths: columns.map(c => Math.max(((c.flex || 1) / totalFlex) * availableWidth, 60))
+                colWidths: columns.map(c => Math.max(((c.flex || 1) / totalFlex) * availableWidth, 60)),
+                checkedSet: new Set()
             };
             
             widget.gridState.colWidths.forEach((w, idx) => {
                 widget.style.setProperty(`--col-${idx}`, `${w}px`);
             });
+
+            const header = document.createElement('div');
+            header.className = 'manage-list-header';
+            widget.insertBefore(header, widget.firstChild);
+
+            widget.buildHeader = () => {
+                const headerColsHtml = columns.map((col, idx) => 
+                    `<div class="col-header" data-key="${col.key}" data-idx="${idx}" style="width: var(--col-${idx}); flex: 0 0 auto;">
+                        <span class="header-text" data-i18n data-origin-text="${col.label}">${getMsg(col.label)}</span>
+                        <span class="sort-icon">${widget.gridState.sortKey === col.key ? (widget.gridState.sortAsc ? '▲' : '▼') : ''}</span>
+                        <div class="col-resizer"></div>
+                    </div>`
+                ).join('');
+
+                header.innerHTML = `
+                    <input type="checkbox" class="select-all-cb" title="${getMsg('全選')}">
+                    <div class="header-cols-container">${headerColsHtml}</div>
+                `;
+
+                header.querySelectorAll('.col-header').forEach(el => {
+                    el.addEventListener('click', () => {
+                        const key = el.dataset.key;
+                        if (widget.gridState.sortKey === key) {
+                            widget.gridState.sortAsc = !widget.gridState.sortAsc;
+                        } else {
+                            widget.gridState.sortKey = key;
+                            widget.gridState.sortAsc = true;
+                        }
+                        widget.buildHeader(); 
+                        widget.renderData(widget.gridState.filterText, false); 
+                    });
+                });
+
+                header.querySelectorAll('.col-resizer').forEach(resizer => {
+                    resizer.addEventListener('mousedown', (e) => {
+                        e.stopPropagation();
+                        const headerCell = resizer.parentElement;
+                        const idx = parseInt(headerCell.dataset.idx);
+                        const startX = e.clientX;
+                        const startWidth = widget.gridState.colWidths[idx];
+
+                        const onMouseMove = (moveEvent) => {
+                            const newWidth = Math.max(startWidth + (moveEvent.clientX - startX), 40);
+                            widget.gridState.colWidths[idx] = newWidth;
+                            widget.style.setProperty(`--col-${idx}`, `${newWidth}px`);
+                        };
+
+                        const onMouseUp = () => {
+                            document.body.classList.remove('resizing-active');
+                            document.removeEventListener('mousemove', onMouseMove);
+                            document.removeEventListener('mouseup', onMouseUp);
+                        };
+
+                        document.body.classList.add('resizing-active');
+                        document.addEventListener('mousemove', onMouseMove);
+                        document.addEventListener('mouseup', onMouseUp);
+                    });
+                    resizer.addEventListener('click', (e) => e.stopPropagation());
+                });
+
+                const selectAllCb = header.querySelector('.select-all-cb');
+                if (selectAllCb) {
+                    selectAllCb.addEventListener('change', (e) => {
+                        const isChecked = e.target.checked;
+                        listUl.querySelectorAll('.manage-list-item input[type="checkbox"]').forEach(cb => {
+                            cb.checked = isChecked;
+                            if (isChecked) {
+                                widget.gridState.checkedSet.add(cb.value);
+                            } else {
+                                widget.gridState.checkedSet.delete(cb.value);
+                            }
+                            if (containerSelector === '#scan_window') {
+                                virusState.set(cb.value, isChecked);
+                            }
+                        });
+                        if (containerSelector === '#scan_window' && typeof checkVirusListEmpty === 'function') {
+                            checkVirusListEmpty();
+                        }
+                    });
+                }
+            };
+            
+            widget.buildHeader();
 
             listUl.addEventListener('click', (e) => {
                 const li = e.target.closest('.manage-list-item');
@@ -226,6 +322,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cb = li.querySelector('input[type="checkbox"]');
                 if (e.target.tagName !== 'INPUT') {
                     cb.checked = !cb.checked;
+                }
+                
+                if (cb.checked) {
+                    widget.gridState.checkedSet.add(cb.value);
+                } else {
+                    widget.gridState.checkedSet.delete(cb.value);
                 }
                 
                 if (containerSelector === '#scan_window') {
@@ -237,89 +339,41 @@ document.addEventListener('DOMContentLoaded', () => {
                     widget.updateSelectAllState();
                 }
             });
+
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => widget.renderData(e.target.value, false));
+            }
         }
+
         const state = widget.gridState;
 
-        widget.renderData = (filterText = state.filterText) => {
+        widget.renderData = (filterText = state.filterText, resetDataCheck = false) => {
             state.filterText = filterText;
             
-            let header = widget.querySelector('.manage-list-header');
-            if (!header) {
-                header = document.createElement('div');
-                header.className = 'manage-list-header';
-                widget.insertBefore(header, widget.firstChild);
+            if (resetDataCheck) {
+                state.checkedSet.clear();
+                dataList.forEach(item => {
+                    if (defaultChecked) state.checkedSet.add(String(item[valKey]));
+                });
+            } else {
+                const validKeys = new Set(dataList.map(item => String(item[valKey])));
+                for (const val of state.checkedSet) {
+                    if (!validKeys.has(val)) {
+                        state.checkedSet.delete(val);
+                    }
+                }
+
+                if (state.checkedSet.size === 0 && defaultChecked && dataList.length > 0) {
+                    const hasAnyCheckedInDOM = listUl.querySelector('input[type="checkbox"]:checked');
+                    if (!hasAnyCheckedInDOM) {
+                        dataList.forEach(item => state.checkedSet.add(String(item[valKey])));
+                    }
+                }
             }
 
-            let headerColsHtml = columns.map((col, idx) => 
-                `<div class="col-header" data-key="${col.key}" data-idx="${idx}" style="width: var(--col-${idx}); flex: 0 0 auto;">
-                    <span class="header-text">${getMsg(col.label)}</span>
-                    <span class="sort-icon">${state.sortKey === col.key ? (state.sortAsc ? '▲' : '▼') : ''}</span>
-                    <div class="col-resizer"></div>
-                </div>`
-            ).join('');
-
-            header.innerHTML = `
-                <input type="checkbox" class="select-all-cb" title="${getMsg('全選')}">
-                <div class="header-cols-container">${headerColsHtml}</div>
-            `;
-
-            header.querySelectorAll('.col-header').forEach(el => {
-                el.addEventListener('click', () => {
-                    const key = el.dataset.key;
-                    if (state.sortKey === key) {
-                        state.sortAsc = !state.sortAsc;
-                    } else {
-                        state.sortKey = key;
-                        state.sortAsc = true;
-                    }
-                    widget.renderData();
-                });
-            });
-
-            header.querySelectorAll('.col-resizer').forEach(resizer => {
-                resizer.addEventListener('mousedown', (e) => {
-                    e.stopPropagation();
-                    const headerCell = resizer.parentElement;
-                    const idx = parseInt(headerCell.dataset.idx);
-                    const startX = e.clientX;
-                    const startWidth = state.colWidths[idx];
-
-                    const onMouseMove = (moveEvent) => {
-                        const newWidth = Math.max(startWidth + (moveEvent.clientX - startX), 40);
-                        state.colWidths[idx] = newWidth;
-                        widget.style.setProperty(`--col-${idx}`, `${newWidth}px`);
-                    };
-
-                    const onMouseUp = () => {
-                        document.body.style.userSelect = '';
-                        document.body.style.cursor = '';
-                        document.removeEventListener('mousemove', onMouseMove);
-                        document.removeEventListener('mouseup', onMouseUp);
-                    };
-
-                    document.body.style.userSelect = 'none';
-                    document.body.style.cursor = 'col-resize';
-                    document.addEventListener('mousemove', onMouseMove);
-                    document.addEventListener('mouseup', onMouseUp);
-                });
-                resizer.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                });
-            });
-
-            const selectAllCb = header.querySelector('.select-all-cb');
-            selectAllCb.addEventListener('change', (e) => {
-                const isChecked = e.target.checked;
-                listUl.querySelectorAll('.manage-list-item input[type="checkbox"]').forEach(cb => {
-                    cb.checked = isChecked;
-                    if (containerSelector === '#scan_window') {
-                        virusState.set(cb.value, isChecked);
-                    }
-                });
-                if (containerSelector === '#scan_window' && typeof checkVirusListEmpty === 'function') {
-                    checkVirusListEmpty();
-                }
-            });
+            const header = widget.querySelector('.manage-list-header');
+            const selectAllCb = header ? header.querySelector('.select-all-cb') : null;
+            if (selectAllCb) selectAllCb.disabled = dataList.length === 0;
 
             let displayData = dataList.filter(item => {
                 if (!filterText) return true;
@@ -328,10 +382,12 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             displayData.sort((a, b) => {
-                let valA = a[state.sortKey];
-                let valB = b[state.sortKey];
-                if (valA === undefined || valA === null) valA = '';
-                if (valB === undefined || valB === null) valB = '';
+                let valA = a[state.sortKey] ?? '';
+                let valB = b[state.sortKey] ?? '';
+
+                if (state.sortKey === 'sizeStr' && 'size' in a && 'size' in b) {
+                    return state.sortAsc ? a.size - b.size : b.size - a.size;
+                }
 
                 let numA = parseFloat(valA);
                 let numB = parseFloat(valB);
@@ -341,16 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return state.sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
             });
 
-            const existingCheckboxes = listUl.querySelectorAll('input[type="checkbox"]');
-            const hadPreviousData = existingCheckboxes.length > 0;
-            const currentChecked = new Set();
-            if (hadPreviousData) {
-                existingCheckboxes.forEach(cb => {
-                    if (cb.checked) currentChecked.add(cb.value);
-                });
-            }
-
             widget.updateSelectAllState = () => {
+                if (!selectAllCb) return;
                 const total = listUl.querySelectorAll('input[type="checkbox"]').length;
                 const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
                 selectAllCb.checked = (total > 0 && total === checked);
@@ -358,36 +406,53 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             let htmlContent = '';
-            displayData.forEach(item => {
-                let isChecked = defaultChecked;
+            const MAX_RENDER_ITEMS = 2000;
+            const limitData = displayData.slice(0, MAX_RENDER_ITEMS);
+
+            limitData.forEach(item => {
+                const itemValStr = String(item[valKey]);
+                let isChecked = false;
+                
                 if (containerSelector === '#scan_window') {
-                    isChecked = virusState.get(item[valKey]) ?? true;
-                    virusState.set(item[valKey], isChecked);
-                } else if (hadPreviousData) {
-                    isChecked = currentChecked.has(String(item[valKey]));
+                    isChecked = virusState.get(itemValStr) ?? true;
+                    virusState.set(itemValStr, isChecked);
+                } else {
+                    isChecked = state.checkedSet.has(itemValStr);
                 }
+                
                 const checkedAttr = isChecked ? 'checked' : '';
                 
-                let rowColsHtml = columns.map((col, idx) => 
-                    `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${String(item[col.key] || '').replace(/"/g, '&quot;')}">${item[col.key] || ''}</div>`
-                ).join('');
+                let rowColsHtml = columns.map((col, idx) => {
+                    let valStr = String(item[col.key] || '');
+                    return `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${escapeHtml(valStr)}">${escapeHtml(valStr)}</div>`;
+                }).join('');
 
+                let escapedPath = escapeHtml(item.path || '');
                 htmlContent += `
                     <li class="manage-list-item">
-                        <input type="checkbox" value="${item[valKey]}" ${checkedAttr} data-path="${item.path || ''}">
+                        <input type="checkbox" value="${escapeHtml(itemValStr)}" ${checkedAttr} data-path="${escapedPath}">
                         <div class="manage-list-item-content">${rowColsHtml}</div>
                     </li>
                 `;
             });
 
+            if (displayData.length > MAX_RENDER_ITEMS) {
+                htmlContent += `
+                    <li class="manage-list-item" style="pointer-events: none; justify-content: center;">
+                        <div style="color: var(--text-secondary); padding: 10px;">(資料過多，僅顯示前 ${MAX_RENDER_ITEMS} 筆以確保效能流暢)</div>
+                    </li>
+                `;
+            }
+
+            const scrollContainer = listUl.parentElement;
+            const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
             listUl.innerHTML = htmlContent;
+            if (scrollContainer) scrollContainer.scrollTop = scrollTop;
+            
             widget.updateSelectAllState();
         };
 
-        widget.renderData();
-        if (searchInput) {
-            searchInput.oninput = (e) => widget.renderData(e.target.value);
-        }
+        widget.renderData(state.filterText, isInit);
     }
 
     function getCheckedValues(containerSelector) {
@@ -395,7 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return Array.from(checkboxes).map(cb => cb.value);
     }
 
-    let processInterval = null;
+    let taskmgrTimer = null;
+    let isTaskmgrActive = false;
     let currentJunkList = [];
     window.virusResults = [];
 
@@ -430,17 +496,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (activeNav) activeNav.classList.add('active');
         
         if (targetId === 'taskmgr_window') {
+            isTaskmgrActive = true;
+            const widget = document.querySelector('#taskmgr_window .manage-widget');
             const fetchProcs = () => {
-                if (window.pywebview && document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked').length === 0) {
-                    window.pywebview.api.get_process_list().then(updateProcessList);
+                if (!isTaskmgrActive || !window.pywebview) return;
+                const hasChecked = widget && widget.gridState && widget.gridState.checkedSet.size > 0;
+                const isHovering = widget && widget.matches(':hover');
+                const isMenuOpen = document.querySelector('.custom-context-menu.show') !== null;
+                const isResizing = document.body.classList.contains('resizing-active');
+                
+                if (!hasChecked && !isHovering && !isMenuOpen && !isResizing) {
+                    window.pywebview.api.get_process_list().then(procs => {
+                        updateProcessList(procs);
+                        if (isTaskmgrActive) taskmgrTimer = setTimeout(fetchProcs, 2000);
+                    }).catch(() => {
+                        if (isTaskmgrActive) taskmgrTimer = setTimeout(fetchProcs, 2000);
+                    });
+                } else {
+                    if (isTaskmgrActive) taskmgrTimer = setTimeout(fetchProcs, 2000);
                 }
             };
             fetchProcs();
-            if (!processInterval) processInterval = setInterval(fetchProcs, 2000);
         } else {
-            if (processInterval) {
-                clearInterval(processInterval);
-                processInterval = null;
+            isTaskmgrActive = false;
+            if (taskmgrTimer) {
+                clearTimeout(taskmgrTimer);
+                taskmgrTimer = null;
             }
         }
 
@@ -470,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('quick_scan_btn')?.addEventListener('click', () => {
+        if (isScanning) return;
         switchPage('scan_window');
         if (window.pywebview) triggerScan('smart');
     });
@@ -549,21 +631,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const removeListItems = (removedPaths) => {
             const removedSet = new Set(removedPaths);
             removedPaths.forEach(p => virusState.delete(p));
-            window.virusResults = window.virusResults.filter(v => !removedSet.has(v.path));
             
-            const listUl = document.querySelector('#scan_window .virus-list');
-            if (listUl) {
-                listUl.querySelectorAll('.manage-list-item').forEach(li => {
-                    const cb = li.querySelector('input[type="checkbox"]');
-                    if (cb && removedSet.has(cb.value)) {
-                        li.remove();
-                    }
-                });
+            for (let i = window.virusResults.length - 1; i >= 0; i--) {
+                if (removedSet.has(window.virusResults[i].path)) {
+                    window.virusResults.splice(i, 1);
+                }
             }
             
             const widget = document.querySelector('#scan_window .virus-widget');
-            if (widget && typeof widget.updateSelectAllState === 'function') {
-                widget.updateSelectAllState();
+            if (widget && typeof widget.renderData === 'function') {
+                widget.renderData(widget.gridState.filterText, false);
             }
         };
 
@@ -604,34 +681,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    let virusRenderTimeout = null;
     window.addVirusResult = (label, path) => {
         if (!virusState.has(path)) {
-            const item = { label: label, path: path };
-            window.virusResults.push(item);
+            window.virusResults.push({ label: label, path: path });
             virusState.set(path, true);
             
-            const listUl = document.querySelector('#scan_window .virus-list');
             const widget = document.querySelector('#scan_window .virus-widget');
-            
-            if (listUl && widget && widget.gridState) {
-                const rowColsHtml = cols.virus.map((col, idx) => 
-                    `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${String(item[col.key] || '').replace(/"/g, '&quot;')}">${item[col.key] || ''}</div>`
-                ).join('');
-
-                const liHtml = `
-                    <li class="manage-list-item">
-                        <input type="checkbox" value="${path}" checked data-path="${path}">
-                        <div class="manage-list-item-content">${rowColsHtml}</div>
-                    </li>
-                `;
-                
-                listUl.insertAdjacentHTML('beforeend', liHtml);
-                
-                if (typeof widget.updateSelectAllState === 'function') {
-                    widget.updateSelectAllState();
-                }
-            } else {
-                renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
+            if (widget && typeof widget.renderData === 'function') {
+                if (virusRenderTimeout) clearTimeout(virusRenderTimeout);
+                virusRenderTimeout = setTimeout(() => {
+                    widget.renderData(widget.gridState.filterText, false);
+                }, 50);
             }
         }
     };
@@ -875,7 +936,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
             parts.push(`Success: ${entry.success}`);
             
-            logWidget.value += parts.join(' | ') + '\n';
+            let val = logWidget.value + parts.join(' | ') + '\n';
+            if (val.length > 20000) {
+                val = val.substring(val.length - 15000);
+                val = val.substring(val.indexOf('\n') + 1);
+            }
+            
+            logWidget.value = val;
             logWidget.scrollTop = logWidget.scrollHeight;
         }
 
@@ -922,6 +989,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const btn = document.querySelector('#junk_window .primary-btn');
         btn.textContent = getMsg("正在初始化中");
         
+        const widget = document.querySelector('#junk_window .manage-widget');
+        if (widget && widget.gridState) widget.gridState.checkedSet.clear();
+        
         window.pywebview.api.scan_system_junk().then(list => {
             currentJunkList = list.map(item => ({
                 path: item.path,
@@ -930,6 +1000,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }));
             renderDataGrid('#junk_window', currentJunkList, cols.junk, 'path', true);
             btn.textContent = getMsg("掃描");
+        });
+    });
+
+    document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
+        if (!window.pywebview) return;
+        const widget = document.querySelector('#repair_window .manage-widget');
+        if (widget && widget.gridState) widget.gridState.checkedSet.clear();
+        
+        window.pywebview.api.scan_system_repair().then(list => {
+            const repairData = list.map(item => ({ display: getMsg(item.display), value: item.value }));
+            renderDataGrid('#repair_window', repairData, cols.repair, 'value', true);
         });
     });
 

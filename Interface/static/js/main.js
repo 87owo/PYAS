@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     let currentLang = "english_switch";
     let isScanning = false;
+    let isFirstLaunch = false;
 
     const { dict, langMap } = window.AppI18n;
 
@@ -495,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if(selectedOpt.hasAttribute('data-i18n')) triggerText.setAttribute('data-i18n', '');
             if(selectedOpt.hasAttribute('data-origin-text')) triggerText.dataset.originText = selectedOpt.dataset.originText;
         }
-        trigger.appendChild(triggerText);
         
         const icon = document.createElement('div');
         icon.className = 'custom-select-icon';
@@ -850,7 +850,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.addEventListener('pywebviewready', () => {
-        window.pywebview.api.get_config().then(cfg => {
+        window.pywebview.api.get_config().then(async cfg => {
             const theme = cfg.theme || "white_switch";
             const lang = cfg.language || "english_switch";
             applyTheme(theme);
@@ -859,14 +859,112 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCustomSelectUI('lang_select', lang);
 
             const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
-            document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
-                if (switchMap[index]) {
-                    toggle.checked = !!cfg[switchMap[index]];
-                }
-            });
+            
+            isFirstLaunch = cfg.first_launch;
+            
+            if (isFirstLaunch) {
+                document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+                    toggle.checked = false;
+                    toggle.disabled = true;
+                });
+            } else {
+                document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
+                    if (switchMap[index]) {
+                        toggle.checked = !!cfg[switchMap[index]];
+                    }
+                });
+            }
         });
         window.pywebview.api.init_ui_ready();
     });
+
+    window.onEngineReady = async () => {
+        if (!isFirstLaunch) return;
+        
+        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
+        
+        await window.pywebview.api.update_config("first_launch", false);
+
+        const sequence = [
+            "cloud_switch", 
+            "process_switch", "document_switch", "system_switch", "network_switch",
+            "driver_switch"
+        ];
+
+        for (const key of sequence) {
+            const index = switchMap.indexOf(key);
+            if (index !== -1) {
+                const toggle = document.querySelectorAll('.toggle-switch input')[index];
+                if (toggle) {
+                    toggle.checked = true;
+                    try {
+                        const result = await window.pywebview.api.update_config(key, true);
+                        if (result !== undefined && result !== null) {
+                            toggle.checked = result;
+                        }
+                    } catch (e) {
+                        toggle.checked = false;
+                    } finally {
+                        toggle.disabled = false;
+                    }
+                    await new Promise(r => setTimeout(r, 200));
+                }
+            }
+        }
+        
+        document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+            toggle.disabled = false;
+        });
+        
+        isFirstLaunch = false;
+    };
+
+    window.updateLogs = (entry) => {
+        const logWidget = document.querySelector('.log-text');
+        if (logWidget) {
+            let parts = [`[${entry.time_str}]`, entry.level, entry.action];
+            if (entry.source) parts.push(`Src: ${entry.source}`);
+            if (entry.target) parts.push(`Tgt: ${entry.target}`);
+            if (entry.code) parts.push(`Code: ${entry.code}`);
+            if (entry.pid) parts.push(`PID: ${entry.pid}`);
+            if (entry.hash) parts.push(`Hash: ${entry.hash}`);
+            if (entry.detail) parts.push(`Detail: ${entry.detail}`);
+            if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
+            parts.push(`Success: ${entry.success}`);
+            
+            logWidget.value += parts.join(' | ') + '\n';
+            logWidget.scrollTop = logWidget.scrollHeight;
+        }
+
+        const exportWindow = document.getElementById('log_export_window');
+        if (exportWindow && exportWindow.classList.contains('active')) {
+            if (window.pywebview) {
+                window.pywebview.api.get_logs().then(logs => {
+                    const logList = logs.reverse().map(log => ({
+                        time_str: `[${log.time_str}]`,
+                        level: log.level,
+                        action: log.action,
+                        source: log.source ? log.source : '-',
+                        id: log.id
+                    }));
+                    renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
+                });
+            }
+        }
+
+        if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || 
+            (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
+            const overlay = document.getElementById('loading_overlay');
+            const appContainer = document.querySelector('.app-container');
+            if (overlay && !overlay.classList.contains('fade-out')) {
+                overlay.classList.add('fade-out');
+                setTimeout(() => {
+                    if (appContainer) appContainer.classList.add('fade-in');
+                    if (window.onEngineReady) window.onEngineReady();
+                }, 400);
+            }
+        }
+    };
 
     function formatSize(bytes) {
         if (bytes === 0) return '0 B';
@@ -985,52 +1083,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('minimize_button')?.addEventListener('click', () => window.pywebview?.api.minimize());
     document.getElementById('close_button')?.addEventListener('click', () => window.pywebview?.api.hide_window());
-
-    window.updateLogs = (entry) => {
-        const logWidget = document.querySelector('.log-text');
-        if (logWidget) {
-            let parts = [`[${entry.time_str}]`, entry.level, entry.action];
-            if (entry.source) parts.push(`Src: ${entry.source}`);
-            if (entry.target) parts.push(`Tgt: ${entry.target}`);
-            if (entry.code) parts.push(`Code: ${entry.code}`);
-            if (entry.pid) parts.push(`PID: ${entry.pid}`);
-            if (entry.hash) parts.push(`Hash: ${entry.hash}`);
-            if (entry.detail) parts.push(`Detail: ${entry.detail}`);
-            if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
-            parts.push(`Success: ${entry.success}`);
-            
-            logWidget.value += parts.join(' | ') + '\n';
-            logWidget.scrollTop = logWidget.scrollHeight;
-        }
-
-        const exportWindow = document.getElementById('log_export_window');
-        if (exportWindow && exportWindow.classList.contains('active')) {
-            if (window.pywebview) {
-                window.pywebview.api.get_logs().then(logs => {
-                    const logList = logs.reverse().map(log => ({
-                        time_str: `[${log.time_str}]`,
-                        level: log.level,
-                        action: log.action,
-                        source: log.source ? log.source : '-',
-                        id: log.id
-                    }));
-                    renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
-                });
-            }
-        }
-
-        if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || 
-            (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
-            const overlay = document.getElementById('loading_overlay');
-            const appContainer = document.querySelector('.app-container');
-            if (overlay && !overlay.classList.contains('fade-out')) {
-                overlay.classList.add('fade-out');
-                setTimeout(() => {
-                    if (appContainer) appContainer.classList.add('fade-in');
-                }, 400);
-            }
-        }
-    };
     
     const websiteBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => el.textContent.includes('官方網站') || el.textContent.includes('Website'));
     if (websiteBtn) {

@@ -391,18 +391,19 @@ class WindowAPI:
                 self.start_daemon_thread(self.protect_net_thread)
             elif key == "context_switch":
                 self.register_context_menu(value)
-            elif key == "language":
-                if self.tray_icon:
-                    try:
-                        self.tray_icon.update_menu()
-                    except Exception:
-                        pass
                         
             if success:
                 with self.lock_config:
                     self.pyas_config[key] = value
                     self.write_log("INFO", "Config Update", detail=f"[{key}] {old_value} -> {value}")
                     self.save_config()
+
+                if key == "language" and self.tray_icon:
+                    try:
+                        self.tray_icon.update_menu()
+                    except Exception:
+                        pass
+
                 return value
             else:
                 if self._window:

@@ -743,12 +743,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.revertSwitch = (switchKey) => {
-        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
-        const index = switchMap.indexOf(switchKey);
-        if (index !== -1) {
-            const toggle = document.querySelectorAll('.toggle-switch input')[index];
-            if (toggle) toggle.checked = false;
-        }
+        // No-op: Async handler in toggle switch automatically reverts based on backend response.
     };
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
@@ -1032,14 +1027,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('minimize_button')?.addEventListener('click', () => window.pywebview?.api.minimize());
     document.getElementById('close_button')?.addEventListener('click', () => window.pywebview?.api.hide_window());
     
-    const websiteBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => el.textContent.includes('官方網站') || el.textContent.includes('Website'));
+    const websiteBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => {
+        const h2 = el.querySelector('h2');
+        return h2 && (h2.dataset.originText === '官方網站' || h2.textContent.includes('官方網站'));
+    });
     if (websiteBtn) {
         websiteBtn.querySelector('button').addEventListener('click', () => {
             if (window.pywebview) window.pywebview.api.open_website();
         });
     }
 
-    const updateBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => el.textContent.includes('檢查更新') || el.textContent.includes('Update'));
+    const updateBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => {
+        const h2 = el.querySelector('h2');
+        return h2 && (h2.dataset.originText === '檢查更新' || h2.textContent.includes('檢查更新'));
+    });
     if (updateBtn) {
         updateBtn.querySelector('button').addEventListener('click', () => {
             if (window.pywebview) {
@@ -1060,7 +1061,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const resetBtn = Array.from(document.querySelectorAll('#setting_window .list-item')).find(el => el.textContent.includes('重置選項') || el.textContent.includes('Reset'));
+    const resetBtn = Array.from(document.querySelectorAll('#setting_window .list-item')).find(el => {
+        const h2 = el.querySelector('h2');
+        return h2 && (h2.dataset.originText === '重置選項' || h2.textContent.includes('重置選項'));
+    });
     if (resetBtn) {
         resetBtn.querySelector('button').addEventListener('click', () => {
             const confirmMsg = getMsg("此選項可以重置所有設定");

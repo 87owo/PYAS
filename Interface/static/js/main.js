@@ -49,79 +49,85 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getMsg = (key) => (dict[currentLang] || dict["english_switch"])[key] || key;
 
+    function buildCustomSelectElement(select) {
+        select.style.display = 'none';
+        const wrapper = document.createElement('div');
+        wrapper.className = 'custom-select-wrapper';
+        
+        const trigger = document.createElement('div');
+        trigger.className = 'custom-select-trigger';
+        const triggerText = document.createElement('span');
+        triggerText.className = 'custom-select-text';
+        
+        const selectedOpt = select.options[select.selectedIndex];
+        if (selectedOpt) {
+            triggerText.textContent = selectedOpt.textContent;
+            if (selectedOpt.hasAttribute('data-i18n')) triggerText.setAttribute('data-i18n', '');
+            if (selectedOpt.hasAttribute('data-origin-text')) triggerText.dataset.originText = selectedOpt.dataset.originText;
+        }
+        
+        const icon = document.createElement('div');
+        icon.className = 'custom-select-icon';
+        icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        
+        trigger.appendChild(triggerText);
+        trigger.appendChild(icon);
+        
+        const optionsContainer = document.createElement('ul');
+        optionsContainer.className = 'custom-select-options';
+
+        const phantom = document.createElement('div');
+        phantom.className = 'custom-select-phantom';
+        phantom.setAttribute('aria-hidden', 'true');
+        
+        Array.from(select.options).forEach(option => {
+            if (option.disabled) return;
+            
+            const li = document.createElement('li');
+            li.className = 'custom-select-option';
+            li.textContent = option.textContent;
+            li.dataset.value = option.value;
+            if (option.hasAttribute('data-i18n')) li.setAttribute('data-i18n', '');
+            if (option.hasAttribute('data-origin-text')) li.dataset.originText = option.dataset.originText;
+            if (option.selected) li.classList.add('selected');
+            
+            li.addEventListener('click', (e) => {
+                e.stopPropagation();
+                select.value = option.value;
+                triggerText.textContent = li.textContent;
+                if (li.hasAttribute('data-origin-text')) {
+                    triggerText.dataset.originText = li.dataset.originText;
+                }
+                wrapper.classList.remove('open');
+                optionsContainer.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
+                li.classList.add('selected');
+                select.dispatchEvent(new Event('change'));
+            });
+            optionsContainer.appendChild(li);
+
+            const phantomSpan = document.createElement('span');
+            phantomSpan.textContent = option.textContent;
+            if (option.hasAttribute('data-i18n')) phantomSpan.setAttribute('data-i18n', '');
+            if (option.hasAttribute('data-origin-text')) phantomSpan.dataset.originText = option.dataset.originText;
+            phantom.appendChild(phantomSpan);
+        });
+        
+        wrapper.appendChild(phantom);
+        wrapper.appendChild(trigger);
+        wrapper.appendChild(optionsContainer);
+        select.parentNode.insertBefore(wrapper, select.nextSibling);
+        
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = wrapper.classList.contains('open');
+            document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+            if (!isOpen) wrapper.classList.add('open');
+        });
+    }
+
     function initCustomSelects() {
         document.querySelectorAll('select.modern-select').forEach(select => {
-            select.style.display = 'none';
-            const wrapper = document.createElement('div');
-            wrapper.className = 'custom-select-wrapper';
-            
-            const trigger = document.createElement('div');
-            trigger.className = 'custom-select-trigger';
-            const triggerText = document.createElement('span');
-            triggerText.className = 'custom-select-text';
-            const selectedOpt = select.options[select.selectedIndex];
-            if(selectedOpt) {
-                triggerText.textContent = selectedOpt.textContent;
-                if(selectedOpt.hasAttribute('data-i18n')) triggerText.setAttribute('data-i18n', '');
-                if(selectedOpt.hasAttribute('data-origin-text')) triggerText.dataset.originText = selectedOpt.dataset.originText;
-            }
-            trigger.appendChild(triggerText);
-            
-            const icon = document.createElement('div');
-            icon.className = 'custom-select-icon';
-            icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-            trigger.appendChild(icon);
-            
-            const optionsContainer = document.createElement('ul');
-            optionsContainer.className = 'custom-select-options';
-
-            const phantom = document.createElement('div');
-            phantom.className = 'custom-select-phantom';
-            phantom.setAttribute('aria-hidden', 'true');
-            
-            Array.from(select.options).forEach(option => {
-                if(option.disabled) return;
-                
-                const li = document.createElement('li');
-                li.className = 'custom-select-option';
-                li.textContent = option.textContent;
-                li.dataset.value = option.value;
-                if(option.hasAttribute('data-i18n')) li.setAttribute('data-i18n', '');
-                if(option.hasAttribute('data-origin-text')) li.dataset.originText = option.dataset.originText;
-                if(option.selected) li.classList.add('selected');
-                
-                li.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    select.value = option.value;
-                    select.dispatchEvent(new Event('change'));
-                    triggerText.textContent = li.textContent;
-                    if(li.hasAttribute('data-origin-text')) {
-                        triggerText.dataset.originText = li.dataset.originText;
-                    }
-                    wrapper.classList.remove('open');
-                    optionsContainer.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
-                    li.classList.add('selected');
-                });
-                optionsContainer.appendChild(li);
-
-                const phantomSpan = document.createElement('span');
-                phantomSpan.textContent = option.textContent;
-                if(option.hasAttribute('data-i18n')) phantomSpan.setAttribute('data-i18n', '');
-                if(option.hasAttribute('data-origin-text')) phantomSpan.dataset.originText = option.dataset.originText;
-                phantom.appendChild(phantomSpan);
-            });
-            
-            wrapper.appendChild(phantom);
-            wrapper.appendChild(trigger);
-            wrapper.appendChild(optionsContainer);
-            select.parentNode.insertBefore(wrapper, select.nextSibling);
-            
-            trigger.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const isOpen = wrapper.classList.contains('open');
-                document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
-                if (!isOpen) wrapper.classList.add('open');
-            });
+            buildCustomSelectElement(select);
         });
         
         document.addEventListener('click', () => {
@@ -175,13 +181,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const select = document.getElementById(selectId);
         if (!select) return;
         select.value = val;
-        const wrapper = select.nextElementSibling;
+        let wrapper = select.nextElementSibling;
         if (wrapper && wrapper.classList.contains('custom-select-wrapper')) {
             const triggerText = wrapper.querySelector('.custom-select-text');
             const selectedOpt = select.options[select.selectedIndex];
-            if(selectedOpt) {
+            if (selectedOpt) {
                 triggerText.textContent = selectedOpt.textContent;
-                if(selectedOpt.hasAttribute('data-origin-text')) {
+                if (selectedOpt.hasAttribute('data-origin-text')) {
                     triggerText.dataset.originText = selectedOpt.dataset.originText;
                 }
             }
@@ -477,80 +483,15 @@ document.addEventListener('DOMContentLoaded', () => {
     function rebuildCustomSelect(selectId) {
         const select = document.getElementById(selectId);
         if (!select) return;
-        const existingWrapper = select.nextElementSibling;
-        if (existingWrapper && existingWrapper.classList.contains('custom-select-wrapper')) {
-            existingWrapper.remove();
+        
+        let sibling = select.nextElementSibling;
+        while (sibling && sibling.classList.contains('custom-select-wrapper')) {
+            const toRemove = sibling;
+            sibling = sibling.nextElementSibling;
+            toRemove.remove();
         }
         
-        select.style.display = 'none';
-        const wrapper = document.createElement('div');
-        wrapper.className = 'custom-select-wrapper';
-        
-        const trigger = document.createElement('div');
-        trigger.className = 'custom-select-trigger';
-        const triggerText = document.createElement('span');
-        triggerText.className = 'custom-select-text';
-        const selectedOpt = select.options[select.selectedIndex];
-        if(selectedOpt) {
-            triggerText.textContent = selectedOpt.textContent;
-            if(selectedOpt.hasAttribute('data-i18n')) triggerText.setAttribute('data-i18n', '');
-            if(selectedOpt.hasAttribute('data-origin-text')) triggerText.dataset.originText = selectedOpt.dataset.originText;
-        }
-        
-        const icon = document.createElement('div');
-        icon.className = 'custom-select-icon';
-        icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-        trigger.appendChild(icon);
-        
-        const optionsContainer = document.createElement('ul');
-        optionsContainer.className = 'custom-select-options';
-
-        const phantom = document.createElement('div');
-        phantom.className = 'custom-select-phantom';
-        phantom.setAttribute('aria-hidden', 'true');
-        
-        Array.from(select.options).forEach(option => {
-            if(option.disabled) return;
-            const li = document.createElement('li');
-            li.className = 'custom-select-option';
-            li.textContent = option.textContent;
-            li.dataset.value = option.value;
-            if(option.hasAttribute('data-i18n')) li.setAttribute('data-i18n', '');
-            if(option.hasAttribute('data-origin-text')) li.dataset.originText = option.dataset.originText;
-            if(option.selected) li.classList.add('selected');
-            
-            li.addEventListener('click', (e) => {
-                e.stopPropagation();
-                select.value = option.value;
-                select.dispatchEvent(new Event('change'));
-                triggerText.textContent = li.textContent;
-                if(li.hasAttribute('data-origin-text')) {
-                    triggerText.dataset.originText = li.dataset.originText;
-                }
-                wrapper.classList.remove('open');
-                optionsContainer.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
-                li.classList.add('selected');
-            });
-            optionsContainer.appendChild(li);
-
-            const phantomSpan = document.createElement('span');
-            phantomSpan.textContent = option.textContent;
-            if(option.hasAttribute('data-i18n')) phantomSpan.setAttribute('data-i18n', '');
-            if(option.hasAttribute('data-origin-text')) phantomSpan.dataset.originText = option.dataset.originText;
-            phantom.appendChild(phantomSpan);
-        });
-        
-        wrapper.appendChild(phantom);
-        wrapper.appendChild(trigger);
-        wrapper.appendChild(optionsContainer);
-        select.parentNode.insertBefore(wrapper, select.nextSibling);
-        
-        trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const isOpen = wrapper.classList.contains('open');
-            document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
-            if (!isOpen) wrapper.classList.add('open');
-        });
+        buildCustomSelectElement(select);
     }
 
     function changeScanSelectMode(mode) {
@@ -581,6 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
         rebuildCustomSelect('scan_method_select');
     }
 
+    function getScanSelectWrapper() {
+        if (!scanMethodSelect) return null;
+        const w = scanMethodSelect.nextElementSibling;
+        return (w && w.classList.contains('custom-select-wrapper')) ? w : null;
+    }
+
     function handleVirusActions(action) {
         if (!window.pywebview) return;
         const paths = Array.from(virusState.entries()).filter(([_, isChecked]) => isChecked).map(([path, _]) => path);
@@ -590,11 +537,12 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const wrapper = scanMethodSelect.nextElementSibling;
+        const wrapper = getScanSelectWrapper();
         if (wrapper) wrapper.style.pointerEvents = 'none';
 
         const finalizeAction = () => {
-            if (wrapper) wrapper.style.pointerEvents = '';
+            const curWrapper = getScanSelectWrapper();
+            if (curWrapper) curWrapper.style.pointerEvents = '';
             checkVirusListEmpty();
         };
 
@@ -784,12 +732,12 @@ document.addEventListener('DOMContentLoaded', () => {
         stopBtn.disabled = true;
     });
 
-    document.getElementById('theme_select').addEventListener('change', (e) => {
+    document.getElementById('theme_select')?.addEventListener('change', (e) => {
         applyTheme(e.target.value);
         if (window.pywebview) window.pywebview.api.update_config('theme', e.target.value);
     });
 
-    document.getElementById('lang_select').addEventListener('change', (e) => {
+    document.getElementById('lang_select')?.addEventListener('change', (e) => {
         translateText(e.target.value);
         if (window.pywebview) window.pywebview.api.update_config('language', e.target.value);
     });

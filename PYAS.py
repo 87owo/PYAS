@@ -2551,11 +2551,19 @@ class WindowHook:
         self.GetWindowLong.argtypes = [ctypes.c_void_p, ctypes.c_int]
         self.GetWindowLong.restype = ctypes.c_void_p
 
+        self.new_wndproc_cb = self.WNDPROC(self.wndproc)
+
     def hook(self):
         hwnd = self.user32.FindWindowW(None, self.title)
         if hwnd:
             self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
             self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
+            
+            try:
+                self.user32.ChangeWindowMessageFilterEx.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p]
+                self.user32.ChangeWindowMessageFilterEx(hwnd, self.WM_COPYDATA, 1, None)
+            except Exception:
+                pass
 
     def wndproc(self, hwnd, msg, wparam, lparam):
         if msg in [0x0010, 0x0002, 0x0012, 0x0212]:
@@ -2566,7 +2574,7 @@ class WindowHook:
             
         if msg == self.WM_COPYDATA:
             try:
-                cds = ctypes.cast(lparam, ctypes.POINTER(COPYDATASTRUCT)).contents
+                cds = COPYDATASTRUCT.from_address(lparam)
                 if cds.dwData == 1:
                     buffer = ctypes.string_at(cds.lpData, cds.cbData)
                     path = buffer.decode('utf-8').strip('\x00')
@@ -2599,8 +2607,11 @@ class WindowHook:
                 return self.HTCAPTION
 
         if msg == self.WM_DPICHANGED:
-            rect = ctypes.cast(lparam, ctypes.POINTER(self.RECT)).contents
-            self.user32.SetWindowPos(hwnd, None, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0004 | 0x0010 | 0x0020)
+            try:
+                rect = self.RECT.from_address(lparam)
+                self.user32.SetWindowPos(hwnd, None, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0004 | 0x0010 | 0x0020)
+            except Exception:
+                pass
 
         if self.old_wndproc:
             return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam)

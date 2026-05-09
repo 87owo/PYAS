@@ -371,30 +371,38 @@ class WindowAPI:
                 if old_value == value:
                     return value
 
+                self.pyas_config[key] = value
+
             success = True
-            
-            if key == "driver_switch":
-                if value:
-                    if self.install_system_driver():
-                        self.start_daemon_thread(self.pipe_server_thread)
-                    else:
-                        success = False
-                else:
+
+            if value:
+                try:
+                    if key == "process_switch":
+                        self.start_daemon_thread(self.protect_proc_thread)
+                    elif key == "document_switch":
+                        self.start_daemon_thread(self.protect_file_thread)
+                    elif key == "system_switch":
+                        self.start_daemon_thread(self.protect_system_thread)
+                    elif key == "network_switch":
+                        self.start_daemon_thread(self.protect_net_thread)
+                    elif key == "driver_switch":
+                        if self.install_system_driver():
+                            self.start_daemon_thread(self.pipe_server_thread)
+                        else:
+                            success = False
+                    elif key == "context_switch":
+                        self.register_context_menu(True)
+                except Exception as e:
+                    self.write_log("WARN", "Feature Start", detail=str(e), success=False)
+                    success = False
+            else:
+                if key == "driver_switch":
                     success = self.stop_system_driver()
-            elif key == "process_switch" and value:
-                self.start_daemon_thread(self.protect_proc_thread)
-            elif key == "document_switch" and value:
-                self.start_daemon_thread(self.protect_file_thread)
-            elif key == "system_switch" and value:
-                self.start_daemon_thread(self.protect_system_thread)
-            elif key == "network_switch" and value:
-                self.start_daemon_thread(self.protect_net_thread)
-            elif key == "context_switch":
-                self.register_context_menu(value)
-                        
+                elif key == "context_switch":
+                    self.register_context_menu(False)
+
             if success:
                 with self.lock_config:
-                    self.pyas_config[key] = value
                     self.write_log("INFO", "Config Update", detail=f"[{key}] {old_value} -> {value}")
                     self.save_config()
 
@@ -403,9 +411,10 @@ class WindowAPI:
                         self.tray_icon.update_menu()
                     except Exception:
                         pass
-
                 return value
             else:
+                with self.lock_config:
+                    self.pyas_config[key] = old_value
                 if self._window:
                     self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
                 return old_value
@@ -1301,9 +1310,6 @@ class WindowAPI:
             with self.lock_config:
                 first_launch = self.pyas_config.get("first_launch", True)
                 driver_enabled = self.pyas_config.get("driver_switch", False)
-                if driver_enabled:
-                    self.pyas_config["driver_switch"] = False
-                    self.save_config()
 
             if not first_launch:
                 with self.lock_config:
@@ -1311,13 +1317,15 @@ class WindowAPI:
                     if self.pyas_config.get("document_switch"): self.start_daemon_thread(self.protect_file_thread)
                     if self.pyas_config.get("system_switch"): self.start_daemon_thread(self.protect_system_thread)
                     if self.pyas_config.get("network_switch"): self.start_daemon_thread(self.protect_net_thread)
-                    
+
                 if driver_enabled:
                     if self.install_system_driver():
                         self.start_daemon_thread(self.pipe_server_thread)
+                    else:
                         with self.lock_config:
-                            self.pyas_config["driver_switch"] = True
+                            self.pyas_config["driver_switch"] = False
                             self.save_config()
+                        self.write_log("WARN", "System", detail="Driver Protection Failed to Start", success=False)
 
         except Exception as e:
             self.write_log("WARN", "init_engine_thread", detail=str(e), success=False)
@@ -2201,9 +2209,8 @@ class WindowAPI:
                 self.write_log("WARN", "protect_system_thread", detail=str(e), success=False)
 
     def check_process_survival(self):
-        target_map = {"explorer.exe": "explorer.exe"}
         try:
-            running = set()
+            running = False
             pe = PROCESSENTRY32W()
             pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
             snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
@@ -2212,20 +2219,17 @@ class WindowAPI:
                 try:
                     if self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe)):
                         while True:
-                            try:
-                                running.add(pe.szExeFile.lower())
-                            except Exception:
-                                pass
-
+                            if pe.szExeFile.lower() == "explorer.exe":
+                                running = True
+                                break
                             if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)):
                                 break
                 finally:
                     self.kernel32.CloseHandle(snapshot)
 
-            for name, cmd in target_map.items():
-                if name.lower() not in running:
-                    subprocess.Popen(cmd, shell=True)
-                    self.write_log("INFO", "System Restart", source=name)
+            if not running:
+                subprocess.Popen("explorer.exe", shell=True)
+                self.write_log("INFO", "System Restart", source="explorer.exe")
 
         except Exception:
             pass
@@ -2391,12 +2395,9 @@ class WindowAPI:
 
             while True:
                 with self.lock_config:
-                    driver_enabled = self.pyas_config.get("driver_switch", False)
+                    if not self.pyas_config.get("driver_switch", False):
+                        break
                 
-                if not driver_enabled:
-                    time.sleep(0.5)
-                    continue
-
                 temp_port = ctypes.wintypes.HANDLE()
                 hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(temp_port))
                 

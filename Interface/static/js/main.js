@@ -650,8 +650,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalizeAction();
             });
         } else if (action === 'ignore') {
-            removeListItems(paths);
-            finalizeAction();
+            window.pywebview.api.remove_virus_result(paths).then(() => {
+                removeListItems(paths);
+                finalizeAction();
+            });
         } else if (action === 'quarantine' || action === 'whitelist') {
             const listKey = action === 'quarantine' ? 'quarantine' : 'white_list';
             window.pywebview.api.manage_named_list(listKey, paths, 'add').then(() => {
@@ -837,6 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
             scanMethodSelect.classList.add('hidden');
             stopBtn.classList.remove('hidden');
+            stopBtn.disabled = false;
             changeScanSelectMode('scan');
             if (progressTitle) {
                 progressTitle.setAttribute('data-i18n', '');

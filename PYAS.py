@@ -1424,6 +1424,7 @@ class WindowAPI:
                         self.lock_file(norm_path, True)
         finally:
             with self.lock_virus:
+                self.scan_running = False
                 self.scan_finished = True
                 count = len(self.virus_results)
                 elapsed = int(time.time() - self.scan_start)

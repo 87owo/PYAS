@@ -2,7 +2,6 @@
   "Rule_Registry_BlockList": [
     "\\REGISTRY\\MACHINE\\BCD00000000",
     "\\REGISTRY\\MACHINE\\BCD00000000\\*",
-    "*\\Image File Execution Options\\*",
     
     "*\\Classes\\.exe",
     "*\\Classes\\.bat",
@@ -106,27 +105,33 @@
     
     "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender\\*",
     "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender Advanced Threat Protection\\*",
+    "\\Sources\\SetupHost.exe",
     
     "*\\Google\\Chrome\\Application\\chrome.exe",
     "*\\Microsoft\\Edge\\Application\\msedge.exe",
     "*\\Mozilla Firefox\\firefox.exe",
+    "*\\Thorium\\Application\\thorium.exe",
     
     "*\\Steam\\steam.exe",
     "*\\steam\\*\\steam.exe",
     "*\\Battle.net\\*\\Battle.net.exe",
     "*\\Epic Games\\Launcher\\Portal\\Binaries\\*\\EpicGamesLauncher.exe",
     
+    "*\\resources\\bin\\SDK\\DownloadSDKServer.exe",
     "*\\ThunderEv.exe",
     "*\\ThunderStart.exe",
-    "*\\resources\\bin\\SDK\\DownloadSDKServer.exe",
     "*\\KuGou.exe",
     "*\\XLGame.exe",
     "*\\XLLiveUD.exe",
-    "*\\PC4399_WPFLauncher.exe",
-    "*\\bin\\APlayer.exe",
+    
     "*\\hrkill-*.exe",
     "*\\bin\\HipsDaemon.exe",
     "*\\360Safe.exe",
+    
+    "*\\PC4399_WPFLauncher.exe",
+    "*\\bin\\APlayer.exe",
+    "*\\Kingsoft\\WPS Office\\ksolaunch.exe",
+    "*\\Neverness To Everness\\NTELauncher.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",

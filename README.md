@@ -26,6 +26,7 @@ pip install pandas
 pip install scikit-learn
 pip install lightgbm
 pip install onnxmltools
+pip install orjson
 ```
 
 ## File Information

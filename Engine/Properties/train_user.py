@@ -1,109 +1,128 @@
-import os, sys, time, sqlite3, re, json
-import pandas as pd
+import os, sys, time, json, onnxmltools
 import numpy as np
+import pandas as pd
 import lightgbm as lgb
-import onnxmltools
+import scipy.sparse as sp
 
+from collections import defaultdict
 from onnxmltools.convert.common.data_types import FloatTensorType
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score, roc_auc_score
+from sklearn.metrics import accuracy_score, roc_auc_score
 
 ####################################################################################################
 
-DB_PATH = "pe_features.db"
+JSONL_PATH = "pe_features.jsonl"
 MODEL_FILE = "model.txt"
 ONNX_FILE = "Pefile_General_T1.onnx"
 FEATURE_FILE = "features.json"
 TEST_SIZE = 0.0001
 RANDOM_SEED = 42
 
+EXCLUDE_FEATURES = {
+    'label', 'filehash',
+}
+
 LGBM_PARAMS = {
     'objective': 'binary',
     'metric': ['binary_logloss', 'auc'],
     'boosting_type': 'gbdt',
     'num_leaves': 64,
-    'learning_rate': 0.05,
     'feature_fraction': 0.8,
-    'bagging_fraction': 0.8,
+    'bagging_fraction': 1.0,
     'bagging_freq': 5,
     'verbose': -1,
     'seed': RANDOM_SEED,
     'n_jobs': -1,
     'max_depth': -1,
     'min_data_in_leaf': 20,
-    'lambda_l1': 0.05,
-    'lambda_l2': 0.05,
+    'lambda_l1': 0.01,
+    'lambda_l2': 0.01,
 }
 
 ####################################################################################################
 
-def clean_col_name(name):
-    return re.sub(r'[^A-Za-z0-9_]+', '', name)
+def analyze_schema(jsonl_path):
+    print("[*] Stage 1: Scanning global schema...")
+    base_keys = set()
+    dll_counts = defaultdict(int)
+    api_counts = defaultdict(int)
+    num_lines = 0
 
-def get_raw_schema(db_path):
-    if not os.path.exists(db_path):
-        return None
-    conn = sqlite3.connect(db_path)
-    try:
-        cursor = conn.cursor()
-        cursor.execute("PRAGMA table_info(PeData)")
-        columns = [row[1] for row in cursor.fetchall()]
-        exclude = {'label', 'id', 'filename', 'filelength', 'rowid', 'probability', 'predictedlabel', 'score', 'filehash', 'timedatestamp'}
-        return [c for c in columns if c.lower().strip() not in exclude]
-    except Exception as e:
-        print(f"[-] Schema extraction error: {e}")
-        return None
-    finally:
-        conn.close()
+    with open(jsonl_path, 'r') as f:
+        for line in f:
+            try:
+                data = json.loads(line)
+                base_keys.update(data.get('Base', {}).keys())
+                for d in data.get('DLLs', []):
+                    dll_counts[d] += 1
+                for a in data.get('APIs', []):
+                    api_counts[a] += 1
+                num_lines += 1
+            except Exception:
+                continue
 
-####################################################################################################
-
-def load_data(db_path, raw_cols):
-    print(f"[*] Connecting to database: {db_path}")
-    conn = sqlite3.connect(db_path)
-    req_cols = list(set(raw_cols + ['Label']))
-    sql = f"SELECT {', '.join(req_cols)} FROM PeData"
+    base_schema = sorted([k for k in base_keys if k.lower().strip() not in EXCLUDE_FEATURES])
+    dll_schema = sorted([f"Dll_{k}" for k, v in dll_counts.items() if v >= 100])
+    api_schema = sorted([f"Api_{k}" for k, v in api_counts.items() if v >= 100])
     
-    try:
-        chunks = []
-        for chunk in pd.read_sql_query(sql, conn, chunksize=20000):
-            label_col = next((c for c in chunk.columns if c.lower().strip() == 'label'), None)
-            if not label_col:
-                print("[-] Critical Error: Label column not found.")
-                return None, None, None
-
-            cols_to_cast = [c for c in chunk.columns if c != label_col]
-            chunk[cols_to_cast] = chunk[cols_to_cast].astype(np.float32)
-            chunk[label_col] = chunk[label_col].astype(np.int8)
-            chunks.append(chunk)
-
-        if not chunks:
-            return None, None, None
-
-        df = pd.concat(chunks, ignore_index=True)
-
-        label_col = next((c for c in df.columns if c.lower().strip() == 'label'), None)
-        y = df[label_col].astype(int)
-        X = df.drop(columns=[label_col], errors='ignore')
-        
-        valid_features = [c for c in raw_cols if c in X.columns]
-        X = X[valid_features].copy()
-        
-        rename_map = {old: clean_col_name(old) for old in X.columns}
-        X = X.rename(columns=rename_map)
-        
-        if X.columns.duplicated().any():
-            print("[-] Warning: Duplicate column names detected after cleaning. Deduplicating...")
-            X = X.loc[:, ~X.columns.duplicated()]
-
-        final_features = X.columns.tolist()
-        return X, y, final_features
-    finally:
-        conn.close()
+    return base_schema, dll_schema, api_schema, num_lines
 
 ####################################################################################################
 
-def train_process(X, y):
+def load_data_efficiently(jsonl_path, base_schema, dll_schema, api_schema, num_lines):
+    print(f"[*] Stage 2: Building sparse feature matrix dynamically (Expected samples: {num_lines})...")
+    final_features = base_schema + dll_schema + api_schema
+    num_features = len(final_features)
+    feature_idx = {feat: i for i, feat in enumerate(final_features)}
+
+    rows, cols, vals = [], [], []
+    y = np.zeros(num_lines, dtype=np.int8)
+
+    with open(jsonl_path, 'r') as f:
+        row_idx = 0
+        for line in f:
+            try:
+                data = json.loads(line)
+                y[row_idx] = data.get('Label', 0)
+
+                for k, v in data.get('Base', {}).items():
+                    idx = feature_idx.get(k)
+                    if idx is not None:
+                        val = float(v)
+                        if val != 0.0:
+                            rows.append(row_idx)
+                            cols.append(idx)
+                            vals.append(val)
+
+                for d in data.get('DLLs', []):
+                    idx = feature_idx.get(f"Dll_{d}")
+                    if idx is not None:
+                        rows.append(row_idx)
+                        cols.append(idx)
+                        vals.append(1.0)
+
+                for a in data.get('APIs', []):
+                    idx = feature_idx.get(f"Api_{a}")
+                    if idx is not None:
+                        rows.append(row_idx)
+                        cols.append(idx)
+                        vals.append(1.0)
+
+                row_idx += 1
+            except Exception:
+                continue
+
+    y = y[:row_idx]
+    X = sp.csr_matrix((vals, (rows, cols)), shape=(row_idx, num_features), dtype=np.float32)
+    
+    return X, pd.Series(y), final_features
+
+####################################################################################################
+
+def _calculate_dynamic_lr(current_iter: int) -> float:
+    return max(0.01, 0.1 - (current_iter // 80) * 0.01)
+
+def train_process(X, y, feature_names):
     print(f"[*] Dataset shape: {X.shape}")
     
     X_train, X_test, y_train, y_test = train_test_split(
@@ -117,11 +136,11 @@ def train_process(X, y):
     weight_ratio_target = 0.001
     final_pos_weight = base_weight * weight_ratio_target
     
-    print(f"[*] Balance Report: Safe={n_neg}, Malware={n_pos}")
-    print(f"[*] Weight Config: Base Balanced={base_weight:.4f}, Final Adjusted={final_pos_weight:.4f}")
+    print(f"[*] Sample distribution: Safe={n_neg}, Malware={n_pos}")
+    print(f"[*] Weight correction: Base={base_weight:.4f}, Final={final_pos_weight:.4f}")
     
-    train_data = lgb.Dataset(X_train, label=y_train)
-    valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data)
+    train_data = lgb.Dataset(X_train, label=y_train, feature_name=feature_names)
+    valid_data = lgb.Dataset(X_test, label=y_test, reference=train_data, feature_name=feature_names)
     
     params = LGBM_PARAMS.copy()
     params['scale_pos_weight'] = final_pos_weight
@@ -133,14 +152,15 @@ def train_process(X, y):
         params,
         train_data,
         valid_sets=[valid_data],
-        num_boost_round=1000,
+        num_boost_round=500,
         callbacks=[
-            lgb.log_evaluation(period=100)
+            lgb.log_evaluation(period=50),
+            lgb.reset_parameter(learning_rate=_calculate_dynamic_lr)
         ]
     )
     
     elapsed = time.time() - start_time
-    print(f"\n[+] Training finished in {elapsed:.2f}s")
+    print(f"\n[+] Training complete, time elapsed {elapsed:.2f} seconds")
     
     return model, X_test, y_test
 
@@ -156,11 +176,9 @@ def export_onnx_model(model, feature_names):
         with open(FEATURE_FILE, 'w') as f:
             json.dump(feature_names, f)
             
-        print(f"[+] ONNX export success. Features synced to {FEATURE_FILE}")
+        print(f"[+] ONNX export successful. Feature order saved to {FEATURE_FILE}")
     except Exception as e:
         print(f"[-] ONNX export failed: {e}")
-
-####################################################################################################
 
 def evaluate_and_save(model, X_test, y_test):
     print("\n------------------- Evaluation Report -------------------\n")
@@ -181,14 +199,14 @@ def evaluate_and_save(model, X_test, y_test):
     detection_rate = (tp / total_malware * 100) if total_malware > 0 else 0.0
     fpr = (fp / total_safe * 100) if total_safe > 0 else 0.0
     
-    print(f"Accuracy : {acc:.4f}")
-    print(f"ROC AUC  : {auc:.4f}\n")
+    print(f"Accuracy : {acc:.6f}")
+    print(f"ROC AUC  : {auc:.6f}\n")
     
     print(f"True Positive (Class 1) : {detection_rate:.3f}% ({tp}/{total_malware})")
     print(f"False Positive (Class 0) : {fpr:.3f}% ({fp}/{total_safe})")
 
     print("\n---------------------------------------------------------\n")
-    print("[*] Top 20 Features (Importance by Gain):")
+    print("[*] Top 20 Features:")
     
     feature_names = model.feature_name()
     importance = model.feature_importance(importance_type='gain')
@@ -205,25 +223,27 @@ def evaluate_and_save(model, X_test, y_test):
 ####################################################################################################
 
 if __name__ == "__main__":
-    print("\n---------------- PE Malware Trainer v3.1 ----------------\n")
+    print("\n---------------- PE Malware Trainer v4.0 ----------------\n")
 
-    if not os.path.exists(DB_PATH):
-        print(f"[-] Error: Database {DB_PATH} not found.")
+    if not os.path.exists(JSONL_PATH):
+        print(f"[-] Error: Feature file {JSONL_PATH} not found.")
         sys.exit(1)
 
-    raw_schema = get_raw_schema(DB_PATH)
-    if not raw_schema:
-        print("[-] Error: Could not read schema.")
+    base_schema, dll_schema, api_schema, num_lines = analyze_schema(JSONL_PATH)
+    if num_lines == 0:
+        print("[-] Error: Feature file is empty.")
         sys.exit(1)
 
-    X, y, _ = load_data(DB_PATH, raw_schema)
-    if X is None:
-        sys.exit(1)
+    print(f"[*] Detected Base features: {len(base_schema)}")
+    print(f"[*] Filtered DLL features: {len(dll_schema)}")
+    print(f"[*] Filtered API features: {len(api_schema)}")
 
+    X, y, final_features = load_data_efficiently(JSONL_PATH, base_schema, dll_schema, api_schema, num_lines)
+    
     try:
-        model, X_test, y_test = train_process(X, y)
+        model, X_test, y_test = train_process(X, y, final_features)
         evaluate_and_save(model, X_test, y_test)
     except KeyboardInterrupt:
-        print("\n\n[-] Training interrupted.")
+        print("\n\n[-] Training aborted.")
     except Exception as e:
-        print(f"\n[-] Critical Error: {e}")
+        print(f"\n[-] System exception: {e}")

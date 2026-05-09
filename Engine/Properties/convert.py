@@ -1,12 +1,23 @@
-import os, sys, time, ctypes, sqlite3, datetime, pefile, math, hashlib
-import numpy as np
-import ctypes.wintypes
+import os, sys, math, time, datetime, pefile, hashlib
+import ctypes, ctypes.wintypes, multiprocessing
+
+try:
+    import orjson
+    JSON_DUMPS = lambda x: orjson.dumps(x).decode('utf-8')
+    JSON_LOADS = orjson.loads
+    HAS_ORJSON = True
+except ImportError:
+    import json
+    JSON_DUMPS = json.dumps
+    JSON_LOADS = json.loads
+    HAS_ORJSON = False
 
 ####################################################################################################
 
-DB_PATH = "pe_features.db"
+JSONL_PATH = "pe_features.jsonl"
 BATCH_SIZE = 1000
 MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024
+MAX_WORKERS = os.cpu_count() - 2
 TARGET_EXTENSIONS = {
     '.exe', '.dll', '.sys', '.ocx', '.scr', '.efi', '.acm', '.ax', '.cpl', '.drv', '.com', '.mui', '.pyd'
 }
@@ -60,24 +71,23 @@ V2_GUID = GUID(0x00AAC56B, 0xCD44, 0x11D0, (ctypes.c_ubyte * 8)(0x8C, 0xC2, 0x00
 ####################################################################################################
 
 def verify_signature(file_path):
-    if os.name != 'nt':
-        return 0
+    if os.name != 'nt': return 0
     try:
         wintrust = ctypes.windll.wintrust
         wintrust.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.wintypes.LPVOID]
         wintrust.WinVerifyTrust.restype = ctypes.wintypes.LONG
-
+        
         abs_path = os.path.abspath(file_path)
-
+        
         fi = WINTRUST_FILE_INFO()
         fi.cbStruct = ctypes.sizeof(WINTRUST_FILE_INFO)
         fi.pcwszFilePath = abs_path
         fi.hFile = None
         fi.pgKnownSubject = None
-
+        
         wt_union = WINTRUST_DATA_UNION()
         wt_union.pFile = ctypes.pointer(fi)
-
+        
         td = WINTRUST_DATA()
         td.cbStruct = ctypes.sizeof(WINTRUST_DATA)
         td.pPolicyCallbackData = None
@@ -94,628 +104,338 @@ def verify_signature(file_path):
         td.pSignatureSettings = None
 
         return 1 if wintrust.WinVerifyTrust(None, ctypes.byref(V2_GUID), ctypes.byref(td)) == 0 else 0
-    except Exception as e:
-        print(e)
+    except Exception:
         return 0
 
 ####################################################################################################
 
-class Features:
-    API_CAT_MAPPING = {
-        'ProcessControl': {
-            'CreateProcessA', 'CreateProcessW', 'WinExec', 'ShellExecuteA', 'ShellExecuteW',
-            'ShellExecuteExW', 'ExitProcess', 'TerminateProcess', 'OpenProcess', 'GetExitCodeProcess',
-            'SetThreadPriority', 'GetThreadPriority', 'GetCurrentProcess', 'GetCurrentProcessId',
-            'GetModuleFileNameA', 'GetCommandLineA', 'GetModuleFileNameW', 'GetStartupInfoW'
-        },
-        'Injection': {
-            'VirtualAlloc', 'VirtualAllocEx', 'VirtualProtect', 'VirtualProtectEx', 'WriteProcessMemory', 
-            'ReadProcessMemory', 'CreateRemoteThread', 'QueueUserAPC', 'SetThreadContext', 'GetThreadContext', 
-            'Wow64SetThreadContext', 'NtUnmapViewOfSection', 'ZwUnmapViewOfSection', 'RtlCreateUserThread', 
-            'SetWindowsHookExA', 'SetWindowsHookExW', 'UnhookWindowsHookEx', 'LoadLibraryA', 'LoadLibraryW', 
-            'LoadLibraryExA', 'LoadLibraryExW', 'GetProcAddress', 'GetModuleHandleA', 'GetModuleHandleW',
-            'FreeLibrary', 'CreateFileMappingA', 'CreateFileMappingW', 'MapViewOfFile', 'UnmapViewOfSection',
-            'VirtualFree', 'VirtualQuery'
-        },
-        'Synchronization': {
-            'WaitForSingleObject', 'WaitForSingleObjectEx', 'WaitForMultipleObjects', 'WaitForMultipleObjectsEx',
-            'CreateMutexA', 'CreateMutexW', 'OpenMutexW', 'ReleaseMutex', 'CreateEventA', 'CreateEventW', 
-            'OpenEventW', 'SetEvent', 'ResetEvent', 'EnterCriticalSection', 'LeaveCriticalSection', 
-            'InitializeCriticalSection', 'DeleteCriticalSection', 'Sleep', 'SleepEx',
-            'InitializeCriticalSectionAndSpinCount', 'InterlockedDecrement', 'InterlockedIncrement', 
-            'InterlockedExchange', 'InterlockedCompareExchange', 'SetTimer', 'KillTimer'
-        },
-        'MultiThreading': {
-            'CreateThread', 'ResumeThread', 'SuspendThread', 'ExitThread', 'TerminateThread',
-            'GetCurrentThread', 'GetCurrentThreadId', 'TlsAlloc', 'TlsSetValue', 'TlsGetValue',
-            'CreateThreadpoolWork', 'SubmitThreadpoolWork', 'TlsFree'
-        },
-        'Network': {
-            'socket', 'connect', 'send', 'recv', 'bind', 'listen', 'accept', 'gethostbyname', 'getaddrinfo',
-            'WSAStartup', 'WSACleanup', 'WSAIoctl', 'WSASocketA', 'WSASocketW', 'closesocket', 'htons',
-            'InternetOpenA', 'InternetOpenW', 'InternetConnectA', 'InternetConnectW', 'InternetOpenUrlA', 
-            'InternetOpenUrlW', 'HttpOpenRequestA', 'HttpOpenRequestW', 'HttpSendRequestA', 'HttpSendRequestW',
-            'InternetReadFile', 'URLDownloadToFileA', 'URLDownloadToFileW', 'DnsQuery_A', 'DnsQuery_W'
-        },
-        'Encryption': {
-            'CryptAcquireContextA', 'CryptAcquireContextW', 'CryptCreateHash', 'CryptHashData', 
-            'CryptDeriveKey', 'CryptEncrypt', 'CryptDecrypt', 'CryptDestroyKey', 'CryptDestroyHash',
-            'CryptReleaseContext', 'CryptGenKey', 'CryptImportKey', 'CryptExportKey'
-        },
-        'DataObfuscation': {
-            'RtlDecompressBuffer', 'MultiByteToWideChar', 'WideCharToMultiByte', 'Base64Decode', 
-            'CryptDecodeObject', 'IsDBCSLeadByte', 'CharUpperA', 'CharLowerA',
-            'GetStringTypeW', 'LCMapStringW', 'IsValidCodePage', 'DecodePointer', 'EncodePointer'
-        },
-        'FileIO': {
-            'CreateFileA', 'CreateFileW', 'WriteFile', 'ReadFile', 'DeleteFileA', 'DeleteFileW',
-            'CopyFileA', 'CopyFileW', 'MoveFileA', 'MoveFileW', 'FindFirstFileA', 'FindNextFileA',
-            'GetTempPathA', 'GetTempPathW', 'GetTempFileNameA', 'GetTempFileNameW', 'SetFileAttributesA', 
-            'SetFileAttributesW', 'DeviceIoControl', 'SetFileTime', 'GetFileSize', 'GetFileSizeEx',
-            'SetFilePointer', 'FlushFileBuffers', 'ConnectNamedPipe', 'PeekNamedPipe',
-            'CloseHandle', 'GetFileType', 'SetStdHandle', 'SetFilePointerEx', 'FindClose', 
-            'SetHandleCount', 'SetEndOfFile', 'GetFullPathNameA', 'GetFileAttributesA'
-        },
-        'Registry': {
-            'RegOpenKeyExA', 'RegOpenKeyExW', 'RegSetValueExA', 'RegSetValueExW', 
-            'RegCreateKeyExA', 'RegCreateKeyExW', 'RegDeleteKeyA', 'RegDeleteKeyW',
-            'RegEnumValueA', 'RegEnumValueW', 'RegQueryValueExA', 'RegQueryValueExW',
-            'RegDeleteValueA', 'RegDeleteValueW', 'RegCloseKey'
-        },
-        'Services': {
-            'OpenSCManagerA', 'OpenSCManagerW', 'CreateServiceA', 'CreateServiceW',
-            'StartServiceA', 'StartServiceW', 'ControlService', 'DeleteService'
-        },
-        'Privileges': {
-            'AdjustTokenPrivileges', 'LookupPrivilegeValueA', 'LookupPrivilegeValueW', 
-            'OpenProcessToken', 'NetUserAdd', 'NetLocalGroupAddMembers', 'IsAdmin', 
-            'GetUserNameA', 'GetUserNameW'
-        },
-        'Native': {
-            'RtlUnwind', 'RtlVirtualUnwind', 'RtlCaptureContext', 'RtlLookupFunctionEntry',
-            'NtClose', 'NtQueryInformationProcess', 'RtlAllocateHeap', 'RtlFreeHeap',
-            'GetSystemTimeAsFileTime', 'GetLocalTime', 'GlobalMemoryStatus', 
-            'GetVersionExA', 'GetVersionExW', 'GetComputerNameA', 'GetComputerNameW',
-            'GetLastError', 'GetACP', 'RaiseException', 'SetLastError', 'GetEnvironmentStringsW', 
-            'FreeEnvironmentStringsW', 'GetLocaleInfoA', 'lstrlenA', 'GetVersion', 'GetSystemInfo', 
-            'CompareStringA'
-        },
-        'DotNet': {
-            '_CorExeMain', '_CorDllMain'
-        },
-        'AntiDebug': {
-            'IsDebuggerPresent', 'CheckRemoteDebuggerPresent', 'OutputDebugStringA', 'OutputDebugStringW',
-            'GetTickCount', 'GetTickCount64', 'QueryPerformanceCounter', 'FindWindowA', 'FindWindowW',
-            'EnumWindows', 'EnumChildWindows', 'GetWindowRect', 'GetClientRect', 'SetWindowDisplayAffinity',
-            'UnhandledExceptionFilter', 'SetUnhandledExceptionFilter', 'IsProcessorFeaturePresent', 
-            'SetErrorMode', 'GetTimeZoneInformation', 'GetDriveTypeW', 'GetDiskFreeSpaceA'
-        },
-        'Keylogging': {
-            'GetAsyncKeyState', 'GetKeyState', 'GetKeyboardState', 'MapVirtualKeyA', 'MapVirtualKeyW',
-            'ToAscii', 'ToAsciiEx', 'ToUnicode', 'ToUnicodeEx', 'GetKeyNameTextA', 'GetForegroundWindow',
-            'KeybdEvent', 'SendInput', 'MapVirtualKeyExA', 'MapVirtualKeyExW', 'CallNextHookEx'
-        },
-        'Input': {
-            'GetCursorPos', 'SetCursorPos', 'MouseEvent', 'GetDoubleClickTime', 
-            'GetCapture', 'SetCapture'
-        },
-        'ScreenCapture': {
-            'BitBlt', 'StretchBlt', 'GetDC', 'GetWindowDC', 'CreateCompatibleDC', 'CreateCompatibleBitmap',
-            'GdipSaveImageToFile', 'PrintWindow', 'GetDesktopWindow', 'CreateDCW', 'CreateDCA',
-            'SelectObject', 'DeleteDC', 'DeleteObject', 'GetDeviceCaps', 'GetSystemMetrics'
-        },
-        'Graphics': {
-            'Direct3DCreate9', 'D3D11CreateDevice'
-        },
-        'Audio': {
-            'WaveInOpen', 'WaveInClose', 'WaveInStart', 'WaveInStop'
-        },
-        'Clipboard': {
-            'OpenClipboard', 'CloseClipboard', 'GetClipboardData', 'SetClipboardData'
-        },
-        'Camera': {
-            'CapCreateCaptureWindowA', 'CapCreateCaptureWindowW'
-        },
-        'Memory': {
-            'HeapAlloc', 'HeapFree', 'HeapSize', 'HeapCreate', 'GetProcessHeap',
-            'LocalAlloc', 'LocalFree', 'GlobalAlloc', 'GlobalFree', 'GlobalUnlock',
-            'HeapDestroy', 'GlobalLock', 'SysFreeString', 'SysAllocStringLen'
-        },
-        'Resource': {
-            'LoadResource', 'SizeofResource', 'LockResource', 'FreeResource', 'FindResourceA'
-        },
-        'WindowControl': {
-            'ShowWindow', 'DestroyWindow', 'TranslateMessage', 'DispatchMessageA', 'GetWindow',
-            'PeekMessageA', 'GetWindowLongA', 'CallWindowProcA', 'SetWindowLongA', 'GetWindowTextA',
-            'ScreenToClient', 'GetActiveWindow', 'CreateWindowExA', 'DefWindowProcA', 'GetMessageA',
-            'RegisterClassA', 'UnregisterClassA', 'MessageBoxA'
-        },
-        'COM': {
-            'CoCreateInstance', 'CoUninitialize', 'CoInitialize'
-        }
-    }
+class FeatureExtractor:
+    @staticmethod
+    def _safe_float(val):
+        try:
+            f = float(val)
+            return f if not (math.isinf(f) or math.isnan(f)) else 0.0
+        except Exception: 
+            return 0.0
 
-    TARGET_DLLS = {
-        'kernel32.dll', 'user32.dll', 'gdi32.dll', 'advapi32.dll', 'shell32.dll', 'ntdll.dll', 'hal.dll',
-        'ws2_32.dll', 'wsock32.dll', 'wininet.dll', 'winhttp.dll', 'urlmon.dll', 'crypt32.dll', 'bcrypt.dll',
-        'psapi.dll', 'dbghelp.dll', 'imagehlp.dll', 'shlwapi.dll', 'ole32.dll', 'oleaut32.dll', 'comctl32.dll',
-        'mscoree.dll', 'vbscript.dll', 'netapi32.dll', 'iphlpapi.dll', 'wtsapi32.dll', 'version.dll', 'winmm.dll'
-    }
+    @staticmethod
+    def _calc_entropy(data):
+        if not data: return 0.0
+        import numpy as np
+        arr = np.frombuffer(data, dtype=np.uint8)
+        counts = np.bincount(arr, minlength=256)
+        probs = counts[counts > 0] / len(arr)
+        return float(-np.sum(probs * np.log2(probs)))
 
-    BASE_SCHEMA = [
-        "FileEntropy", "SectionMeanEntropy", "IsExe", "IsDll", "IsDriver", "Is64Bit", "Machine", "Magic",
-        "TimeDateStamp", "CheckSum", "ImageBase", "SizeOfImage", "SizeOfHeaders",
-        "Characteristics", "DllCharacteristics", "Subsystem", "LoaderFlags",
-        "MajorLinkerVersion", "MinorLinkerVersion", "SizeOfCode", 
-        "SizeOfInitializedData", "SizeOfUninitializedData", "AddressOfEntryPoint",
-        "BaseOfCode", "SectionAlignment", "FileAlignment",
-        "MajorOperatingSystemVersion", "MinorOperatingSystemVersion",
-        "MajorImageVersion", "MinorImageVersion",
-        "MajorSubsystemVersion", "MinorSubsystemVersion",
-        "SizeOfStackReserve", "SizeOfStackCommit", "SizeOfHeapReserve", "SizeOfHeapCommit",
-        "NumberOfSections", "NumberOfRvaAndSizes", "PointerToSymbolTable", "NumberOfSymbols",
-        "SizeOfOptionalHeader",
-        
-        "TextSectionMaxEntropy", "TextSectionMeanEntropy", "TextSizeRatio", 
-        "DataSectionMaxEntropy", "DataSectionMeanEntropy", "DataSizeRatio", 
-        "RsrcSectionMaxEntropy", "RsrcSectionMeanEntropy", "RsrcSizeRatio", 
-        "SectionCount", "ExecutableSections", 
-        "WritableSections", "ReadableSections", "SectionException",
-
-        "Char_00000020_Count", "Char_00000020_MeanEntropy",
-        "Char_00000040_Count", "Char_00000040_MeanEntropy",
-        "Char_00000080_Count", "Char_00000080_MeanEntropy",
-        "Char_02000000_Count", "Char_02000000_MeanEntropy",
-        "Char_20000000_Count", "Char_20000000_MeanEntropy",
-        "Char_40000000_Count", "Char_40000000_MeanEntropy",
-        "Char_80000000_Count", "Char_80000000_MeanEntropy",
-        
-        "IconCount", "ApiCount", "ExportCount", "DebugCount", "ExceptionCount",
-        "ImportCount", "ImportFunctionCount",
-        
-        "FileDescriptionLength", "FileVersionLength", "ProductNameLength", 
-        "ProductVersionLength", "CompanyNameLength", "LegalCopyrightLength", 
-        "CommentsLength", "InternalNameLength", "LegalTrademarksLength",
-        "SpecialBuildLength", "PrivateBuildLength",
-        
-        "TrustSigned", "IsDebug", "IsPatched", "IsPrivateBuild", "IsPreRelease", 
-        "IsSpecialBuild", "IsAdmin", "IsInstall", "HasTlsCallbacks", 
-        "HasInvalidTimestamp", "HasRelocationDirectory", "HasPacked", "FileTimeException"
-    ]
-
-    CAT_SCHEMA = [f"Cat_{k}" for k in sorted(API_CAT_MAPPING.keys())]
-    DLL_SCHEMA = [f"Dll_{d.replace('.', '_')}" for d in sorted(TARGET_DLLS)]
-    
-    _ALL_APIS = {api for apis in API_CAT_MAPPING.values() for api in apis}
-    API_SCHEMA = [f"Api_{api}" for api in sorted(_ALL_APIS)]
-    
-    SCHEMA = BASE_SCHEMA + CAT_SCHEMA + DLL_SCHEMA + API_SCHEMA
-    
-    _API_TO_CATS = {}
-    for _cat, _apis in API_CAT_MAPPING.items():
-        for _api in _apis:
-            if _api not in _API_TO_CATS:
-                _API_TO_CATS[_api] = []
-            _API_TO_CATS[_api].append(_cat)
-
-    PACKERS = {
-        'upx', 'aspack', 'asprotect', 'pecompact', 'upack', 'fsg', 'mew', 
-        'mpress', 'ezip', 'pklt', 'shrink', 'petite', 'telock',
-        'themida', 'winlicense', 'tmd', 'vmp', 'enigma', 'obsidium', 
-        'pelock', 'exestealth', 'yoda', 'armadillo', 'zprotect',
-        'sforce', 'starforce', 'qihoo', 'wisevec', 'megastop',
-    }
-    INSTALLER_SIGS = [b"Nullsoft.NSIS", b"Inno Setup", b"7-Zip.7zip", b"InstallShield"]
-
-####################################################################################################
-
-def safe_float(val):
-    try:
-        f = float(val)
-        if math.isinf(f) or math.isnan(f): return 0.0
-        return f
-    except:
-        return 0.0
-
-####################################################################################################
-
-def calc_entropy(data):
-    if not data: return 0.0
-    arr = np.frombuffer(data, dtype=np.uint8)
-    counts = np.bincount(arr, minlength=256)
-    probs = counts[counts > 0] / len(arr)
-    return float(-np.sum(probs * np.log2(probs)))
-
-def safe_div(n, d): 
-    return float(n) / d if d > 0 else 0.0
-
-def process_single_file_content(file_bytes, file_path):
-    fsize = len(file_bytes)
-    if fsize == 0: return None
-
-    fts = {k: 0.0 for k in Features.SCHEMA}
-    pe = None
-    try:
-        pe = pefile.PE(data=file_bytes, fast_load=True)
-        fts['TrustSigned'] = verify_signature(file_path)
-
-        fh = pe.FILE_HEADER
-        fts['Machine'] = fh.Machine
-        fts['NumberOfSections'] = fh.NumberOfSections
-        fts['TimeDateStamp'] = fh.TimeDateStamp
-        fts['PointerToSymbolTable'] = fh.PointerToSymbolTable
-        fts['NumberOfSymbols'] = fh.NumberOfSymbols
-        fts['SizeOfOptionalHeader'] = fh.SizeOfOptionalHeader
-        fts['Characteristics'] = fh.Characteristics
-
-        curr_ts = datetime.datetime.utcnow().timestamp()
-        fts['HasInvalidTimestamp'] = 1.0 if (fh.TimeDateStamp < 631152000 or fh.TimeDateStamp > curr_ts + 2592000) else 0.0
-        fts['FileTimeException'] = 1.0 if fh.TimeDateStamp == 0 else 0.0
-
-        if hasattr(pe, 'OPTIONAL_HEADER'):
-            op = pe.OPTIONAL_HEADER
-            fts['Magic'] = getattr(op, 'Magic', 0)
-            fts['MajorLinkerVersion'] = getattr(op, 'MajorLinkerVersion', 0)
-            fts['MinorLinkerVersion'] = getattr(op, 'MinorLinkerVersion', 0)
-            fts['SizeOfCode'] = getattr(op, 'SizeOfCode', 0)
-            fts['SizeOfInitializedData'] = getattr(op, 'SizeOfInitializedData', 0)
-            fts['SizeOfUninitializedData'] = getattr(op, 'SizeOfUninitializedData', 0)
-            fts['AddressOfEntryPoint'] = getattr(op, 'AddressOfEntryPoint', 0)
-            fts['BaseOfCode'] = getattr(op, 'BaseOfCode', 0)
-            fts['ImageBase'] = getattr(op, 'ImageBase', 0)
-            fts['SectionAlignment'] = getattr(op, 'SectionAlignment', 0)
-            fts['FileAlignment'] = getattr(op, 'FileAlignment', 0)
-            fts['MajorOperatingSystemVersion'] = getattr(op, 'MajorOperatingSystemVersion', 0)
-            fts['MinorOperatingSystemVersion'] = getattr(op, 'MinorOperatingSystemVersion', 0)
-            fts['MajorImageVersion'] = getattr(op, 'MajorImageVersion', 0)
-            fts['MinorImageVersion'] = getattr(op, 'MinorImageVersion', 0)
-            fts['MajorSubsystemVersion'] = getattr(op, 'MajorSubsystemVersion', 0)
-            fts['MinorSubsystemVersion'] = getattr(op, 'MinorSubsystemVersion', 0)
-            fts['SizeOfImage'] = getattr(op, 'SizeOfImage', 0)
-            fts['SizeOfHeaders'] = getattr(op, 'SizeOfHeaders', 0)
-            fts['CheckSum'] = getattr(op, 'CheckSum', 0)
-            fts['Subsystem'] = getattr(op, 'Subsystem', 0)
-            fts['DllCharacteristics'] = getattr(op, 'DllCharacteristics', 0)
-            fts['SizeOfStackReserve'] = getattr(op, 'SizeOfStackReserve', 0)
-            fts['SizeOfStackCommit'] = getattr(op, 'SizeOfStackCommit', 0)
-            fts['SizeOfHeapReserve'] = getattr(op, 'SizeOfHeapReserve', 0)
-            fts['SizeOfHeapCommit'] = getattr(op, 'SizeOfHeapCommit', 0)
-            fts['LoaderFlags'] = getattr(op, 'LoaderFlags', 0)
-            fts['NumberOfRvaAndSizes'] = getattr(op, 'NumberOfRvaAndSizes', 0)
-            fts['Is64Bit'] = 1.0 if fh.Machine in (0x8664, 0xAA64, 0x0200) else 0.0
-            fts['IsExe'] = 1.0 if pe.is_exe() else 0.0
-            fts['IsDll'] = 1.0 if pe.is_dll() else 0.0
-            fts['IsDriver'] = 1.0 if fts['Subsystem'] == 1 else 0.0
-
-            if hasattr(op, 'DATA_DIRECTORY'):
-                reloc_idx = pefile.DIRECTORY_ENTRY.get('IMAGE_DIRECTORY_ENTRY_BASERELOC', 5)
-                if len(op.DATA_DIRECTORY) > reloc_idx and op.DATA_DIRECTORY[reloc_idx].Size > 0:
-                    fts['HasRelocationDirectory'] = 1.0
+    @classmethod
+    def extract(cls, file_bytes, file_path, fsize):
+        if fsize == 0: return None
+        base, dlls, apis, pe = {}, set(), set(), None
 
         try:
-            fts['FileEntropy'] = calc_entropy(file_bytes)
-        except Exception:
-            pass
+            pe = pefile.PE(data=file_bytes, fast_load=True)
+            base['TrustSigned'] = verify_signature(file_path)
+            base['FileEntropy'] = cls._calc_entropy(file_bytes)
+            base['FileSize'] = fsize
+            
+            fh = pe.FILE_HEADER
+            base['Machine'] = getattr(fh, 'Machine', 0)
+            base['NumberOfSections'] = getattr(fh, 'NumberOfSections', 0)
+            base['TimeDateStamp'] = getattr(fh, 'TimeDateStamp', 0)
+            base['PointerToSymbolTable'] = getattr(fh, 'PointerToSymbolTable', 0)
+            base['NumberOfSymbols'] = getattr(fh, 'NumberOfSymbols', 0)
+            base['SizeOfOptionalHeader'] = getattr(fh, 'SizeOfOptionalHeader', 0)
+            base['Characteristics'] = getattr(fh, 'Characteristics', 0)
 
-        sec_entropies = []
-        text_entropies = []
-        data_entropies = []
-        rsrc_entropies = []
-        char_flags = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
+            curr_ts = datetime.datetime.utcnow().timestamp()
+            base['HasInvalidTimestamp'] = 1.0 if (base['TimeDateStamp'] < 631152000 or base['TimeDateStamp'] > curr_ts + 2592000) else 0.0
+            base['FileTimeException'] = 1.0 if base['TimeDateStamp'] == 0 else 0.0
+            base['Is64Bit'] = 1.0 if base['Machine'] in (0x8664, 0xAA64, 0x0200) else 0.0
+            base['IsExe'] = 1.0 if pe.is_exe() else 0.0
+            base['IsDll'] = 1.0 if pe.is_dll() else 0.0
 
-        if hasattr(pe, 'sections'):
-            fts['SectionCount'] = len(pe.sections)
-            for section in pe.sections:
-                try: 
-                    name = section.Name.decode('ascii', 'ignore').strip('\x00')
-                except Exception: 
-                    name = ""
+            base['ExceptionCount'] = 0.0
+
+            if hasattr(pe, 'OPTIONAL_HEADER'):
+                op = pe.OPTIONAL_HEADER
+                fields = ['Magic', 'MajorLinkerVersion', 'MinorLinkerVersion', 'SizeOfCode', 'SizeOfInitializedData', 'SizeOfUninitializedData', 'AddressOfEntryPoint', 'BaseOfCode', 'ImageBase', 'SectionAlignment', 'FileAlignment', 'MajorOperatingSystemVersion', 'MinorOperatingSystemVersion', 'MajorImageVersion', 'MinorImageVersion', 'MajorSubsystemVersion', 'MinorSubsystemVersion', 'SizeOfImage', 'SizeOfHeaders', 'CheckSum', 'Subsystem', 'DllCharacteristics', 'SizeOfStackReserve', 'SizeOfStackCommit', 'SizeOfHeapReserve', 'SizeOfHeapCommit', 'LoaderFlags', 'NumberOfRvaAndSizes']
+                for f in fields: base[f] = getattr(op, f, 0)
+                base['IsDriver'] = 1.0 if base.get('Subsystem') == 1 else 0.0
+
+                if hasattr(op, 'DATA_DIRECTORY'):
+                    for i, directory in enumerate(op.DATA_DIRECTORY):
+                        base[f'DataDirectory_{i}_Size'] = directory.Size
+                        base[f'DataDirectory_{i}_VA'] = directory.VirtualAddress
                     
-                try: 
-                    s_data = section.get_data()
-                    s_entropy = calc_entropy(s_data)
-                except Exception: 
-                    s_data = b""
-                    s_entropy = 0.0
+                    exc_idx = pefile.DIRECTORY_ENTRY.get('IMAGE_DIRECTORY_ENTRY_EXCEPTION', 3)
+                    if len(op.DATA_DIRECTORY) > exc_idx and op.DATA_DIRECTORY[exc_idx].Size > 0:
+                        base['ExceptionCount'] = op.DATA_DIRECTORY[exc_idx].Size // 12 if base['Machine'] in (0x8664, 0xAA64) else 0.0
 
-                sec_entropies.append(s_entropy)
+            char_flags = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
+            for flag in char_flags:
+                base[f'Char_{flag:08X}_Count'] = 0.0
+                base[f'Char_{flag:08X}_MeanEntropy'] = 0.0
 
-                if any(p in name.lower() for p in Features.PACKERS): fts['HasPacked'] = 1.0
-                if section.Characteristics & 0x20000000: fts['ExecutableSections'] += 1.0
-                if section.Characteristics & 0x80000000: fts['WritableSections'] += 1.0
-                if section.Characteristics & 0x40000000: fts['ReadableSections'] += 1.0
-                if section.SizeOfRawData + section.PointerToRawData > fsize: fts['SectionException'] = 1.0
+            if hasattr(pe, 'sections'):
+                base['SectionCount'] = len(pe.sections)
+                entropies, raw_sizes, v_sizes = [], [], []
+                exec_sec, write_sec, read_sec, sec_exc = 0, 0, 0, 0
+                
+                for section in pe.sections:
+                    try:
+                        s_data = section.get_data()
+                        s_entropy = cls._calc_entropy(s_data)
+                    except Exception: 
+                        s_entropy = 0.0
+
+                    entropies.append(s_entropy)
+                    raw_sizes.append(section.SizeOfRawData)
+                    v_sizes.append(section.Misc_VirtualSize)
+
+                    if section.Characteristics & 0x20000000: exec_sec += 1
+                    if section.Characteristics & 0x80000000: write_sec += 1
+                    if section.Characteristics & 0x40000000: read_sec += 1
+                    if section.SizeOfRawData + section.PointerToRawData > fsize: sec_exc = 1
+
+                    for flag in char_flags:
+                        if section.Characteristics & flag:
+                            base[f'Char_{flag:08X}_Count'] += 1.0
+                            base[f'Char_{flag:08X}_MeanEntropy'] += s_entropy
+
+                base['SectionMaxEntropy'] = max(entropies) if entropies else 0.0
+                base['SectionMinEntropy'] = min(entropies) if entropies else 0.0
+                base['SectionMeanEntropy'] = sum(entropies) / len(entropies) if entropies else 0.0
+                base['SectionMaxRawSize'] = max(raw_sizes) if raw_sizes else 0.0
+                base['SectionMinRawSize'] = min(raw_sizes) if raw_sizes else 0.0
+                base['SectionMeanRawSize'] = sum(raw_sizes) / len(raw_sizes) if raw_sizes else 0.0
+                base['SectionMaxVSize'] = max(v_sizes) if v_sizes else 0.0
+                base['SectionMinVSize'] = min(v_sizes) if v_sizes else 0.0
+                base['SectionMeanVSize'] = sum(v_sizes) / len(v_sizes) if v_sizes else 0.0
+                base['ExecutableSections'] = exec_sec
+                base['WritableSections'] = write_sec
+                base['ReadableSections'] = read_sec
+                base['SectionException'] = float(sec_exc)
 
                 for flag in char_flags:
-                    if section.Characteristics & flag:
-                        fts[f'Char_{flag:08X}_Count'] += 1.0
-                        fts[f'Char_{flag:08X}_MeanEntropy'] += s_entropy
+                    if base[f'Char_{flag:08X}_Count'] > 0:
+                        base[f'Char_{flag:08X}_MeanEntropy'] = base[f'Char_{flag:08X}_MeanEntropy'] / base[f'Char_{flag:08X}_Count']
 
-                ratio = safe_div(section.SizeOfRawData, fsize)
-                if name.startswith('.text'):
-                    text_entropies.append(s_entropy)
-                    fts['TextSizeRatio'] += ratio
-                elif name.startswith('.data'):
-                    data_entropies.append(s_entropy)
-                    fts['DataSizeRatio'] += ratio
-                elif name.startswith('.rsrc'):
-                    rsrc_entropies.append(s_entropy)
-                    fts['RsrcSizeRatio'] += ratio
-                    if b"requireAdministrator" in s_data: fts['IsAdmin'] = 1.0
-                    for sig in Features.INSTALLER_SIGS:
-                        if sig in s_data:
-                            fts['IsInstall'] = 1.0
-                            break
-
-        fts['SectionMeanEntropy'] = safe_div(sum(sec_entropies), len(sec_entropies))
-        fts['TextSectionMaxEntropy'] = max(text_entropies) if text_entropies else 0.0
-        fts['TextSectionMeanEntropy'] = safe_div(sum(text_entropies), len(text_entropies))
-        fts['DataSectionMaxEntropy'] = max(data_entropies) if data_entropies else 0.0
-        fts['DataSectionMeanEntropy'] = safe_div(sum(data_entropies), len(data_entropies))
-        fts['RsrcSectionMaxEntropy'] = max(rsrc_entropies) if rsrc_entropies else 0.0
-        fts['RsrcSectionMeanEntropy'] = safe_div(sum(rsrc_entropies), len(rsrc_entropies))
-
-        for flag in char_flags:
-            fts[f'Char_{flag:08X}_MeanEntropy'] = safe_div(fts[f'Char_{flag:08X}_MeanEntropy'], fts[f'Char_{flag:08X}_Count'])
-
-        try:
-            pe.parse_data_directories(directories=[
-                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
-                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'],
-                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'],
-                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'],
-                pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS']
-            ])
-        except Exception:
-            pass
-
-        if hasattr(pe, 'DIRECTORY_ENTRY_TLS') and hasattr(pe.DIRECTORY_ENTRY_TLS, 'struct'):
-            if getattr(pe.DIRECTORY_ENTRY_TLS.struct, 'AddressOfCallBacks', 0) != 0:
-                fts['HasTlsCallbacks'] = 1.0
-
-        if hasattr(pe, 'VS_FIXEDFILEINFO') and len(pe.VS_FIXEDFILEINFO) > 0:
-            flags = getattr(pe.VS_FIXEDFILEINFO[0], 'FileFlags', 0)
-            fts['IsDebug'] = 1.0 if flags & 0x1 else 0.0
-            fts['IsPreRelease'] = 1.0 if flags & 0x2 else 0.0
-            fts['IsPatched'] = 1.0 if flags & 0x4 else 0.0
-            fts['IsPrivateBuild'] = 1.0 if flags & 0x8 else 0.0
-            fts['IsSpecialBuild'] = 1.0 if flags & 0x20 else 0.0
-
-        if hasattr(pe, 'FileInfo'):
-            for fileinfo_list in pe.FileInfo:
-                for fileinfo in fileinfo_list:
-                    if getattr(fileinfo, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
-                        for st in getattr(fileinfo, 'StringTable', []):
-                            for key, val in st.entries.items():
-                                try:
-                                    k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
-                                    v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
-                                    length = len(v)
-                                    if k == 'FileDescription': fts['FileDescriptionLength'] = length
-                                    elif k == 'FileVersion': fts['FileVersionLength'] = length
-                                    elif k == 'ProductName': fts['ProductNameLength'] = length
-                                    elif k == 'ProductVersion': fts['ProductVersionLength'] = length
-                                    elif k == 'CompanyName': fts['CompanyNameLength'] = length
-                                    elif k == 'LegalCopyright': fts['LegalCopyrightLength'] = length
-                                    elif k == 'Comments': fts['CommentsLength'] = length
-                                    elif k == 'InternalName': fts['InternalNameLength'] = length
-                                    elif k == 'LegalTrademarks': fts['LegalTrademarksLength'] = length
-                                    elif k == 'SpecialBuild': fts['SpecialBuildLength'] = length
-                                    elif k == 'PrivateBuild': fts['PrivateBuildLength'] = length
-                                except Exception:
-                                    continue
-
-        if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
-            fts['ImportCount'] = len(pe.DIRECTORY_ENTRY_IMPORT)
-            for entry in pe.DIRECTORY_ENTRY_IMPORT:
-                if getattr(entry, 'dll', None):
-                    try:
-                        dll_name = entry.dll.decode('ascii', 'ignore').lower()
-                        if dll_name in Features.TARGET_DLLS: 
-                            fts[f"Dll_{dll_name.replace('.', '_')}"] = 1.0
-                    except Exception: 
-                        pass
+            string_keys = ['FileDescription', 'FileVersion', 'ProductName', 'ProductVersion', 'CompanyName', 'LegalCopyright', 'Comments', 'InternalName', 'LegalTrademarks', 'SpecialBuild', 'PrivateBuild']
+            for key in string_keys: 
+                base[f'{key}Length'] = 0.0
                 
-                imports = getattr(entry, 'imports', [])
-                for imp in imports:
-                    fts['ImportFunctionCount'] += 1.0
-                    if not getattr(imp, 'name', None): continue
-                    try:
-                        func_name = imp.name.decode('ascii', 'ignore')
-                        if func_name in Features._ALL_APIS:
-                            fts[f'Api_{func_name}'] += 1.0
-                            fts['ApiCount'] += 1.0
-                        for cat in Features._API_TO_CATS.get(func_name, []):
-                            fts[f'Cat_{cat}'] += 1.0
-                    except Exception: 
-                        continue
+            if hasattr(pe, 'FileInfo'):
+                for fileinfo_list in pe.FileInfo:
+                    for fileinfo in fileinfo_list:
+                        if getattr(fileinfo, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
+                            for st in getattr(fileinfo, 'StringTable', []):
+                                for key, val in st.entries.items():
+                                    try:
+                                        k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
+                                        if k in string_keys:
+                                            v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
+                                            base[f'{k}Length'] = float(len(v))
+                                    except Exception: 
+                                        continue
 
-        if hasattr(pe, 'DIRECTORY_ENTRY_EXPORT') and hasattr(pe.DIRECTORY_ENTRY_EXPORT, 'symbols'):
-            fts['ExportCount'] = len(pe.DIRECTORY_ENTRY_EXPORT.symbols)
-        
-        if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
-            for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries:
-                if getattr(entry, 'id', None) == 3 and hasattr(entry, 'directory'):
-                    fts['IconCount'] += len(getattr(entry.directory, 'entries', []))
-                    
-        if hasattr(pe, 'OPTIONAL_HEADER') and hasattr(pe.OPTIONAL_HEADER, 'DATA_DIRECTORY') and len(pe.OPTIONAL_HEADER.DATA_DIRECTORY) > 3:
-            exc_dir = pe.OPTIONAL_HEADER.DATA_DIRECTORY[3]
-            if exc_dir.Size > 0:
-                fts['ExceptionCount'] = exc_dir.Size // 12 if fts['Machine'] in (0x8664, 0xAA64) else 0.0
+            try: 
+                pe.parse_data_directories(directories=[
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS']
+                ])
+            except Exception: pass
+
+            if hasattr(pe, 'DIRECTORY_ENTRY_TLS') and hasattr(pe.DIRECTORY_ENTRY_TLS, 'struct'):
+                base['HasTlsCallbacks'] = 1.0 if getattr(pe.DIRECTORY_ENTRY_TLS.struct, 'AddressOfCallBacks', 0) != 0 else 0.0
             
-        if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG'): 
-            fts['DebugCount'] = len(pe.DIRECTORY_ENTRY_DEBUG)
+            if hasattr(pe, 'VS_FIXEDFILEINFO') and len(pe.VS_FIXEDFILEINFO) > 0:
+                flags = getattr(pe.VS_FIXEDFILEINFO[0], 'FileFlags', 0)
+                base['IsDebug'] = 1.0 if flags & 0x1 else 0.0
+                base['IsPreRelease'] = 1.0 if flags & 0x2 else 0.0
+                base['IsPatched'] = 1.0 if flags & 0x4 else 0.0
+                base['IsPrivateBuild'] = 1.0 if flags & 0x8 else 0.0
+                base['IsSpecialBuild'] = 1.0 if flags & 0x20 else 0.0
 
-        for k in fts: 
-            fts[k] = safe_float(fts[k])
-            
-        return fts
+            if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
+                base['ImportCount'] = len(pe.DIRECTORY_ENTRY_IMPORT)
+                func_count = 0
+                for entry in pe.DIRECTORY_ENTRY_IMPORT:
+                    if getattr(entry, 'dll', None):
+                        try: dlls.add(entry.dll.decode('ascii', 'ignore').lower())
+                        except Exception: pass
+                    for imp in getattr(entry, 'imports', []):
+                        func_count += 1
+                        if getattr(imp, 'name', None):
+                            try: apis.add(imp.name.decode('ascii', 'ignore'))
+                            except Exception: pass
+                base['ImportFunctionCount'] = func_count
 
-    except pefile.PEFormatError:
-        return None
-    except Exception:
-        return None
-    finally:
-        if pe: 
-            pe.close()
+            base['ExportCount'] = len(pe.DIRECTORY_ENTRY_EXPORT.symbols) if (hasattr(pe, 'DIRECTORY_ENTRY_EXPORT') and hasattr(pe.DIRECTORY_ENTRY_EXPORT, 'symbols')) else 0.0
+
+            if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
+                icon_count = 0
+                for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries:
+                    if getattr(entry, 'id', None) == 3 and hasattr(entry, 'directory'):
+                        icon_count += len(getattr(entry.directory, 'entries', []))
+                base['IconCount'] = icon_count
+            else: 
+                base['IconCount'] = 0.0
+
+            base['DebugCount'] = len(pe.DIRECTORY_ENTRY_DEBUG) if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG') else 0.0
+
+            for k in base: base[k] = cls._safe_float(base[k])
+            return {"Base": base, "DLLs": list(dlls), "APIs": list(apis)}
+
+        except Exception: return None
+        finally:
+            if pe: pe.close()
 
 ####################################################################################################
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA synchronous = OFF")
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA cache_size = 10000")
-    
-    cols = "FileHash TEXT, " + ", ".join([f"{c} REAL" for c in Features.SCHEMA])
-    conn.execute(f"CREATE TABLE IF NOT EXISTS PeData ({cols}, Label INTEGER)")
-    conn.execute(f"CREATE UNIQUE INDEX IF NOT EXISTS idx_pedata_hash ON PeData (FileHash)")
-    conn.commit()
-    return conn
+def load_existing_hashes():
+    hashes = set()
+    if os.path.exists(JSONL_PATH):
+        with open(JSONL_PATH, 'r', encoding='utf-8') as f:
+            for line in f:
+                try:
+                    data = JSON_LOADS(line)
+                    if 'FileHash' in data: hashes.add(data['FileHash'])
+                except Exception: pass
+    return hashes
 
-def load_existing_hashes(conn):
-    print("[*] Loading existing hashes into memory...")
+####################################################################################################
+
+GLOBAL_HASHES = set()
+
+def worker_init(shared_hashes):
+    global GLOBAL_HASHES
+    GLOBAL_HASHES = shared_hashes
+
+def _extract_worker_wrapper(args):
+    return _extract_worker(*args)
+
+def _extract_worker(file_path, label):
     try:
-        cursor = conn.execute("SELECT FileHash FROM PeData")
-        return {row[0] for row in cursor.fetchall()}
-    except:
-        return set()
+        fsize = os.path.getsize(file_path)
+        if fsize == 0 or fsize > MAX_FILE_SIZE:
+            return 'error', None
+
+        with open(file_path, "rb") as f:
+            file_bytes = f.read()
+
+        sha256 = hashlib.sha256(file_bytes).hexdigest()
+        
+        if sha256 in GLOBAL_HASHES:
+            return 'skipped', None
+
+        res = FeatureExtractor.extract(file_bytes, file_path, fsize)
+        if res:
+            final_res = {"Label": label, "FileHash": sha256, **res}
+            return 'success', (sha256, JSON_DUMPS(final_res) + "\n")
+            
+        return 'error', None
+    except Exception:
+        return 'error', None
 
 ####################################################################################################
 
-def scan_and_save(conn, path, label, existing_hashes):
-    print(f"\n[*] Scanning: {path} (Label={label})")
-    print(f"[*] Config: Max File Size = {MAX_FILE_SIZE/1024/1024:.0f} MB")
-    
-    files = []
-    if os.path.isfile(path): 
-        files.append(path)
-    else:
-        for r, _, fs in os.walk(path):
-            for f in fs:
-                if os.path.splitext(f)[1].lower() in TARGET_EXTENSIONS:
-                    files.append(os.path.join(r, f))
+def scan_and_save(path, label, existing_hashes):
+    print(f"\n[*] Scanning path: {path} (Label={label})")
+    files = [path] if os.path.isfile(path) else [os.path.join(r, f) for r, _, fs in os.walk(path) for f in fs if os.path.splitext(f)[1].lower() in TARGET_EXTENSIONS]
     
     total = len(files)
     if total == 0:
         print("[-] No valid PE files found.")
         return
 
-    print(f"[*] Found {total} files. Processing...\n")
+    print(f"[*] Found {total} files. Starting {MAX_WORKERS}-process extraction...\n")
+    if HAS_ORJSON:
+        print("[+] orjson acceleration enabled.")
     
-    batch = []
-    count = 0
-    errors = 0
-    skipped = 0
+    count, errors, skipped, processed_files = 0, 0, 0, 0
     start_time = time.time()
+    batch_buffer = []
     
-    placeholders = ",".join(["?"] * (len(Features.SCHEMA) + 2))
-    sql = f"INSERT INTO PeData VALUES ({placeholders})"
+    pool = multiprocessing.Pool(processes=MAX_WORKERS, initializer=worker_init, initargs=(existing_hashes,))
+    tasks = [(fpath, label) for fpath in files]
     
     try:
-        for i, file_path in enumerate(files):
-            try:
-                fsize = os.path.getsize(file_path)
-                if fsize == 0 or fsize > MAX_FILE_SIZE:
-                    errors += 1
-                    continue
-
-                with open(file_path, "rb") as f:
-                    file_bytes = f.read()
-
-                sha256 = hashlib.sha256(file_bytes).hexdigest()
-                if sha256 in existing_hashes:
-                    skipped += 1
-                else:
-                    res = process_single_file_content(file_bytes, file_path)
-                    
-                    if res:
-                        vals = [sha256]
-                        vals.extend([res.get(c, 0.0) for c in Features.SCHEMA])
-                        vals.append(float(label))
-                        batch.append(tuple(vals))
-                        
-                        existing_hashes.add(sha256)
-                        count += 1
-                    else:
-                        errors += 1
-
-            except Exception:
+        for status, data in pool.imap_unordered(_extract_worker_wrapper, tasks):
+            processed_files += 1
+            
+            if status == 'error':
                 errors += 1
-            
-            if len(batch) >= BATCH_SIZE:
-                try:
-                    conn.executemany(sql, batch)
-                    conn.commit()
-                    batch = []
-                except Exception as batch_err:
-                    print(f"\n[-] Batch Error: {batch_err}")
-                    batch = []
-            
+            elif status == 'skipped':
+                skipped += 1
+            elif status == 'success':
+                sha256, json_str = data
+                if sha256 not in existing_hashes:
+                    existing_hashes.add(sha256)
+                    batch_buffer.append(json_str)
+                    count += 1
+                else:
+                    skipped += 1
+
+            if len(batch_buffer) >= BATCH_SIZE:
+                with open(JSONL_PATH, 'a', encoding='utf-8') as f_out:
+                    f_out.writelines(batch_buffer)
+                batch_buffer.clear()
+
             elapsed = time.time() - start_time
-            rate = (i + 1) / elapsed if elapsed > 0 else 0
-            sys.stdout.write(f"\r[{i+1}/{total}] New: {count} | Skip: {skipped} | Err: {errors} | {rate:.1f} files/s")
+            rate = processed_files / elapsed if elapsed > 0 else 0
+            sys.stdout.write(f"\r[{processed_files}/{total}] Added: {count} | Skipped: {skipped} | Errors: {errors} | Speed: {rate:.1f} files/s")
             sys.stdout.flush()
 
+        pool.close()
+        pool.join()
+
     except KeyboardInterrupt:
-        print("\n\n[-] Interrupted by user.")
+        print("\n\n[-] User aborted. Force terminating all child processes...")
+        pool.terminate()
+        pool.join()
     except Exception as e:
-        print(f"\n[-] Unexpected Error: {e}")
+        print(f"\n[-] Critical error: {e}")
+        pool.terminate()
+        pool.join()
     finally:
-        if batch:
+        if batch_buffer:
             try:
-                conn.executemany(sql, batch)
-                conn.commit()
-            except Exception:
-                pass
+                with open(JSONL_PATH, 'a', encoding='utf-8') as f_out:
+                    f_out.writelines(batch_buffer)
+            except Exception as save_err:
+                print(f"\n[-] Failed to save remaining buffer: {save_err}")
         
-        print(f"\n\n[+] Scan finished. Total New: {count}, Total Skipped: {skipped}")
+        print(f"\n\n[+] Scan complete. Total added: {count}, Total skipped: {skipped}")
 
 ####################################################################################################
 
 if __name__ == "__main__":
-    print("\n---------------- PE Dataset Builder v3.2 ----------------\n")
+    multiprocessing.freeze_support() 
     
-    if os.path.exists(DB_PATH):
-        try:
-            conn_check = sqlite3.connect(DB_PATH)
-            cursor = conn_check.execute("PRAGMA table_info(PeData)")
-            cols = [row[1] for row in cursor.fetchall()]
-            if 'FileHash' not in cols or len(cols) != len(Features.SCHEMA) + 2:
-                print(f"[-] WARNING: DB Schema mismatch. Please delete {DB_PATH} to rebuild.")
-            conn_check.close()
-        except: pass
-
-    conn = init_db()
+    print("\n---------------- PE Dataset Builder v4.0 ----------------\n")
     
-    existing_hashes = load_existing_hashes(conn)
-    print(f"[+] Loaded {len(existing_hashes)} hashes from database.\n")
+    existing_hashes = load_existing_hashes()
+    print(f"[+] Found {len(existing_hashes)} existing hashes.\n")
 
     try:
         while True:
-            print("-" * 60)
-            raw_path = input("\n[*] Enter Path (File or Folder): ").strip()
-            target_path = raw_path.strip('"').strip("'")
-
+            print("-" * 57)
+            target_path = input("\n[*] Enter path (file or directory): ").strip().strip('"').strip("'")
             if target_path.lower() in ['exit', 'q']: break
             if not target_path or not os.path.exists(target_path):
                 print("[-] Invalid path.")
                 continue
 
             while True:
-                label_input = input("[*] Enter Label (0=Safe, 1=Malware): ").strip()
-                if label_input.lower() in ['exit', 'q']:
-                    conn.close()
-                    sys.exit()
-                if label_input in ['0', '1']:
-                    label = int(label_input)
-                    break
+                label_input = input("[*] Enter label (0=Safe, 1=Malware): ").strip()
+                if label_input.lower() in ['exit', 'q']: sys.exit()
+                if label_input in ['0', '1']: break
                 print("[-] Please enter 0 or 1.")
 
-            scan_and_save(conn, target_path, label, existing_hashes)
+            scan_and_save(target_path, int(label_input), existing_hashes)
             
     except KeyboardInterrupt:
-        print("\n\n[-] Interrupted.")
-    finally:
-        conn.close()
-        print(f"\n[+] Database saved to: {os.path.abspath(DB_PATH)}")
+        print("\n\n[-] Aborted.")

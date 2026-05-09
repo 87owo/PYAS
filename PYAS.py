@@ -2095,7 +2095,7 @@ class WindowAPI:
                         notify = FILE_NOTIFY_INFORMATION.from_buffer(buffer, offset)
                         raw_filename = notify.FileName[:notify.FileNameLength // 2]
                         
-                        if raw_filename and notify.Action in [2, 3, 4]:
+                        if raw_filename and notify.Action in [1, 3, 5]:
                             file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                             if file_path and not self.is_in_whitelist(file_path):
                                 norm_path = os.path.normcase(file_path)

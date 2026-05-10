@@ -6,6 +6,30 @@ import datetime
 import uuid
 
 
+## Çalışmam:
+import platform
+
+def secure_lock_file(filepath):
+    # Isletim sistemine gore guvenli dosya kilitleme mekanizmasi
+    current_os = platform.system()
+    
+    if current_os == "Windows":
+        import msvcrt
+        with open(filepath, 'a') as f:
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+            return True
+            
+    elif current_os in ["Darwin", "Linux"]:
+        import fcntl
+        with open(filepath, 'a') as f:
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+            
+    else:
+        print(f"Uyari: {current_os} icin dosya kilitleme desteklenmiyor.")
+        return False
+##
+
 from PIL import Image, ImageDraw
 from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler

@@ -1310,7 +1310,15 @@ class WindowAPI:
             if paths_to_delete is not None:
                 for path in paths_to_delete:
                     if path == "Recycle Bin":
-                        self.shell32.SHEmptyRecycleBinW(None, None, 7)
+                        try:
+                            info = SHQUERYRBINFO()
+                            info.cbSize = ctypes.sizeof(SHQUERYRBINFO)
+                            if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0:
+                                rb_size = info.i64Size
+                                if self.shell32.SHEmptyRecycleBinW(None, None, 7) == 0:
+                                    total_deleted += rb_size
+                        except Exception:
+                            pass
                         continue
                     if path.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
                         continue
@@ -1344,13 +1352,22 @@ class WindowAPI:
                                     pass
 
                 try:
-                    self.shell32.SHEmptyRecycleBinW(None, None, 7)
+                    info = SHQUERYRBINFO()
+                    info.cbSize = ctypes.sizeof(SHQUERYRBINFO)
+                    if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0:
+                        rb_size = info.i64Size
+                        if self.shell32.SHEmptyRecycleBinW(None, None, 7) == 0:
+                            total_deleted += rb_size
                 except Exception:
                     pass
                 
                 try:
                     for log_type in ["Application", "Security", "Setup", "System"]:
-                        subprocess.run(["wevtutil", "cl", log_type], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
+                        log_path = os.path.join(self.path_system, "System32", "winevt", "Logs", f"{log_type}.evtx")
+                        size = os.path.getsize(log_path) if os.path.exists(log_path) else 0
+                        res = subprocess.run(["wevtutil", "cl", log_type], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
+                        if res.returncode == 0:
+                            total_deleted += size
                 except Exception:
                     pass
 

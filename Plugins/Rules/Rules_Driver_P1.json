@@ -105,6 +105,7 @@
     "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender\\*",
     "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender Advanced Threat Protection\\*",
     "*\\Sources\\SetupHost.exe",
+    "*\\Work\\*\\DismHost.exe",
     
     "*\\Google\\Chrome\\Application\\chrome.exe",
     "*\\Microsoft\\Edge\\Application\\msedge.exe",
@@ -126,11 +127,13 @@
     "*\\hrkill-*.exe",
     "*\\bin\\HipsDaemon.exe",
     "*\\360Safe.exe",
+    "*\\bilibili\\bilibili.exe",
     
     "*\\PC4399_WPFLauncher.exe",
     "*\\bin\\APlayer.exe",
     "*\\Kingsoft\\WPS Office\\ksolaunch.exe",
     "*\\Neverness To Everness\\NTELauncher.exe",
+    "*\\Application\\AndrowsLauncher.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",

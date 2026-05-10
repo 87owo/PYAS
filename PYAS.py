@@ -69,6 +69,13 @@ class PROCESS_BASIC_INFORMATION(ctypes.Structure):
         ("Reserved3", ctypes.wintypes.LPVOID)
     ]
 
+class SHQUERYRBINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", ctypes.wintypes.DWORD),
+        ("i64Size", ctypes.c_int64),
+        ("i64NumItems", ctypes.c_int64)
+    ]
+
 class UNICODE_STRING(ctypes.Structure):
     _fields_ = [
         ("Length", ctypes.wintypes.USHORT),
@@ -244,6 +251,10 @@ class WindowAPI:
 
         self.shell32.CommandLineToArgvW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
         self.shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.wintypes.LPWSTR)
+        self.shell32.SHEmptyRecycleBinW.argtypes = [ctypes.wintypes.HWND, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
+        self.shell32.SHEmptyRecycleBinW.restype = ctypes.c_long
+        self.shell32.SHQueryRecycleBinW.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(SHQUERYRBINFO)]
+        self.shell32.SHQueryRecycleBinW.restype = ctypes.c_long
 
         self.fltlib.FilterConnectCommunicationPort.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.HANDLE)]
         self.fltlib.FilterConnectCommunicationPort.restype = ctypes.c_long
@@ -1235,6 +1246,8 @@ class WindowAPI:
                     except Exception:
                         pass
                 else:
+                    if file.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
+                        continue
                     size = os.path.getsize(file)
                     os.remove(file)
                     deleted += size
@@ -1245,16 +1258,46 @@ class WindowAPI:
     def scan_system_junk(self):
         junk_list = []
         try:
-            for path in [self.path_temp, self.path_systemp]:
+            safe_dirs = [
+                self.path_temp,
+                self.path_systemp,
+                os.path.join(self.path_system, "SoftwareDistribution", "Download")
+            ]
+            
+            for path in safe_dirs:
                 if os.path.exists(path):
                     for root, dirs, files in os.walk(path):
                         for file in files:
+                            if file.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
+                                continue
                             full_path = os.path.join(root, file)
                             try:
                                 size = os.path.getsize(full_path)
                                 junk_list.append({"path": full_path, "size": size})
                             except Exception:
                                 pass
+
+            log_dir = os.path.join(self.path_system, "Logs")
+            if os.path.exists(log_dir):
+                for root, dirs, files in os.walk(log_dir):
+                    for file in files:
+                        if file.lower().endswith(('.log', '.etl', '.evtx')):
+                            full_path = os.path.join(root, file)
+                            try:
+                                size = os.path.getsize(full_path)
+                                junk_list.append({"path": full_path, "size": size})
+                            except Exception:
+                                pass
+
+            try:
+                info = SHQUERYRBINFO()
+                info.cbSize = ctypes.sizeof(SHQUERYRBINFO)
+                if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0:
+                    if info.i64Size > 0:
+                        junk_list.append({"path": "Recycle Bin", "size": info.i64Size})
+            except Exception:
+                pass
+
             return junk_list
 
         except Exception as e:
@@ -1266,6 +1309,11 @@ class WindowAPI:
         try:
             if paths_to_delete is not None:
                 for path in paths_to_delete:
+                    if path == "Recycle Bin":
+                        self.shell32.SHEmptyRecycleBinW(None, None, 7)
+                        continue
+                    if path.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
+                        continue
                     try:
                         size = os.path.getsize(path)
                         os.remove(path)
@@ -1273,9 +1321,39 @@ class WindowAPI:
                     except Exception:
                         pass
             else:
-                for path in [self.path_temp, self.path_systemp]:
+                safe_dirs = [
+                    self.path_temp,
+                    self.path_systemp,
+                    os.path.join(self.path_system, "SoftwareDistribution", "Download")
+                ]
+                
+                for path in safe_dirs:
                     total_deleted += self._traverse_delete(path)
-            
+                    
+                log_dir = os.path.join(self.path_system, "Logs")
+                if os.path.exists(log_dir):
+                    for root, dirs, files in os.walk(log_dir):
+                        for file in files:
+                            if file.lower().endswith(('.log', '.etl', '.evtx')):
+                                full_path = os.path.join(root, file)
+                                try:
+                                    size = os.path.getsize(full_path)
+                                    os.remove(full_path)
+                                    total_deleted += size
+                                except Exception:
+                                    pass
+
+                try:
+                    self.shell32.SHEmptyRecycleBinW(None, None, 7)
+                except Exception:
+                    pass
+                
+                try:
+                    for log_type in ["Application", "Security", "Setup", "System"]:
+                        subprocess.run(["wevtutil", "cl", log_type], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
+                except Exception:
+                    pass
+
             self.write_log("INFO", "Clean Junk", detail=f"Deleted {total_deleted // 1024} KB", operate=True)
             return total_deleted
 

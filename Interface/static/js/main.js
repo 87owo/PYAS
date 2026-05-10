@@ -1,9 +1,65 @@
 document.addEventListener('DOMContentLoaded', () => {
-    let currentLang = "english_switch";
-    let isScanning = false;
-    let isFirstLaunch = false;
-
     const { dict, langMap } = window.AppI18n;
+
+    const appState = {
+        lang: "english_switch",
+        scanning: false,
+        firstLaunch: false,
+        taskmgrTimer: null,
+        taskmgrActive: false,
+        virusMap: new Map(),
+        virusResults: [],
+        junkList: []
+    };
+
+    const reverseI18nMap = Object.entries(dict["traditional_switch"]).reduce((acc, [key, val]) => {
+        acc[val] = key;
+        return acc;
+    }, {});
+
+    const initI18nKeys = () => {
+        document.querySelectorAll("[data-i18n]").forEach(el => {
+            let key = el.getAttribute('data-i18n');
+            if (!key) {
+                const text = el.textContent.trim();
+                key = reverseI18nMap[text] || text;
+                el.setAttribute('data-i18n', key);
+            }
+            el.dataset.originText = el.textContent.trim();
+        });
+        document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
+            let key = el.getAttribute('data-i18n-placeholder');
+            if (reverseI18nMap[key]) {
+                el.setAttribute('data-i18n-placeholder', reverseI18nMap[key]);
+            }
+            el.dataset.originPlaceholder = el.getAttribute('placeholder');
+        });
+        document.querySelectorAll("option[data-i18n]").forEach(el => {
+            let key = el.getAttribute('data-i18n');
+            if (!key) {
+                const text = el.textContent.trim();
+                key = reverseI18nMap[text] || text;
+                el.setAttribute('data-i18n', key);
+            }
+        });
+    };
+
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+    });
+
+    const getMsg = (key) => (dict[appState.lang] || dict["english_switch"])[key] || key;
+
+    const formatMsg = (key, ...args) => {
+        let msg = getMsg(key);
+        args.forEach((arg, i) => msg = msg.split(`{${i}}`).join(arg));
+        return msg;
+    };
+
+    const escapeHtml = (unsafe) => {
+        if (typeof unsafe !== 'string') return unsafe;
+        return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    };
 
     const themes = {
         "white_switch": { "--bg-window": "245, 245, 247", "--bg-nav": "255, 255, 255", "--bg-panel": "255, 255, 255", "--bg-hover": "rgba(0,0,0,0.05)", "--text-primary": "29, 29, 31", "--text-secondary": "134, 134, 139", "--border-color":"210, 210, 215", "--accent-color":"0, 122, 255", "--accent-alpha":"rgba(0, 122, 255, 0.1)", "--accent-shadow":"rgba(0, 122, 255, 0.2)", "--accent-hover":"rgba(0, 122, 255, 0.3)" },
@@ -15,63 +71,30 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const cols = {
-        log: [
-            {key: 'time_str', label: '日期', flex: 1.5},
-            {key: 'level', label: '類型', flex: 0.8},
-            {key: 'action', label: '功能', flex: 1.2},
-            {key: 'source', label: '路徑', flex: 3}
-        ],
-        process: [
-            {key: 'name', label: '名稱', flex: 1.5},
-            {key: 'pid', label: 'PID', flex: 0.5},
-            {key: 'path', label: '路徑', flex: 3}
-        ],
-        virus: [
-            {key: 'label', label: '類型', flex: 1},
-            {key: 'path', label: '路徑', flex: 3}
-        ],
-        pathOnly: [
-            {key: 'path', label: '路徑', flex: 1}
-        ],
-        junk: [
-            {key: 'path', label: '路徑', flex: 3},
-            {key: 'sizeStr', label: '大小', flex: 1}
-        ],
-        popup: [
-            {key: 'exe', label: '程式', flex: 1},
-            {key: 'class', label: '類別', flex: 1},
-            {key: 'title', label: '標題', flex: 2}
-        ],
-        repair: [
-            {key: 'display', label: '修復項目', flex: 1}
-        ]
+        log: [{key: 'time_str', label: 'col_date', flex: 1.5}, {key: 'level', label: 'col_type', flex: 0.8}, {key: 'action', label: 'col_func', flex: 1.2, isI18n: true}, {key: 'source', label: 'col_path', flex: 3}],
+        process: [{key: 'name', label: 'col_name', flex: 1.5}, {key: 'pid', label: 'col_pid', flex: 0.5}, {key: 'path', label: 'col_path', flex: 3}],
+        virus: [{key: 'label', label: 'col_type', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
+        pathOnly: [{key: 'path', label: 'col_path', flex: 1}],
+        junk: [{key: 'path', label: 'col_path', flex: 3}, {key: 'sizeStr', label: 'col_size', flex: 1}],
+        popup: [{key: 'exe', label: 'col_prog', flex: 1}, {key: 'class', label: 'col_class', flex: 1}, {key: 'title', label: 'col_title', flex: 2}],
+        repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}]
     };
 
-    const getMsg = (key) => (dict[currentLang] || dict["english_switch"])[key] || key;
-
-    function buildCustomSelectElement(select) {
+    const buildCustomSelectElement = (select) => {
         select.style.display = 'none';
         const wrapper = document.createElement('div');
         wrapper.className = 'custom-select-wrapper';
         
-        const trigger = document.createElement('div');
-        trigger.className = 'custom-select-trigger';
-        const triggerText = document.createElement('span');
-        triggerText.className = 'custom-select-text';
-        
         const selectedOpt = select.options[select.selectedIndex];
-        if (selectedOpt) {
-            triggerText.textContent = selectedOpt.textContent;
-            if (selectedOpt.hasAttribute('data-i18n')) triggerText.setAttribute('data-i18n', '');
-            if (selectedOpt.hasAttribute('data-origin-text')) triggerText.dataset.originText = selectedOpt.dataset.originText;
-        }
-        
-        const icon = document.createElement('div');
-        icon.className = 'custom-select-icon';
-        icon.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-        
-        trigger.appendChild(triggerText);
-        trigger.appendChild(icon);
+        const triggerKey = selectedOpt ? selectedOpt.getAttribute('data-i18n') : '';
+        const triggerTextContent = selectedOpt ? getMsg(triggerKey || selectedOpt.textContent) : '';
+
+        const triggerHTML = `
+            <div class="custom-select-trigger">
+                <span class="custom-select-text" ${triggerKey ? `data-i18n="${triggerKey}"` : ''}>${triggerTextContent}</span>
+                <div class="custom-select-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></div>
+            </div>`;
+        wrapper.innerHTML = triggerHTML;
         
         const optionsContainer = document.createElement('ul');
         optionsContainer.className = 'custom-select-options';
@@ -82,22 +105,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         Array.from(select.options).forEach(option => {
             if (option.disabled) return;
+            const optKey = option.getAttribute('data-i18n');
+            const optText = optKey ? getMsg(optKey) : option.textContent;
             
             const li = document.createElement('li');
-            li.className = 'custom-select-option';
-            li.textContent = option.textContent;
+            li.className = `custom-select-option ${option.selected ? 'selected' : ''}`;
+            li.textContent = optText;
             li.dataset.value = option.value;
-            if (option.hasAttribute('data-i18n')) li.setAttribute('data-i18n', '');
-            if (option.hasAttribute('data-origin-text')) li.dataset.originText = option.dataset.originText;
-            if (option.selected) li.classList.add('selected');
+            if (optKey) li.setAttribute('data-i18n', optKey);
             
             li.addEventListener('click', (e) => {
                 e.stopPropagation();
                 select.value = option.value;
+                const triggerText = wrapper.querySelector('.custom-select-text');
                 triggerText.textContent = li.textContent;
-                if (li.hasAttribute('data-origin-text')) {
-                    triggerText.dataset.originText = li.dataset.originText;
-                }
+                if (optKey) triggerText.setAttribute('data-i18n', optKey);
+                
                 wrapper.classList.remove('open');
                 optionsContainer.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
                 li.classList.add('selected');
@@ -106,64 +129,64 @@ document.addEventListener('DOMContentLoaded', () => {
             optionsContainer.appendChild(li);
 
             const phantomSpan = document.createElement('span');
-            phantomSpan.textContent = option.textContent;
-            if (option.hasAttribute('data-i18n')) phantomSpan.setAttribute('data-i18n', '');
-            if (option.hasAttribute('data-origin-text')) phantomSpan.dataset.originText = option.dataset.originText;
+            phantomSpan.textContent = optText;
+            if (optKey) phantomSpan.setAttribute('data-i18n', optKey);
             phantom.appendChild(phantomSpan);
         });
         
         wrapper.appendChild(phantom);
-        wrapper.appendChild(trigger);
         wrapper.appendChild(optionsContainer);
         select.parentNode.insertBefore(wrapper, select.nextSibling);
         
+        const trigger = wrapper.querySelector('.custom-select-trigger');
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = wrapper.classList.contains('open');
             document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
             if (!isOpen) wrapper.classList.add('open');
         });
-    }
+    };
 
-    function initCustomSelects() {
-        document.querySelectorAll('select.modern-select').forEach(select => {
-            buildCustomSelectElement(select);
-        });
-        
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
-        });
-    }
-
-    initCustomSelects();
-
-    document.querySelectorAll("[data-i18n]").forEach(el => { el.dataset.originText = el.textContent.trim(); });
-    document.querySelectorAll("[data-i18n-placeholder]").forEach(el => { el.dataset.originPlaceholder = el.getAttribute('placeholder'); });
-    document.querySelectorAll("option[data-i18n]").forEach(el => { el.dataset.originText = el.textContent.trim(); });
+    const updateCustomSelectUI = (selectId, val) => {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        select.value = val;
+        const wrapper = select.nextElementSibling;
+        if (wrapper && wrapper.classList.contains('custom-select-wrapper')) {
+            const triggerText = wrapper.querySelector('.custom-select-text');
+            const selectedOpt = select.options[select.selectedIndex];
+            if (selectedOpt) {
+                const optKey = selectedOpt.getAttribute('data-i18n');
+                triggerText.textContent = optKey ? getMsg(optKey) : selectedOpt.textContent;
+                if (optKey) triggerText.setAttribute('data-i18n', optKey);
+            }
+            wrapper.querySelectorAll('.custom-select-option').forEach(el => {
+                el.classList.toggle('selected', el.dataset.value === val);
+            });
+        }
+    };
 
     const translateText = (lang) => {
-        currentLang = lang;
-        const currentDict = dict[lang] || dict["english_switch"];
+        appState.lang = lang;
         document.querySelectorAll("[data-i18n]").forEach(el => {
-            const originText = el.dataset.originText;
-            el.textContent = currentDict[originText] || originText;
+            const key = el.getAttribute('data-i18n');
+            if (key) el.textContent = getMsg(key);
         });
         document.querySelectorAll("[data-i18n-placeholder]").forEach(el => {
-            const originText = el.dataset.originPlaceholder;
-            el.setAttribute('placeholder', currentDict[originText] || originText);
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (key) el.setAttribute('placeholder', getMsg(key));
         });
         document.querySelectorAll('.manage-widget, .virus-widget').forEach(widget => {
+            if (widget.buildHeader) widget.buildHeader();
             if (widget.renderData) widget.renderData();
         });
-        document.documentElement.lang = langMap[currentLang] || "en";
+        document.documentElement.lang = langMap[lang] || "en";
 
         const progressText = document.getElementById('progress_text');
         if (progressText && progressText.dataset.dynamicMsg) {
             try {
                 const msgs = JSON.parse(progressText.dataset.dynamicMsg);
-                if (msgs[lang]) {
-                    progressText.textContent = msgs[lang];
-                }
+                if (msgs[lang]) progressText.textContent = msgs[lang];
             } catch (e) {}
         }
     };
@@ -177,88 +200,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function updateCustomSelectUI(selectId, val) {
-        const select = document.getElementById(selectId);
-        if (!select) return;
-        select.value = val;
-        let wrapper = select.nextElementSibling;
-        if (wrapper && wrapper.classList.contains('custom-select-wrapper')) {
-            const triggerText = wrapper.querySelector('.custom-select-text');
-            const selectedOpt = select.options[select.selectedIndex];
-            if (selectedOpt) {
-                triggerText.textContent = selectedOpt.textContent;
-                if (selectedOpt.hasAttribute('data-origin-text')) {
-                    triggerText.dataset.originText = selectedOpt.dataset.originText;
-                }
-            }
-            wrapper.querySelectorAll('.custom-select-option').forEach(el => {
-                el.classList.toggle('selected', el.dataset.value === val);
-            });
-        }
-    }
-
-    function renderDataGrid(containerSelector, dataList, columns, valKey, defaultChecked = false) {
+    const renderDataGrid = (containerSelector, dataList, columns, valKey, defaultChecked = false) => {
         const widget = document.querySelector(`${containerSelector} .manage-widget`) || document.querySelector(`${containerSelector} .virus-widget`);
         const listUl = document.querySelector(`${containerSelector} .manage-list`) || document.querySelector(`${containerSelector} .virus-list`);
         const searchInput = document.querySelector(`${containerSelector} .search-box input`);
         if (!widget || !listUl) return;
 
-        const escapeHtml = (unsafe) => {
-            if (typeof unsafe !== 'string') return unsafe;
-            return unsafe
-                 .replace(/&/g, "&amp;")
-                 .replace(/</g, "&lt;")
-                 .replace(/>/g, "&gt;")
-                 .replace(/"/g, "&quot;")
-                 .replace(/'/g, "&#039;");
-        };
-
         const isInit = !widget.gridState;
-
         if (isInit) {
-            let containerWidth = widget.clientWidth || 800;
-            let availableWidth = Math.max(containerWidth - 60 - (columns.length * 16), 400); 
-            let totalFlex = columns.reduce((sum, c) => sum + (c.flex || 1), 0);
+            const containerWidth = widget.clientWidth || 800;
+            const availableWidth = Math.max(containerWidth - 60 - (columns.length * 16), 400); 
+            const totalFlex = columns.reduce((sum, c) => sum + (c.flex || 1), 0);
             
             widget.gridState = { 
-                sortKey: columns[0]?.key || '', 
-                sortAsc: true, 
-                filterText: "",
+                sortKey: columns[0]?.key || '', sortAsc: true, filterText: "",
                 colWidths: columns.map(c => Math.max(((c.flex || 1) / totalFlex) * availableWidth, 60)),
                 checkedSet: new Set()
             };
             
-            widget.gridState.colWidths.forEach((w, idx) => {
-                widget.style.setProperty(`--col-${idx}`, `${w}px`);
-            });
-
+            widget.gridState.colWidths.forEach((w, idx) => widget.style.setProperty(`--col-${idx}`, `${w}px`));
             const header = document.createElement('div');
             header.className = 'manage-list-header';
             widget.insertBefore(header, widget.firstChild);
 
             widget.buildHeader = () => {
-                const headerColsHtml = columns.map((col, idx) => 
-                    `<div class="col-header" data-key="${col.key}" data-idx="${idx}" style="width: var(--col-${idx}); flex: 0 0 auto;">
-                        <span class="header-text" data-i18n data-origin-text="${col.label}">${getMsg(col.label)}</span>
+                const headerColsHtml = columns.map((col, idx) => `
+                    <div class="col-header" data-key="${col.key}" data-idx="${idx}" style="width: var(--col-${idx}); flex: 0 0 auto;">
+                        <span class="header-text" data-i18n="${col.label}">${getMsg(col.label)}</span>
                         <span class="sort-icon">${widget.gridState.sortKey === col.key ? (widget.gridState.sortAsc ? '▲' : '▼') : ''}</span>
                         <div class="col-resizer"></div>
-                    </div>`
-                ).join('');
+                    </div>`).join('');
 
-                header.innerHTML = `
-                    <input type="checkbox" class="select-all-cb" title="${getMsg('全選')}">
-                    <div class="header-cols-container">${headerColsHtml}</div>
-                `;
+                header.innerHTML = `<input type="checkbox" class="select-all-cb" title="${getMsg('btn_select_all')}"><div class="header-cols-container">${headerColsHtml}</div>`;
 
                 header.querySelectorAll('.col-header').forEach(el => {
                     el.addEventListener('click', () => {
                         const key = el.dataset.key;
-                        if (widget.gridState.sortKey === key) {
-                            widget.gridState.sortAsc = !widget.gridState.sortAsc;
-                        } else {
-                            widget.gridState.sortKey = key;
-                            widget.gridState.sortAsc = true;
-                        }
+                        widget.gridState.sortAsc = widget.gridState.sortKey === key ? !widget.gridState.sortAsc : true;
+                        widget.gridState.sortKey = key;
                         widget.buildHeader(); 
                         widget.renderData(widget.gridState.filterText, false); 
                     });
@@ -267,23 +246,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 header.querySelectorAll('.col-resizer').forEach(resizer => {
                     resizer.addEventListener('mousedown', (e) => {
                         e.stopPropagation();
-                        const headerCell = resizer.parentElement;
-                        const idx = parseInt(headerCell.dataset.idx);
+                        const idx = parseInt(resizer.parentElement.dataset.idx);
                         const startX = e.clientX;
                         const startWidth = widget.gridState.colWidths[idx];
 
-                        const onMouseMove = (moveEvent) => {
-                            const newWidth = Math.max(startWidth + (moveEvent.clientX - startX), 40);
+                        const onMouseMove = (me) => {
+                            const newWidth = Math.max(startWidth + (me.clientX - startX), 40);
                             widget.gridState.colWidths[idx] = newWidth;
                             widget.style.setProperty(`--col-${idx}`, `${newWidth}px`);
                         };
-
                         const onMouseUp = () => {
                             document.body.classList.remove('resizing-active');
                             document.removeEventListener('mousemove', onMouseMove);
                             document.removeEventListener('mouseup', onMouseUp);
                         };
-
                         document.body.classList.add('resizing-active');
                         document.addEventListener('mousemove', onMouseMove);
                         document.addEventListener('mouseup', onMouseUp);
@@ -295,77 +271,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectAllCb) {
                     selectAllCb.addEventListener('change', (e) => {
                         const isChecked = e.target.checked;
-                        listUl.querySelectorAll('.manage-list-item input[type="checkbox"]').forEach(cb => {
-                            cb.checked = isChecked;
-                            if (isChecked) {
-                                widget.gridState.checkedSet.add(cb.value);
-                            } else {
-                                widget.gridState.checkedSet.delete(cb.value);
-                            }
-                            if (containerSelector === '#scan_window') {
-                                virusState.set(cb.value, isChecked);
-                            }
+                        listUl.querySelectorAll('.manage-list-item input[type="checkbox"]').forEach(cb => cb.checked = isChecked);
+                        (widget.gridState.lastDisplayData || []).forEach(item => {
+                            const valStr = String(item[valKey]);
+                            isChecked ? widget.gridState.checkedSet.add(valStr) : widget.gridState.checkedSet.delete(valStr);
+                            if (containerSelector === '#scan_window') appState.virusMap.set(valStr, isChecked);
                         });
-                        if (containerSelector === '#scan_window' && typeof checkVirusListEmpty === 'function') {
-                            checkVirusListEmpty();
-                        }
+                        if (containerSelector === '#scan_window') checkVirusListEmpty();
                     });
                 }
             };
-            
             widget.buildHeader();
 
             listUl.addEventListener('click', (e) => {
                 const li = e.target.closest('.manage-list-item');
                 if (!li) return;
-                
                 const cb = li.querySelector('input[type="checkbox"]');
-                if (e.target.tagName !== 'INPUT') {
-                    cb.checked = !cb.checked;
-                }
+                if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked;
                 
-                if (cb.checked) {
-                    widget.gridState.checkedSet.add(cb.value);
-                } else {
-                    widget.gridState.checkedSet.delete(cb.value);
-                }
-                
+                cb.checked ? widget.gridState.checkedSet.add(cb.value) : widget.gridState.checkedSet.delete(cb.value);
                 if (containerSelector === '#scan_window') {
-                    virusState.set(cb.value, cb.checked);
-                    if (typeof checkVirusListEmpty === 'function') checkVirusListEmpty();
+                    appState.virusMap.set(cb.value, cb.checked);
+                    checkVirusListEmpty();
                 }
-                
-                if (typeof widget.updateSelectAllState === 'function') {
-                    widget.updateSelectAllState();
-                }
+                if (widget.updateSelectAllState) widget.updateSelectAllState();
             });
 
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => widget.renderData(e.target.value, false));
-            }
+            if (searchInput) searchInput.addEventListener('input', (e) => widget.renderData(e.target.value, false));
         }
 
         const state = widget.gridState;
-
         widget.renderData = (filterText = state.filterText, resetDataCheck = false) => {
             state.filterText = filterText;
-            
             if (resetDataCheck) {
                 state.checkedSet.clear();
-                dataList.forEach(item => {
-                    if (defaultChecked) state.checkedSet.add(String(item[valKey]));
-                });
+                if (defaultChecked) dataList.forEach(item => state.checkedSet.add(String(item[valKey])));
             } else {
                 const validKeys = new Set(dataList.map(item => String(item[valKey])));
-                for (const val of state.checkedSet) {
-                    if (!validKeys.has(val)) {
-                        state.checkedSet.delete(val);
-                    }
-                }
-
+                for (const val of state.checkedSet) if (!validKeys.has(val)) state.checkedSet.delete(val);
                 if (state.checkedSet.size === 0 && defaultChecked && dataList.length > 0) {
-                    const hasAnyCheckedInDOM = listUl.querySelector('input[type="checkbox"]:checked');
-                    if (!hasAnyCheckedInDOM) {
+                    if (!listUl.querySelector('input[type="checkbox"]:checked')) {
                         dataList.forEach(item => state.checkedSet.add(String(item[valKey])));
                     }
                 }
@@ -375,439 +320,343 @@ document.addEventListener('DOMContentLoaded', () => {
             const selectAllCb = header ? header.querySelector('.select-all-cb') : null;
             if (selectAllCb) selectAllCb.disabled = dataList.length === 0;
 
-            let displayData = dataList.filter(item => {
-                if (!filterText) return true;
-                const ft = filterText.toLowerCase();
-                return columns.some(col => String(item[col.key] || '').toLowerCase().includes(ft));
-            });
+            const ft = filterText.toLowerCase();
+            let displayData = dataList.filter(item => !filterText || columns.some(col => String(item[col.key] || '').toLowerCase().includes(ft)));
 
             displayData.sort((a, b) => {
-                let valA = a[state.sortKey] ?? '';
-                let valB = b[state.sortKey] ?? '';
-
-                if (state.sortKey === 'sizeStr' && 'size' in a && 'size' in b) {
-                    return state.sortAsc ? a.size - b.size : b.size - a.size;
-                }
-
-                let numA = parseFloat(valA);
-                let numB = parseFloat(valB);
-                if (!isNaN(numA) && !isNaN(numB) && String(valA).trim() !== '' && String(valB).trim() !== '') {
-                    return state.sortAsc ? numA - numB : numB - numA;
-                }
+                const valA = a[state.sortKey] ?? '', valB = b[state.sortKey] ?? '';
+                if (state.sortKey === 'sizeStr' && 'size' in a && 'size' in b) return state.sortAsc ? a.size - b.size : b.size - a.size;
+                const numA = parseFloat(valA), numB = parseFloat(valB);
+                if (!isNaN(numA) && !isNaN(numB) && String(valA).trim() !== '' && String(valB).trim() !== '') return state.sortAsc ? numA - numB : numB - numA;
                 return state.sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
             });
 
+            widget.gridState.lastDisplayData = displayData;
             widget.updateSelectAllState = () => {
                 if (!selectAllCb) return;
-                const total = listUl.querySelectorAll('input[type="checkbox"]').length;
-                const checked = listUl.querySelectorAll('input[type="checkbox"]:checked').length;
-                selectAllCb.checked = (total > 0 && total === checked);
-                selectAllCb.indeterminate = (checked > 0 && checked < total);
+                const cData = widget.gridState.lastDisplayData || [];
+                if (cData.length === 0) { selectAllCb.checked = false; selectAllCb.indeterminate = false; return; }
+                const checkedCount = cData.filter(item => containerSelector === '#scan_window' ? appState.virusMap.get(String(item[valKey])) : widget.gridState.checkedSet.has(String(item[valKey]))).length;
+                selectAllCb.checked = (checkedCount > 0 && checkedCount === cData.length);
+                selectAllCb.indeterminate = (checkedCount > 0 && checkedCount < cData.length);
             };
 
-            let htmlContent = '';
-            const MAX_RENDER_ITEMS = 2000;
-            const limitData = displayData.slice(0, MAX_RENDER_ITEMS);
-
-            limitData.forEach(item => {
+            const MAX_ITEMS = 2000;
+            const limitData = displayData.slice(0, MAX_ITEMS);
+            
+            let htmlContent = limitData.map(item => {
                 const itemValStr = String(item[valKey]);
-                let isChecked = false;
+                let isChecked = containerSelector === '#scan_window' ? (appState.virusMap.get(itemValStr) ?? true) : state.checkedSet.has(itemValStr);
+                if (containerSelector === '#scan_window') appState.virusMap.set(itemValStr, isChecked);
                 
-                if (containerSelector === '#scan_window') {
-                    isChecked = virusState.get(itemValStr) ?? true;
-                    virusState.set(itemValStr, isChecked);
-                } else {
-                    isChecked = state.checkedSet.has(itemValStr);
-                }
-                
-                const checkedAttr = isChecked ? 'checked' : '';
-                
-                let rowColsHtml = columns.map((col, idx) => {
-                    let valStr = String(item[col.key] || '');
+                const rowColsHtml = columns.map((col, idx) => {
+                    const rawVal = String(item[col.key] || '');
+                    let valStr = col.isI18n ? getMsg(rawVal) : rawVal;
+                    if (rawVal === '未知路徑' || rawVal === 'path_unknown') valStr = getMsg('path_unknown');
                     return `<div class="row-col" style="width: var(--col-${idx}); flex: 0 0 auto;" title="${escapeHtml(valStr)}">${escapeHtml(valStr)}</div>`;
                 }).join('');
 
-                let escapedPath = escapeHtml(item.path || '');
-                htmlContent += `
-                    <li class="manage-list-item">
-                        <input type="checkbox" value="${escapeHtml(itemValStr)}" ${checkedAttr} data-path="${escapedPath}">
-                        <div class="manage-list-item-content">${rowColsHtml}</div>
-                    </li>
-                `;
-            });
+                return `<li class="manage-list-item"><input type="checkbox" value="${escapeHtml(itemValStr)}" ${isChecked ? 'checked' : ''} data-path="${escapeHtml(item.path || '')}"><div class="manage-list-item-content">${rowColsHtml}</div></li>`;
+            }).join('');
 
-            if (displayData.length > MAX_RENDER_ITEMS) {
-                htmlContent += `
-                    <li class="manage-list-item" style="pointer-events: none; justify-content: center;">
-                        <div style="color: var(--text-secondary); padding: 10px;">(資料過多，僅顯示前 ${MAX_RENDER_ITEMS} 筆以確保效能流暢)</div>
-                    </li>
-                `;
+            if (displayData.length > MAX_ITEMS) {
+                htmlContent += `<li class="manage-list-item" style="pointer-events: none; justify-content: center;"><div style="color: var(--text-secondary); padding: 10px;">${escapeHtml(formatMsg("msg_too_many", MAX_ITEMS))}</div></li>`;
             }
 
             const scrollContainer = listUl.parentElement;
             const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
             listUl.innerHTML = htmlContent;
             if (scrollContainer) scrollContainer.scrollTop = scrollTop;
-            
             widget.updateSelectAllState();
         };
-
         widget.renderData(state.filterText, isInit);
-    }
-
-    function getCheckedValues(containerSelector) {
-        const checkboxes = document.querySelectorAll(`${containerSelector} .manage-list-item input[type="checkbox"]:checked`);
-        return Array.from(checkboxes).map(cb => cb.value);
-    }
-
-    let taskmgrTimer = null;
-    let isTaskmgrActive = false;
-    let currentJunkList = [];
-    window.virusResults = [];
-
-    renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
-    renderDataGrid('#taskmgr_window', [], cols.process, 'pid', false);
-    renderDataGrid('#junk_window', [], cols.junk, 'path', true);
-    renderDataGrid('#repair_window', [], cols.repair, 'value', true);
-    renderDataGrid('#whitelist_window', [], cols.pathOnly, 'path', false);
-    renderDataGrid('#quarantine_window', [], cols.pathOnly, 'path', false);
-    renderDataGrid('#custom_protect_window', [], cols.pathOnly, 'path', false);
-    renderDataGrid('#popup_window', [], cols.popup, 'value', false);
-    renderDataGrid('#log_export_window', [], cols.log, 'id', true);
-    
-    const switchPage = (targetId) => {
-        const oldActive = document.querySelector('.page.active');
-        if (oldActive && oldActive.id !== targetId) {
-            if (oldActive.id === 'junk_window') {
-                currentJunkList = [];
-                renderDataGrid('#junk_window', [], cols.junk, 'path', true);
-                const searchInput = document.querySelector('#junk_window .search-box input');
-                if (searchInput) searchInput.value = '';
-            } else if (oldActive.id === 'repair_window') {
-                renderDataGrid('#repair_window', [], cols.repair, 'value', true);
-            }
-        }
-
-        document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-        const targetPage = document.getElementById(targetId);
-        if (targetPage) targetPage.classList.add('active');
-        const activeNav = document.querySelector(`aside .nav-btn[data-target="${targetId}"]`);
-        if (activeNav) activeNav.classList.add('active');
-        
-        if (targetId === 'taskmgr_window') {
-            isTaskmgrActive = true;
-            const widget = document.querySelector('#taskmgr_window .manage-widget');
-            const fetchProcs = () => {
-                if (!isTaskmgrActive || !window.pywebview) return;
-                const hasChecked = widget && widget.gridState && widget.gridState.checkedSet.size > 0;
-                const isHovering = widget && widget.matches(':hover');
-                const isMenuOpen = document.querySelector('.custom-context-menu.show') !== null;
-                const isResizing = document.body.classList.contains('resizing-active');
-                
-                if (!hasChecked && !isHovering && !isMenuOpen && !isResizing) {
-                    window.pywebview.api.get_process_list().then(procs => {
-                        updateProcessList(procs);
-                        if (isTaskmgrActive) taskmgrTimer = setTimeout(fetchProcs, 2000);
-                    }).catch(() => {
-                        if (isTaskmgrActive) taskmgrTimer = setTimeout(fetchProcs, 2000);
-                    });
-                } else {
-                    if (isTaskmgrActive) taskmgrTimer = setTimeout(fetchProcs, 2000);
-                }
-            };
-            fetchProcs();
-        } else {
-            isTaskmgrActive = false;
-            if (taskmgrTimer) {
-                clearTimeout(taskmgrTimer);
-                taskmgrTimer = null;
-            }
-        }
-
-        if (['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].includes(targetId)) {
-            refreshConfigLists();
-        }
-
-        if (targetId === 'log_export_window' && window.pywebview) {
-            window.pywebview.api.get_logs().then(logs => {
-                const logList = logs.reverse().map(log => ({
-                    time_str: `[${log.time_str}]`,
-                    level: log.level,
-                    action: log.action,
-                    source: log.source ? log.source : '-',
-                    id: log.id
-                }));
-                renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
-            });
-        }
     };
 
-    document.querySelectorAll('[data-target]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const targetId = e.currentTarget.getAttribute('data-target');
-            if (targetId) switchPage(targetId);
-        });
-    });
+    const getCheckedValues = (selector) => Array.from(document.querySelectorAll(`${selector} .manage-list-item input[type="checkbox"]:checked`)).map(cb => cb.value);
+    const formatSize = (bytes) => {
+        if (bytes === 0) return '0 B';
+        const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
 
-    document.getElementById('quick_scan_btn')?.addEventListener('click', () => {
-        if (isScanning) return;
-        switchPage('scan_window');
-        if (window.pywebview) triggerScan('smart');
-    });
-
-    const scanMethodSelect = document.getElementById('scan_method_select');
-    const stopBtn = document.getElementById('stop_btn');
-    const progressText = document.getElementById('progress_text');
-    const progressTitle = document.querySelector('#scan_window .section-title');
-    const virusState = new Map();
-
-    function rebuildCustomSelect(selectId) {
+    const rebuildCustomSelect = (selectId) => {
         const select = document.getElementById(selectId);
         if (!select) return;
-        
         let sibling = select.nextElementSibling;
         while (sibling && sibling.classList.contains('custom-select-wrapper')) {
             const toRemove = sibling;
             sibling = sibling.nextElementSibling;
             toRemove.remove();
         }
-        
         buildCustomSelectElement(select);
-    }
+    };
 
-    function changeScanSelectMode(mode) {
-        if (!scanMethodSelect) return;
-        scanMethodSelect.innerHTML = '';
+    const changeScanSelectMode = (mode) => {
+        const select = document.getElementById('scan_method_select');
+        if (!select) return;
+        select.innerHTML = `<option value="none" selected disabled data-i18n="btn_select">${getMsg('btn_select')}</option>`;
         if (mode === 'scan') {
-            scanMethodSelect.innerHTML = `
-                <option value="none" selected disabled data-i18n>選擇</option>
-                <option value="smart" data-i18n>智能掃描</option>
-                <option value="file" data-i18n>檔案掃描</option>
-                <option value="path" data-i18n>路徑掃描</option>
-                <option value="full" data-i18n>全盤掃描</option>
-            `;
+            select.innerHTML += `
+                <option value="smart" data-i18n="scan_smart">${getMsg('scan_smart')}</option>
+                <option value="file" data-i18n="scan_file">${getMsg('scan_file')}</option>
+                <option value="path" data-i18n="scan_path">${getMsg('scan_path')}</option>
+                <option value="full" data-i18n="scan_full">${getMsg('scan_full')}</option>`;
         } else if (mode === 'action') {
-            scanMethodSelect.innerHTML = `
-                <option value="none" selected disabled data-i18n>選擇</option>
-                <option value="delete" data-i18n>刪除項目</option>
-                <option value="ignore" data-i18n>忽略項目</option>
-                <option value="quarantine" data-i18n>加入隔離區</option>
-                <option value="whitelist" data-i18n>加入白名單</option>
-            `;
+            select.innerHTML += `
+                <option value="delete" data-i18n="act_del">${getMsg('act_del')}</option>
+                <option value="ignore" data-i18n="act_ignore">${getMsg('act_ignore')}</option>
+                <option value="quarantine" data-i18n="act_quarantine">${getMsg('act_quarantine')}</option>
+                <option value="whitelist" data-i18n="act_white">${getMsg('act_white')}</option>`;
         }
-        
-        scanMethodSelect.querySelectorAll('option[data-i18n]').forEach(el => {
-            el.dataset.originText = el.textContent.trim();
-            el.textContent = getMsg(el.dataset.originText);
-        });
         rebuildCustomSelect('scan_method_select');
-    }
+    };
 
-    function getScanSelectWrapper() {
-        if (!scanMethodSelect) return null;
-        const w = scanMethodSelect.nextElementSibling;
-        return (w && w.classList.contains('custom-select-wrapper')) ? w : null;
-    }
-
-    function handleVirusActions(action) {
-        if (!window.pywebview) return;
-        const paths = Array.from(virusState.entries()).filter(([_, isChecked]) => isChecked).map(([path, _]) => path);
-
-        if (paths.length === 0) {
-            updateCustomSelectUI('scan_method_select', 'none');
-            return;
+    const checkVirusListEmpty = () => {
+        updateCustomSelectUI('scan_method_select', 'none');
+        if (appState.virusMap.size === 0) {
+            changeScanSelectMode('scan');
+            const title = document.querySelector('#scan_window .section-title');
+            const text = document.getElementById('progress_text');
+            if (title) { title.setAttribute('data-i18n', 'scan_virus'); title.textContent = getMsg('scan_virus'); }
+            if (text) {
+                text.setAttribute('data-i18n', 'scan_virus_desc');
+                text.removeAttribute('data-dynamic-msg');
+                text.textContent = getMsg('scan_virus_desc');
+            }
         }
+    };
 
-        const wrapper = getScanSelectWrapper();
+    const triggerScan = (method) => {
+        if (!window.pywebview) return;
+        appState.scanning = true;
+        appState.virusMap.clear();
+        appState.virusResults = [];
+        renderDataGrid('#scan_window', appState.virusResults, cols.virus, 'path', true);
+        changeScanSelectMode('scan');
+        document.getElementById('scan_method_select').classList.add('hidden');
+        const stopBtn = document.getElementById('stop_btn');
+        stopBtn.classList.remove('hidden');
+        stopBtn.disabled = false;
+        
+        const title = document.querySelector('#scan_window .section-title');
+        const text = document.getElementById('progress_text');
+        if (title) { title.setAttribute('data-i18n', 'status_scanning'); title.textContent = getMsg('status_scanning'); }
+        if (text) { text.setAttribute('data-i18n', 'msg_init'); text.removeAttribute('data-dynamic-msg'); text.textContent = getMsg('msg_init'); }
+        window.pywebview.api.trigger_scan(method);
+    };
+
+    const handleVirusActions = (action) => {
+        if (!window.pywebview) return;
+        const paths = Array.from(appState.virusMap.entries()).filter(([_, checked]) => checked).map(([p]) => p);
+        if (paths.length === 0) return updateCustomSelectUI('scan_method_select', 'none');
+
+        const wrapper = document.getElementById('scan_method_select').nextElementSibling;
         if (wrapper) wrapper.style.pointerEvents = 'none';
 
-        const finalizeAction = () => {
-            const curWrapper = getScanSelectWrapper();
-            if (curWrapper) curWrapper.style.pointerEvents = '';
+        const finalize = () => {
+            if (wrapper) wrapper.style.pointerEvents = '';
             checkVirusListEmpty();
         };
 
-        const removeListItems = (removedPaths) => {
+        const removeItems = (removedPaths) => {
             const removedSet = new Set(removedPaths);
-            removedPaths.forEach(p => virusState.delete(p));
-            
-            for (let i = window.virusResults.length - 1; i >= 0; i--) {
-                if (removedSet.has(window.virusResults[i].path)) {
-                    window.virusResults.splice(i, 1);
-                }
-            }
-            
+            removedPaths.forEach(p => appState.virusMap.delete(p));
+            appState.virusResults = appState.virusResults.filter(r => !removedSet.has(r.path));
             const widget = document.querySelector('#scan_window .virus-widget');
-            if (widget && typeof widget.renderData === 'function') {
-                widget.renderData(widget.gridState.filterText, false);
-            }
+            if (widget && widget.renderData) widget.renderData(widget.gridState.filterText, false);
         };
 
         if (action === 'delete') {
-            window.pywebview.api.solve_scan(paths).then((deletedPaths) => {
-                removeListItems(deletedPaths);
-                finalizeAction();
-            });
+            window.pywebview.api.solve_scan(paths).then((deleted) => { removeItems(deleted); finalize(); });
         } else if (action === 'ignore') {
-            window.pywebview.api.remove_virus_result(paths).then(() => {
-                removeListItems(paths);
-                finalizeAction();
-            });
+            window.pywebview.api.remove_virus_result(paths).then(() => { removeItems(paths); finalize(); });
         } else if (action === 'quarantine' || action === 'whitelist') {
             const listKey = action === 'quarantine' ? 'quarantine' : 'white_list';
             window.pywebview.api.manage_named_list(listKey, paths, 'add').then(() => {
-                window.pywebview.api.remove_virus_result(paths).then(() => {
-                    removeListItems(paths);
-                    finalizeAction();
-                });
+                window.pywebview.api.remove_virus_result(paths).then(() => { removeItems(paths); finalize(); });
             });
         }
-    }
+    };
 
-    function checkVirusListEmpty() {
-        updateCustomSelectUI('scan_method_select', 'none');
-        if (virusState.size === 0) {
-            changeScanSelectMode('scan');
-            if (progressTitle) {
-                progressTitle.setAttribute('data-i18n', '');
-                progressTitle.dataset.originText = "病毒掃描";
-                progressTitle.textContent = getMsg("病毒掃描");
-            }
-            if (progressText) {
-                progressText.setAttribute('data-i18n', '');
-                progressText.removeAttribute('data-dynamic-msg');
-                progressText.dataset.originText = "此選項可以選擇進階掃描方式";
-                progressText.textContent = getMsg("此選項可以選擇進階掃描方式");
+    const fetchProcs = () => {
+        if (!appState.taskmgrActive || !window.pywebview) return;
+        const widget = document.querySelector('#taskmgr_window .manage-widget');
+        const blockFetch = widget && (widget.gridState?.checkedSet.size > 0 || widget.matches(':hover')) || document.querySelector('.custom-context-menu.show') || document.body.classList.contains('resizing-active');
+        
+        if (!blockFetch) {
+            window.pywebview.api.get_process_list().then(procs => {
+                const mapped = procs.map(p => ({ name: p.name, pid: p.pid, path: (p.path && p.path !== "None" && p.path !== "Unknown") ? p.path : "path_unknown" }));
+                renderDataGrid('#taskmgr_window', mapped, cols.process, 'pid', false);
+                if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000);
+            }).catch(() => { if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000); });
+        } else {
+            if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000);
+        }
+    };
+
+    const refreshConfigLists = () => {
+        if (!window.pywebview) return;
+        window.pywebview.api.get_config().then(cfg => {
+            renderDataGrid('#whitelist_window', (cfg.white_list || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
+            renderDataGrid('#quarantine_window', (cfg.quarantine || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
+            renderDataGrid('#custom_protect_window', (cfg.custom_rule || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
+            const popupRules = (cfg.block_list || []).map(item => ({ exe: item.exe || '*', class: item.class || '*', title: item.title || '*', value: item.exe || item.title }));
+            renderDataGrid('#popup_window', popupRules, cols.popup, 'value');
+        });
+    };
+
+    const switchPage = (targetId) => {
+        const oldActive = document.querySelector('.page.active');
+        if (oldActive && oldActive.id !== targetId) {
+            if (oldActive.id === 'junk_window') {
+                appState.junkList = [];
+                renderDataGrid('#junk_window', [], cols.junk, 'path', true);
+                const input = document.querySelector('#junk_window .search-box input');
+                if (input) input.value = '';
+            } else if (oldActive.id === 'repair_window') {
+                renderDataGrid('#repair_window', [], cols.repair, 'value', true);
             }
         }
-    }
 
-    let virusRenderTimeout = null;
+        document.querySelectorAll('.page, .nav-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(targetId)?.classList.add('active');
+        document.querySelector(`aside .nav-btn[data-target="${targetId}"]`)?.classList.add('active');
+        
+        appState.taskmgrActive = targetId === 'taskmgr_window';
+        if (appState.taskmgrActive) fetchProcs();
+        else if (appState.taskmgrTimer) { clearTimeout(appState.taskmgrTimer); appState.taskmgrTimer = null; }
+
+        if (['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].includes(targetId)) refreshConfigLists();
+
+        if (targetId === 'log_export_window' && window.pywebview) {
+            window.pywebview.api.get_logs().then(logs => {
+                const logList = logs.reverse().map(log => ({ time_str: `[${log.time_str}]`, level: log.level, action: log.action, source: log.source || '-', id: log.id }));
+                renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
+            });
+        }
+    };
+
     window.addVirusResult = (label, path) => {
-        if (!virusState.has(path)) {
-            window.virusResults.push({ label: label, path: path });
-            virusState.set(path, true);
-            
+        if (!appState.virusMap.has(path)) {
+            appState.virusResults.push({ label, path });
+            appState.virusMap.set(path, true);
             const widget = document.querySelector('#scan_window .virus-widget');
-            if (widget && typeof widget.renderData === 'function') {
-                if (virusRenderTimeout) clearTimeout(virusRenderTimeout);
-                virusRenderTimeout = setTimeout(() => {
-                    widget.renderData(widget.gridState.filterText, false);
-                }, 50);
+            if (widget && widget.renderData) {
+                if (window.virusRenderTimeout) clearTimeout(window.virusRenderTimeout);
+                window.virusRenderTimeout = setTimeout(() => widget.renderData(widget.gridState.filterText, false), 50);
             }
         }
     };
 
     window.updateScanProgress = (path) => {
-        if (progressTitle) {
-            progressTitle.setAttribute('data-i18n', '');
-            progressTitle.dataset.originText = "正在掃描";
-            progressTitle.textContent = getMsg("正在掃描");
-        }
-        if (progressText) {
-            progressText.removeAttribute('data-i18n');
-            progressText.removeAttribute('data-dynamic-msg');
-            progressText.textContent = path;
-        }
+        const title = document.querySelector('#scan_window .section-title');
+        const text = document.getElementById('progress_text');
+        if (title) { title.setAttribute('data-i18n', 'status_scanning'); title.textContent = getMsg('status_scanning'); }
+        if (text) { text.removeAttribute('data-i18n'); text.removeAttribute('data-dynamic-msg'); text.textContent = path; }
     };
 
     window.updateDeleteProgress = (path) => {
-        if (progressTitle) {
-            progressTitle.setAttribute('data-i18n', '');
-            progressTitle.dataset.originText = "正在刪除";
-            progressTitle.textContent = getMsg("正在刪除");
-        }
-        if (progressText) {
-            progressText.removeAttribute('data-i18n');
-            progressText.removeAttribute('data-dynamic-msg');
-            progressText.textContent = path;
-        }
+        const title = document.querySelector('#scan_window .section-title');
+        const text = document.getElementById('progress_text');
+        if (title) { title.setAttribute('data-i18n', 'status_deleting'); title.textContent = getMsg('status_deleting'); }
+        if (text) { text.removeAttribute('data-i18n'); text.removeAttribute('data-dynamic-msg'); text.textContent = path; }
     };
 
     window.finishScan = (msgData, count) => {
-        isScanning = false;
-        if (progressTitle) {
-            progressTitle.setAttribute('data-i18n', '');
-            progressTitle.dataset.originText = "病毒掃描";
-            progressTitle.textContent = getMsg("病毒掃描");
-        }
-        if (progressText) {
-            progressText.removeAttribute('data-i18n');
+        appState.scanning = false;
+        const title = document.querySelector('#scan_window .section-title');
+        const text = document.getElementById('progress_text');
+        if (title) { title.setAttribute('data-i18n', 'scan_virus'); title.textContent = getMsg('scan_virus'); }
+        if (text) {
             if (typeof msgData === 'object' && msgData !== null) {
-                progressText.dataset.dynamicMsg = JSON.stringify(msgData);
-                progressText.textContent = msgData[currentLang] || msgData["english_switch"];
+                text.removeAttribute('data-i18n');
+                text.dataset.dynamicMsg = JSON.stringify(msgData);
+                text.textContent = msgData[appState.lang] || msgData["english_switch"];
             } else {
-                progressText.removeAttribute('data-dynamic-msg');
-                progressText.textContent = msgData;
+                text.removeAttribute('data-dynamic-msg');
+                text.setAttribute('data-i18n', msgData);
+                text.textContent = getMsg(msgData);
             }
         }
-        stopBtn.classList.add('hidden');
-        scanMethodSelect.classList.remove('hidden');
-        
-        if (count > 0) {
-            changeScanSelectMode('action');
-        } else {
-            changeScanSelectMode('scan');
-        }
+        document.getElementById('stop_btn')?.classList.add('hidden');
+        document.getElementById('scan_method_select')?.classList.remove('hidden');
+        changeScanSelectMode(count > 0 ? 'action' : 'scan');
         updateCustomSelectUI('scan_method_select', 'none');
     };
 
-    function triggerScan(method) {
-        if (!window.pywebview) return;
-        isScanning = true;
-        virusState.clear();
-        window.virusResults = [];
-        renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
-        changeScanSelectMode('scan');
-        scanMethodSelect.classList.add('hidden');
-        stopBtn.classList.remove('hidden');
-        stopBtn.disabled = false;
-        if (progressTitle) {
-            progressTitle.setAttribute('data-i18n', '');
-            progressTitle.dataset.originText = "正在掃描";
-            progressTitle.textContent = getMsg("正在掃描");
+    window.updateLogs = (entry) => {
+        const logWidget = document.querySelector('.log-text');
+        if (logWidget) {
+            let parts = [`[${entry.time_str}]`, entry.level, getMsg(entry.action || '')];
+            if (entry.source) parts.push(`Src: ${entry.source}`);
+            if (entry.target) parts.push(`Tgt: ${entry.target}`);
+            if (entry.code) parts.push(`Code: ${entry.code}`);
+            if (entry.pid) parts.push(`PID: ${entry.pid}`);
+            if (entry.hash) parts.push(`Hash: ${entry.hash}`);
+            if (entry.detail) parts.push(`Detail: ${entry.detail}`);
+            if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
+            parts.push(`Success: ${entry.success}`);
+            let val = logWidget.value + parts.join(' | ') + '\n';
+            if (val.length > 20000) val = val.substring(val.indexOf('\n', val.length - 15000) + 1);
+            logWidget.value = val;
+            logWidget.scrollTop = logWidget.scrollHeight;
         }
-        if (progressText) {
-            progressText.setAttribute('data-i18n', '');
-            progressText.removeAttribute('data-dynamic-msg');
-            progressText.dataset.originText = "正在初始化中";
-            progressText.textContent = getMsg("正在初始化中");
+
+        if (document.getElementById('log_export_window')?.classList.contains('active') && window.pywebview) {
+            window.pywebview.api.get_logs().then(logs => {
+                const logList = logs.reverse().map(log => ({ time_str: `[${log.time_str}]`, level: log.level, action: log.action, source: log.source || '-', id: log.id }));
+                renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
+            });
         }
-        window.pywebview.api.trigger_scan(method);
-    }
 
-    scanMethodSelect?.addEventListener('change', () => {
-        const val = scanMethodSelect.value;
-        if (val === 'none') return;
-
-        if (!isScanning) {
-            if (['smart', 'file', 'path', 'full'].includes(val)) {
-                triggerScan(val);
-            } else if (['delete', 'ignore', 'quarantine', 'whitelist'].includes(val)) {
-                handleVirusActions(val);
+        if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
+            const overlay = document.getElementById('loading_overlay');
+            if (overlay && !overlay.classList.contains('fade-out')) {
+                overlay.classList.add('fade-out');
+                setTimeout(() => {
+                    document.querySelector('.app-container')?.classList.add('fade-in');
+                    if (window.onEngineReady) window.onEngineReady();
+                }, 400);
             }
         }
-    });
-
-    stopBtn?.addEventListener('click', () => {
-        if (window.pywebview) window.pywebview.api.stop_scan();
-        stopBtn.disabled = true;
-    });
-
-    document.getElementById('theme_select')?.addEventListener('change', (e) => {
-        applyTheme(e.target.value);
-        if (window.pywebview) window.pywebview.api.update_config('theme', e.target.value);
-    });
-
-    document.getElementById('lang_select')?.addEventListener('change', (e) => {
-        translateText(e.target.value);
-        if (window.pywebview) window.pywebview.api.update_config('language', e.target.value);
-    });
-
-    window.revertSwitch = (switchKey) => {
-        // No-op: Async handler in toggle switch automatically reverts based on backend response.
     };
+
+    window.triggerContextScan = (path) => {
+        if (appState.scanning) return;
+        switchPage('scan_window');
+        if (window.pywebview) {
+            appState.scanning = true;
+            appState.virusMap.clear();
+            appState.virusResults = [];
+            renderDataGrid('#scan_window', appState.virusResults, cols.virus, 'path', true);
+            document.getElementById('scan_method_select')?.classList.add('hidden');
+            const stopBtn = document.getElementById('stop_btn');
+            if (stopBtn) { stopBtn.classList.remove('hidden'); stopBtn.disabled = false; }
+            changeScanSelectMode('scan');
+            
+            const title = document.querySelector('#scan_window .section-title');
+            const text = document.getElementById('progress_text');
+            if (title) { title.setAttribute('data-i18n', 'status_scanning'); title.textContent = getMsg('status_scanning'); }
+            if (text) { text.setAttribute('data-i18n', 'msg_init'); text.removeAttribute('data-dynamic-msg'); text.textContent = getMsg('msg_init'); }
+            
+            window.pywebview.api.start_scan([path]);
+        }
+    };
+
+    window.revertSwitch = () => {}; 
+
+    document.querySelectorAll('[data-target]').forEach(btn => btn.addEventListener('click', (e) => switchPage(e.currentTarget.getAttribute('data-target'))));
+    document.getElementById('quick_scan_btn')?.addEventListener('click', () => { if (!appState.scanning) { switchPage('scan_window'); triggerScan('smart'); }});
+    document.getElementById('stop_btn')?.addEventListener('click', (e) => { if (window.pywebview) window.pywebview.api.stop_scan(); e.target.disabled = true; });
+    document.getElementById('theme_select')?.addEventListener('change', (e) => { applyTheme(e.target.value); window.pywebview?.api.update_config('theme', e.target.value); });
+    document.getElementById('lang_select')?.addEventListener('change', (e) => { translateText(e.target.value); window.pywebview?.api.update_config('language', e.target.value); });
+    
+    document.getElementById('scan_method_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === 'none' || appState.scanning) return;
+        if (['smart', 'file', 'path', 'full'].includes(val)) triggerScan(val);
+        else if (['delete', 'ignore', 'quarantine', 'whitelist'].includes(val)) handleVirusActions(val);
+    });
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
         toggle.addEventListener('change', async (e) => {
@@ -817,508 +666,241 @@ document.addEventListener('DOMContentLoaded', () => {
                 toggle.disabled = true;
                 try {
                     const result = await window.pywebview.api.update_config(key, e.target.checked);
-                    if (result !== undefined && result !== null) {
-                        toggle.checked = result;
-                    }
-                } catch (err) {
-                    toggle.checked = !e.target.checked;
-                } finally {
-                    toggle.disabled = false;
-                }
+                    if (result !== undefined && result !== null) toggle.checked = result;
+                } catch { toggle.checked = !e.target.checked; } 
+                finally { toggle.disabled = false; }
             }
         });
     });
 
-    window.triggerContextScan = (path) => {
-        if (isScanning) return;
-        switchPage('scan_window');
-        if (window.pywebview) {
-            isScanning = true;
-            virusState.clear();
-            window.virusResults = [];
-            renderDataGrid('#scan_window', window.virusResults, cols.virus, 'path', true);
-            scanMethodSelect.classList.add('hidden');
-            stopBtn.classList.remove('hidden');
-            stopBtn.disabled = false;
-            changeScanSelectMode('scan');
-            if (progressTitle) {
-                progressTitle.setAttribute('data-i18n', '');
-                progressTitle.dataset.originText = "正在掃描";
-                progressTitle.textContent = getMsg("正在掃描");
+    document.querySelector('#junk_window .primary-btn')?.addEventListener('click', (e) => {
+        if (!window.pywebview) return;
+        e.target.setAttribute('data-i18n', 'msg_init'); e.target.textContent = getMsg('msg_init');
+        const widget = document.querySelector('#junk_window .manage-widget');
+        if (widget?.gridState) widget.gridState.checkedSet.clear();
+        
+        window.pywebview.api.scan_system_junk().then(list => {
+            appState.junkList = list.map(item => ({ path: item.path, sizeStr: formatSize(item.size), size: item.size }));
+            renderDataGrid('#junk_window', appState.junkList, cols.junk, 'path', true);
+            e.target.setAttribute('data-i18n', 'btn_scan'); e.target.textContent = getMsg('btn_scan');
+        });
+    });
+
+    document.querySelector('#junk_window .danger-btn')?.addEventListener('click', () => {
+        const checked = getCheckedValues('#junk_window');
+        if (checked.length === 0 || !window.pywebview) return;
+        window.pywebview.api.clean_system_junk(checked).then(size => {
+            window.pywebview.api.show_alert(getMsg("title_prompt"), `${getMsg("msg_cleaned")}${formatSize(size)}`, "info");
+            appState.junkList = appState.junkList.filter(item => !checked.includes(item.path));
+            renderDataGrid('#junk_window', appState.junkList, cols.junk, 'path', true);
+        });
+    });
+
+    document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
+        if (!window.pywebview) return;
+        window.pywebview.api.scan_system_repair().then(list => renderDataGrid('#repair_window', list, cols.repair, 'value', true));
+    });
+
+    document.querySelector('#repair_window .danger-btn')?.addEventListener('click', () => {
+        const checked = getCheckedValues('#repair_window');
+        if (checked.length === 0 || !window.pywebview) return;
+        window.pywebview.api.execute_system_repair(checked).then(() => {
+            window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_repaired"), "info");
+            renderDataGrid('#repair_window', [], cols.repair, 'value');
+        });
+    });
+
+    ['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].forEach(id => {
+        const listKey = id === 'popup_window' ? 'block_list' : (id === 'custom_protect_window' ? 'custom_rule' : id.replace('_window', ''));
+        document.querySelector(`#${id} .modern-btn:not(.primary-btn)`)?.addEventListener('click', () => {
+            const checked = getCheckedValues(`#${id}`);
+            if (checked.length > 0 && window.pywebview) window.pywebview.api.remove_list_items(listKey, checked).then(refreshConfigLists);
+        });
+        
+        if (id !== 'popup_window') {
+            document.querySelector(`#${id} .primary-btn`)?.addEventListener('click', () => {
+                window.pywebview?.api.select_files().then(files => {
+                    if (files?.length > 0) window.pywebview.api.manage_named_list(listKey, files, 'add').then(refreshConfigLists);
+                });
+            });
+        }
+    });
+
+    document.querySelector('#popup_window .primary-btn')?.addEventListener('click', (e) => {
+        if (!window.pywebview) return;
+        e.target.setAttribute('data-i18n', 'msg_click_target'); e.target.textContent = getMsg('msg_click_target'); e.target.disabled = true;
+        window.pywebview.api.capture_popup_window().then(rule => {
+            e.target.setAttribute('data-i18n', 'btn_add'); e.target.textContent = getMsg('btn_add'); e.target.disabled = false;
+            if (rule) window.pywebview.api.add_popup_rule(rule).then(ok => ok && refreshConfigLists());
+        });
+    });
+
+    document.querySelector('#taskmgr_window .primary-btn')?.addEventListener('click', () => {
+        if (!window.pywebview) return;
+        document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked').forEach(cb => {
+            if (cb.dataset.path && cb.dataset.path !== "path_unknown") window.pywebview.api.open_file_location(cb.dataset.path);
+        });
+    });
+
+    document.querySelector('#taskmgr_window .danger-btn')?.addEventListener('click', () => {
+        const cbs = document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked');
+        if (cbs.length > 0 && window.pywebview) {
+            window.pywebview.api.show_confirm(getMsg("msg_end_proc_title"), getMsg("msg_end_proc_confirm")).then(res => {
+                if (res) Promise.all(Array.from(cbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => {
+                    window.pywebview.api.get_process_list().then(procs => renderDataGrid('#taskmgr_window', procs.map(p => ({ name: p.name, pid: p.pid, path: (p.path && p.path !== "None" && p.path !== "Unknown") ? p.path : "path_unknown" })), cols.process, 'pid', false));
+                });
+            });
+        }
+    });
+
+    document.querySelector('#log_export_window .primary-btn')?.addEventListener('click', () => {
+        const checked = getCheckedValues('#log_export_window');
+        if (checked.length === 0) return window.pywebview?.api.show_alert(getMsg("title_prompt"), getMsg("msg_sel_log_export"), "warning");
+        window.pywebview?.api.export_logs(checked).then(res => res && window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_export_success"), "info"));
+    });
+
+    document.querySelector('#log_export_window .danger-btn')?.addEventListener('click', () => {
+        const checked = getCheckedValues('#log_export_window');
+        if (checked.length === 0 || !window.pywebview) return;
+        window.pywebview.api.show_confirm(getMsg("title_prompt"), getMsg("msg_del_log_confirm")).then(res => {
+            if (res) window.pywebview.api.clear_logs(checked).then(() => {
+                window.pywebview.api.get_logs().then(logs => renderDataGrid('#log_export_window', logs.reverse().map(log => ({ time_str: `[${log.time_str}]`, level: log.level, action: log.action, source: log.source || '-', id: log.id })), cols.log, 'id', true));
+                window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_log_deleted"), "info");
+            });
+        });
+    });
+
+    document.getElementById('minimize_button')?.addEventListener('click', () => window.pywebview?.api.minimize());
+    document.getElementById('close_button')?.addEventListener('click', () => window.pywebview?.api.hide_window());
+
+    const contextMenu = document.createElement('div');
+    contextMenu.className = 'custom-context-menu';
+    contextMenu.innerHTML = `<div class="custom-context-menu-item" id="ctx_open_location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg><span data-i18n="ctx_open_loc"></span></div>`;
+    document.body.appendChild(contextMenu);
+    let ctxTarget = null;
+
+    document.addEventListener('contextmenu', (e) => {
+        const li = e.target.closest('.manage-list-item');
+        if (li) {
+            const cb = li.querySelector('input[type="checkbox"]');
+            if (cb && cb.dataset.path && cb.dataset.path !== "path_unknown") {
+                e.preventDefault();
+                ctxTarget = cb.dataset.path;
+                const span = contextMenu.querySelector('span');
+                span.textContent = getMsg('ctx_open_loc');
+                contextMenu.style.left = `${e.clientX}px`;
+                contextMenu.style.top = `${e.clientY}px`;
+                contextMenu.classList.add('show');
+                const rect = contextMenu.getBoundingClientRect();
+                if (rect.right > window.innerWidth) contextMenu.style.left = `${window.innerWidth - rect.width - 5}px`;
+                if (rect.bottom > window.innerHeight) contextMenu.style.top = `${window.innerHeight - rect.height - 5}px`;
+                return;
             }
-            if (progressText) {
-                progressText.setAttribute('data-i18n', '');
-                progressText.removeAttribute('data-dynamic-msg');
-                progressText.dataset.originText = "正在初始化中";
-                progressText.textContent = getMsg("正在初始化中");
+        }
+        contextMenu.classList.remove('show');
+    });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.custom-context-menu')) contextMenu.classList.remove('show'); });
+    document.addEventListener('scroll', () => contextMenu.classList.remove('show'), true);
+    document.getElementById('ctx_open_location').addEventListener('click', () => {
+        if (window.pywebview && ctxTarget) window.pywebview.api.open_file_location(ctxTarget);
+        contextMenu.classList.remove('show');
+    });
+
+    initI18nKeys();
+
+    const bindSettingAction = (key, action) => {
+        const item = Array.from(document.querySelectorAll('#about_window .list-item, #setting_window .list-item')).find(el => {
+            const h2 = el.querySelector('h2');
+            return h2 && h2.getAttribute('data-i18n') === key;
+        });
+        
+        if (item) {
+            const btn = item.querySelector('button');
+            
+            if (btn) {
+                btn.addEventListener('click', action);
+            } else {
+                item.style.cursor = 'pointer';
+                item.dataset.action = key;
+                item.addEventListener('click', action);
             }
-            window.pywebview.api.start_scan([path]);
         }
     };
 
+    bindSettingAction('web_official', () => window.pywebview?.api.open_website());
+    bindSettingAction('update_check', () => {
+        window.pywebview?.api.check_update().then(res => {
+            if (res.error) window.pywebview.api.show_alert(getMsg("title_error"), getMsg("msg_update_fail"), "error");
+            else if (res.has_update) window.pywebview.api.show_confirm(getMsg("title_prompt"), `${getMsg("msg_new_version")} ${res.latest}\n(${res.current} -> ${res.latest})`).then(ok => ok && window.pywebview.api.open_url(res.url));
+            else window.pywebview.api.show_alert(getMsg("title_prompt"), `${getMsg("msg_latest_version")} ${res.current}`, "info");
+        });
+    });
+    bindSettingAction('opt_reset', () => {
+        window.pywebview?.api.show_confirm(getMsg("title_prompt"), getMsg("opt_reset_desc")).then(res => {
+            if (res) window.pywebview.api.reset_config().then(() => window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_reset_success"), "info"));
+        });
+    });
+
+    document.querySelectorAll('select.modern-select').forEach(buildCustomSelectElement);
+    renderDataGrid('#scan_window', appState.virusResults, cols.virus, 'path', true);
+    renderDataGrid('#taskmgr_window', [], cols.process, 'pid', false);
+    renderDataGrid('#junk_window', [], cols.junk, 'path', true);
+    renderDataGrid('#repair_window', [], cols.repair, 'value', true);
+    renderDataGrid('#whitelist_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#quarantine_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#custom_protect_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#popup_window', [], cols.popup, 'value', false);
+    renderDataGrid('#log_export_window', [], cols.log, 'id', true);
+
     window.addEventListener('pywebviewready', () => {
-        window.pywebview.api.get_config().then(async cfg => {
+        window.pywebview.api.get_config().then(cfg => {
             const theme = cfg.theme || "white_switch";
             const lang = cfg.language || "english_switch";
+            appState.firstLaunch = cfg.first_launch;
             applyTheme(theme);
             translateText(lang);
             updateCustomSelectUI('theme_select', theme);
             updateCustomSelectUI('lang_select', lang);
 
             const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
+            document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
+                if (appState.firstLaunch) { 
+                    toggle.checked = false; 
+                    toggle.disabled = true; 
+                } else if (switchMap[index]) {
+                    toggle.checked = !!cfg[switchMap[index]];
+                }
+            });
             
-            isFirstLaunch = cfg.first_launch;
-            
-            if (isFirstLaunch) {
-                document.querySelectorAll('.toggle-switch input').forEach(toggle => {
-                    toggle.checked = false;
-                    toggle.disabled = true;
-                });
-            } else {
-                document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
-                    if (switchMap[index]) {
-                        toggle.checked = !!cfg[switchMap[index]];
-                    }
-                });
-            }
+            window.pywebview.api.init_ui_ready();
+        }).catch(err => {
+            console.error("Config load failed:", err);
+            window.pywebview.api.init_ui_ready();
         });
-        window.pywebview.api.init_ui_ready();
     });
 
     window.onEngineReady = async () => {
-        if (!isFirstLaunch) return;
-        
-        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
-        
+        if (!appState.firstLaunch) return;
         await window.pywebview.api.update_config("first_launch", false);
-
-        const sequence = [
-            "cloud_switch", 
-            "process_switch", "document_switch", "system_switch", "network_switch",
-            "driver_switch"
-        ];
-
-        for (const key of sequence) {
+        const switchMap = ["process_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "context_switch"];
+        const seq = ["cloud_switch", "process_switch", "document_switch", "system_switch", "network_switch", "driver_switch"];
+        
+        for (const key of seq) {
             const index = switchMap.indexOf(key);
             if (index !== -1) {
                 const toggle = document.querySelectorAll('.toggle-switch input')[index];
                 if (toggle) {
                     toggle.checked = true;
                     try {
-                        const result = await window.pywebview.api.update_config(key, true);
-                        if (result !== undefined && result !== null) {
-                            toggle.checked = result;
-                        }
-                    } catch (e) {
-                        toggle.checked = false;
-                    } finally {
-                        toggle.disabled = false;
-                    }
+                        const res = await window.pywebview.api.update_config(key, true);
+                        if (res !== undefined && res !== null) toggle.checked = res;
+                    } catch { toggle.checked = false; } 
+                    finally { toggle.disabled = false; }
                     await new Promise(r => setTimeout(r, 200));
                 }
             }
         }
-        
-        document.querySelectorAll('.toggle-switch input').forEach(toggle => {
-            toggle.disabled = false;
-        });
-        
-        isFirstLaunch = false;
+        document.querySelectorAll('.toggle-switch input').forEach(t => t.disabled = false);
+        appState.firstLaunch = false;
     };
-
-    window.updateLogs = (entry) => {
-        const logWidget = document.querySelector('.log-text');
-        if (logWidget) {
-            let parts = [`[${entry.time_str}]`, entry.level, entry.action];
-            if (entry.source) parts.push(`Src: ${entry.source}`);
-            if (entry.target) parts.push(`Tgt: ${entry.target}`);
-            if (entry.code) parts.push(`Code: ${entry.code}`);
-            if (entry.pid) parts.push(`PID: ${entry.pid}`);
-            if (entry.hash) parts.push(`Hash: ${entry.hash}`);
-            if (entry.detail) parts.push(`Detail: ${entry.detail}`);
-            if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
-            parts.push(`Success: ${entry.success}`);
-            
-            let val = logWidget.value + parts.join(' | ') + '\n';
-            if (val.length > 20000) {
-                val = val.substring(val.length - 15000);
-                val = val.substring(val.indexOf('\n') + 1);
-            }
-            
-            logWidget.value = val;
-            logWidget.scrollTop = logWidget.scrollHeight;
-        }
-
-        const exportWindow = document.getElementById('log_export_window');
-        if (exportWindow && exportWindow.classList.contains('active')) {
-            if (window.pywebview) {
-                window.pywebview.api.get_logs().then(logs => {
-                    const logList = logs.reverse().map(log => ({
-                        time_str: `[${log.time_str}]`,
-                        level: log.level,
-                        action: log.action,
-                        source: log.source ? log.source : '-',
-                        id: log.id
-                    }));
-                    renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
-                });
-            }
-        }
-
-        if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || 
-            (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
-            const overlay = document.getElementById('loading_overlay');
-            const appContainer = document.querySelector('.app-container');
-            if (overlay && !overlay.classList.contains('fade-out')) {
-                overlay.classList.add('fade-out');
-                setTimeout(() => {
-                    if (appContainer) appContainer.classList.add('fade-in');
-                    if (window.onEngineReady) window.onEngineReady();
-                }, 400);
-            }
-        }
-    };
-
-    function formatSize(bytes) {
-        if (bytes === 0) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    document.querySelector('#junk_window .primary-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const btn = document.querySelector('#junk_window .primary-btn');
-        btn.textContent = getMsg("正在初始化中");
-        
-        const widget = document.querySelector('#junk_window .manage-widget');
-        if (widget && widget.gridState) widget.gridState.checkedSet.clear();
-        
-        window.pywebview.api.scan_system_junk().then(list => {
-            currentJunkList = list.map(item => ({
-                path: item.path,
-                sizeStr: formatSize(item.size),
-                size: item.size
-            }));
-            renderDataGrid('#junk_window', currentJunkList, cols.junk, 'path', true);
-            btn.textContent = getMsg("掃描");
-        });
-    });
-
-    document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const widget = document.querySelector('#repair_window .manage-widget');
-        if (widget && widget.gridState) widget.gridState.checkedSet.clear();
-        
-        window.pywebview.api.scan_system_repair().then(list => {
-            const repairData = list.map(item => ({ display: getMsg(item.display), value: item.value }));
-            renderDataGrid('#repair_window', repairData, cols.repair, 'value', true);
-        });
-    });
-
-    document.querySelector('#junk_window .danger-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const checkedPaths = getCheckedValues('#junk_window');
-        if (checkedPaths.length === 0) return;
-        
-        window.pywebview.api.clean_system_junk(checkedPaths).then(deletedSize => {
-            const msg = getMsg("已清理 ");
-            window.pywebview.api.show_alert(getMsg("提示"), `${msg}${formatSize(deletedSize)}`, "info");
-            currentJunkList = currentJunkList.filter(item => !checkedPaths.includes(item.path));
-            renderDataGrid('#junk_window', currentJunkList, cols.junk, 'path', true);
-        });
-    });
-
-    function refreshConfigLists() {
-        if (!window.pywebview) return;
-        window.pywebview.api.get_config().then(cfg => {
-            renderDataGrid('#whitelist_window', (cfg.white_list || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
-            renderDataGrid('#quarantine_window', (cfg.quarantine || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
-            renderDataGrid('#custom_protect_window', (cfg.custom_rule || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
-            
-            const popupRules = (cfg.block_list || []).map(item => ({
-                exe: item.exe || '*',
-                class: item.class || '*',
-                title: item.title || '*',
-                value: item.exe || item.title 
-            }));
-            renderDataGrid('#popup_window', popupRules, cols.popup, 'value');
-        });
-    }
-
-    document.querySelector('#whitelist_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const checked = getCheckedValues('#whitelist_window');
-        if (checked.length > 0) window.pywebview.api.remove_list_items('white_list', checked).then(refreshConfigLists);
-    });
-
-    document.querySelector('#quarantine_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const checked = getCheckedValues('#quarantine_window');
-        if (checked.length > 0) window.pywebview.api.remove_list_items('quarantine', checked).then(refreshConfigLists);
-    });
-
-    document.querySelector('#popup_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const checked = getCheckedValues('#popup_window');
-        if (checked.length > 0) window.pywebview.api.remove_list_items('block_list', checked).then(refreshConfigLists);
-    });
-
-    document.querySelector('#custom_protect_window .modern-btn:not(.primary-btn)')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const checked = getCheckedValues('#custom_protect_window');
-        if (checked.length > 0) window.pywebview.api.remove_list_items('custom_rule', checked).then(refreshConfigLists);
-    });
-
-    document.querySelector('#whitelist_window .primary-btn')?.addEventListener('click', () => {
-        window.pywebview?.api.select_files().then(files => {
-            if (files && files.length > 0) window.pywebview.api.manage_named_list('white_list', files, 'add').then(refreshConfigLists);
-        });
-    });
-    
-    document.querySelector('#quarantine_window .primary-btn')?.addEventListener('click', () => {
-        window.pywebview?.api.select_files().then(files => {
-            if (files && files.length > 0) window.pywebview.api.manage_named_list('quarantine', files, 'add').then(refreshConfigLists);
-        });
-    });
-
-    document.querySelector('#custom_protect_window .primary-btn')?.addEventListener('click', () => {
-        window.pywebview?.api.select_files().then(files => {
-            if (files && files.length > 0) window.pywebview.api.manage_named_list('custom_rule', files, 'add').then(refreshConfigLists);
-        });
-    });
-
-    document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        window.pywebview.api.scan_system_repair().then(list => {
-            const repairData = list.map(item => ({ display: getMsg(item.display), value: item.value }));
-            renderDataGrid('#repair_window', repairData, cols.repair, 'value', true);
-        });
-    });
-    
-    document.querySelector('#repair_window .danger-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const checkedPaths = getCheckedValues('#repair_window');
-        if (checkedPaths.length === 0) return;
-        window.pywebview.api.execute_system_repair(checkedPaths).then(() => {
-            const msg = getMsg("已修復選取項目");
-            window.pywebview.api.show_alert(getMsg("提示"), msg, "info");
-            renderDataGrid('#repair_window', [], cols.repair, 'value');
-        });
-    });
-
-    document.getElementById('minimize_button')?.addEventListener('click', () => window.pywebview?.api.minimize());
-    document.getElementById('close_button')?.addEventListener('click', () => window.pywebview?.api.hide_window());
-    
-    const websiteBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => {
-        const h2 = el.querySelector('h2');
-        return h2 && (h2.dataset.originText === '官方網站' || h2.textContent.includes('官方網站'));
-    });
-    if (websiteBtn) {
-        websiteBtn.querySelector('button').addEventListener('click', () => {
-            if (window.pywebview) window.pywebview.api.open_website();
-        });
-    }
-
-    const updateBtn = Array.from(document.querySelectorAll('#about_window .list-item')).find(el => {
-        const h2 = el.querySelector('h2');
-        return h2 && (h2.dataset.originText === '檢查更新' || h2.textContent.includes('檢查更新'));
-    });
-    if (updateBtn) {
-        updateBtn.querySelector('button').addEventListener('click', () => {
-            if (window.pywebview) {
-                window.pywebview.api.check_update().then(res => {
-                    if (res.error) {
-                        window.pywebview.api.show_alert(getMsg("錯誤"), getMsg("檢查更新失敗"), "error");
-                    } else if (res.has_update) {
-                        const msg = getMsg("發現新版本");
-                        window.pywebview.api.show_confirm(getMsg("提示"), `${msg} ${res.latest}\n(${res.current} -> ${res.latest})`).then(confirmRes => {
-                            if (confirmRes) window.pywebview.api.open_url(res.url);
-                        });
-                    } else {
-                        const msg = getMsg("當前已是最新版本");
-                        window.pywebview.api.show_alert(getMsg("提示"), `${msg} ${res.current}`, "info");
-                    }
-                });
-            }
-        });
-    }
-
-    const resetBtn = Array.from(document.querySelectorAll('#setting_window .list-item')).find(el => {
-        const h2 = el.querySelector('h2');
-        return h2 && (h2.dataset.originText === '重置選項' || h2.textContent.includes('重置選項'));
-    });
-    if (resetBtn) {
-        resetBtn.querySelector('button').addEventListener('click', () => {
-            const confirmMsg = getMsg("此選項可以重置所有設定");
-            if (window.pywebview) {
-                window.pywebview.api.show_confirm(getMsg("提示"), confirmMsg).then(res => {
-                    if (res) {
-                        window.pywebview.api.reset_config().then(() => {
-                            window.pywebview.api.show_alert(getMsg("提示"), getMsg("設定已重置，請重新啟動程式以套用預設值。"), "info");
-                        });
-                    }
-                });
-            }
-        });
-    }
-
-    document.querySelector('#log_export_window .primary-btn')?.addEventListener('click', () => {
-        if (window.pywebview) {
-            const checkedIds = getCheckedValues('#log_export_window');
-            if (checkedIds.length === 0) {
-                window.pywebview.api.show_alert(getMsg("提示"), getMsg("請選擇要導出的日誌"), "warning");
-                return;
-            }
-            window.pywebview.api.export_logs(checkedIds).then(res => {
-                if (res) window.pywebview.api.show_alert(getMsg("提示"), getMsg("導出成功"), "info");
-            });
-        }
-    });
-    
-    document.querySelector('#log_export_window .danger-btn')?.addEventListener('click', () => {
-        const checkedIds = getCheckedValues('#log_export_window');
-        if (checkedIds.length === 0) return;
-        
-        const confirmMsg = getMsg("確定刪除選取的日誌記錄嗎？");
-        if (window.pywebview) {
-            window.pywebview.api.show_confirm(getMsg("提示"), confirmMsg).then(res => {
-                if (res) {
-                    window.pywebview.api.clear_logs(checkedIds).then(() => {
-                        window.pywebview.api.get_logs().then(logs => {
-                            const logList = logs.reverse().map(log => ({
-                                time_str: `[${log.time_str}]`,
-                                level: log.level,
-                                action: log.action,
-                                source: log.source ? log.source : '-',
-                                id: log.id
-                            }));
-                            renderDataGrid('#log_export_window', logList, cols.log, 'id', true);
-                        });
-                        const successMsg = getMsg("選取的日誌已刪除。");
-                        window.pywebview.api.show_alert(getMsg("提示"), successMsg, "info");
-                    });
-                }
-            });
-        }
-    });
-
-    let currentProcessList = [];
-    function updateProcessList(procs) {
-        currentProcessList = procs.map(p => ({
-            name: p.name,
-            pid: p.pid,
-            path: p.path && p.path !== "None" ? p.path : getMsg("未知路徑")
-        }));
-        renderDataGrid('#taskmgr_window', currentProcessList, cols.process, 'pid', false);
-    }
-
-    document.querySelector('#taskmgr_window .primary-btn')?.addEventListener('click', () => {
-        const cbs = document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked');
-        if (cbs.length > 0 && window.pywebview) {
-            cbs.forEach(cb => {
-                const path = cb.dataset.path;
-                if (path && path !== "Unknown" && path !== "None") {
-                    window.pywebview.api.open_file_location(path);
-                }
-            });
-        }
-    });
-    
-    document.querySelector('#popup_window .primary-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        const btn = document.querySelector('#popup_window .primary-btn');
-        const originalText = btn.textContent;
-        const waitText = getMsg("請在5秒內點擊目標視窗...");
-        
-        btn.textContent = waitText;
-        btn.disabled = true;
-        
-        window.pywebview.api.capture_popup_window().then(rule => {
-            btn.textContent = originalText;
-            btn.disabled = false;
-            if (rule) {
-                window.pywebview.api.add_popup_rule(rule).then(success => {
-                    if (success) refreshConfigLists();
-                });
-            }
-        });
-    });
-
-    document.querySelector('#taskmgr_window .danger-btn')?.addEventListener('click', () => {
-        const cbs = document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked');
-        const confirmMsg = getMsg("確定要結束選取的進程嗎？");
-        if (cbs.length > 0 && window.pywebview) {
-            window.pywebview.api.show_confirm(getMsg("提示"), confirmMsg).then(res => {
-                if (res) {
-                    const promises = Array.from(cbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)));
-                    Promise.all(promises).then(() => {
-                        window.pywebview.api.get_process_list().then(updateProcessList);
-                    });
-                }
-            });
-        }
-    });
-    
-    const contextMenu = document.createElement('div');
-    contextMenu.className = 'custom-context-menu';
-    contextMenu.innerHTML = `
-        <div class="custom-context-menu-item" id="ctx_open_location">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-            <span data-i18n>打開檔案所在位置</span>
-        </div>
-    `;
-    document.body.appendChild(contextMenu);
-
-    const ctxSpan = contextMenu.querySelector('span[data-i18n]');
-    ctxSpan.dataset.originText = ctxSpan.textContent.trim();
-
-    let contextMenuTarget = null;
-
-    document.addEventListener('contextmenu', (e) => {
-        const listItem = e.target.closest('.manage-list-item');
-        if (listItem) {
-            const cb = listItem.querySelector('input[type="checkbox"]');
-            const path = cb ? cb.dataset.path : null;
-            
-            if (path && path !== "Unknown" && path !== "None") {
-                e.preventDefault();
-                contextMenuTarget = path;
-                
-                ctxSpan.textContent = getMsg(ctxSpan.dataset.originText);
-                
-                contextMenu.style.left = `${e.clientX}px`;
-                contextMenu.style.top = `${e.clientY}px`;
-                contextMenu.classList.add('show');
-                
-                const rect = contextMenu.getBoundingClientRect();
-                if (rect.right > window.innerWidth) {
-                    contextMenu.style.left = `${window.innerWidth - rect.width - 5}px`;
-                }
-                if (rect.bottom > window.innerHeight) {
-                    contextMenu.style.top = `${window.innerHeight - rect.height - 5}px`;
-                }
-                return;
-            }
-        }
-        contextMenu.classList.remove('show');
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.custom-context-menu')) {
-            contextMenu.classList.remove('show');
-        }
-    });
-
-    document.addEventListener('scroll', () => {
-        contextMenu.classList.remove('show');
-    }, true);
-
-    document.getElementById('ctx_open_location').addEventListener('click', () => {
-        if (window.pywebview && contextMenuTarget) {
-            window.pywebview.api.open_file_location(contextMenuTarget);
-        }
-        contextMenu.classList.remove('show');
-    });
 });

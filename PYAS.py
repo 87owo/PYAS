@@ -1,6 +1,26 @@
-import os, re, sys, time, json, uuid, stat, queue, msvcrt, winreg
+import os, re, sys, time, json, uuid, stat, queue
+import platform
+
+# Sadece Windows ise bu kütüphaneleri yükle (Mac'te çökmesini engeller)
+if platform.system() == "Windows":
+    import msvcrt
+    import winreg
+
 import shutil, hashlib, platform, threading, subprocess, pefile, pystray
-import socket, requests, webview, webbrowser, ctypes, ctypes.wintypes
+import socket, requests, webview, webbrowser, ctypes
+
+if platform.system() == "Windows":
+    import ctypes.wintypes
+else:
+    # Mac'in aşağıdaki class'ı okurken çökmemesi için sahte (dummy) bir wintypes oluşturuyoruz
+    class DummyWintypes:
+        DWORD = ctypes.c_uint32
+        LONG = ctypes.c_int32
+        LPVOID = ctypes.c_void_p
+    ctypes.wintypes = DummyWintypes()
+
+import concurrent.futures
+
 
 ## Çalışmam:
 import platform
@@ -143,9 +163,13 @@ class WindowAPI:
         self.lock_file_ops = threading.RLock()
         
         self.init_environ()
-        self.init_windll()
+        import platform
+        if platform.system() == "Windows":
+            self.init_windll()
+
         
-        if not self.check_singleton("PYAS_Security_Mutex"):
+        if platform.system() == "Windows" and not self.check_singleton("PYAS_Security_Mutex"):
+
             hwnd = self.user32.FindWindowW(None, "PYAS Security")
             if hwnd:
                 if "-quit" in self.args_pyas:
@@ -2613,6 +2637,17 @@ def start_api(port_container, ready_event):
 
 ####################################################################################################
 
+
+
+
+#################################################################################
+
+
+    
+
+
+####################################################################################################
+
 if __name__ == "__main__":
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
     init_width, init_height = 980, 670
@@ -2634,9 +2669,16 @@ if __name__ == "__main__":
 
     js_api = WindowAPI()
 
-    user32 = ctypes.windll.user32
-    screen_width = user32.GetSystemMetrics(0)
-    screen_height = user32.GetSystemMetrics(1)
+    import platform
+    if platform.system() == "Windows":
+        user32 = ctypes.windll.user32
+        screen_width = user32.GetSystemMetrics(0)
+        screen_height = user32.GetSystemMetrics(1)
+    else:
+    # Mac/Linux için ekran boyutu ölçümünü atlayıp varsayılan değerler veriyoruz
+        screen_width = 1920
+        screen_height = 1080
+
     pos_x = (screen_width - init_width) // 2
     pos_y = (screen_height - init_height) // 2
 
@@ -2650,7 +2692,3 @@ if __name__ == "__main__":
         window_hook = WindowHook("PYAS Security", js_api)
         window.events.shown += window_hook.hook
 
-    js_api.set_window(window)
-    js_api.show_tray()
-
-    webview.start()

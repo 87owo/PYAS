@@ -1,6 +1,10 @@
 import os, re, sys, time, json, uuid, stat, queue, msvcrt, winreg
 import shutil, hashlib, platform, threading, subprocess, pefile, pystray
 import socket, requests, webview, webbrowser, ctypes, ctypes.wintypes
+import json
+import datetime
+import uuid
+
 
 from PIL import Image, ImageDraw
 from concurrent.futures import ThreadPoolExecutor
@@ -2463,6 +2467,29 @@ def get_base_path():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
+
+####################################################################################################
+
+def generate_scan_report(scanned_count, threats_found, scan_duration, report_path):
+    report_data = {
+        "scan_id": str(uuid.uuid4()),
+        "timestamp": datetime.datetime.now().isoformat(),
+        "metrics": {
+            "total_scanned": scanned_count,
+            "threats_detected": len(threats_found),
+            "duration_seconds": round(scan_duration, 2)
+        },
+        "threat_details": threats_found,
+        "status": "COMPLETED" if scanned_count > 0 else "FAILED"
+    }
+
+    try:
+        with open(report_path, 'w', encoding='utf-8') as f:
+            json.dump(report_data, f, indent=4, ensure_ascii=False)
+        return True
+    except IOError:
+        print("Rapor dosyası diske yazılamadı.")
+        return False
 
 ####################################################################################################
 

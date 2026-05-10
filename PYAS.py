@@ -724,6 +724,12 @@ class WindowAPI:
 
             self.stop_system_driver()
             
+            if hasattr(self, 'h_mutex') and self.h_mutex:
+                try:
+                    self.kernel32.CloseHandle(self.h_mutex)
+                except Exception:
+                    pass
+
             if self._window:
                 self._window.destroy()
             os._exit(0)
@@ -905,9 +911,10 @@ class WindowAPI:
     def open_file_location(self, file_path):
         if file_path and os.path.exists(file_path):
             try:
-                norm_path = os.path.normpath(file_path)
+                norm_path = os.path.normpath(file_path).replace('"', '')
                 subprocess.Popen(f'explorer /select,"{norm_path}"')
                 return True
+
             except Exception:
                 pass
         return False
@@ -1161,32 +1168,6 @@ class WindowAPI:
             
         return exist_process
 
-    def list_process(self):
-        pe = PROCESSENTRY32W()
-        pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
-        snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        result = []
-        
-        if snapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
-            return result
-            
-        success = self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
-        while success:
-            pid = pe.th32ProcessID
-            name, file_path = None, None
-            if pid > 4:
-                name, file_path = self.get_exe_info(pid)
-            if not name:
-                try:
-                    name = pe.szExeFile
-                except Exception:
-                    name = "Unknown"
-            result.append({"pid": pid, "name": name, "path": file_path or "None"})
-            success = self.kernel32.Process32NextW(snapshot, ctypes.byref(pe))
-            
-        self.kernel32.CloseHandle(snapshot)
-        return result
-
     def kill_process(self, pid):
         try:
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
@@ -1236,7 +1217,12 @@ class WindowAPI:
         if not os.path.exists(path):
             return deleted
 
-        for fd in os.listdir(path):
+        try:
+            items = os.listdir(path)
+        except Exception:
+            return deleted
+
+        for fd in items:
             file = os.path.join(path, fd)
             try:
                 if os.path.isdir(file):
@@ -1253,6 +1239,7 @@ class WindowAPI:
                     deleted += size
             except Exception:
                 continue
+
         return deleted
 
     def scan_system_junk(self):

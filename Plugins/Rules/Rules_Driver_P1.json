@@ -77,7 +77,6 @@
     "*\\FirmwareBootDevice",
     "*\\BootDriverFlags",
     "*\\SystemStartOptions",
-    "*\\CrashDumpEnabled",
     "*\\DisableAutomaticRestartOnFailure",
     "*\\SystemBiosVersion",
     "*\\NoTheme",

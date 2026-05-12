@@ -1,23 +1,16 @@
-import os, sys, math, time, datetime, pefile, hashlib
-import ctypes, ctypes.wintypes, multiprocessing
-
-try:
-    import orjson
-    JSON_DUMPS = lambda x: orjson.dumps(x).decode('utf-8')
-    JSON_LOADS = orjson.loads
-    HAS_ORJSON = True
-except ImportError:
-    import json
-    JSON_DUMPS = json.dumps
-    JSON_LOADS = json.loads
-    HAS_ORJSON = False
+import os, sys, math, json, pefile, datetime
+import numpy as np
+import onnxruntime as ort
+import ctypes, ctypes.wintypes
 
 ####################################################################################################
 
-JSONL_PATH = "pe_features.jsonl"
-BATCH_SIZE = 1000
+MODEL_FILE = "Pefile_General_S1.onnx"
+FEATURE_FILE = "features.json"
 MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024
-MAX_WORKERS = os.cpu_count() - 2
+TARGET_EXTENSIONS = {
+    '.exe', '.dll', '.sys', '.ocx', '.scr', '.efi', '.acm', '.ax', '.cpl', '.drv', '.com', '.mui', '.pyd'
+}
 
 ####################################################################################################
 
@@ -67,42 +60,43 @@ V2_GUID = GUID(0x00AAC56B, 0xCD44, 0x11D0, (ctypes.c_ubyte * 8)(0x8C, 0xC2, 0x00
 
 ####################################################################################################
 
-def verify_signature(file_path):
-    if os.name != 'nt': return 0
-    try:
-        wintrust = ctypes.windll.wintrust
-        wintrust.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.wintypes.LPVOID]
-        wintrust.WinVerifyTrust.restype = ctypes.wintypes.LONG
-        
-        abs_path = os.path.abspath(file_path)
-        
-        fi = WINTRUST_FILE_INFO()
-        fi.cbStruct = ctypes.sizeof(WINTRUST_FILE_INFO)
-        fi.pcwszFilePath = abs_path
-        fi.hFile = None
-        fi.pgKnownSubject = None
-        
-        wt_union = WINTRUST_DATA_UNION()
-        wt_union.pFile = ctypes.pointer(fi)
-        
-        td = WINTRUST_DATA()
-        td.cbStruct = ctypes.sizeof(WINTRUST_DATA)
-        td.pPolicyCallbackData = None
-        td.pSIPClientData = None
-        td.dwUIChoice = 2
-        td.fdwRevocationChecks = 0
-        td.dwUnionChoice = 1
-        td.u = wt_union
-        td.dwStateAction = 0
-        td.hWVTStateData = None
-        td.pwszURLReference = None
-        td.dwProvFlags = 0
-        td.dwUIContext = 0
-        td.pSignatureSettings = None
+class WinTrust:
+    @staticmethod
+    def verify(file_path):
+        if os.name != 'nt':
+            return 0
+        try:
+            wintrust = ctypes.windll.wintrust
+            wintrust.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.wintypes.LPVOID]
+            wintrust.WinVerifyTrust.restype = ctypes.wintypes.LONG
 
-        return 1 if wintrust.WinVerifyTrust(None, ctypes.byref(V2_GUID), ctypes.byref(td)) == 0 else 0
-    except Exception:
-        return 0
+            fi = WINTRUST_FILE_INFO()
+            fi.cbStruct = ctypes.sizeof(WINTRUST_FILE_INFO)
+            fi.pcwszFilePath = os.path.abspath(file_path)
+            fi.hFile = None
+            fi.pgKnownSubject = None
+
+            wt_union = WINTRUST_DATA_UNION()
+            wt_union.pFile = ctypes.pointer(fi)
+
+            td = WINTRUST_DATA()
+            td.cbStruct = ctypes.sizeof(WINTRUST_DATA)
+            td.pPolicyCallbackData = None
+            td.pSIPClientData = None
+            td.dwUIChoice = 2
+            td.fdwRevocationChecks = 0
+            td.dwUnionChoice = 1
+            td.u = wt_union
+            td.dwStateAction = 0
+            td.hWVTStateData = None
+            td.pwszURLReference = None
+            td.dwProvFlags = 0
+            td.dwUIContext = 0
+            td.pSignatureSettings = None
+
+            return 1 if wintrust.WinVerifyTrust(None, ctypes.byref(V2_GUID), ctypes.byref(td)) == 0 else 0
+        except Exception:
+            return 0
 
 ####################################################################################################
 
@@ -234,16 +228,22 @@ class FeatureExtractor:
         return cfg
 
     @classmethod
-    def extract(cls, file_bytes, file_path, fsize):
-        if fsize == 0: return None
-        base, dlls, apis, pe = {}, set(), set(), None
-
+    def extract(cls, file_path):
+        pe = None
         try:
+            fsize = os.path.getsize(file_path)
+            if fsize == 0 or fsize > MAX_FILE_SIZE: 
+                return None
+
+            with open(file_path, "rb") as f:
+                file_bytes = f.read()
+
+            base, dlls, apis = {}, set(), set()
             pe = pefile.PE(data=file_bytes, fast_load=True)
             
-            base['TrustSigned'] = verify_signature(file_path)
+            base['TrustSigned'] = float(WinTrust.verify(file_path))
             base['FileEntropy'] = cls._calc_entropy(file_bytes)
-            base['FileSize'] = fsize
+            base['FileSize'] = float(fsize)
             
             fh = pe.FILE_HEADER
             base['Machine'] = getattr(fh, 'Machine', 0)
@@ -409,147 +409,137 @@ class FeatureExtractor:
 
 ####################################################################################################
 
-def load_existing_hashes():
-    hashes = set()
-    if os.path.exists(JSONL_PATH):
-        with open(JSONL_PATH, 'r', encoding='utf-8') as f:
-            for line in f:
-                try:
-                    data = JSON_LOADS(line)
-                    if 'FileHash' in data: hashes.add(data['FileHash'])
-                except Exception: pass
-    return hashes
-
-####################################################################################################
-
-GLOBAL_HASHES = set()
-
-def worker_init(shared_hashes):
-    global GLOBAL_HASHES
-    GLOBAL_HASHES = shared_hashes
-
-def _extract_worker_wrapper(args):
-    return _extract_worker(*args)
-
-def _extract_worker(file_path, label):
-    try:
-        fsize = os.path.getsize(file_path)
-        if fsize == 0 or fsize > MAX_FILE_SIZE:
-            return 'error', None
-
-        with open(file_path, "rb") as f:
-            file_bytes = f.read()
-
-        sha256 = hashlib.sha256(file_bytes).hexdigest()
+class ModelPredictor:
+    def __init__(self, model_path, feature_path):
+        self.model_features = self._load_features(feature_path)
+        self.sess = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        self.input_name = self.sess.get_inputs()[0].name
         
-        if sha256 in GLOBAL_HASHES:
-            return 'skipped', None
+        expected_dim = self.sess.get_inputs()[0].shape[1]
+        current_dim = len(self.model_features)
+        if current_dim != expected_dim:
+            raise ValueError(f"Dimension mismatch! Model expects {expected_dim} features, but feature file lists {current_dim}.")
 
-        res = FeatureExtractor.extract(file_bytes, file_path, fsize)
-        if res:
-            final_res = {"Label": label, "FileHash": sha256, **res}
-            return 'success', (sha256, JSON_DUMPS(final_res) + "\n")
-            
-        return 'error', None
-    except Exception:
-        return 'error', None
+    def _load_features(self, path):
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Feature file not found: {path}")
+        with open(path, 'r') as f:
+            return json.load(f)
+
+    def predict(self, raw_data):
+        vec = np.zeros((1, len(self.model_features)), dtype=np.float32)
+        base = raw_data.get('Base', {})
+        dlls = set(raw_data.get('DLLs', []))
+        apis = set(raw_data.get('APIs', []))
+
+        for i, feat in enumerate(self.model_features):
+            if feat.startswith('Dll_'):
+                if feat[4:] in dlls:
+                    vec[0, i] = 1.0
+            elif feat.startswith('Api_'):
+                if feat[4:] in apis:
+                    vec[0, i] = 1.0
+            else:
+                vec[0, i] = base.get(feat, 0.0)
+
+        outputs = self.sess.run(None, {self.input_name: vec})
+        
+        if len(outputs) > 1:
+            result = outputs[1]
+            if isinstance(result, list) and len(result) > 0:
+                prob_dict = result[0]
+                if hasattr(prob_dict, 'get'):
+                    return float(prob_dict.get(1, prob_dict.get('1', 0.0)))
+            elif isinstance(result, np.ndarray):
+                if result.ndim == 2 and result.shape[1] > 1:
+                    return float(result[0][1])
+        return 0.0
 
 ####################################################################################################
 
-def scan_and_save(path, label, existing_hashes):
-    print(f"\n[*] Scanning path: {path} (Label={label})")
-    files = [path] if os.path.isfile(path) else [os.path.join(r, f) for r, _, fs in os.walk(path) for f in fs]
+def scan_target(target, predictor):
+    files = []
+    if os.path.isfile(target):
+        files.append(target)
+    elif os.path.isdir(target):
+        for r, _, fs in os.walk(target):
+            for f in fs:
+                if os.path.splitext(f)[1].lower() in TARGET_EXTENSIONS:
+                    files.append(os.path.join(r, f))
     
-    total = len(files)
-    if total == 0:
-        print("[-] No files found.")
+    if not files:
+        print("[-] No valid PE files found.")
         return
 
-    print(f"[*] Found {total} files. Starting {MAX_WORKERS}-process extraction...\n")
-    if HAS_ORJSON:
-        print("[+] orjson acceleration enabled.")
+    print(f"\n[*] Scanning {len(files)} files...\n")
+    print(f"{'RESULT':<10} | {'PROB':<8} | {'FILE'}")
+    print("-" * 80)
+
+    safe_count = 0
+    mal_count = 0
     
-    count, errors, skipped, processed_files = 0, 0, 0, 0
-    start_time = time.time()
-    batch_buffer = []
-    
-    pool = multiprocessing.Pool(processes=MAX_WORKERS, initializer=worker_init, initargs=(existing_hashes,))
-    tasks = [(fpath, label) for fpath in files]
-    
-    try:
-        for status, data in pool.imap_unordered(_extract_worker_wrapper, tasks):
-            processed_files += 1
+    for fpath in files:
+        try:
+            data = FeatureExtractor.extract(fpath)
+            if not data:
+                print(f"{'ERROR':<10} | {'----':<8} | {fpath}")
+                continue
             
-            if status == 'error':
-                errors += 1
-            elif status == 'skipped':
-                skipped += 1
-            elif status == 'success':
-                sha256, json_str = data
-                if sha256 not in existing_hashes:
-                    existing_hashes.add(sha256)
-                    batch_buffer.append(json_str)
-                    count += 1
-                else:
-                    skipped += 1
+            prob = predictor.predict(data)
+            is_malware = prob > 0.5
+            
+            label = "MALWARE" if is_malware else "SAFE"
+            if is_malware:
+                mal_count += 1
+            else:
+                safe_count += 1
 
-            if len(batch_buffer) >= BATCH_SIZE:
-                with open(JSONL_PATH, 'a', encoding='utf-8') as f_out:
-                    f_out.writelines(batch_buffer)
-                batch_buffer.clear()
+            print(f"{label:<10} | {prob:.4f}   | {fpath}")
+            
+        except Exception as e:
+            print(f"{'FAIL':<10} | {'----':<8} | {fpath} ({str(e)})")
 
-            elapsed = time.time() - start_time
-            rate = processed_files / elapsed if elapsed > 0 else 0
-            sys.stdout.write(f"\r[{processed_files}/{total}] Added: {count} | Skipped: {skipped} | Errors: {errors} | Speed: {rate:.1f} files/s")
-            sys.stdout.flush()
-
-        pool.close()
-        pool.join()
-
-    except KeyboardInterrupt:
-        print("\n\n[-] User aborted. Force terminating all child processes...")
-        pool.terminate()
-        pool.join()
-    except Exception as e:
-        print(f"\n[-] Critical error: {e}")
-        pool.terminate()
-        pool.join()
-    finally:
-        if batch_buffer:
-            try:
-                with open(JSONL_PATH, 'a', encoding='utf-8') as f_out:
-                    f_out.writelines(batch_buffer)
-            except Exception as save_err:
-                print(f"\n[-] Failed to save remaining buffer: {save_err}")
-        
-        print(f"\n\n[+] Scan complete. Total added: {count}, Total skipped: {skipped}")
+    print("-" * 80)
+    print(f"[*] Summary: Safe={safe_count}, Malware={mal_count}, Total={len(files)}")
 
 ####################################################################################################
 
 if __name__ == "__main__":
-    multiprocessing.freeze_support() 
-    
-    print("\n---------------- PE Dataset Builder v4.0 ----------------\n")
-    
-    existing_hashes = load_existing_hashes()
-    print(f"[+] Found {len(existing_hashes)} existing hashes.\n")
+    print("\n-------------------------- PE Malware Predictor v4.0 --------------------------\n")
+    print(f"[*] © 2020-2026 87owo (PYAS Security)")
+    print(f"[*] Loading model features and weights...")
+
+    base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(base_dir, MODEL_FILE)
+    feature_path = os.path.join(base_dir, FEATURE_FILE)
 
     try:
+        predictor = ModelPredictor(model_path, feature_path)
+    except Exception as e:
+        print(f"[-] Critical Error: {e}")
+        sys.exit(1)
+
+    if len(sys.argv) > 1:
+        for path in sys.argv[1:]:
+            target = path.strip('"').strip("'")
+            if os.path.exists(target):
+                print()
+                print("-" * 80)
+                scan_target(target, predictor)
+            else:
+                print(f"[-] Path does not exist: {target}")
+    else:
         while True:
-            print("-" * 57)
-            target_path = input("\n[*] Enter path (file or directory): ").strip().strip('"').strip("'")
-            if target_path.lower() in ['exit', 'q']: break
-            if not target_path or not os.path.exists(target_path):
-                print("[-] Invalid path.")
-                continue
-
-            while True:
-                label_input = input("[*] Enter label (0=Safe, 1=Malware): ").strip()
-                if label_input.lower() in ['exit', 'q']: sys.exit()
-                if label_input in ['0', '1']: break
-                print("[-] Please enter 0 or 1.")
-
-            scan_and_save(target_path, int(label_input), existing_hashes)
-            
-    except KeyboardInterrupt:
-        print("\n\n[-] Aborted.")
+            try:
+                print()
+                print("-" * 80)
+                path = input("\n[?] Enter File or Folder Path (or 'q' to exit): ").strip().strip('"').strip("'")
+                if path.lower() in ['q', 'exit']: break
+                if not os.path.exists(path):
+                    print("[-] Path does not exist.")
+                    continue
+                scan_target(path, predictor)
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(f"[-] Error: {e}")

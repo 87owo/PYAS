@@ -26,7 +26,7 @@ LGBM_PARAMS = {
     'objective': 'binary',
     'metric': ['binary_logloss', 'auc'],
     'boosting_type': 'gbdt',
-    'num_leaves': 64,
+    'num_leaves': 128,
     'feature_fraction': 0.8,
     'bagging_fraction': 1.0,
     'bagging_freq': 5,
@@ -34,9 +34,7 @@ LGBM_PARAMS = {
     'seed': RANDOM_SEED,
     'n_jobs': -1,
     'max_depth': -1,
-    'min_data_in_leaf': 20,
-    'lambda_l1': 0.01,
-    'lambda_l2': 0.01,
+    'min_data_in_leaf': 50,
 }
 
 ####################################################################################################
@@ -62,8 +60,8 @@ def analyze_schema(jsonl_path):
                 continue
 
     base_schema = sorted([k for k in base_keys if k.lower().strip() not in EXCLUDE_FEATURES])
-    dll_schema = sorted([f"Dll_{k}" for k, v in dll_counts.items() if v >= 100])
-    api_schema = sorted([f"Api_{k}" for k, v in api_counts.items() if v >= 100])
+    dll_schema = sorted([f"Dll_{k}" for k, v in dll_counts.items() if v >= 1000])
+    api_schema = sorted([f"Api_{k}" for k, v in api_counts.items() if v >= 1000])
     
     return base_schema, dll_schema, api_schema, num_lines
 

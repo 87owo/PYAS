@@ -208,6 +208,110 @@ class pe_scanner:
         probs = counts[counts > 0] / len(arr)
         return float(-numpy.sum(probs * numpy.log2(probs)))
 
+    def _extract_overlay_features(self, pe, fsize):
+        overlay_offset = pe.get_overlay_data_start_offset()
+        if not overlay_offset or overlay_offset >= fsize:
+            return {"HasOverlay": 0.0, "OverlaySize": 0.0, "OverlayRatio": 0.0, "OverlayEntropy": 0.0}
+        
+        overlay_data = pe.get_overlay()
+        if not overlay_data:
+            return {"HasOverlay": 0.0, "OverlaySize": 0.0, "OverlayRatio": 0.0, "OverlayEntropy": 0.0}
+
+        sz = len(overlay_data)
+        return {
+            "HasOverlay": 1.0,
+            "OverlaySize": float(sz),
+            "OverlayRatio": float(sz) / float(fsize),
+            "OverlayEntropy": self._calc_entropy(overlay_data)
+        }
+
+    def _extract_rich_header(self, pe):
+        if not hasattr(pe, 'RICH_HEADER') or not pe.RICH_HEADER:
+            return {"HasRichHeader": 0.0, "RichHeaderCount": 0.0}
+        return {
+            "HasRichHeader": 1.0,
+            "RichHeaderCount": float(len(pe.RICH_HEADER.values) // 2) if hasattr(pe.RICH_HEADER, 'values') else 0.0
+        }
+
+    def _extract_ep_anomalies(self, pe):
+        if not hasattr(pe, 'OPTIONAL_HEADER') or not hasattr(pe, 'sections') or not pe.sections:
+            return {"EntryPointSectionIndex": -1.0, "EntryPointInExecutable": 0.0, "EntryPointInLastSection": 0.0}
+
+        ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+        ep_section_idx = -1
+        ep_in_exec = 0.0
+        
+        for idx, sec in enumerate(pe.sections):
+            if sec.VirtualAddress <= ep < (sec.VirtualAddress + sec.Misc_VirtualSize):
+                ep_section_idx = idx
+                if sec.Characteristics & 0x20000000:
+                    ep_in_exec = 1.0
+                break
+                
+        return {
+            "EntryPointSectionIndex": float(ep_section_idx),
+            "EntryPointInExecutable": ep_in_exec,
+            "EntryPointInLastSection": 1.0 if ep_section_idx == len(pe.sections) - 1 else 0.0
+        }
+
+    def _extract_advanced_resources(self, pe):
+        res_data = {
+            "ResourceMaxEntropy": 0.0,
+            "ResourceMinEntropy": 0.0,
+            "ResourceMeanEntropy": 0.0,
+            "ResourceLangCount": 0.0,
+            "ResourceRCDataCount": 0.0
+        }
+        
+        if not hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
+            return res_data
+            
+        entropies = []
+        langs = set()
+        rcdata_count = 0
+        
+        for entry_type in pe.DIRECTORY_ENTRY_RESOURCE.entries:
+            if hasattr(entry_type, 'id') and entry_type.id == 10: 
+                rcdata_count += len(getattr(entry_type.directory, 'entries', []))
+                
+            if not hasattr(entry_type, 'directory'):
+                continue
+                
+            for entry_id in entry_type.directory.entries:
+                if not hasattr(entry_id, 'directory'):
+                    continue
+                    
+                for entry_lang in entry_id.directory.entries:
+                    if hasattr(entry_lang, 'id'):
+                        langs.add(entry_lang.id)
+                    if hasattr(entry_lang, 'data'):
+                        try:
+                            data = pe.get_data(entry_lang.data.struct.OffsetToData, entry_lang.data.struct.Size)
+                            entropies.append(self._calc_entropy(data))
+                        except Exception:
+                            continue
+                            
+        res_data["ResourceLangCount"] = float(len(langs))
+        res_data["ResourceRCDataCount"] = float(rcdata_count)
+        
+        if entropies:
+            res_data["ResourceMaxEntropy"] = max(entropies)
+            res_data["ResourceMinEntropy"] = min(entropies)
+            res_data["ResourceMeanEntropy"] = sum(entropies) / len(entropies)
+            
+        return res_data
+
+    def _extract_load_config(self, pe):
+        cfg = {"HasLoadConfig": 0.0, "HasCFG": 0.0, "HasSEHTable": 0.0}
+        if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG'):
+            cfg["HasLoadConfig"] = 1.0
+            struct = pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct
+            if getattr(struct, 'GuardCFFunctionTable', 0) != 0:
+                cfg["HasCFG"] = 1.0
+            if getattr(struct, 'SEHandlerTable', 0) != 0:
+                cfg["HasSEHTable"] = 1.0
+        return cfg
+
     def extract_features(self, file_path):
         pe = None
         try:
@@ -405,6 +509,12 @@ class pe_scanner:
                 base['DebugCount'] = float(len(pe.DIRECTORY_ENTRY_DEBUG))
             else:
                 base['DebugCount'] = 0.0
+
+            base.update(self._extract_overlay_features(pe, fsize))
+            base.update(self._extract_rich_header(pe))
+            base.update(self._extract_ep_anomalies(pe))
+            base.update(self._extract_advanced_resources(pe))
+            base.update(self._extract_load_config(pe))
 
             for k in base:
                 base[k] = self._safe_float(base[k])

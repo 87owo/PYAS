@@ -311,7 +311,7 @@ class WindowAPI:
         self.lock_net = threading.RLock()
 
         self.pyas_default = {
-            "version": "3.5.4",
+            "version": "3.5.5",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd"],
@@ -895,6 +895,18 @@ class WindowAPI:
     def trigger_context_scan(self, target):
         if self._window:
             self._window.evaluate_js(f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(target.replace(os.sep, '/'))});")
+
+    def on_drop(self, e):
+        def _process_drop():
+            try:
+                files = e.get('dataTransfer', {}).get('files', [])
+                paths = [f.get('pywebviewFullPath') for f in files if f.get('pywebviewFullPath')]
+                if paths and self._window:
+                    self._window.evaluate_js(f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(paths)});")
+            except Exception as ex:
+                self.write_log("WARN", "on_drop", detail=str(ex), success=False)
+                
+        threading.Thread(target=_process_drop, daemon=True).start()
 
     def select_files(self):
         if self._window:
@@ -2718,5 +2730,14 @@ if __name__ == "__main__":
 
     js_api.set_window(window)
     js_api.show_tray()
+
+    def bind_dnd():
+        try:
+            from webview.dom import DOMEventHandler
+            window.dom.document.events.drop += DOMEventHandler(js_api.on_drop, True, True)
+        except Exception:
+            pass
+
+    window.events.loaded += bind_dnd
 
     webview.start()

@@ -1,7 +1,6 @@
 ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     document.addEventListener(eventName, e => {
         e.preventDefault();
-        e.stopPropagation();
     });
 });
 
@@ -631,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    window.triggerContextScan = (path) => {
+    window.triggerContextScan = (targets) => {
         if (appState.scanning) return;
         switchPage('scan_window');
         if (window.pywebview) {
@@ -649,7 +648,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (title) { title.setAttribute('data-i18n', 'status_scanning'); title.textContent = getMsg('status_scanning'); }
             if (text) { text.setAttribute('data-i18n', 'msg_init'); text.removeAttribute('data-dynamic-msg'); text.textContent = getMsg('msg_init'); }
             
-            window.pywebview.api.start_scan([path]);
+            const paths = Array.isArray(targets) ? targets : [targets];
+            window.pywebview.api.start_scan(paths);
         }
     };
 

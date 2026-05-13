@@ -1,3 +1,10 @@
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    document.addEventListener(eventName, e => {
+        e.preventDefault();
+        e.stopPropagation();
+    });
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     const { dict, langMap } = window.AppI18n;
 

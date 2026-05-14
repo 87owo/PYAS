@@ -721,7 +721,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     ['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].forEach(id => {
-        const listKey = id === 'popup_window' ? 'block_list' : (id === 'custom_protect_window' ? 'custom_rule' : id.replace('_window', ''));
+        const listKeyMap = {
+            'popup_window': 'block_list',
+            'custom_protect_window': 'custom_rule',
+            'whitelist_window': 'white_list',
+            'quarantine_window': 'quarantine'
+        };
+        const listKey = listKeyMap[id];
+
         document.querySelector(`#${id} .modern-btn:not(.primary-btn)`)?.addEventListener('click', () => {
             const checked = getCheckedValues(`#${id}`);
             if (checked.length > 0 && window.pywebview) window.pywebview.api.remove_list_items(listKey, checked).then(refreshConfigLists);

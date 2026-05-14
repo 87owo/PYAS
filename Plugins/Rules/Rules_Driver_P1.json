@@ -128,9 +128,11 @@
     "*\\360Safe.exe",
     "*\\bilibili\\bilibili.exe",
     
+    "*\\Kingsoft\\WPS Office\\ksolaunch.exe",
+    "*\\Kingsoft\\WPS Office\\*\\wps.exe",
+    
     "*\\PC4399_WPFLauncher.exe",
     "*\\bin\\APlayer.exe",
-    "*\\Kingsoft\\WPS Office\\ksolaunch.exe",
     "*\\Neverness To Everness\\NTELauncher.exe",
     "*\\Application\\AndrowsLauncher.exe",
   ],

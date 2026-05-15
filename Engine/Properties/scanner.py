@@ -8,9 +8,6 @@ import ctypes, ctypes.wintypes
 MODEL_FILE = "Pefile_General_S1.onnx"
 FEATURE_FILE = "features.json"
 MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024
-TARGET_EXTENSIONS = {
-    '.exe', '.dll', '.sys', '.ocx', '.scr', '.efi', '.acm', '.ax', '.cpl', '.drv', '.com', '.mui', '.pyd'
-}
 
 ####################################################################################################
 
@@ -464,8 +461,7 @@ def scan_target(target, predictor):
     elif os.path.isdir(target):
         for r, _, fs in os.walk(target):
             for f in fs:
-                if os.path.splitext(f)[1].lower() in TARGET_EXTENSIONS:
-                    files.append(os.path.join(r, f))
+                files.append(os.path.join(r, f))
     
     if not files:
         print("[-] No valid PE files found.")

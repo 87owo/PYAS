@@ -132,7 +132,7 @@ graph TD
 
 The machine learning-based virus scanning engine training achieved extremely high accuracy.
 
-<img width="1191" height="1323" alt="train" src="https://github.com/user-attachments/assets/2eea8426-1f82-44e3-9a38-f96f9257cf50" />
+<img width="895" height="1097" alt="train" src="https://github.com/user-attachments/assets/fa7cf0e2-01a1-4234-9358-718c2b8a2c9a" />
 
 ## Support System
 

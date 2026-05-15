@@ -27,9 +27,7 @@ static VOID InstanceTeardownComplete(PCFLT_RELATED_OBJECTS FltObjects, FLT_INSTA
 }
 
 static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
-    if (!(Flags & FLTFL_FILTER_UNLOAD_MANDATORY)) {
-        return STATUS_FLT_DO_NOT_DETACH;
-    }
+    UNREFERENCED_PARAMETER(Flags);
 
     if (GlobalData.ServerPort) {
         FltCloseCommunicationPort(GlobalData.ServerPort);
@@ -44,8 +42,6 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
     UninitializeRegistryProtection();
     UninitializeProcessProtection();
-
-    ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 
     UnloadRules();
     UninitializeRulesEngine();

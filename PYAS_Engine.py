@@ -312,6 +312,41 @@ class pe_scanner:
                 cfg["HasSEHTable"] = 1.0
         return cfg
 
+    def _extract_security_directory(self, pe, file_bytes, fsize):
+        res = {"HasSignature": 0.0, "SignatureCount": 0.0}
+        if not hasattr(pe, 'OPTIONAL_HEADER') or not hasattr(pe.OPTIONAL_HEADER, 'DATA_DIRECTORY'):
+            return res
+
+        sec_idx = 4
+        directories = pe.OPTIONAL_HEADER.DATA_DIRECTORY
+        if len(directories) <= sec_idx:
+            return res
+
+        sec_dir = directories[sec_idx]
+        if sec_dir.Size == 0 or sec_dir.VirtualAddress == 0:
+            return res
+
+        res["HasSignature"] = 1.0
+        offset = sec_dir.VirtualAddress
+        size = sec_dir.Size
+
+        if offset + size > fsize or offset < 0 or size < 0:
+            return res
+
+        count = 0
+        curr = offset
+        end = offset + size
+
+        while curr + 8 <= end:
+            dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
+            if dw_length < 8:
+                break
+            count += 1
+            curr += (dw_length + 7) & ~7
+
+        res["SignatureCount"] = float(count)
+        return res
+
     def extract_features(self, file_path):
         pe = None
         try:
@@ -326,6 +361,19 @@ class pe_scanner:
             dlls = set()
             apis = set()
             pe = pefile.PE(data=file_bytes, fast_load=True)
+            
+            try:
+                pe.parse_rich_header()
+                pe.parse_data_directories(directories=[
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'],
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'],
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'],
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS'],
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']
+                ])
+            except Exception:
+                pass
             
             base['TrustSigned'] = 1.0 if self.signer.sign_verify(file_path) else 0.0
             base['FileEntropy'] = self._calc_entropy(file_bytes)
@@ -447,17 +495,6 @@ class pe_scanner:
                                     except Exception: 
                                         continue
 
-            try:
-                pe.parse_data_directories(directories=[
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'],
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'],
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'],
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS']
-                ])
-            except Exception:
-                pass
-
             if hasattr(pe, 'DIRECTORY_ENTRY_TLS') and hasattr(pe.DIRECTORY_ENTRY_TLS, 'struct'):
                 if getattr(pe.DIRECTORY_ENTRY_TLS.struct, 'AddressOfCallBacks', 0) != 0:
                     base['HasTlsCallbacks'] = 1.0
@@ -515,6 +552,7 @@ class pe_scanner:
             base.update(self._extract_ep_anomalies(pe))
             base.update(self._extract_advanced_resources(pe))
             base.update(self._extract_load_config(pe))
+            base.update(self._extract_security_directory(pe, file_bytes, fsize))
 
             for k in base:
                 base[k] = self._safe_float(base[k])

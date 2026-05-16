@@ -2467,8 +2467,14 @@ class WindowAPI:
                         pass
                     self.driver_port = None
 
-            time.sleep(0.5)
             subprocess.run(["sc", "stop", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            
+            for _ in range(3):
+                res = subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
+                if "STOPPED" in res.stdout or "FAILED" in res.stderr or "1060" in res.stdout:
+                    break
+                time.sleep(0.5)
+
             subprocess.run(["sc", "delete", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return True
 

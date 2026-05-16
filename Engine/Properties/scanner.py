@@ -225,6 +225,42 @@ class FeatureExtractor:
         return cfg
 
     @classmethod
+    def _extract_security_directory(cls, pe, file_bytes, fsize):
+        res = {"HasSignature": 0.0, "SignatureCount": 0.0}
+        if not hasattr(pe, 'OPTIONAL_HEADER') or not hasattr(pe.OPTIONAL_HEADER, 'DATA_DIRECTORY'):
+            return res
+
+        sec_idx = 4
+        directories = pe.OPTIONAL_HEADER.DATA_DIRECTORY
+        if len(directories) <= sec_idx:
+            return res
+
+        sec_dir = directories[sec_idx]
+        if sec_dir.Size == 0 or sec_dir.VirtualAddress == 0:
+            return res
+
+        res["HasSignature"] = 1.0
+        offset = sec_dir.VirtualAddress
+        size = sec_dir.Size
+
+        if offset + size > fsize or offset < 0 or size < 0:
+            return res
+
+        count = 0
+        curr = offset
+        end = offset + size
+
+        while curr + 8 <= end:
+            dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
+            if dw_length < 8:
+                break
+            count += 1
+            curr += (dw_length + 7) & ~7
+
+        res["SignatureCount"] = float(count)
+        return res
+
+    @classmethod
     def extract(cls, file_path):
         pe = None
         try:
@@ -237,6 +273,19 @@ class FeatureExtractor:
 
             base, dlls, apis = {}, set(), set()
             pe = pefile.PE(data=file_bytes, fast_load=True)
+
+            try:
+                pe.parse_rich_header()
+                pe.parse_data_directories(directories=[
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'], 
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS'],
+                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']
+                ])
+            except Exception: 
+                pass
             
             base['TrustSigned'] = float(WinTrust.verify(file_path))
             base['FileEntropy'] = cls._calc_entropy(file_bytes)
@@ -342,17 +391,6 @@ class FeatureExtractor:
                                     except Exception: 
                                         continue
 
-            try: 
-                pe.parse_data_directories(directories=[
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'], 
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'], 
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'], 
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'], 
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS'],
-                    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG']
-                ])
-            except Exception: pass
-
             if hasattr(pe, 'DIRECTORY_ENTRY_TLS') and hasattr(pe.DIRECTORY_ENTRY_TLS, 'struct'):
                 base['HasTlsCallbacks'] = 1.0 if getattr(pe.DIRECTORY_ENTRY_TLS.struct, 'AddressOfCallBacks', 0) != 0 else 0.0
             
@@ -396,6 +434,7 @@ class FeatureExtractor:
             base.update(cls._extract_ep_anomalies(pe))
             base.update(cls._extract_advanced_resources(pe))
             base.update(cls._extract_load_config(pe))
+            base.update(cls._extract_security_directory(pe, file_bytes, fsize))
 
             for k in base: base[k] = cls._safe_float(base[k])
             return {"Base": base, "DLLs": list(dlls), "APIs": list(apis)}

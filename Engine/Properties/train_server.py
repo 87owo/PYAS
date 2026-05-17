@@ -1,4 +1,4 @@
-import os, sys, time, json, onnxmltools
+import os, sys, time, json, onnxmltools, zlib
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -9,6 +9,12 @@ from onnxmltools.convert.common.data_types import FloatTensorType
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, roc_auc_score
 
+try:
+    import orjson
+    JSON_LOADS = orjson.loads
+except ImportError:
+    JSON_LOADS = json.loads
+
 ####################################################################################################
 
 JSONL_PATH = "pe_features.jsonl"
@@ -17,6 +23,9 @@ ONNX_FILE = "Pefile_General_S1.onnx"
 FEATURE_FILE = "features.json"
 TEST_SIZE = 0.0001
 RANDOM_SEED = 42
+
+DLL_HASH_DIM = 256
+API_HASH_DIM = 1024
 
 EXCLUDE_FEATURES = {
     'label', 'filehash',
@@ -42,26 +51,22 @@ LGBM_PARAMS = {
 def analyze_schema(jsonl_path):
     print("[*] Stage 1: Scanning global schema...")
     base_keys = set()
-    dll_counts = defaultdict(int)
-    api_counts = defaultdict(int)
     num_lines = 0
 
-    with open(jsonl_path, 'r') as f:
+    with open(jsonl_path, 'rb') as f:
         for line in f:
             try:
-                data = json.loads(line)
-                base_keys.update(data.get('Base', {}).keys())
-                for d in data.get('DLLs', []):
-                    dll_counts[d] += 1
-                for a in data.get('APIs', []):
-                    api_counts[a] += 1
+                data = JSON_LOADS(line)
+                base_data = data.get('Base')
+                if base_data:
+                    base_keys.update(base_data.keys())
                 num_lines += 1
             except Exception:
                 continue
 
     base_schema = sorted([k for k in base_keys if k.lower().strip() not in EXCLUDE_FEATURES])
-    dll_schema = sorted([f"Dll_{k}" for k, v in dll_counts.items() if v >= 1000])
-    api_schema = sorted([f"Api_{k}" for k, v in api_counts.items() if v >= 1000])
+    dll_schema = [f"DllHash_{i:03d}" for i in range(DLL_HASH_DIM)]
+    api_schema = [f"ApiHash_{i:04d}" for i in range(API_HASH_DIM)]
     
     return base_schema, dll_schema, api_schema, num_lines
 
@@ -71,39 +76,46 @@ def load_data_efficiently(jsonl_path, base_schema, dll_schema, api_schema, num_l
     print(f"[*] Stage 2: Building sparse feature matrix dynamically (Expected samples: {num_lines})...")
     final_features = base_schema + dll_schema + api_schema
     num_features = len(final_features)
-    feature_idx = {feat: i for i, feat in enumerate(final_features)}
+
+    base_idx = {feat: i for i, feat in enumerate(base_schema)}
+    offset_dll = len(base_schema)
+    offset_api = offset_dll + DLL_HASH_DIM
 
     rows, cols, vals = [], [], []
     y = np.zeros(num_lines, dtype=np.int8)
 
-    with open(jsonl_path, 'r') as f:
+    with open(jsonl_path, 'rb') as f:
         row_idx = 0
         for line in f:
             try:
-                data = json.loads(line)
+                data = JSON_LOADS(line)
                 y[row_idx] = data.get('Label', 0)
 
-                for k, v in data.get('Base', {}).items():
-                    idx = feature_idx.get(k)
-                    if idx is not None:
-                        val = float(v)
-                        if val != 0.0:
-                            rows.append(row_idx)
-                            cols.append(idx)
-                            vals.append(val)
+                base_data = data.get('Base')
+                if base_data:
+                    for k, v in base_data.items():
+                        idx = base_idx.get(k)
+                        if idx is not None:
+                            val = float(v)
+                            if val != 0.0:
+                                rows.append(row_idx)
+                                cols.append(idx)
+                                vals.append(val)
 
-                for d in data.get('DLLs', []):
-                    idx = feature_idx.get(f"Dll_{d}")
-                    if idx is not None:
+                dll_data = data.get('DLLs')
+                if dll_data:
+                    for d in dll_data:
+                        idx = zlib.crc32(d.encode('utf-8', 'ignore')) % DLL_HASH_DIM
                         rows.append(row_idx)
-                        cols.append(idx)
+                        cols.append(offset_dll + idx)
                         vals.append(1.0)
 
-                for a in data.get('APIs', []):
-                    idx = feature_idx.get(f"Api_{a}")
-                    if idx is not None:
+                api_data = data.get('APIs')
+                if api_data:
+                    for a in api_data:
+                        idx = zlib.crc32(a.encode('utf-8', 'ignore')) % API_HASH_DIM
                         rows.append(row_idx)
-                        cols.append(idx)
+                        cols.append(offset_api + idx)
                         vals.append(1.0)
 
                 row_idx += 1
@@ -233,8 +245,8 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"[*] Detected Base features: {len(base_schema)}")
-    print(f"[*] Filtered DLL features: {len(dll_schema)}")
-    print(f"[*] Filtered API features: {len(api_schema)}")
+    print(f"[*] Hashing DLL features: {len(dll_schema)}")
+    print(f"[*] Hashing API features: {len(api_schema)}")
 
     X, y, final_features = load_data_efficiently(JSONL_PATH, base_schema, dll_schema, api_schema, num_lines)
     

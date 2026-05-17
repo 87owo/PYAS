@@ -2,6 +2,7 @@ import os, sys, math, json, pefile, datetime
 import numpy as np
 import onnxruntime as ort
 import ctypes, ctypes.wintypes
+import re, zlib
 
 ####################################################################################################
 
@@ -98,6 +99,8 @@ class WinTrust:
 ####################################################################################################
 
 class FeatureExtractor:
+    _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
+
     @staticmethod
     def _safe_float(val):
         try:
@@ -114,6 +117,86 @@ class FeatureExtractor:
         counts = np.bincount(arr, minlength=256)
         probs = counts[counts > 0] / len(arr)
         return float(-np.sum(probs * np.log2(probs)))
+
+    @classmethod
+    def _extract_strings(cls, file_bytes):
+        res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
+        for i in range(95):
+            res[f'StringHist_{i:02d}'] = 0.0
+
+        count = 0
+        total_len = 0
+        char_counts = [0] * 95
+        combined_data = bytearray()
+
+        for match in cls._STRING_PATTERN.finditer(file_bytes):
+            m = match.group()
+            count += 1
+            length = len(m)
+            total_len += length
+            combined_data.extend(m)
+            for b in m:
+                char_counts[b - 0x20] += 1
+
+        if count == 0:
+            return res
+
+        res["StringCount"] = float(count)
+        res["StringMeanLength"] = float(total_len) / count
+        res["StringEntropy"] = cls._calc_entropy(combined_data)
+
+        for i in range(95):
+            res[f'StringHist_{i:02d}'] = float(char_counts[i]) / total_len
+
+        return res
+
+    @classmethod
+    def _extract_histograms(cls, file_bytes):
+        import numpy as np
+        arr = np.frombuffer(file_bytes, dtype=np.uint8)
+        sz = len(arr)
+        res = {}
+
+        if sz == 0:
+            for i in range(256):
+                res[f'ByteHist_{i:02X}'] = 0.0
+                res[f'ByteEnt_{i:02X}'] = 0.0
+            return res
+
+        byte_counts = np.bincount(arr, minlength=256)
+        byte_hist = byte_counts / sz
+        for i, v in enumerate(byte_hist):
+            res[f'ByteHist_{i:02X}'] = float(v)
+
+        ent_hist = np.zeros(256, dtype=np.float64)
+        window = 2048
+        step = 1024
+        num_windows = (sz - window) // step + 1 if sz >= window else 1
+
+        for i in range(num_windows):
+            w = arr if sz < window else arr[i*step : i*step+window]
+            w_counts = np.bincount(w, minlength=256)
+            
+            p = w_counts[w_counts > 0] / len(w)
+            entropy = -np.sum(p * np.log2(p))
+            
+            ent_bin = int(entropy * 2.0)
+            if ent_bin > 15:
+                ent_bin = 15
+                
+            byte_bins = w_counts.reshape(16, 16).sum(axis=1)
+            
+            idx_start = ent_bin * 16
+            ent_hist[idx_start : idx_start+16] += byte_bins
+
+        ent_sum = np.sum(ent_hist)
+        if ent_sum > 0:
+            ent_hist /= ent_sum
+
+        for i, v in enumerate(ent_hist):
+            res[f'ByteEnt_{i:02X}'] = float(v)
+
+        return res
 
     @classmethod
     def _extract_overlay_features(cls, pe, fsize):
@@ -329,12 +412,19 @@ class FeatureExtractor:
                 base[f'Char_{flag:08X}_Count'] = 0.0
                 base[f'Char_{flag:08X}_MeanEntropy'] = 0.0
 
+            for i in range(50):
+                base[f'SectionHash_{i:02d}'] = 0.0
+
             if hasattr(pe, 'sections'):
                 base['SectionCount'] = len(pe.sections)
                 entropies, raw_sizes, v_sizes = [], [], []
                 exec_sec, write_sec, read_sec, sec_exc = 0, 0, 0, 0
                 
                 for section in pe.sections:
+                    sec_name = section.Name.rstrip(b'\x00')
+                    hash_val = zlib.crc32(sec_name) % 50
+                    base[f'SectionHash_{hash_val:02d}'] += 1.0
+
                     try:
                         s_data = section.get_data()
                         s_entropy = cls._calc_entropy(s_data)
@@ -429,6 +519,8 @@ class FeatureExtractor:
 
             base['DebugCount'] = len(pe.DIRECTORY_ENTRY_DEBUG) if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG') else 0.0
 
+            base.update(cls._extract_strings(file_bytes))
+            base.update(cls._extract_histograms(file_bytes))
             base.update(cls._extract_overlay_features(pe, fsize))
             base.update(cls._extract_rich_header(pe))
             base.update(cls._extract_ep_anomalies(pe))
@@ -456,6 +548,8 @@ class ModelPredictor:
         if current_dim != expected_dim:
             raise ValueError(f"Dimension mismatch! Model expects {expected_dim} features, but feature file lists {current_dim}.")
 
+        self.feat_map = {feat: i for i, feat in enumerate(self.model_features)}
+
     def _load_features(self, path):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Feature file not found: {path}")
@@ -465,18 +559,24 @@ class ModelPredictor:
     def predict(self, raw_data):
         vec = np.zeros((1, len(self.model_features)), dtype=np.float32)
         base = raw_data.get('Base', {})
-        dlls = set(raw_data.get('DLLs', []))
-        apis = set(raw_data.get('APIs', []))
+        dlls = raw_data.get('DLLs', [])
+        apis = raw_data.get('APIs', [])
 
-        for i, feat in enumerate(self.model_features):
-            if feat.startswith('Dll_'):
-                if feat[4:] in dlls:
-                    vec[0, i] = 1.0
-            elif feat.startswith('Api_'):
-                if feat[4:] in apis:
-                    vec[0, i] = 1.0
-            else:
-                vec[0, i] = base.get(feat, 0.0)
+        for k, v in base.items():
+            if k in self.feat_map:
+                vec[0, self.feat_map[k]] = v
+
+        for d in dlls:
+            h = zlib.crc32(d.encode('utf-8', 'ignore')) % 256
+            feat_name = f"DllHash_{h:03d}"
+            if feat_name in self.feat_map:
+                vec[0, self.feat_map[feat_name]] += 1.0
+
+        for a in apis:
+            h = zlib.crc32(a.encode('utf-8', 'ignore')) % 1024
+            feat_name = f"ApiHash_{h:04d}"
+            if feat_name in self.feat_map:
+                vec[0, self.feat_map[feat_name]] += 1.0
 
         outputs = self.sess.run(None, {self.input_name: vec})
         

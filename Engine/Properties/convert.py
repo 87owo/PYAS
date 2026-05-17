@@ -1,5 +1,8 @@
 import os, sys, math, time, datetime, pefile, hashlib
 import ctypes, ctypes.wintypes, multiprocessing
+import re, zlib
+
+####################################################################################################
 
 try:
     import orjson
@@ -11,8 +14,6 @@ except ImportError:
     JSON_DUMPS = json.dumps
     JSON_LOADS = json.loads
     HAS_ORJSON = False
-
-####################################################################################################
 
 JSONL_PATH = "pe_features.jsonl"
 BATCH_SIZE = 1000
@@ -107,6 +108,8 @@ def verify_signature(file_path):
 ####################################################################################################
 
 class FeatureExtractor:
+    _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
+
     @staticmethod
     def _safe_float(val):
         try:
@@ -123,6 +126,86 @@ class FeatureExtractor:
         counts = np.bincount(arr, minlength=256)
         probs = counts[counts > 0] / len(arr)
         return float(-np.sum(probs * np.log2(probs)))
+
+    @classmethod
+    def _extract_strings(cls, file_bytes):
+        res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
+        for i in range(95):
+            res[f'StringHist_{i:02d}'] = 0.0
+
+        count = 0
+        total_len = 0
+        char_counts = [0] * 95
+        combined_data = bytearray()
+
+        for match in cls._STRING_PATTERN.finditer(file_bytes):
+            m = match.group()
+            count += 1
+            length = len(m)
+            total_len += length
+            combined_data.extend(m)
+            for b in m:
+                char_counts[b - 0x20] += 1
+
+        if count == 0:
+            return res
+
+        res["StringCount"] = float(count)
+        res["StringMeanLength"] = float(total_len) / count
+        res["StringEntropy"] = cls._calc_entropy(combined_data)
+
+        for i in range(95):
+            res[f'StringHist_{i:02d}'] = float(char_counts[i]) / total_len
+
+        return res
+
+    @classmethod
+    def _extract_histograms(cls, file_bytes):
+        import numpy as np
+        arr = np.frombuffer(file_bytes, dtype=np.uint8)
+        sz = len(arr)
+        res = {}
+
+        if sz == 0:
+            for i in range(256):
+                res[f'ByteHist_{i:02X}'] = 0.0
+                res[f'ByteEnt_{i:02X}'] = 0.0
+            return res
+
+        byte_counts = np.bincount(arr, minlength=256)
+        byte_hist = byte_counts / sz
+        for i, v in enumerate(byte_hist):
+            res[f'ByteHist_{i:02X}'] = float(v)
+
+        ent_hist = np.zeros(256, dtype=np.float64)
+        window = 2048
+        step = 1024
+        num_windows = (sz - window) // step + 1 if sz >= window else 1
+
+        for i in range(num_windows):
+            w = arr if sz < window else arr[i*step : i*step+window]
+            w_counts = np.bincount(w, minlength=256)
+            
+            p = w_counts[w_counts > 0] / len(w)
+            entropy = -np.sum(p * np.log2(p))
+            
+            ent_bin = int(entropy * 2.0)
+            if ent_bin > 15:
+                ent_bin = 15
+                
+            byte_bins = w_counts.reshape(16, 16).sum(axis=1)
+            
+            idx_start = ent_bin * 16
+            ent_hist[idx_start : idx_start+16] += byte_bins
+
+        ent_sum = np.sum(ent_hist)
+        if ent_sum > 0:
+            ent_hist /= ent_sum
+
+        for i, v in enumerate(ent_hist):
+            res[f'ByteEnt_{i:02X}'] = float(v)
+
+        return res
 
     @classmethod
     def _extract_overlay_features(cls, pe, fsize):
@@ -332,12 +415,19 @@ class FeatureExtractor:
                 base[f'Char_{flag:08X}_Count'] = 0.0
                 base[f'Char_{flag:08X}_MeanEntropy'] = 0.0
 
+            for i in range(50):
+                base[f'SectionHash_{i:02d}'] = 0.0
+
             if hasattr(pe, 'sections'):
                 base['SectionCount'] = len(pe.sections)
                 entropies, raw_sizes, v_sizes = [], [], []
                 exec_sec, write_sec, read_sec, sec_exc = 0, 0, 0, 0
                 
                 for section in pe.sections:
+                    sec_name = section.Name.rstrip(b'\x00')
+                    hash_val = zlib.crc32(sec_name) % 50
+                    base[f'SectionHash_{hash_val:02d}'] += 1.0
+
                     try:
                         s_data = section.get_data()
                         s_entropy = cls._calc_entropy(s_data)
@@ -432,6 +522,8 @@ class FeatureExtractor:
 
             base['DebugCount'] = len(pe.DIRECTORY_ENTRY_DEBUG) if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG') else 0.0
 
+            base.update(cls._extract_strings(file_bytes))
+            base.update(cls._extract_histograms(file_bytes))
             base.update(cls._extract_overlay_features(pe, fsize))
             base.update(cls._extract_rich_header(pe))
             base.update(cls._extract_ep_anomalies(pe))
@@ -458,8 +550,6 @@ def load_existing_hashes():
                     if 'FileHash' in data: hashes.add(data['FileHash'])
                 except Exception: pass
     return hashes
-
-####################################################################################################
 
 GLOBAL_HASHES = set()
 

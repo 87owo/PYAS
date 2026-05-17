@@ -1,4 +1,4 @@
-import os, re, yara, time, math, json, numpy, base64, datetime, requests
+import os, re, yara, time, math, json, numpy, base64, datetime, requests, zlib
 import ctypes, ctypes.wintypes, hashlib, pefile, threading, onnxruntime
 
 ####################################################################################################
@@ -162,6 +162,8 @@ class rule_scanner:
 ####################################################################################################
 
 class pe_scanner:
+    _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
+
     def __init__(self):
         self.model = None
         self.input_name = None
@@ -207,6 +209,82 @@ class pe_scanner:
         counts = numpy.bincount(arr, minlength=256)
         probs = counts[counts > 0] / len(arr)
         return float(-numpy.sum(probs * numpy.log2(probs)))
+
+    def _extract_strings(self, file_bytes):
+        res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
+        for i in range(95):
+            res[f'StringHist_{i:02d}'] = 0.0
+
+        count = 0
+        total_len = 0
+        char_counts = [0] * 95
+        combined_data = bytearray()
+
+        for match in self._STRING_PATTERN.finditer(file_bytes):
+            m = match.group()
+            count += 1
+            length = len(m)
+            total_len += length
+            combined_data.extend(m)
+            for b in m:
+                char_counts[b - 0x20] += 1
+
+        if count == 0:
+            return res
+
+        res["StringCount"] = float(count)
+        res["StringMeanLength"] = float(total_len) / count
+        res["StringEntropy"] = self._calc_entropy(combined_data)
+
+        for i in range(95):
+            res[f'StringHist_{i:02d}'] = float(char_counts[i]) / total_len
+
+        return res
+
+    def _extract_histograms(self, file_bytes):
+        arr = numpy.frombuffer(file_bytes, dtype=numpy.uint8)
+        sz = len(arr)
+        res = {}
+
+        if sz == 0:
+            for i in range(256):
+                res[f'ByteHist_{i:02X}'] = 0.0
+                res[f'ByteEnt_{i:02X}'] = 0.0
+            return res
+
+        byte_counts = numpy.bincount(arr, minlength=256)
+        byte_hist = byte_counts / sz
+        for i, v in enumerate(byte_hist):
+            res[f'ByteHist_{i:02X}'] = float(v)
+
+        ent_hist = numpy.zeros(256, dtype=numpy.float64)
+        window = 2048
+        step = 1024
+        num_windows = (sz - window) // step + 1 if sz >= window else 1
+
+        for i in range(num_windows):
+            w = arr if sz < window else arr[i*step : i*step+window]
+            w_counts = numpy.bincount(w, minlength=256)
+            
+            p = w_counts[w_counts > 0] / len(w)
+            entropy = -numpy.sum(p * numpy.log2(p))
+            
+            ent_bin = int(entropy * 2.0)
+            if ent_bin > 15:
+                ent_bin = 15
+                
+            byte_bins = w_counts.reshape(16, 16).sum(axis=1)
+            idx_start = ent_bin * 16
+            ent_hist[idx_start : idx_start+16] += byte_bins
+
+        ent_sum = numpy.sum(ent_hist)
+        if ent_sum > 0:
+            ent_hist /= ent_sum
+
+        for i, v in enumerate(ent_hist):
+            res[f'ByteEnt_{i:02X}'] = float(v)
+
+        return res
 
     def _extract_overlay_features(self, pe, fsize):
         overlay_offset = pe.get_overlay_data_start_offset()
@@ -428,6 +506,9 @@ class pe_scanner:
                 base[f'Char_{flag:08X}_Count'] = 0.0
                 base[f'Char_{flag:08X}_MeanEntropy'] = 0.0
 
+            for i in range(50):
+                base[f'SectionHash_{i:02d}'] = 0.0
+
             if hasattr(pe, 'sections'):
                 base['SectionCount'] = len(pe.sections)
                 entropies = []
@@ -439,6 +520,10 @@ class pe_scanner:
                 sec_exc = 0
                 
                 for section in pe.sections:
+                    sec_name = section.Name.rstrip(b'\x00')
+                    hash_val = zlib.crc32(sec_name) % 50
+                    base[f'SectionHash_{hash_val:02d}'] += 1.0
+
                     try:
                         s_data = section.get_data()
                         s_entropy = self._calc_entropy(s_data)
@@ -547,6 +632,8 @@ class pe_scanner:
             else:
                 base['DebugCount'] = 0.0
 
+            base.update(self._extract_strings(file_bytes))
+            base.update(self._extract_histograms(file_bytes))
             base.update(self._extract_overlay_features(pe, fsize))
             base.update(self._extract_rich_header(pe))
             base.update(self._extract_ep_anomalies(pe))
@@ -577,16 +664,29 @@ class pe_scanner:
             base = raw_data.get('Base', {})
             dlls = set(raw_data.get('DLLs', []))
             apis = set(raw_data.get('APIs', []))
+            feat_map = {feat: i for i, feat in enumerate(self.feature_order)}
 
-            for i, feat in enumerate(self.feature_order):
-                if feat.startswith('Dll_'):
-                    if feat[4:] in dlls:
-                        vec[0, i] = 1.0
-                elif feat.startswith('Api_'):
-                    if feat[4:] in apis:
-                        vec[0, i] = 1.0
-                else:
-                    vec[0, i] = base.get(feat, 0.0)
+            for k, v in base.items():
+                if k in feat_map:
+                    vec[0, feat_map[k]] = v
+
+            for d in dlls:
+                old_fn = f"Dll_{d}"
+                if old_fn in feat_map: 
+                    vec[0, feat_map[old_fn]] = 1.0
+                h = zlib.crc32(d.encode('utf-8', 'ignore')) % 256
+                new_fn = f"DllHash_{h:03d}"
+                if new_fn in feat_map: 
+                    vec[0, feat_map[new_fn]] += 1.0
+
+            for a in apis:
+                old_fn = f"Api_{a}"
+                if old_fn in feat_map: 
+                    vec[0, feat_map[old_fn]] = 1.0
+                h = zlib.crc32(a.encode('utf-8', 'ignore')) % 1024
+                new_fn = f"ApiHash_{h:04d}"
+                if new_fn in feat_map: 
+                    vec[0, feat_map[new_fn]] += 1.0
 
             outputs = self.model.run(None, {self.input_name: vec})
             result = outputs[1]

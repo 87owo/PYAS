@@ -933,7 +933,8 @@ class WindowAPI:
 
     def open_website(self):
         try:
-            webbrowser.open("https://pyas-security.com/antivirus")
+            api_host = self.pyas_config.get("api_host")
+            webbrowser.open(api_host)
             return True
         except Exception:
             return False

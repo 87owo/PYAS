@@ -154,7 +154,22 @@ class rule_scanner:
                 rule_name = str(matches[0])
                 label = rule_name.split("_")[0]
                 level = rule_name.split("_")[-1]
-                return f"{label}:WinPE/Unknown.A!rb", level
+                return f"{label}:WinPE/Unknown.{level}!yr", level
+            return False, False
+        except Exception:
+            return False, False
+
+    def yara_mem_scan(self, pid):
+        try:
+            if not self.rules:
+                return False, False
+
+            matches = self.rules.match(pid=pid)
+            if matches:
+                rule_name = str(matches[0])
+                label = rule_name.split("_")[0]
+                level = rule_name.split("_")[-1]
+                return f"{label}:WinPE/Unknown.{level}!ym", level
             return False, False
         except Exception:
             return False, False
@@ -762,7 +777,7 @@ class cloud_scanner:
         r = self._request("POST", f"/api/rescan/{sha256}")
         return r is not None and r.json().get('status') == 'success'
 
-    def upload_file(self, file_path, api_host, api_key, chunk_size=5242880, need_rescan=False):
+    def upload_file(self, file_path, api_host, api_key, chunk_size=4194304, need_rescan=False, max_retries=3):
         try:
             self._init_session(api_host, api_key)
             sha256 = self.calc_hash(file_path)
@@ -771,9 +786,7 @@ class cloud_scanner:
 
             status_req = self._request("GET", f"/api/processing_status/{sha256}")
             if status_req:
-                status_data = status_req.json()
-                current_status = status_data.get('status')
-                
+                current_status = status_req.json().get('status')
                 if current_status == 'done':
                     if need_rescan:
                         self.rescan(sha256, api_host, api_key)
@@ -785,40 +798,37 @@ class cloud_scanner:
             if file_size > 104857600:
                 return False, sha256
 
-            if file_size > chunk_size:
-                total_chunks = (file_size + chunk_size - 1) // chunk_size
-                upload_id = os.urandom(16).hex()
-                with open(file_path, 'rb') as f:
-                    for i in range(total_chunks):
-                        chunk_data = f.read(chunk_size)
-                        headers = {
-                            "X-Chunk-Index": str(i),
-                            "X-Total-Chunks": str(total_chunks),
-                            "X-Upload-ID": upload_id
-                        }
-                        
-                        chunk_success = False
-                        for _ in range(3):
-                            r = self._request("POST", "/api/upload", files={'file': (os.path.basename(file_path), chunk_data)}, headers=headers)
-                            if r:
-                                chunk_success = True
-                                break
-                            time.sleep(1)
-                            
-                        if not chunk_success:
-                            return False, sha256
-                return True, sha256
-
+            total_chunks = max(1, (file_size + chunk_size - 1) // chunk_size)
+            upload_id = os.urandom(16).hex()
+            
             with open(file_path, 'rb') as f:
-                file_data = f.read()
-                
-            for _ in range(3):
-                r = self._request("POST", "/api/upload", files={'file': (os.path.basename(file_path), file_data)})
-                if r:
-                    return True, sha256
-                time.sleep(1)
-                
-            return False, sha256
+                for i in range(total_chunks):
+                    chunk_data = f.read(chunk_size)
+                    headers = {
+                        "X-Chunk-Index": str(i),
+                        "X-Total-Chunks": str(total_chunks),
+                        "X-Upload-ID": upload_id
+                    }
+                    
+                    chunk_success = False
+                    for attempt in range(max_retries):
+                        r = self._request("POST", "/api/upload", files={'file': (os.path.basename(file_path), chunk_data)}, headers=headers)
+                        if r:
+                            if i == total_chunks - 1:
+                                try:
+                                    resp = r.json()
+                                    if 'url' in resp:
+                                        sha256 = resp.get('url', '').split('/')[-1]
+                                except Exception:
+                                    pass
+                            chunk_success = True
+                            break
+                        time.sleep(2 ** attempt)
+                        
+                    if not chunk_success:
+                        return False, sha256
+                        
+            return True, sha256
         except Exception:
             return False, None
 
@@ -863,7 +873,7 @@ class cloud_scanner:
                             sim_malicious_count += 1
 
                 if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
-                    return f"General:WinPE/Unknown.{score}!cl"
+                    return f"General:WinPE/Malware.{score}!cl"
         except Exception:
             pass
         return False

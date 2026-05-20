@@ -138,6 +138,8 @@ class WindowAPI:
                         cds.cbData = 0
                         cds.lpData = None
                         self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+
+                        time.sleep(0.5)
                     except Exception:
                         pass
                 elif "-scan" in self.args_pyas:
@@ -309,6 +311,11 @@ class WindowAPI:
 
         self.lock_proc = threading.RLock()
         self.lock_net = threading.RLock()
+        self.lock_file_ops = threading.RLock()
+
+        self.scan_events = {} 
+        self.scan_cache = {}
+        self.cloud_pending = set()
 
         self.pyas_default = {
             "version": "3.5.6",
@@ -341,11 +348,47 @@ class WindowAPI:
             {"exe": "explorer.exe", "class": "", "title": ""}
         ]
 
-        self.thread_pool = ThreadPoolExecutor(max_workers=8)
+        self.scan_pool = ThreadPoolExecutor(max_workers=2)
+        self.protect_pool = ThreadPoolExecutor(max_workers=8)
         self.start_daemon_thread(self.log_flush_thread)
 
         for _ in range(2):
             self.start_daemon_thread(self.cloud_worker)
+
+    def _loc(self, text_dict):
+        with self.lock_config:
+            lang = self.pyas_config.get("language", "traditional_switch") if hasattr(self, 'pyas_config') else "traditional_switch"
+        return text_dict.get(lang, text_dict.get("traditional_switch", ""))
+
+    def _reg_read(self, root, path, value_name):
+        try:
+            with winreg.OpenKey(root, path, 0, winreg.KEY_READ) as reg:
+                val, _ = winreg.QueryValueEx(reg, value_name)
+                return val
+        except Exception:
+            return None
+
+    def _reg_write(self, root, path, value_name, value_type, value):
+        try:
+            with winreg.CreateKey(root, path) as reg:
+                if value_name is None:
+                    winreg.SetValue(reg, "", value_type, value)
+                else:
+                    winreg.SetValueEx(reg, value_name, 0, value_type, value)
+                return True
+        except Exception:
+            return False
+
+    def _reg_delete(self, root, path, value_name=None):
+        try:
+            if value_name is None:
+                winreg.DeleteKey(root, path)
+            else:
+                with winreg.OpenKey(root, path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WRITE) as reg:
+                    winreg.DeleteValue(reg, value_name)
+            return True
+        except Exception:
+            return False
 
     def load_config(self):
         with self.lock_config:
@@ -358,9 +401,7 @@ class WindowAPI:
                     with open(self.file_config, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         self.pyas_config = {**self.pyas_default, **data}
-                    
                     self.pyas_config["version"] = self.pyas_default["version"]
-
                 except Exception as e:
                     self.pyas_config = self.pyas_default.copy()
                     self.write_log("WARN", "load_config", detail=str(e), success=False)
@@ -371,7 +412,6 @@ class WindowAPI:
                 os.makedirs(os.path.dirname(self.file_config), exist_ok=True)
                 with open(self.file_config, "w", encoding="utf-8") as f:
                     json.dump(self.pyas_config, f, indent=4, ensure_ascii=False)
-
             except Exception as e:
                 self.write_log("WARN", "save_config", detail=str(e), success=False)
 
@@ -381,42 +421,30 @@ class WindowAPI:
                 old_value = self.pyas_config.get(key)
                 if old_value == value:
                     return value
-
                 self.pyas_config[key] = value
 
             success = True
-
             if value:
                 try:
-                    if key == "process_switch":
-                        self.start_daemon_thread(self.protect_proc_thread)
-                    elif key == "document_switch":
-                        self.start_daemon_thread(self.protect_file_thread)
-                    elif key == "system_switch":
-                        self.start_daemon_thread(self.protect_system_thread)
-                    elif key == "network_switch":
-                        self.start_daemon_thread(self.protect_net_thread)
+                    if key == "process_switch": self.start_daemon_thread(self.protect_proc_thread)
+                    elif key == "document_switch": self.start_daemon_thread(self.protect_file_thread)
+                    elif key == "system_switch": self.start_daemon_thread(self.protect_system_thread)
+                    elif key == "network_switch": self.start_daemon_thread(self.protect_net_thread)
                     elif key == "driver_switch":
-                        if self.install_system_driver():
-                            self.start_daemon_thread(self.pipe_server_thread)
-                        else:
-                            success = False
-                    elif key == "context_switch":
-                        self.register_context_menu(True)
+                        if self.install_system_driver(): self.start_daemon_thread(self.pipe_server_thread)
+                        else: success = False
+                    elif key == "context_switch": self.register_context_menu(True)
                 except Exception as e:
                     self.write_log("WARN", "Feature Start", detail=str(e), success=False)
                     success = False
             else:
-                if key == "driver_switch":
-                    success = self.stop_system_driver()
-                elif key == "context_switch":
-                    self.register_context_menu(False)
+                if key == "driver_switch": success = self.stop_system_driver()
+                elif key == "context_switch": self.register_context_menu(False)
 
             if success:
                 with self.lock_config:
                     self.write_log("INFO", "Config Update", detail=f"[{key}] {old_value} -> {value}")
                     self.save_config()
-
                 if key == "language" and self.tray_icon:
                     try:
                         self.tray_icon.update_menu()
@@ -447,21 +475,18 @@ class WindowAPI:
                 try:
                     with open(self.file_log, "r", encoding="utf-8") as f:
                         self.logs_data = json.load(f)
-
                 except Exception:
                     self.logs_data = []
 
     def log_flush_thread(self):
         while True:
             time.sleep(5)
-
             with self.lock_logs:
                 if getattr(self, 'logs_dirty', False):
                     try:
                         os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
                         with open(self.file_log, "w", encoding="utf-8") as f:
                             json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
-
                         self.logs_dirty = False
                     except Exception:
                         pass
@@ -487,7 +512,6 @@ class WindowAPI:
             
             if len(self.logs_data) > 1000:
                 self.logs_data = self.logs_data[-1000:]
-
             self.logs_dirty = True
 
             if self._window:
@@ -527,12 +551,10 @@ class WindowAPI:
                     export_data = self.logs_data
                     if log_ids is not None:
                         export_data = [log for log in self.logs_data if log['id'] in log_ids]
-
                     try:
                         with open(target_path, 'w', encoding='utf-8') as f:
                             json.dump(export_data, f, indent=4, ensure_ascii=False)
                         return True
-
                     except Exception:
                         pass
         return False
@@ -647,43 +669,25 @@ class WindowAPI:
                 pass
 
     def get_tray_text(self, key):
-        with self.lock_config:
-            lang = self.pyas_config.get("language", "traditional_switch")
-
         texts = {
             "open_ui": {
-                "traditional_switch": "開啟介面",
-                "simplified_switch": "打开界面",
-                "english_switch": "Open PYAS",
-                "japanese_switch": "PYAS を開く",
-                "korean_switch": "PYAS 열기",
-                "french_switch": "Ouvrir PYAS",
-                "spanish_switch": "Abrir PYAS",
-                "hindi_switch": "PYAS खोलें",
-                "arabic_switch": "فتح PYAS",
-                "russian_switch": "Открыть PYAS",
-                "slovenian_switch": "Odpri PYAS"
+                "traditional_switch": "開啟介面", "simplified_switch": "打开界面", "english_switch": "Open PYAS",
+                "japanese_switch": "PYAS を開く", "korean_switch": "PYAS 열기", "french_switch": "Ouvrir PYAS",
+                "spanish_switch": "Abrir PYAS", "hindi_switch": "PYAS खोलें", "arabic_switch": "فتح PYAS",
+                "russian_switch": "Открыть PYAS", "slovenian_switch": "Odpri PYAS"
             },
             "exit_app": {
-                "traditional_switch": "退出防護",
-                "simplified_switch": "退出防护",
-                "english_switch": "Exit Security",
-                "japanese_switch": "保護を終了",
-                "korean_switch": "보호 종료",
-                "french_switch": "Quitter la sécurité",
-                "spanish_switch": "Salir de la seguridad",
-                "hindi_switch": "सुरक्षा से बाहर निकलें",
-                "arabic_switch": "خروج من الحماية",
-                "russian_switch": "Выйти из защиты",
-                "slovenian_switch": "Izhod iz zaščite"
+                "traditional_switch": "退出防護", "simplified_switch": "退出防护", "english_switch": "Exit Security",
+                "japanese_switch": "保護を終了", "korean_switch": "보호 종료", "french_switch": "Quitter la sécurité",
+                "spanish_switch": "Salir de la seguridad", "hindi_switch": "सुरक्षा से बाहर निकलें", "arabic_switch": "خروج من الحماية",
+                "russian_switch": "Выйти из защиты", "slovenian_switch": "Izhod iz zaščite"
             }
         }
-        return texts.get(key, {}).get(lang, texts[key]["traditional_switch"])
+        return self._loc(texts.get(key, {}))
 
     def show_tray(self):
         if self.tray_icon is not None:
             return
-
         menu = pystray.Menu(
             pystray.MenuItem(lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True),
             pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close)
@@ -695,53 +699,42 @@ class WindowAPI:
         if self._window:
             self._window.restore()
             self._window.show()
-
             hwnd = self.user32.FindWindowW(None, "PYAS Security")
             if hwnd:
                 self.user32.SetForegroundWindow(hwnd)
 
     def close(self, *args, **kwargs):
         if self.tray_icon:
-            try:
-                self.tray_icon.stop()
-            except Exception:
-                pass
+            try: self.tray_icon.stop()
+            except Exception: pass
             self.tray_icon = None
 
         if self._window:
-            try:
-                self._window.hide()
-            except Exception:
-                pass
+            try: self._window.hide()
+            except Exception: pass
 
-        def _cleanup_and_exit():
-            with self.lock_config:
-                self.pyas_config["process_switch"] = False
-                self.pyas_config["document_switch"] = False
-                self.pyas_config["system_switch"] = False
-                self.pyas_config["driver_switch"] = False
-                self.pyas_config["network_switch"] = False
+        with self.lock_config:
+            self.pyas_config["process_switch"] = False
+            self.pyas_config["document_switch"] = False
+            self.pyas_config["system_switch"] = False
+            self.pyas_config["driver_switch"] = False
+            self.pyas_config["network_switch"] = False
 
-            self.stop_system_driver()
-            
-            if hasattr(self, 'h_mutex') and self.h_mutex:
-                try:
-                    self.kernel32.CloseHandle(self.h_mutex)
-                except Exception:
-                    pass
+        self.stop_system_driver()
+        
+        if hasattr(self, 'h_mutex') and self.h_mutex:
+            try: self.kernel32.CloseHandle(self.h_mutex)
+            except Exception: pass
 
-            if self._window:
-                self._window.destroy()
-            os._exit(0)
-
-        threading.Thread(target=_cleanup_and_exit, daemon=True).start()
+        if self._window:
+            self._window.destroy()
+        os._exit(0)
 
     def init_ui_ready(self):
         with self.lock_config:
             if self.engine_initialized:
                 return
             self.engine_initialized = True
-
         self.start_daemon_thread(self.init_engine_thread)
 
     def show_notification(self, title, message):
@@ -755,55 +748,20 @@ class WindowAPI:
         if action not in ["Process Block", "File Block", "Network Block", "Driver Block"]:
             return
 
-        with self.lock_config:
-            lang = self.pyas_config.get("language", "traditional_switch")
+        titles = {
+            "Process Block": {"traditional_switch": "進程防護", "simplified_switch": "进程防护", "english_switch": "Process Protection", "japanese_switch": "プロセス保護", "korean_switch": "프로세스 보호", "french_switch": "Protection des Processus", "spanish_switch": "Protección de Procesos", "hindi_switch": "प्रक्रिया सुरक्षा", "arabic_switch": "حماية العمليات", "russian_switch": "Защита процессов", "slovenian_switch": "Zaščita procesov"},
+            "File Block": {"traditional_switch": "檔案防護", "simplified_switch": "文件防护", "english_switch": "File Protection", "japanese_switch": "ファイル保護", "korean_switch": "파일 보호", "french_switch": "Protection des Fichiers", "spanish_switch": "Protección de Archivos", "hindi_switch": "फ़ाइल सुरक्षा", "arabic_switch": "حماية الملفات", "russian_switch": "Защита файлов", "slovenian_switch": "Zaščita datotek"},
+            "Network Block": {"traditional_switch": "網路防護", "simplified_switch": "网络防护", "english_switch": "Network Protection", "japanese_switch": "ネットワーク保護", "korean_switch": "네트워크 보호", "french_switch": "Protection Réseau", "spanish_switch": "Protección de Red", "hindi_switch": "नेटवर्क सुरक्षा", "arabic_switch": "حماية الشبكة", "russian_switch": "Сетевая защита", "slovenian_switch": "Omrežna zaščita"},
+            "Driver Block": {"traditional_switch": "驅動防護", "simplified_switch": "驱动防护", "english_switch": "Driver Protection", "japanese_switch": "ドライバー保護", "korean_switch": "드라이버 보호", "french_switch": "Protection des Pilotes", "spanish_switch": "Protección de Controladores", "hindi_switch": "ड्राइवर सुरक्षा", "arabic_switch": "حماية برامج التشغيل", "russian_switch": "Защита драйверов", "slovenian_switch": "Zaščita gonilnikov"}
+        }
 
         path = source or ""
-
-        titles = {
-            "Process Block": {
-                "traditional_switch": "進程防護", "simplified_switch": "进程防护", "english_switch": "Process Protection",
-                "japanese_switch": "プロセス保護", "korean_switch": "프로세스 보호", "french_switch": "Protection des Processus",
-                "spanish_switch": "Protección de Procesos", "hindi_switch": "प्रक्रिया सुरक्षा", "arabic_switch": "حماية العمليات",
-                "russian_switch": "Защита процессов", "slovenian_switch": "Zaščita procesov"
-            },
-            "File Block": {
-                "traditional_switch": "檔案防護", "simplified_switch": "文件防护", "english_switch": "File Protection",
-                "japanese_switch": "ファイル保護", "korean_switch": "파일 보호", "french_switch": "Protection des Fichiers",
-                "spanish_switch": "Protección de Archivos", "hindi_switch": "फ़ाइल सुरक्षा", "arabic_switch": "حماية الملفات",
-                "russian_switch": "Защита файлов", "slovenian_switch": "Zaščita datotek"
-            },
-            "Network Block": {
-                "traditional_switch": "網路防護", "simplified_switch": "网络防护", "english_switch": "Network Protection",
-                "japanese_switch": "ネットワーク保護", "korean_switch": "네트워크 보호", "french_switch": "Protection Réseau",
-                "spanish_switch": "Protección de Red", "hindi_switch": "नेटवर्क सुरक्षा", "arabic_switch": "حماية الشبكة",
-                "russian_switch": "Сетевая защита", "slovenian_switch": "Omrežna zaščita"
-            },
-            "Driver Block": {
-                "traditional_switch": "驅動防護", "simplified_switch": "驱动防护", "english_switch": "Driver Protection",
-                "japanese_switch": "ドライバー保護", "korean_switch": "드라이버 보호", "french_switch": "Protection des Pilotes",
-                "spanish_switch": "Protección de Controladores", "hindi_switch": "ड्राइवर सुरक्षा", "arabic_switch": "حماية برامج التشغيل",
-                "russian_switch": "Защита драйверов", "slovenian_switch": "Zaščita gonilnikov"
-            }
-        }
-
         messages = {
-            "traditional_switch": f"威脅已終止: {path}",
-            "simplified_switch": f"威胁已终止: {path}",
-            "english_switch": f"Threat terminated: {path}",
-            "japanese_switch": f"脅威が終了しました: {path}",
-            "korean_switch": f"위협이 종료되었습니다: {path}",
-            "french_switch": f"Menace terminée : {path}",
-            "spanish_switch": f"Amenaza terminada: {path}",
-            "hindi_switch": f"खतरा समाप्त: {path}",
-            "arabic_switch": f"تم إنهاء التهديد: {path}",
-            "russian_switch": f"Угроза устранена: {path}",
-            "slovenian_switch": f"Grožnja odpravljena: {path}"
+            "traditional_switch": f"威脅已終止: {path}", "simplified_switch": f"威胁已终止: {path}", "english_switch": f"Threat terminated: {path}", "japanese_switch": f"脅威が終了しました: {path}", "korean_switch": f"위협이 종료되었습니다: {path}", "french_switch": f"Menace terminée : {path}", "spanish_switch": f"Amenaza terminada: {path}", "hindi_switch": f"खतरा समाप्त: {path}", "arabic_switch": f"تم إنهاء التهديد: {path}", "russian_switch": f"Угроза устранена: {path}", "slovenian_switch": f"Grožnja odpravljena: {path}"
         }
 
-        title = titles.get(action, {}).get(lang, titles.get(action, {})["traditional_switch"])
-        message = messages.get(lang, messages["traditional_switch"])
-        
+        title = self._loc(titles.get(action, {}))
+        message = self._loc(messages)
         try:
             self.tray_icon.notify(message, title)
         except Exception:
@@ -811,31 +769,14 @@ class WindowAPI:
 
     def show_alert(self, title, message, style="info"):
         MB_OK = 0x00000000
-        MB_ICONINFORMATION = 0x00000040
-        MB_ICONWARNING = 0x00000030
-        MB_ICONERROR = 0x00000010
-
-        flags = MB_OK
-        if style == "error":
-            flags |= MB_ICONERROR
-        elif style == "warning":
-            flags |= MB_ICONWARNING
-        else:
-            flags |= MB_ICONINFORMATION
-
+        flags = MB_OK | (0x00000010 if style == "error" else 0x00000030 if style == "warning" else 0x00000040)
         self.user32.MessageBoxW(0, message, title, flags)
         return True
 
     def show_confirm(self, title, message):
-        MB_YESNO = 0x00000004
-        MB_ICONQUESTION = 0x00000020
-        IDYES = 6
-        return self.user32.MessageBoxW(0, message, title, MB_YESNO | MB_ICONQUESTION) == IDYES
+        return self.user32.MessageBoxW(0, message, title, 0x00000004 | 0x00000020) == 6
 
     def prompt_virus_action(self, path):
-        with self.lock_config:
-            lang = self.pyas_config.get("language", "traditional_switch")
-            
         messages = {
             "traditional_switch": (f"對 {path} 執行動作:\n\n[是] 加入白名單\n[否] 加入隔離區\n[取消] 不做任何事", "操作選擇"),
             "simplified_switch": (f"对 {path} 执行动作:\n\n[是] 加入白名单\n[否] 加入隔离区\n[取消] 不做任何事", "操作选择"),
@@ -849,46 +790,22 @@ class WindowAPI:
             "russian_switch": (f"Действие для {path}:\n\n[Да] Добавить в белый список\n[Нет] Добавить в карантин\n[Отмена] Ничего не делать", "Выбор операции"),
             "slovenian_switch": (f"Dejanje za {path}:\n\n[Da] Dodaj na seznam dovoljenih\n[Ne] Dodaj v karanteno\n[Prekliči] Ne naredi ničesar", "Izbira operacije")
         }
-        
-        msg, title = messages.get(lang, messages["traditional_switch"])
-
-        MB_YESNOCANCEL = 0x00000003
-        MB_ICONQUESTION = 0x00000020
-        IDYES = 6
-        IDNO = 7
-
-        res = self.user32.MessageBoxW(0, msg, title, MB_YESNOCANCEL | MB_ICONQUESTION)
-        if res == IDYES:
-            return "1"
-        elif res == IDNO:
-            return "2"
-        return "0"
+        msg, title = self._loc(messages)
+        res = self.user32.MessageBoxW(0, msg, title, 0x00000003 | 0x00000020)
+        return "1" if res == 6 else "2" if res == 7 else "0"
 
     def register_context_menu(self, enable):
-        paths = [
-            r"Software\Classes\*\shell\PYAS_Scan",
-            r"Software\Classes\Directory\shell\PYAS_Scan"
-        ]
-        
-        if getattr(sys, 'frozen', False):
-            cmd_path = f'"{self.file_pyas}"'
-        else:
-            cmd_path = f'"{self.python}" "{self.file_pyas}"'
-            
+        paths = [r"Software\Classes\*\shell\PYAS_Scan", r"Software\Classes\Directory\shell\PYAS_Scan"]
+        cmd_path = f'"{self.file_pyas}"' if getattr(sys, 'frozen', False) else f'"{self.python}" "{self.file_pyas}"'
         try:
             for path in paths:
                 if enable:
-                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, path) as key:
-                        winreg.SetValue(key, "", winreg.REG_SZ, "PYAS Security Scan")
-                        winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, f'{cmd_path},0')
-                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, rf"{path}\command") as key:
-                        winreg.SetValue(key, "", winreg.REG_SZ, f'{cmd_path} -scan "%1"')
+                    self._reg_write(winreg.HKEY_CURRENT_USER, path, None, winreg.REG_SZ, "PYAS Security Scan")
+                    self._reg_write(winreg.HKEY_CURRENT_USER, path, "Icon", winreg.REG_SZ, f'{cmd_path},0')
+                    self._reg_write(winreg.HKEY_CURRENT_USER, rf"{path}\command", None, winreg.REG_SZ, f'{cmd_path} -scan "%1"')
                 else:
-                    try:
-                        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, rf"{path}\command")
-                        winreg.DeleteKey(winreg.HKEY_CURRENT_USER, path)
-                    except FileNotFoundError:
-                        pass
+                    self._reg_delete(winreg.HKEY_CURRENT_USER, rf"{path}\command")
+                    self._reg_delete(winreg.HKEY_CURRENT_USER, path)
         except Exception as e:
             self.write_log("WARN", "register_context_menu", detail=str(e), success=False)
 
@@ -905,46 +822,33 @@ class WindowAPI:
                     self._window.evaluate_js(f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(paths)});")
             except Exception as ex:
                 self.write_log("WARN", "on_drop", detail=str(ex), success=False)
-                
         threading.Thread(target=_process_drop, daemon=True).start()
 
     def select_files(self):
-        if self._window:
-            result = self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=True)
-            return result or []
+        if self._window: return self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=True) or []
         return []
 
     def select_folder(self):
-        if self._window:
-            result = self._window.create_file_dialog(webview.FileDialog.FOLDER)
-            return result or []
+        if self._window: return self._window.create_file_dialog(webview.FileDialog.FOLDER) or []
         return []
 
     def open_file_location(self, file_path):
         if file_path and os.path.exists(file_path):
             try:
-                norm_path = os.path.normpath(file_path).replace('"', '')
-                subprocess.Popen(f'explorer /select,"{norm_path}"')
+                clean_path = os.path.normpath(file_path).replace('"', '')
+                subprocess.Popen(f'explorer /select,"{clean_path}"')
                 return True
-
             except Exception:
                 pass
         return False
 
     def open_website(self):
-        try:
-            api_host = self.pyas_config.get("api_host")
-            webbrowser.open(api_host)
-            return True
-        except Exception:
-            return False
+        try: return webbrowser.open(self.pyas_config.get("api_host"))
+        except Exception: return False
 
     def open_url(self, url):
-        try:
-            webbrowser.open(url)
-            return True
-        except Exception:
-            return False
+        try: return webbrowser.open(url)
+        except Exception: return False
 
 ####################################################################################################
 
@@ -956,49 +860,40 @@ class WindowAPI:
     def norm_path(self, path, must_exist=True):
         if isinstance(path, list):
             return [p for p in (self.norm_path(x, must_exist) for x in path) if p]
-
         if isinstance(path, str):
             try:
                 ap = os.path.normpath(os.path.abspath(path))
                 return ap if (not must_exist or os.path.exists(ap)) else None
             except Exception:
                 return None
-
         return path
 
     def path_equal(self, a, b):
-        pa = self.norm_path(a, must_exist=False)
-        pb = self.norm_path(b, must_exist=False)
-        if not pa or not pb:
-            return False
-
-        return os.path.normcase(pa) == os.path.normcase(pb)
+        pa, pb = self.norm_path(a, must_exist=False), self.norm_path(b, must_exist=False)
+        return os.path.normcase(pa) == os.path.normcase(pb) if pa and pb else False
 
     def get_file_version(self, file_path):
         try:
             pe = pefile.PE(file_path, fast_load=True)
             pe.parse_data_directories(directories=[pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE']])
             if hasattr(pe, 'FileInfo'):
-                for fileinfo_list in pe.FileInfo:
-                    for info in fileinfo_list:
+                for fl in pe.FileInfo:
+                    for info in fl:
                         if getattr(info, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
                             for st in getattr(info, 'StringTable', []):
-                                for key, val in st.entries.items():
-                                    k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
-                                    v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
-                                    if k == 'FileVersion':
+                                for k, val in st.entries.items():
+                                    k_str = k.decode('utf-8', 'ignore') if isinstance(k, bytes) else str(k)
+                                    v_str = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
+                                    if k_str == 'FileVersion':
                                         pe.close()
-                                        return v.strip()
+                                        return v_str.strip()
             pe.close()
-        except Exception:
-            pass
+        except Exception: pass
         return "0.0.0.0"
 
     def compare_versions(self, v1, v2):
         try:
-            t1 = tuple(int(x) for x in re.findall(r"\d+", v1))
-            t2 = tuple(int(x) for x in re.findall(r"\d+", v2))
-            return t1 >= t2
+            return tuple(int(x) for x in re.findall(r"\d+", v1)) >= tuple(int(x) for x in re.findall(r"\d+", v2))
         except Exception:
             return False
 
@@ -1008,42 +903,28 @@ class WindowAPI:
             j = requests.get("https://api.github.com/repos/87owo/PYAS/releases/latest", headers={"Accept": "application/vnd.github+json", "User-Agent": "PYAS"}, timeout=10).json()
             latest = str(j.get("tag_name") or j.get("name") or "").strip()
             page = j.get("html_url") or "https://github.com/87owo/PYAS/releases"
-            
             if latest:
-                rl = re.sub(r"^[vV]\s*", "", latest)
-                cl = re.sub(r"^[vV]\s*", "", current)
-                tr = tuple(int(x) for x in re.findall(r"\d+", rl))
-                tl = tuple(int(x) for x in re.findall(r"\d+", cl))
-                if tr > tl:
+                if tuple(int(x) for x in re.findall(r"\d+", re.sub(r"^[vV]\s*", "", latest))) > tuple(int(x) for x in re.findall(r"\d+", re.sub(r"^[vV]\s*", "", current))):
                     return {"has_update": True, "latest": latest, "current": current, "url": page}
                 return {"has_update": False, "latest": latest, "current": current, "url": page}
-
-        except Exception:
-            pass
+        except Exception: pass
         return {"error": True}
 
     def calc_file_hash(self, file_path, block_size=65536):
         try:
             h = hashlib.sha256()
             with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(block_size), b""):
-                    h.update(chunk)
-
+                for chunk in iter(lambda: f.read(block_size), b""): h.update(chunk)
             return h.hexdigest()
-        except Exception:
-            return None
+        except Exception: return None
 
     def device_path_to_drive(self, path):
-        if not path:
-            return ""
-
+        if not path: return ""
         for d in range(65, 91):
             drive = f"{chr(d)}:"
             buf = ctypes.create_unicode_buffer(1024)
-            if self.kernel32.QueryDosDeviceW(drive, buf, 1024):
-                dev = buf.value
-                if path.startswith(dev):
-                    return path.replace(dev, drive, 1)
+            if self.kernel32.QueryDosDeviceW(drive, buf, 1024) and path.startswith(buf.value):
+                return path.replace(buf.value, drive, 1)
         return path
 
     def get_exe_info(self, pid):
@@ -1055,14 +936,10 @@ class WindowAPI:
                 size = ctypes.wintypes.DWORD(1024)
                 if self.kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
                     file_path = self.norm_path(buf.value)
-                    if file_path:
-                        name = os.path.basename(file_path)
-                else:
-                    if self.psapi.GetProcessImageFileNameW(h, buf, 1024):
-                        path = self.norm_path(self.device_path_to_drive(buf.value))
-                        if path:
-                            file_path = path
-                            name = os.path.basename(path)
+                    if file_path: name = os.path.basename(file_path)
+                elif self.psapi.GetProcessImageFileNameW(h, buf, 1024):
+                    file_path = self.norm_path(self.device_path_to_drive(buf.value))
+                    if file_path: name = os.path.basename(file_path)
             finally:
                 self.kernel32.CloseHandle(h)
         return name, file_path
@@ -1076,59 +953,34 @@ class WindowAPI:
     def get_process_cmdline(self, h):
         pbi = PROCESS_BASIC_INFORMATION()
         retlen = ctypes.wintypes.ULONG(0)
-        status = self.ntdll.NtQueryInformationProcess(h, 0, ctypes.byref(pbi), ctypes.sizeof(pbi), ctypes.byref(retlen))
-        if status != 0:
-            return ""
-
+        if self.ntdll.NtQueryInformationProcess(h, 0, ctypes.byref(pbi), ctypes.sizeof(pbi), ctypes.byref(retlen)) != 0: return ""
         pointer_size = ctypes.sizeof(ctypes.c_void_p)
-        peb_address = int(pbi.PebBaseAddress) if pbi.PebBaseAddress else 0
+        addr_pp = (int(pbi.PebBaseAddress) if pbi.PebBaseAddress else 0) + (0x20 if pointer_size == 8 else 0x10)
+        if not addr_pp: return ""
         read_buf = (ctypes.c_ubyte * pointer_size)()
-        lpNumberOfBytesRead = ctypes.c_size_t(0)
-        offset_process_parameters = 0x20 if pointer_size == 8 else 0x10
-
-        addr_pp = peb_address + offset_process_parameters
-        if not addr_pp:
-            return ""
-        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_pp), read_buf, pointer_size, ctypes.byref(lpNumberOfBytesRead)):
-            return ""
-
+        lpBytesRead = ctypes.c_size_t(0)
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_pp), read_buf, pointer_size, ctypes.byref(lpBytesRead)): return ""
         proc_params_address = ctypes.c_void_p.from_buffer_copy(read_buf).value
-        if not proc_params_address:
-            return ""
-
-        offset_command_line = 0x70 if pointer_size == 8 else 0x40
+        if not proc_params_address: return ""
         us = UNICODE_STRING()
-        addr_cmd = int(proc_params_address) + offset_command_line
-        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(addr_cmd), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpNumberOfBytesRead)):
-            return ""
-        if not us.Buffer or us.Length == 0:
-            return ""
-
-        buf_len = int(us.Length // 2)
-        buf = (ctypes.c_wchar * buf_len)()
-        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(int(us.Buffer)), buf, us.Length, ctypes.byref(lpNumberOfBytesRead)):
-            return ""
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(int(proc_params_address) + (0x70 if pointer_size == 8 else 0x40)), ctypes.byref(us), ctypes.sizeof(us), ctypes.byref(lpBytesRead)): return ""
+        if not us.Buffer or us.Length == 0: return ""
+        buf = (ctypes.c_wchar * int(us.Length // 2))()
+        if not self.kernel32.ReadProcessMemory(h, ctypes.c_void_p(int(us.Buffer)), buf, us.Length, ctypes.byref(lpBytesRead)): return ""
         return "".join(buf)
 
     def extract_paths_from_cmdline(self, cmdline):
-        if not cmdline:
-            return []
-
+        if not cmdline: return []
         argc = ctypes.c_int(0)
         argv = self.shell32.CommandLineToArgvW(cmdline, ctypes.byref(argc))
-        if not argv:
-            return []
-
+        if not argv: return []
         args = [argv[i] for i in range(argc.value)]
         self.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
-
-        patterns = [r'([A-Za-z]:\\[^"\']+)', r'(\\\\[^"\']+)', r'(\.\\[^"\']+)', r'(\./[^"\']+)', r'([A-Za-z]:/[^"\']+)', r'([^\s]*\\[^\s]+)']
         found = []
+        patterns = [r'([A-Za-z]:\\[^"\']+)', r'(\\\\[^"\']+)', r'(\.\\[^"\']+)', r'(\./[^"\']+)', r'([A-Za-z]:/[^"\']+)', r'([^\s]*\\[^\s]+)']
         for arg in args:
             for p in patterns:
-                for m in re.finditer(p, arg):
-                    found.append(m.group(1).strip('"').strip("'"))
-
+                for m in re.finditer(p, arg): found.append(m.group(1).strip('"').strip("'"))
         return list(dict.fromkeys(found))
 
     def get_process_list(self):
@@ -1136,29 +988,18 @@ class WindowAPI:
         pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
         snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
         result = []
-        
-        if snapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
-            return result
-            
+        if snapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF): return result
         try:
             success = self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe))
             while success:
-                pid = pe.th32ProcessID
-                name, file_path = None, None
-                if pid > 4:
-                    name, file_path = self.get_exe_info(pid)
-
+                pid, name, file_path = pe.th32ProcessID, None, None
+                if pid > 4: name, file_path = self.get_exe_info(pid)
                 if not name:
-                    try:
-                        name = pe.szExeFile
-                    except Exception:
-                        name = "Unknown"
-
+                    try: name = pe.szExeFile
+                    except Exception: name = "Unknown"
                 result.append({"pid": pid, "name": name, "path": file_path or "None"})
                 success = self.kernel32.Process32NextW(snapshot, ctypes.byref(pe))
-        finally:
-            self.kernel32.CloseHandle(snapshot)
-            
+        finally: self.kernel32.CloseHandle(snapshot)
         return result
 
     def get_process_list_pids(self):
@@ -1166,19 +1007,13 @@ class WindowAPI:
         pe = PROCESSENTRY32W()
         pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
         hSnapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-        
-        if hSnapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
-            return exist_process
-            
+        if hSnapshot in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF): return exist_process
         try:
             if self.kernel32.Process32FirstW(hSnapshot, ctypes.byref(pe)):
                 while True:
                     exist_process.add(pe.th32ProcessID)
-                    if not self.kernel32.Process32NextW(hSnapshot, ctypes.byref(pe)):
-                        break
-        finally:
-            self.kernel32.CloseHandle(hSnapshot)
-            
+                    if not self.kernel32.Process32NextW(hSnapshot, ctypes.byref(pe)): break
+        finally: self.kernel32.CloseHandle(hSnapshot)
         return exist_process
 
     def kill_process(self, pid):
@@ -1187,14 +1022,10 @@ class WindowAPI:
             if h:
                 try:
                     file_path = self.norm_path(self.get_process_file(h))
-                    if self.path_equal(file_path, self.file_pyas):
-                        return False
-                    else:
-                        self.kernel32.TerminateProcess(h, 0)
-                        return True
-                finally:
-                    self.kernel32.CloseHandle(h)
-
+                    if self.path_equal(file_path, self.file_pyas): return False
+                    self.kernel32.TerminateProcess(h, 0)
+                    return True
+                finally: self.kernel32.CloseHandle(h)
         except Exception as e:
             self.write_log("WARN", "kill_process", pid=pid, detail=str(e), operate=True, success=False)
         return False
@@ -1203,103 +1034,60 @@ class WindowAPI:
         connections = set()
         try:
             size = ctypes.wintypes.DWORD()
-            ret = self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0)
-            if ret != 122:
-                return connections
-
+            if self.iphlpapi.GetExtendedTcpTable(None, ctypes.byref(size), True, 2, 5, 0) != 122: return connections
             buf = ctypes.create_string_buffer(size.value)
-            ret = self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0)
-            if ret != 0:
-                return connections
-
+            if self.iphlpapi.GetExtendedTcpTable(buf, ctypes.byref(size), True, 2, 5, 0) != 0: return connections
             num_entries = ctypes.cast(buf, ctypes.POINTER(ctypes.wintypes.DWORD)).contents.value
-            row_size = ctypes.sizeof(MIB_TCPROW_OWNER_PID)
-            offset = ctypes.sizeof(ctypes.wintypes.DWORD)
-
             for i in range(num_entries):
-                entry_addr = ctypes.addressof(buf) + offset + i * row_size
-                row = MIB_TCPROW_OWNER_PID.from_address(entry_addr)
+                row = MIB_TCPROW_OWNER_PID.from_address(ctypes.addressof(buf) + ctypes.sizeof(ctypes.wintypes.DWORD) + i * ctypes.sizeof(MIB_TCPROW_OWNER_PID))
                 connections.add((row.dwOwningPid, row.dwRemoteAddr, row.dwRemotePort))
-
-        except Exception:
-            pass
+        except Exception: pass
         return connections
 
     def _traverse_delete(self, path):
         deleted = 0
-        if not os.path.exists(path):
-            return deleted
-
-        try:
-            items = os.listdir(path)
-        except Exception:
-            return deleted
-
+        if not os.path.exists(path): return deleted
+        try: items = os.listdir(path)
+        except Exception: return deleted
         for fd in items:
             file = os.path.join(path, fd)
             try:
                 if os.path.isdir(file):
                     deleted += self._traverse_delete(file)
-                    try:
-                        os.rmdir(file)
-                    except Exception:
-                        pass
+                    try: os.rmdir(file)
+                    except Exception: pass
                 else:
-                    if file.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
-                        continue
+                    if file.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')): continue
                     size = os.path.getsize(file)
                     os.remove(file)
                     deleted += size
-            except Exception:
-                continue
-
+            except Exception: continue
         return deleted
 
     def scan_system_junk(self):
         junk_list = []
         try:
-            safe_dirs = [
-                self.path_temp,
-                self.path_systemp,
-                os.path.join(self.path_system, "SoftwareDistribution", "Download")
-            ]
-            
-            for path in safe_dirs:
+            for path in [self.path_temp, self.path_systemp, os.path.join(self.path_system, "SoftwareDistribution", "Download")]:
                 if os.path.exists(path):
-                    for root, dirs, files in os.walk(path):
+                    for root, _, files in os.walk(path):
                         for file in files:
-                            if file.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
-                                continue
-                            full_path = os.path.join(root, file)
-                            try:
-                                size = os.path.getsize(full_path)
-                                junk_list.append({"path": full_path, "size": size})
-                            except Exception:
-                                pass
-
+                            if not file.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
+                                try: junk_list.append({"path": os.path.join(root, file), "size": os.path.getsize(os.path.join(root, file))})
+                                except Exception: pass
             log_dir = os.path.join(self.path_system, "Logs")
             if os.path.exists(log_dir):
-                for root, dirs, files in os.walk(log_dir):
+                for root, _, files in os.walk(log_dir):
                     for file in files:
                         if file.lower().endswith(('.log', '.etl', '.evtx')):
-                            full_path = os.path.join(root, file)
-                            try:
-                                size = os.path.getsize(full_path)
-                                junk_list.append({"path": full_path, "size": size})
-                            except Exception:
-                                pass
-
+                            try: junk_list.append({"path": os.path.join(root, file), "size": os.path.getsize(os.path.join(root, file))})
+                            except Exception: pass
             try:
                 info = SHQUERYRBINFO()
                 info.cbSize = ctypes.sizeof(SHQUERYRBINFO)
-                if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0:
-                    if info.i64Size > 0:
-                        junk_list.append({"path": "Recycle Bin", "size": info.i64Size})
-            except Exception:
-                pass
-
+                if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0 and info.i64Size > 0:
+                    junk_list.append({"path": "Recycle Bin", "size": info.i64Size})
+            except Exception: pass
             return junk_list
-
         except Exception as e:
             self.write_log("WARN", "scan_system_junk", detail=str(e), success=False)
             return []
@@ -1315,65 +1103,46 @@ class WindowAPI:
                             info.cbSize = ctypes.sizeof(SHQUERYRBINFO)
                             if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0:
                                 rb_size = info.i64Size
-                                if self.shell32.SHEmptyRecycleBinW(None, None, 7) == 0:
-                                    total_deleted += rb_size
-                        except Exception:
-                            pass
+                                if self.shell32.SHEmptyRecycleBinW(None, None, 7) == 0: total_deleted += rb_size
+                        except Exception: pass
                         continue
-                    if path.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')):
-                        continue
+                    if path.lower().endswith(('.sys', '.dll', '.exe', '.ini', '.dat')): continue
                     try:
                         size = os.path.getsize(path)
                         os.remove(path)
                         total_deleted += size
-                    except Exception:
-                        pass
+                    except Exception: pass
             else:
-                safe_dirs = [
-                    self.path_temp,
-                    self.path_systemp,
-                    os.path.join(self.path_system, "SoftwareDistribution", "Download")
-                ]
-                
-                for path in safe_dirs:
+                for path in [self.path_temp, self.path_systemp, os.path.join(self.path_system, "SoftwareDistribution", "Download")]:
                     total_deleted += self._traverse_delete(path)
-                    
                 log_dir = os.path.join(self.path_system, "Logs")
                 if os.path.exists(log_dir):
-                    for root, dirs, files in os.walk(log_dir):
+                    for root, _, files in os.walk(log_dir):
                         for file in files:
                             if file.lower().endswith(('.log', '.etl', '.evtx')):
-                                full_path = os.path.join(root, file)
                                 try:
-                                    size = os.path.getsize(full_path)
-                                    os.remove(full_path)
+                                    fp = os.path.join(root, file)
+                                    size = os.path.getsize(fp)
+                                    os.remove(fp)
                                     total_deleted += size
-                                except Exception:
-                                    pass
-
+                                except Exception: pass
                 try:
                     info = SHQUERYRBINFO()
                     info.cbSize = ctypes.sizeof(SHQUERYRBINFO)
                     if self.shell32.SHQueryRecycleBinW(None, ctypes.byref(info)) == 0:
                         rb_size = info.i64Size
-                        if self.shell32.SHEmptyRecycleBinW(None, None, 7) == 0:
-                            total_deleted += rb_size
-                except Exception:
-                    pass
-                
+                        if self.shell32.SHEmptyRecycleBinW(None, None, 7) == 0: total_deleted += rb_size
+                except Exception: pass
                 try:
                     for log_type in ["Application", "Security", "Setup", "System"]:
                         log_path = os.path.join(self.path_system, "System32", "winevt", "Logs", f"{log_type}.evtx")
                         size = os.path.getsize(log_path) if os.path.exists(log_path) else 0
-                        res = subprocess.run(["wevtutil", "cl", log_type], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
-                        if res.returncode == 0:
+                        if subprocess.run(["wevtutil", "cl", log_type], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000).returncode == 0:
                             total_deleted += size
-                except Exception:
-                    pass
+                except Exception: pass
 
             self.write_log("INFO", "Clean Junk", detail=f"Deleted {total_deleted // 1024} KB", operate=True)
             return total_deleted
-
         except Exception as e:
             self.write_log("WARN", "clean_system_junk", detail=str(e), operate=True, success=False)
             return 0
@@ -1387,9 +1156,7 @@ class WindowAPI:
             self.start_daemon_thread(self.init_whitelist)
             self.start_daemon_thread(self.popup_intercept_thread)
             
-            def log_callback(x):
-                self.write_log("INFO", "Load Engine", source=os.path.basename(x))
-                
+            def log_callback(x): self.write_log("INFO", "Load Engine", source=os.path.basename(x))
             self.heuristic.load_path(self.path_heuristic, callback=log_callback)
             self.properties.load_path(self.path_properties, callback=log_callback)
             self.write_log("INFO", "System", detail="Engine Initialization Complete")
@@ -1397,10 +1164,8 @@ class WindowAPI:
             if "-scan" in self.args_pyas:
                 try:
                     idx = self.args_pyas.index("-scan")
-                    target = self.args_pyas[idx+1]
-                    self.trigger_context_scan(target)
-                except Exception:
-                    pass
+                    self.trigger_context_scan(self.args_pyas[idx+1])
+                except Exception: pass
             
             with self.lock_config:
                 first_launch = self.pyas_config.get("first_launch", True)
@@ -1414,8 +1179,7 @@ class WindowAPI:
                     if self.pyas_config.get("network_switch"): self.start_daemon_thread(self.protect_net_thread)
 
                 if driver_enabled:
-                    if self.install_system_driver():
-                        self.start_daemon_thread(self.pipe_server_thread)
+                    if self.install_system_driver(): self.start_daemon_thread(self.pipe_server_thread)
                     else:
                         with self.lock_config:
                             self.pyas_config["driver_switch"] = False
@@ -1429,14 +1193,10 @@ class WindowAPI:
         if isinstance(targets, str):
             if os.path.isdir(targets):
                 for root, _, files in os.walk(targets):
-                    for f in files:
-                        yield self.norm_path(os.path.join(root, f))
-            elif os.path.isfile(targets):
-                yield self.norm_path(targets)
-
+                    for f in files: yield self.norm_path(os.path.join(root, f))
+            elif os.path.isfile(targets): yield self.norm_path(targets)
         elif isinstance(targets, (list, tuple, set)):
-            for t in targets:
-                yield from self.yield_files(t)
+            for t in targets: yield from self.yield_files(t)
 
     def scan_engine(self, file_path):
         with self.lock_config:
@@ -1445,45 +1205,74 @@ class WindowAPI:
             
         try:
             pe_label, _ = self.properties.pe_scan(file_path, enhanced_mode=sen_switch)
-            if pe_label:
-                return pe_label
-        except Exception: 
-            pass
+            if pe_label: return pe_label
+        except Exception: pass
             
         try:
             if ext_switch:
                 yara_label, _ = self.heuristic.yara_scan(file_path)
-                if yara_label:
-                    return yara_label
-        except Exception:
-            pass
-            
+                if yara_label: return yara_label
+        except Exception: pass
         return False
+
+    def safe_scan_engine(self, file_path):
+        norm_path = self.norm_path(file_path)
+        if not norm_path: return False
+
+        cache_key = os.path.normcase(norm_path)
+
+        with self.lock_file_ops:
+            if cache_key in self.scan_cache:
+                last_time, last_result = self.scan_cache[cache_key]
+                if time.time() - last_time < 10: return last_result
+
+            if cache_key in self.scan_events:
+                event = self.scan_events[cache_key]
+                needs_scan = False
+            else:
+                event = threading.Event()
+                self.scan_events[cache_key] = event
+                needs_scan = True
+
+        if not needs_scan:
+            event.wait(timeout=60)
+            with self.lock_file_ops:
+                if cache_key in self.scan_cache: return self.scan_cache[cache_key][1]
+            return False
+
+        try:
+            result = self.scan_engine(norm_path)
+            with self.lock_file_ops:
+                self.scan_cache[cache_key] = (time.time(), result)
+                current_time = time.time()
+                expired = [k for k, v in self.scan_cache.items() if current_time - v[0] > 30]
+                for k in expired: del self.scan_cache[k]
+            return result
+        finally:
+            with self.lock_file_ops:
+                if cache_key in self.scan_events:
+                    self.scan_events[cache_key].set()
+                    del self.scan_events[cache_key]
 
     def start_scan(self, targets):
         with self.lock_virus:
-            if getattr(self, 'scan_running', False):
-                return
-
+            if getattr(self, 'scan_running', False): return
             self.scan_running = True
             self.scan_finished = False
             self.virus_results = []
             self.scan_count = 0
             self.scan_start = time.time()
-
-        self.thread_pool.submit(self.scan_worker, targets)
+        self.scan_pool.submit(self.scan_worker, targets)
 
     def scan_worker(self, targets):
         last_update = 0.0
         try:
             for file_path in self.yield_files(targets):
                 with self.lock_virus:
-                    if not self.scan_running:
-                        break
+                    if not self.scan_running: break
                 
                 norm_path = self.norm_path(file_path)
-                if not norm_path:
-                    continue
+                if not norm_path: continue
 
                 current_time = time.time()
                 if current_time - last_update >= 0.05:
@@ -1498,40 +1287,29 @@ class WindowAPI:
                             self.lock_file(norm_path, False)
                             was_locked = True
 
-                    if self.is_in_whitelist(norm_path):
-                        continue
+                    if self.is_in_whitelist(norm_path): continue
 
-                    with self.lock_virus:
-                        self.scan_count += 1
+                    with self.lock_virus: self.scan_count += 1
+                    with self.lock_config: suffix = self.pyas_config.get("suffix", [])
                         
-                    with self.lock_config:
-                        suffix = self.pyas_config.get("suffix", [])
-                        
-                    ext = os.path.splitext(norm_path)[-1].lower()
-                    if ext not in suffix:
-                        continue
+                    if os.path.splitext(norm_path)[-1].lower() not in suffix: continue
 
-                    result = self.scan_engine(norm_path)
+                    result = self.safe_scan_engine(norm_path)
                     if result:
-                        with self.lock_virus:
-                            self.virus_results.append(norm_path)
-                        if self._window:
-                            self._window.evaluate_js(f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});")
-                        self.cloud_check(norm_path)
+                        with self.lock_virus: self.virus_results.append(norm_path)
+                        if self._window: self._window.evaluate_js(f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});")
                         self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
-
+                    
+                    self.cloud_check(norm_path)
                 except Exception as e:
                     self.write_log("WARN", "Scan Engine", source=norm_path, detail=str(e), success=False)
                 finally:
-                    if was_locked:
-                        self.lock_file(norm_path, True)
+                    if was_locked: self.lock_file(norm_path, True)
         finally:
             with self.lock_virus:
                 self.scan_running = False
                 self.scan_finished = True
-                count = len(self.virus_results)
-                elapsed = int(time.time() - self.scan_start)
-                scanned = self.scan_count
+                count, scanned, elapsed = len(self.virus_results), self.scan_count, int(time.time() - self.scan_start)
 
             messages = {
                 "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
@@ -1546,119 +1324,76 @@ class WindowAPI:
                 "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
                 "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
             }
-
-            if self._window:
-                self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});")
+            if self._window: self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});")
             self.write_log("INFO", "Scan Completed", detail=f"Found {count} viruses, scanned {scanned} files, time {elapsed}s")
 
     def stop_scan(self):
-        with self.lock_virus:
-            self.scan_running = False
+        with self.lock_virus: self.scan_running = False
 
     def trigger_scan(self, method):
         messages = {
-            "traditional_switch": "已取消掃描",
-            "simplified_switch": "已取消扫描",
-            "english_switch": "Scan cancelled",
-            "japanese_switch": "スキャンがキャンセルされました",
-            "korean_switch": "스캔이 취소되었습니다",
-            "french_switch": "Analyse annulée",
-            "spanish_switch": "Escaneo cancelado",
-            "hindi_switch": "स्कैन रद्द कर दिया गया",
-            "arabic_switch": "تم إلغاء الفحص",
-            "russian_switch": "Сканирование отменено",
-            "slovenian_switch": "Skeniranje preklicano"
+            "traditional_switch": "已取消掃描", "simplified_switch": "已取消扫描", "english_switch": "Scan cancelled", "japanese_switch": "スキャンがキャンセルされました", "korean_switch": "스캔이 취소되었습니다", "french_switch": "Analyse annulée", "spanish_switch": "Escaneo cancelado", "hindi_switch": "स्कैन रद्द कर दिया गया", "arabic_switch": "تم إلغاء الفحص", "russian_switch": "Сканирование отменено", "slovenian_switch": "Skeniranje preklicano"
         }
-
         targets = []
+        
         if method == "smart":
             for folder in ["Desktop", "Downloads", "AppData"]:
                 fp = os.path.join(self.path_user, folder)
-                if os.path.exists(fp):
-                    targets.append(fp)
-                
-            if os.path.exists(self.path_config):
-                targets.append(self.path_config)
-                
+                if os.path.exists(fp): targets.append(fp)
+            if os.path.exists(self.path_config): targets.append(self.path_config)
             for proc in self.get_process_list():
-                if proc["path"] and proc["path"] != "None":
-                    targets.append(proc["path"])
+                if proc["path"] and proc["path"] != "None": targets.append(proc["path"])
             self.start_scan(list(set(targets)))
-
         elif method == "file":
             targets = self.select_files()
-            if targets: 
-                self.start_scan(targets)
-            else:
-                if self._window:
-                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
-
+            if targets: self.start_scan(targets)
+            elif self._window: self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
         elif method == "path":
             targets = self.select_folder()
-            if targets: 
-                self.start_scan(targets)
-            else:
-                if self._window:
-                    self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
-
+            if targets: self.start_scan(targets)
+            elif self._window: self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
         elif method == "full":
             targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
             self.start_scan(targets)
 
     def solve_scan(self, file_paths):
         deleted_paths = []
-        running_procs = self.get_process_list()
-        
         proc_map = {}
-        for proc in running_procs:
+        for proc in self.get_process_list():
             if proc["path"] and proc["path"] != "None":
                 norm_p = self.norm_path(proc["path"], must_exist=False)
-                if norm_p:
-                    proc_map.setdefault(os.path.normcase(norm_p), []).append(proc["pid"])
+                if norm_p: proc_map.setdefault(os.path.normcase(norm_p), []).append(proc["pid"])
 
         last_update = 0.0
-
         with self.lock_virus:
             deleted_set = set()
             for raw_path in file_paths:
                 path = self.norm_path(raw_path, must_exist=False)
-                if not path:
-                    continue
+                if not path: continue
 
                 current_time = time.time()
                 if current_time - last_update >= 0.05:
-                    if self._window:
-                        self._window.evaluate_js(f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});")
+                    if self._window: self._window.evaluate_js(f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});")
                     last_update = current_time
                     
                 try:
-                    if path in self.virus_lock:
-                        self.lock_file(path, False)
-
+                    if path in self.virus_lock: self.lock_file(path, False)
                     path_key = os.path.normcase(path)
                     if path_key in proc_map:
-                        for pid in proc_map[path_key]:
-                            self.kill_process(pid)
+                        for pid in proc_map[path_key]: self.kill_process(pid)
 
-                    try:
-                        os.chmod(path, stat.S_IWRITE)
-                    except Exception:
-                        pass
+                    try: os.chmod(path, stat.S_IWRITE)
+                    except Exception: pass
 
                     self.remove_list_items("quarantine", [path])
                     os.remove(path)
-                    
                     deleted_paths.append(raw_path) 
                     deleted_set.add(path)
-
                     self.write_log("INFO", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), operate=True, success=True)
-
                 except Exception as e:
                     self.write_log("SCAN", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), detail=str(e), operate=True, success=False)
 
-            if deleted_set:
-                self.virus_results = [p for p in self.virus_results if p not in deleted_set]
-            
+            if deleted_set: self.virus_results = [p for p in self.virus_results if p not in deleted_set]
             remaining = len(self.virus_results)
 
         messages = {
@@ -1674,9 +1409,7 @@ class WindowAPI:
             "russian_switch": f"Осталось вирусов: {remaining}, удалено файлов: {len(deleted_paths)}.",
             "slovenian_switch": f"Preostalih virusov: {remaining}, izbrisanih datotek: {len(deleted_paths)}."
         }
-
-        if self._window:
-            self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {remaining});")
+        if self._window: self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {remaining});")
         return deleted_paths
 
     def remove_virus_result(self, paths):
@@ -1685,71 +1418,66 @@ class WindowAPI:
             self.virus_results = [p for p in self.virus_results if p not in norm_paths]
             return len(self.virus_results)
 
+    def cloud_check(self, file_path):
+        norm_path = self.norm_path(file_path)
+        if not norm_path: return
+            
+        cache_key = os.path.normcase(norm_path)
+        with self.lock_file_ops:
+            if cache_key in self.cloud_pending: return
+            self.cloud_pending.add(cache_key)
+            
+        self.cloud_queue.put(norm_path)
+
     def cloud_worker(self):
         while True:
             try:
                 file_path = self.cloud_queue.get()
-                self.perform_cloud_scan(file_path)
-                self.cloud_queue.task_done()
-            except Exception:
-                pass
-
-    def cloud_check(self, file_path):
-        self.cloud_queue.put(file_path)
+                cache_key = os.path.normcase(file_path)
+                try: self.perform_cloud_scan(file_path)
+                finally:
+                    with self.lock_file_ops: self.cloud_pending.discard(cache_key)
+                    self.cloud_queue.task_done()
+            except Exception: pass
 
     def perform_cloud_scan(self, file_path):
         was_locked = False
         try:
             with self.lock_config:
-                if not self.pyas_config.get("cloud_switch", True):
-                    return False
-                api_host = self.pyas_config.get("api_host")
-                api_key = self.pyas_config.get("api_key")
-                max_size = self.pyas_config.get("size", 100 * 1024 * 1024)
+                if not self.pyas_config.get("cloud_switch", True): return False
+                api_host, api_key, max_size = self.pyas_config.get("api_host"), self.pyas_config.get("api_key"), self.pyas_config.get("size", 100 * 1024 * 1024)
 
-            if not os.path.exists(file_path) or not os.path.isfile(file_path): 
-                return False
+            if not os.path.exists(file_path) or not os.path.isfile(file_path): return False
 
             with self.lock_file_ops:
                 if file_path in self.virus_lock:
                     self.lock_file(file_path, False)
                     was_locked = True
 
-            size = os.path.getsize(file_path)
-            if size > max_size:
-                if was_locked:
-                    self.lock_file(file_path, True)
+            if os.path.getsize(file_path) > max_size:
+                if was_locked: self.lock_file(file_path, True)
                 return False
 
             success, sha256 = self.cloud.upload_file(file_path, api_host, api_key)
-            
             if was_locked:
                 self.lock_file(file_path, True)
                 was_locked = False
 
-            if not success:
-                self.write_log("WARN", "Cloud API", source=file_path, detail="Failed", success=False)
-
+            if not success: self.write_log("WARN", "Cloud API", source=file_path, detail="Failed", success=False)
         except Exception as e:
             self.write_log("WARN", "perform_cloud_scan", detail=str(e), success=False)
         finally:
             if was_locked:
-                try:
-                    self.lock_file(file_path, True)
-                except Exception:
-                    pass
+                try: self.lock_file(file_path, True)
+                except Exception: pass
         return False
 
 ####################################################################################################
 
     def is_in_whitelist(self, file_path):
         p = self.norm_path(file_path)
-        if not p:
-            return False
-
-        with self.lock_config:
-            whitelist = self.pyas_config.get("white_list", [])
-            
+        if not p: return False
+        with self.lock_config: whitelist = self.pyas_config.get("white_list", [])
         p_norm = os.path.normcase(p)
         return any(os.path.normcase(item.get("file", "")) == p_norm for item in whitelist if isinstance(item, dict))
 
@@ -1758,24 +1486,16 @@ class WindowAPI:
 
     def sync_driver_whitelist(self, file_path, is_add=True):
         with self.lock_driver:
-            if not self.driver_port:
-                return False
-                
+            if not self.driver_port: return False
             driver_path = str(file_path)
             drive_letter = os.path.splitdrive(driver_path)[0]
-            if drive_letter:
-                driver_path = "*" + driver_path[len(drive_letter):]
-                
+            if drive_letter: driver_path = "*" + driver_path[len(drive_letter):]
             msg = PYAS_USER_MESSAGE()
             msg.Command = 1 if is_add else 2
             msg.Path = driver_path
             bytes_returned = ctypes.wintypes.DWORD(0)
-            
-            try:
-                hr = self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned))
-                return hr == 0
-            except Exception:
-                return False
+            try: return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
+            except Exception: return False
 
     def lock_file(self, file, lock):
         with self.lock_file_ops:
@@ -1784,318 +1504,161 @@ class WindowAPI:
                     if file not in self.virus_lock:
                         fd = os.open(file, os.O_RDWR | os.O_BINARY)
                         try:
-                            try:
-                                size = os.path.getsize(file)
-                            except Exception:
-                                size = 1
-
+                            try: size = os.path.getsize(file)
+                            except Exception: size = 1
                             lock_size = size if size > 0 else 1
                             msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
                             self.virus_lock[file] = (fd, lock_size)
-
                         except Exception:
                             os.close(fd)
                             raise
                 else:
                     if file in self.virus_lock:
                         fd, lock_size = self.virus_lock[file]
-                        try:
-                            msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
+                        try: msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
                         finally:
                             os.close(fd)
                             del self.virus_lock[file]
-
             except Exception as e:
                 self.write_log("WARN", "lock_file", source=file, detail=str(e), success=False)
 
     def relock_file(self):
-        with self.lock_config:
-            quarantine_list = self.pyas_config.get("quarantine", [])
-
+        with self.lock_config: quarantine_list = self.pyas_config.get("quarantine", [])
         for item in quarantine_list:
-            file = item["file"]
-            if os.path.exists(file):
-                self.lock_file(file, True)
+            if os.path.exists(item["file"]): self.lock_file(item["file"], True)
 
     def backup_mbr(self, max_drives=26):
         self.mbr_backup = {}
-        mbr_signature = b"\x55\xAA"
         for drive in range(max_drives):
-            drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
-                with open(drive_path, "rb") as f:
+                with open(rf"\\.\PhysicalDrive{drive}", "rb") as f:
                     mbr = f.read(512)
-                    if len(mbr) == 512 and mbr[510:512] == mbr_signature:
-                        self.mbr_backup[drive] = mbr
-
-            except Exception:
-                continue
+                    if len(mbr) == 512 and mbr[510:512] == b"\x55\xAA": self.mbr_backup[drive] = mbr
+            except Exception: continue
 
     def check_system_mbr(self):
-        if not self.mbr_backup:
-            return False
-
         for drive, mbr_value in self.mbr_backup.items():
-            drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
-                with open(drive_path, "rb") as f:
-                    if f.read(512) != mbr_value:
-                        return True
-
-            except Exception:
-                pass
+                with open(rf"\\.\PhysicalDrive{drive}", "rb") as f:
+                    if f.read(512) != mbr_value: return True
+            except Exception: pass
         return False
 
     def _get_restrict_lists(self):
         permissions = [
-            "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoStartMenuPinnedList",
-            "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoDesktop",
-            "NoLogoff", "NoFolderOptions", "RestrictRun", "NoViewContextMenu", "HideClock",
-            "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD", "NoAddingComponents",
-            "NoWinKeys", "NoStartMenuLogOff", "NoSimpleNetIDList", "NoLowDiskSpaceChecks",
-            "DisableLockWorkstation","Restrict_Run", "DisableTaskMgr", "DisableRegistryTools",
-            "DisableChangePassword", "Wallpaper", "NoComponents", "NoStartMenuMorePrograms",
-            "NoActiveDesktop", "NoSetActiveDesktop", "NoRecentDocsMenu", "NoWindowsUpdate",
-            "NoChangeStartMenu", "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar",
-            "NoSMHelp", "NoTrayContextMenu", "NoManageMyComputerVerb", "NoRealMode", "NoRun",
-            "ClearRecentDocsOnExit", "NoActiveDesktopChanges", "NoStartMenuNetworkPlaces"
+            "NoControlPanel", "NoDrives", "NoFileMenu", "NoFind", "NoStartMenuPinnedList", "NoSetFolders", "NoSetFolderOptions", "NoViewOnDrive", "NoClose", "NoDesktop", "NoLogoff", "NoFolderOptions", "RestrictRun", "NoViewContextMenu", "HideClock", "NoStartMenuMyGames", "NoStartMenuMyMusic", "DisableCMD", "NoAddingComponents", "NoWinKeys", "NoStartMenuLogOff", "NoSimpleNetIDList", "NoLowDiskSpaceChecks", "DisableLockWorkstation","Restrict_Run", "DisableTaskMgr", "DisableRegistryTools", "DisableChangePassword", "Wallpaper", "NoComponents", "NoStartMenuMorePrograms", "NoActiveDesktop", "NoSetActiveDesktop", "NoRecentDocsMenu", "NoWindowsUpdate", "NoChangeStartMenu", "NoFavoritesMenu", "NoRecentDocsHistory", "NoSetTaskbar", "NoSMHelp", "NoTrayContextMenu", "NoManageMyComputerVerb", "NoRealMode", "NoRun", "ClearRecentDocsOnExit", "NoActiveDesktopChanges", "NoStartMenuNetworkPlaces"
         ]
         paths = [
-            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\MMC"),
-            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"),
-            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"),
-            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"),
-            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"),
-            (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System")
+            (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\MMC"), (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Policies\Microsoft\Windows\System"), (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"), (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"), (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer"), (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"), (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"), (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Policies\Microsoft\Windows\System")
         ]
         return permissions, paths
 
     def check_system_restrict(self):
-        permissions, restrict_paths = self._get_restrict_lists()
-        for hkey, path in restrict_paths:
-            try:
-                with winreg.OpenKey(hkey, path, 0, winreg.KEY_READ) as reg:
-                    for val in permissions:
-                        try:
-                            winreg.QueryValueEx(reg, val)
-                            return True
-                        except FileNotFoundError:
-                            pass
-            except Exception:
-                pass
+        permissions, paths = self._get_restrict_lists()
+        for hkey, path in paths:
+            for val in permissions:
+                if self._reg_read(hkey, path, val) is not None: return True
         return False
 
     def check_system_file_type(self):
         for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
             for ext in [".exe", ".bat", ".cmd", ".com"]:
-                try:
-                    with winreg.OpenKey(root, rf"SOFTWARE\Classes\{ext}", 0, winreg.KEY_READ) as reg:
-                        val, _ = winreg.QueryValueEx(reg, "")
-                        if val != ("exefile" if ext == ".exe" else ext[1:]+"file"): 
-                            return True
-                except Exception:
-                    pass
-            for shell_cmd in ["open", "runas"]:
-                try:
-                    with winreg.OpenKey(root, rf"SOFTWARE\Classes\exefile\shell\{shell_cmd}\command", 0, winreg.KEY_READ) as reg:
-                        val, _ = winreg.QueryValueEx(reg, "")
-                        if val != '"%1" %*': 
-                            return True
-                except Exception:
-                    pass
+                if self._reg_read(root, rf"SOFTWARE\Classes\{ext}", "") != ("exefile" if ext == ".exe" else ext[1:]+"file"): return True
+            for cmd in ["open", "runas"]:
+                if self._reg_read(root, rf"SOFTWARE\Classes\exefile\shell\{cmd}\command", "") != '"%1" %*': return True
         return False
 
     def check_system_file_icon(self):
-        for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
-            try:
-                with winreg.OpenKey(root, r"SOFTWARE\Classes\exefile\DefaultIcon", 0, winreg.KEY_READ) as reg:
-                    val, _ = winreg.QueryValueEx(reg, "")
-                    if val != "%1":
-                        return True
-            except Exception:
-                pass
-        return False
+        return any(self._reg_read(root, r"SOFTWARE\Classes\exefile\DefaultIcon", "") != "%1" for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER])
 
     def check_system_image(self):
-        key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
         try:
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_READ) as reg:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options", 0, winreg.KEY_READ) as reg:
                 i = 0
                 while True:
                     try:
                         subkey = winreg.EnumKey(reg, i)
                         with winreg.OpenKey(reg, subkey, 0, winreg.KEY_READ) as sub_reg:
-                            for value in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
-                                try:
-                                    winreg.QueryValueEx(sub_reg, value)
-                                    return True
-                                except FileNotFoundError:
-                                    pass
+                            for val in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
+                                try: winreg.QueryValueEx(sub_reg, val); return True
+                                except FileNotFoundError: pass
                         i += 1
-                    except OSError:
-                        break
-        except Exception:
-            pass
+                    except OSError: break
+        except Exception: pass
         return False
 
     def check_system_wallpaper(self):
-        try:
-            wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop", 0, winreg.KEY_READ) as reg:
-                val, _ = winreg.QueryValueEx(reg, "Wallpaper")
-                if val != wallpaper:
-                    return True
-        except Exception:
-            pass
-        return False
+        return self._reg_read(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop", "Wallpaper") != os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
 
     def scan_system_repair(self):
         items = []
-
-        if self.check_system_mbr():
-            items.append({"display": "修復系統 MBR", "value": "mbr"})
-        if self.check_system_restrict():
-            items.append({"display": "修復系統限制", "value": "restrict"})
-        if self.check_system_file_type():
-            items.append({"display": "修復檔案關聯", "value": "file_type"})
-        if self.check_system_file_icon():
-            items.append({"display": "修復檔案圖標", "value": "file_icon"})
-        if self.check_system_image():
-            items.append({"display": "修復映像劫持", "value": "image"})
-        if self.check_system_wallpaper():
-            items.append({"display": "修復桌面壁紙", "value": "wallpaper"})
-
+        if self.check_system_mbr(): items.append({"display": "修復系統 MBR", "value": "mbr"})
+        if self.check_system_restrict(): items.append({"display": "修復系統限制", "value": "restrict"})
+        if self.check_system_file_type(): items.append({"display": "修復檔案關聯", "value": "file_type"})
+        if self.check_system_file_icon(): items.append({"display": "修復檔案圖標", "value": "file_icon"})
+        if self.check_system_image(): items.append({"display": "修復映像劫持", "value": "image"})
+        if self.check_system_wallpaper(): items.append({"display": "修復桌面壁紙", "value": "wallpaper"})
         return items
 
     def repair_system_mbr(self):
-        if not self.mbr_backup:
-            return
-
         for drive, mbr_value in self.mbr_backup.items():
             drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
                 with open(drive_path, "rb+") as f:
-                    current = f.read(512)
-                    if current != mbr_value:
-                        f.seek(0)
-                        f.write(mbr_value)
+                    if f.read(512) != mbr_value:
+                        f.seek(0); f.write(mbr_value)
                         self.write_log("INFO", "MBR Repaired", source=drive_path, operate=True)
-
-            except Exception:
-                pass
+            except Exception: pass
 
     def repair_system_restrict(self):
-        try:
-            permissions, restrict_paths = self._get_restrict_lists()
-            for hkey, path in restrict_paths:
-                try:
-                    with winreg.OpenKey(hkey, path, 0, winreg.KEY_SET_VALUE | winreg.KEY_WRITE) as reg:
-                        for val in permissions:
-                            try:
-                                winreg.DeleteValue(reg, val)
-                            except FileNotFoundError:
-                                pass
-                except Exception:
-                    pass
-        except Exception as e:
-            self.write_log("WARN", "repair_system_restrict", detail=str(e), success=False)
+        permissions, paths = self._get_restrict_lists()
+        for hkey, path in paths:
+            for val in permissions: self._reg_delete(hkey, path, val)
 
     def repair_system_file_type(self):
-        try:
-            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
-                for ext in [".exe", ".bat", ".cmd", ".com"]:
-                    try:
-                        with winreg.CreateKey(root, rf"SOFTWARE\Classes\{ext}") as reg:
-                            winreg.SetValue(reg, "", winreg.REG_SZ, "exefile" if ext == ".exe" else ext[1:]+"file")
-                    except Exception:
-                        pass
-                for shell_cmd in ["open", "runas"]:
-                    try:
-                        with winreg.CreateKey(root, rf"SOFTWARE\Classes\exefile\shell\{shell_cmd}\command") as reg:
-                            winreg.SetValue(reg, "", winreg.REG_SZ, '"%1" %*')
-                    except Exception:
-                        pass
-        except Exception as e:
-            self.write_log("WARN", "repair_system_file_type", detail=str(e), success=False)
+        for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+            for ext in [".exe", ".bat", ".cmd", ".com"]: self._reg_write(root, rf"SOFTWARE\Classes\{ext}", None, winreg.REG_SZ, "exefile" if ext == ".exe" else ext[1:]+"file")
+            for cmd in ["open", "runas"]: self._reg_write(root, rf"SOFTWARE\Classes\exefile\shell\{cmd}\command", None, winreg.REG_SZ, '"%1" %*')
 
     def repair_system_file_icon(self):
-        try:
-            for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
-                try:
-                    with winreg.CreateKey(root, r"SOFTWARE\Classes\exefile\DefaultIcon") as reg:
-                        winreg.SetValue(reg, "", winreg.REG_SZ, "%1")
-                except Exception:
-                    pass
-        except Exception as e:
-            self.write_log("WARN", "repair_system_file_icon", detail=str(e), success=False)
+        for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]: self._reg_write(root, r"SOFTWARE\Classes\exefile\DefaultIcon", None, winreg.REG_SZ, "%1")
 
     def repair_system_image(self):
-        key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options"
         try:
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path, 0, winreg.KEY_ALL_ACCESS) as reg:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options", 0, winreg.KEY_ALL_ACCESS) as reg:
                 i = 0
                 while True:
                     try:
                         subkey = winreg.EnumKey(reg, i)
                         with winreg.OpenKey(reg, subkey, 0, winreg.KEY_ALL_ACCESS) as sub_reg:
-                            for value in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
-                                try:
-                                    winreg.DeleteValue(sub_reg, value)
-                                except FileNotFoundError:
-                                    pass
+                            for val in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
+                                try: winreg.DeleteValue(sub_reg, val)
+                                except FileNotFoundError: pass
                         i += 1
-                    except OSError:
-                        break
-        except Exception as e:
-            self.write_log("WARN", "repair_system_image", detail=str(e), success=False)
+                    except OSError: break
+        except Exception as e: self.write_log("WARN", "repair_system_image", detail=str(e), success=False)
 
     def repair_system_wallpaper(self):
         try:
             wallpaper = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
-            if not os.path.exists(wallpaper):
-                return
-
-            key = r"Control Panel\Desktop"
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_SET_VALUE) as reg:
-                winreg.SetValueEx(reg, "Wallpaper", 0, winreg.REG_SZ, wallpaper)
-
+            if not os.path.exists(wallpaper): return
+            self._reg_write(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop", "Wallpaper", winreg.REG_SZ, wallpaper)
             theme_dir = os.path.join(self.path_appdata, "Microsoft", "Windows", "Themes")
             for fname in ["TranscodedWallpaper", "TranscodedWallpaper.tmp"]:
-                fpath = os.path.join(theme_dir, fname)
-                if os.path.exists(fpath):
-                    try:
-                        os.remove(fpath)
-                    except Exception:
-                        pass
-
-            cache_dir = os.path.join(theme_dir, "CachedFiles")
-            if os.path.exists(cache_dir):
-                try:
-                    shutil.rmtree(cache_dir, ignore_errors=True)
-                except Exception:
-                    pass
-
+                try: os.remove(os.path.join(theme_dir, fname))
+                except Exception: pass
+            shutil.rmtree(os.path.join(theme_dir, "CachedFiles"), ignore_errors=True)
             self.user32.SystemParametersInfoW(20, 0, wallpaper, 3)
-        except Exception as e:
-            self.write_log("WARN", "repair_system_wallpaper", detail=str(e), success=False)
+        except Exception as e: self.write_log("WARN", "repair_system_wallpaper", detail=str(e), success=False)
 
     def execute_system_repair(self, items):
         try:
-            if "mbr" in items:
-                self.repair_system_mbr()
-            if "restrict" in items:
-                self.repair_system_restrict()
-            if "file_type" in items:
-                self.repair_system_file_type()
-            if "file_icon" in items:
-                self.repair_system_file_icon()
-            if "image" in items:
-                self.repair_system_image()
-            if "wallpaper" in items:
-                self.repair_system_wallpaper()
-
+            if "mbr" in items: self.repair_system_mbr()
+            if "restrict" in items: self.repair_system_restrict()
+            if "file_type" in items: self.repair_system_file_type()
+            if "file_icon" in items: self.repair_system_file_icon()
+            if "image" in items: self.repair_system_image()
+            if "wallpaper" in items: self.repair_system_wallpaper()
             self.write_log("INFO", "System Repair", detail=f"Repaired {len(items)} items", operate=True)
             return True
         except Exception as e:
@@ -2103,60 +1666,38 @@ class WindowAPI:
             return False
 
     def protect_proc_thread(self):
-        with self.lock_proc:
-            self.exist_process = self.get_process_list_pids()
-            
+        with self.lock_proc: self.exist_process = self.get_process_list_pids()
         while True:
             with self.lock_config:
-                if not self.pyas_config.get("process_switch", False):
-                    break
+                if not self.pyas_config.get("process_switch", False): break
             try:
                 time.sleep(0.1)
                 cur = self.get_process_list_pids()
-                
                 with self.lock_proc:
                     new_pids = cur - self.exist_process
                     self.exist_process = cur
-                    
-                for pid in new_pids:
-                    self.thread_pool.submit(self.handle_new_process, pid)
-
-            except Exception as e:
-                self.write_log("WARN", "protect_proc_thread", detail=str(e), success=False)
+                for pid in new_pids: self.protect_pool.submit(self.handle_new_process, pid)
+            except Exception as e: self.write_log("WARN", "protect_proc_thread", detail=str(e), success=False)
 
     def handle_new_process(self, pid):
         h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-        if not h:
-            return
-
+        if not h: return
         self.ntdll.NtSuspendProcess(h)
         try:
-            cmdline = self.get_process_cmdline(h)
-            process_file = self.get_process_file(h)
-            
-            if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas):
-                return
-                
+            cmdline, process_file = self.get_process_cmdline(h), self.get_process_file(h)
+            if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas): return
             paths = self.extract_paths_from_cmdline(cmdline)
-            with self.lock_config:
-                suffix = self.pyas_config.get("suffix", [])
-                
+            with self.lock_config: suffix = self.pyas_config.get("suffix", [])
             for p in paths:
                 file_path = self.norm_path(self.device_path_to_drive(p))
-                if not file_path or not os.path.isfile(file_path):
-                    continue
+                if not file_path or not os.path.isfile(file_path): continue
+                if os.path.splitext(file_path)[-1].lower() not in suffix or self.is_in_whitelist(file_path): continue
+                if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower(): continue
 
-                ext = os.path.splitext(file_path)[-1].lower()
-                if ext not in suffix:
-                    continue
-                if self.is_in_whitelist(file_path):
-                    continue
-                
-                if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower():
-                    continue
-
+                result = self.safe_scan_engine(file_path)
                 self.cloud_check(file_path)
-                if self.scan_engine(file_path):
+                
+                if result:
                     self.kernel32.TerminateProcess(h, 0)
                     self.write_log("BLOCK", "Process Block", pid=pid, source=file_path, file_hash=self.calc_file_hash(file_path))
                     break
@@ -2166,57 +1707,34 @@ class WindowAPI:
 
     def protect_file_thread(self):
         hDir = self.kernel32.CreateFileW(self.path_user, 0x0001, 0x00000007, None, 3, 0x02000000, None)
-        if not hDir or hDir == -1:
-            return
-
+        if not hDir or hDir == -1: return
         try:
-            buffer = ctypes.create_string_buffer(65536)
+            buffer = ctypes.create_string_buffer(262144)
             temp_prefix = os.path.normcase(self.path_temp)
-            if not temp_prefix.endswith(os.sep):
-                temp_prefix += os.sep
-
+            if not temp_prefix.endswith(os.sep): temp_prefix += os.sep
             while True:
                 with self.lock_config:
-                    if not self.pyas_config.get("document_switch", False):
-                        break
+                    if not self.pyas_config.get("document_switch", False): break
                 try:
                     bytes_returned = ctypes.wintypes.DWORD()
                     res = self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True, 0x0000001F, ctypes.byref(bytes_returned), None, None)
-                    if not res or bytes_returned.value == 0:
-                        continue
-
+                    if not res or bytes_returned.value == 0: continue
                     offset = 0
                     while True:
                         notify = FILE_NOTIFY_INFORMATION.from_buffer(buffer, offset)
                         raw_filename = notify.FileName[:notify.FileNameLength // 2]
-                        
                         if raw_filename and notify.Action in [1, 3, 5]:
                             file_path = self.norm_path(os.path.join(self.path_user, raw_filename), must_exist=True)
                             if file_path and not self.is_in_whitelist(file_path):
                                 norm_path = os.path.normcase(file_path)
-                                
-                                is_temp_mei = False
-                                if norm_path.startswith(temp_prefix):
-                                    sub_path = norm_path[len(temp_prefix):]
-                                    if sub_path.startswith("_mei"):
-                                        is_temp_mei = True
-                                        
-                                if not is_temp_mei:
-                                    with self.lock_config:
-                                        suffix = self.pyas_config.get("suffix", [])
-                                        
-                                    ext = os.path.splitext(file_path)[-1].lower()
-                                    if ext in suffix:
-                                        self.thread_pool.submit(self.handle_new_file, file_path)
-
-                        if notify.NextEntryOffset == 0:
-                            break
+                                if not (norm_path.startswith(temp_prefix) and norm_path[len(temp_prefix):].startswith("_mei")):
+                                    with self.lock_config: suffix = self.pyas_config.get("suffix", [])
+                                    if os.path.splitext(file_path)[-1].lower() in suffix:
+                                        self.protect_pool.submit(self.handle_new_file, file_path)
+                        if notify.NextEntryOffset == 0: break
                         offset += notify.NextEntryOffset
-
-                except Exception as e:
-                    self.write_log("WARN", "protect_file_thread", detail=str(e), success=False)
-        finally:
-            self.kernel32.CloseHandle(hDir)
+                except Exception as e: self.write_log("WARN", "protect_file_thread", detail=str(e), success=False)
+        finally: self.kernel32.CloseHandle(hDir)
 
     def handle_new_file(self, file_path):
         try:
@@ -2224,73 +1742,53 @@ class WindowAPI:
                 size1 = os.path.getsize(file_path)
                 time.sleep(0.5)
                 size2 = os.path.getsize(file_path)
-                if size1 == size2 and size1 > 0:
-                    break
-            else:
-                return
+                if size1 == size2 and size1 > 0: break
+            else: return
 
             with self.lock_file_ops:
-                if file_path in self.virus_lock:
-                    return
+                if file_path in self.virus_lock: return
 
-            if self.scan_engine(file_path):
+            result = self.safe_scan_engine(file_path)
+            self.cloud_check(file_path)
+            
+            if result:
                 if self.manage_named_list("quarantine", [file_path], action="add", lock_func=self.lock_file) > 0:
                     self.write_log("BLOCK", "File Block", source=file_path, file_hash=self.calc_file_hash(file_path))
-                    self.cloud_check(file_path)
-        except Exception:
-            pass
+        except Exception: pass
 
     def protect_net_thread(self):
-        with self.lock_net:
-            self.exist_connections = set()
-            
+        with self.lock_net: self.exist_connections = set()
         while True:
             with self.lock_config:
-                if not self.pyas_config.get("network_switch", False):
-                    break
+                if not self.pyas_config.get("network_switch", False): break
             try:
                 time.sleep(0.5)
                 conns = self.get_connections_list()
-
                 with self.lock_net:
                     new_conns = conns - self.exist_connections
                     self.exist_connections = conns
-
-                for key in new_conns:
-                    self.thread_pool.submit(self.handle_new_connection, key)
-
-            except Exception as e:
-                self.write_log("WARN", "protect_net_thread", detail=str(e), success=False)
-
-        with self.lock_net:
-            self.exist_connections = set()
+                for key in new_conns: self.protect_pool.submit(self.handle_new_connection, key)
+            except Exception as e: self.write_log("WARN", "protect_net_thread", detail=str(e), success=False)
+        with self.lock_net: self.exist_connections = set()
 
     def handle_new_connection(self, key):
         pid, remote_addr, remote_port = key
         try:
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-            if not h:
-                return
-            
+            if not h: return
             try:
                 remote_ip = f"{remote_addr & 0xFF}.{(remote_addr >> 8) & 0xFF}.{(remote_addr >> 16) & 0xFF}.{(remote_addr >> 24) & 0xFF}"
                 file_path = self.norm_path(self.get_process_file(h))
-                
-                if file_path and not self.is_in_whitelist(file_path):
-                    if hasattr(self.heuristic, "network") and remote_ip in self.heuristic.network:
-                        self.kernel32.TerminateProcess(h, 0)
-                        self.write_log("BLOCK", "Network Block", pid=pid, source=file_path, target=remote_ip, file_hash=self.calc_file_hash(file_path))
-            finally:
-                self.kernel32.CloseHandle(h)
-
-        except Exception as e:
-            self.write_log("WARN", "handle_new_connection", pid=key[0], detail=str(e), success=False)
+                if file_path and not self.is_in_whitelist(file_path) and hasattr(self.heuristic, "network") and remote_ip in self.heuristic.network:
+                    self.kernel32.TerminateProcess(h, 0)
+                    self.write_log("BLOCK", "Network Block", pid=pid, source=file_path, target=remote_ip, file_hash=self.calc_file_hash(file_path))
+            finally: self.kernel32.CloseHandle(h)
+        except Exception as e: self.write_log("WARN", "handle_new_connection", pid=pid, detail=str(e), success=False)
 
     def protect_system_thread(self):
         while True:
             with self.lock_config:
-                if not self.pyas_config.get("system_switch", False):
-                    break
+                if not self.pyas_config.get("system_switch", False): break
             try:
                 self.repair_system_mbr()
                 self.repair_system_restrict()
@@ -2299,17 +1797,13 @@ class WindowAPI:
                 self.repair_system_image()
                 self.check_process_survival()
                 time.sleep(0.5)
-
-            except Exception as e:
-                self.write_log("WARN", "protect_system_thread", detail=str(e), success=False)
+            except Exception as e: self.write_log("WARN", "protect_system_thread", detail=str(e), success=False)
 
     def check_process_survival(self):
         try:
-            running = False
-            pe = PROCESSENTRY32W()
+            running, pe = False, PROCESSENTRY32W()
             pe.dwSize = ctypes.sizeof(PROCESSENTRY32W)
             snapshot = self.kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-
             if snapshot not in (-1, 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF):
                 try:
                     if self.kernel32.Process32FirstW(snapshot, ctypes.byref(pe)):
@@ -2317,17 +1811,12 @@ class WindowAPI:
                             if pe.szExeFile.lower() == "explorer.exe":
                                 running = True
                                 break
-                            if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)):
-                                break
-                finally:
-                    self.kernel32.CloseHandle(snapshot)
-
+                            if not self.kernel32.Process32NextW(snapshot, ctypes.byref(pe)): break
+                finally: self.kernel32.CloseHandle(snapshot)
             if not running:
                 subprocess.Popen("explorer.exe", shell=True)
                 self.write_log("INFO", "System Restart", source="explorer.exe")
-
-        except Exception:
-            pass
+        except Exception: pass
 
     def capture_popup_window(self):
         try:
@@ -2337,38 +1826,27 @@ class WindowAPI:
                 if not hwnd:
                     time.sleep(0.5)
                     continue
-                    
                 pid = ctypes.c_ulong(0)
                 self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-                
                 if pid.value != self.pid_pyas and pid.value > 4:
                     length = self.user32.GetWindowTextLengthW(hwnd)
-                    title = ctypes.create_unicode_buffer(length + 1)
+                    title, class_name = ctypes.create_unicode_buffer(length + 1), ctypes.create_unicode_buffer(256)
                     self.user32.GetWindowTextW(hwnd, title, length + 1)
-                    class_name = ctypes.create_unicode_buffer(256)
                     self.user32.GetClassNameW(hwnd, class_name, 256)
-                    
                     proc_name, _ = self.get_exe_info(pid.value)
                     t_str, c_str = str(title.value), str(class_name.value)
-                    
                     if proc_name and not any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows):
                         return {"exe": proc_name, "class": c_str, "title": t_str}
-
                 time.sleep(0.5)
-        except Exception as e:
-            self.write_log("WARN", "capture_popup_window", detail=str(e), success=False)
+        except Exception as e: self.write_log("WARN", "capture_popup_window", detail=str(e), success=False)
         return None
 
     def add_popup_rule(self, rule):
-        if not rule:
-            return False
-
+        if not rule: return False
         with self.lock_config:
             target_list = self.pyas_config.setdefault("block_list", [])
-            for item in target_list:
-                if item.get("exe") == rule.get("exe") and item.get("class") == rule.get("class") and item.get("title") == rule.get("title"):
-                    return False
-
+            if any(item.get("exe") == rule.get("exe") and item.get("class") == rule.get("class") and item.get("title") == rule.get("title") for item in target_list):
+                return False
             target_list.append(rule)
             self.write_log("INFO", "Config Update", detail=f"List [block_list] add: {rule}")
             self.save_config()
@@ -2377,203 +1855,123 @@ class WindowAPI:
     def popup_intercept_thread(self):
         WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
         hwnd_list = []
-        
         def enum_windows_callback(hWnd, lParam):
-            if self.user32.IsWindowVisible(hWnd):
-                hwnd_list.append(hWnd)
+            if self.user32.IsWindowVisible(hWnd): hwnd_list.append(hWnd)
             return True
-            
         enum_cb = WNDENUMPROC(enum_windows_callback)
 
         while True:
             try:
                 time.sleep(0.5)
-                with self.lock_config:
-                    rules = self.pyas_config.get("block_list", [])
-
-                if not rules:
-                    continue
+                with self.lock_config: rules = self.pyas_config.get("block_list", [])
+                if not rules: continue
 
                 hwnd_list.clear()
                 self.user32.EnumWindows(enum_cb, 0)
-                
                 for hWnd in list(hwnd_list):
                     pid = ctypes.c_ulong(0)
                     self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))
-                    
-                    if pid.value <= 4:
-                        continue
-                        
+                    if pid.value <= 4: continue
                     proc_name, _ = self.get_exe_info(pid.value)
-                    
                     length = self.user32.GetWindowTextLengthW(hWnd)
-                    title = ctypes.create_unicode_buffer(length + 1)
+                    title, class_name = ctypes.create_unicode_buffer(length + 1), ctypes.create_unicode_buffer(256)
                     self.user32.GetWindowTextW(hWnd, title, length + 1)
-                    class_name = ctypes.create_unicode_buffer(256)
                     self.user32.GetClassNameW(hWnd, class_name, 256)
-                    
-                    t_str = str(title.value)
-                    c_str = str(class_name.value)
+                    t_str, c_str = str(title.value), str(class_name.value)
 
-                    is_pass = any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows)
-                    if is_pass:
-                        continue
+                    if any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows): continue
                     
                     is_block = False
                     for item in rules:
-                        match_exe = item.get("exe") and item.get("exe") == proc_name
-                        match_class = item.get("class") and item.get("class") == c_str
-                        match_title = item.get("title") and item.get("title") == t_str
-                        
-                        if match_exe and (match_class or match_title):
+                        if item.get("exe") and item.get("exe") == proc_name and (item.get("class") == c_str or item.get("title") == t_str):
                             is_block = True
                             break
 
                     if is_block:
-                        for msg in [0x0010, 0x0002, 0x0012, 0x0112]:
-                            self.user32.SendMessageW(hWnd, msg, 0xF060, 0)
-                        if proc_name:
-                            self.kill_process(pid.value)
-
-            except Exception:
-                pass
+                        for msg in [0x0010, 0x0002, 0x0012, 0x0112]: self.user32.SendMessageW(hWnd, msg, 0xF060, 0)
+                        if proc_name: self.kill_process(pid.value)
+            except Exception: pass
 
     def install_system_driver(self):
         try:
             service_name = "PYAS_Driver"
-            cmd = f'sc create {service_name} binPath="{self.path_drivers}" type=kernel start=demand error=normal depend=FltMgr group="FSFilter Activity Monitor"'
-            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            
-            key_path = r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances"
-            with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
-                winreg.SetValueEx(key, "DefaultInstance", 0, winreg.REG_SZ, "PYAS Instance")
-
-            with winreg.CreateKey(winreg.HKEY_LOCAL_MACHINE, rf"{key_path}\PYAS Instance") as key:
-                winreg.SetValueEx(key, "Altitude", 0, winreg.REG_SZ, "320000")
-                winreg.SetValueEx(key, "Flags", 0, winreg.REG_DWORD, 0)
-                
+            subprocess.run(f'sc create {service_name} binPath="{self.path_drivers}" type=kernel start=demand error=normal depend=FltMgr group="FSFilter Activity Monitor"', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances", "DefaultInstance", winreg.REG_SZ, "PYAS Instance")
+            self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances\PYAS Instance", "Altitude", winreg.REG_SZ, "320000")
+            self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances\PYAS Instance", "Flags", winreg.REG_DWORD, 0)
             subprocess.run(["sc", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return self.check_system_driver()
-
-        except Exception:
-            return False
+        except Exception: return False
 
     def stop_system_driver(self):
         try:
             with self.lock_driver:
                 if self.driver_port:
-                    try:
-                        self.kernel32.CloseHandle(self.driver_port)
-                    except Exception:
-                        pass
+                    try: self.kernel32.CloseHandle(self.driver_port)
+                    except Exception: pass
                     self.driver_port = None
 
             subprocess.run(["sc", "stop", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            
             for _ in range(3):
                 res = subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
-                if "STOPPED" in res.stdout or "FAILED" in res.stderr or "1060" in res.stdout:
-                    break
+                if "STOPPED" in res.stdout or "FAILED" in res.stderr or "1060" in res.stdout: break
                 time.sleep(0.5)
-
             subprocess.run(["sc", "delete", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return True
-
-        except Exception:
-            return False
+        except Exception: return False
 
     def check_system_driver(self):
-        try:
-            result = subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
-            return "RUNNING" in result.stdout
-
-        except Exception:
-            return False
+        try: return "RUNNING" in subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True).stdout
+        except Exception: return False
 
     def pipe_server_thread(self):
         try:
-            port_name = "\\PYAS_Output_Pipe"
-
             while True:
                 with self.lock_config:
-                    if not self.pyas_config.get("driver_switch", False):
-                        break
-                
+                    if not self.pyas_config.get("driver_switch", False): break
                 temp_port = ctypes.wintypes.HANDLE()
-                hr = self.fltlib.FilterConnectCommunicationPort(port_name, 0, None, 0, None, ctypes.byref(temp_port))
-                
-                if hr == 0:
-                    with self.lock_driver:
-                        self.driver_port = temp_port
-
-                    with self.lock_config:
-                        whitelist = self.pyas_config.get("white_list", [])
-                        
+                if self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port)) == 0:
+                    with self.lock_driver: self.driver_port = temp_port
+                    with self.lock_config: whitelist = self.pyas_config.get("white_list", [])
                     for item in whitelist:
-                        if isinstance(item, dict) and item.get("file"):
-                            self.sync_driver_whitelist(item["file"], True)
-
+                        if isinstance(item, dict) and item.get("file"): self.sync_driver_whitelist(item["file"], True)
                     message = PYAS_FULL_MESSAGE()
-                    
                     while True:
                         with self.lock_config:
-                            if not self.pyas_config.get("driver_switch", False):
-                                break
-
-                        with self.lock_driver:
-                            current_port = self.driver_port
-                        
-                        if not current_port:
-                            break
-
+                            if not self.pyas_config.get("driver_switch", False): break
+                        with self.lock_driver: current_port = self.driver_port
+                        if not current_port: break
                         try:
-                            hr_get = self.fltlib.FilterGetMessage(current_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None)
-                        except OSError:
-                            break
-
-                        if hr_get == 0:
-                            code = message.Data.MessageCode
-                            pid = message.Data.ProcessId
-                            exe_info = self.get_exe_info(pid)
-                            raw_path = exe_info[1] if exe_info else None
-                            target = message.Data.Path
-
-                            with self.lock_config:
-                                block_codes = self.pyas_config.get("block", [])
-
-                            safe_source = raw_path if raw_path else "Unknown"
-
-                            if code in block_codes and not self.is_in_whitelist(safe_source):
-                                self.kill_process(pid)
-                                self.write_log("BLOCK", "Driver Block", pid=pid, source=safe_source, target=target, code=code, file_hash=self.calc_file_hash(safe_source))
-                        else:
-                            break
-
+                            if self.fltlib.FilterGetMessage(current_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None) == 0:
+                                code, pid, target = message.Data.MessageCode, message.Data.ProcessId, message.Data.Path
+                                exe_info = self.get_exe_info(pid)
+                                safe_source = exe_info[1] if exe_info and exe_info[1] else "Unknown"
+                                with self.lock_config: block_codes = self.pyas_config.get("block", [])
+                                if code in block_codes and not self.is_in_whitelist(safe_source):
+                                    self.kill_process(pid)
+                                    self.write_log("BLOCK", "Driver Block", pid=pid, source=safe_source, target=target, code=code, file_hash=self.calc_file_hash(safe_source))
+                            else: break
+                        except OSError: break
                     with self.lock_driver:
                         if self.driver_port:
                             self.kernel32.CloseHandle(self.driver_port)
                             self.driver_port = None
-
                 time.sleep(0.1)
-        except Exception as e:
-            self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
+        except Exception as e: self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
 
 
 ####################################################################################################
 
 def get_base_path():
-    if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
+    if getattr(sys, 'frozen', False): return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
 class NoCacheRequestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        web_dir = os.path.join(get_base_path(), "Interface")
-        super().__init__(*args, directory=web_dir, **kwargs)
+        super().__init__(*args, directory=os.path.join(get_base_path(), "Interface"), **kwargs)
 
     def do_GET(self):
-        if self.path == '/':
-            self.path = '/templates/index.html'
+        if self.path == '/': self.path = '/templates/index.html'
         return super().do_GET()
 
     def end_headers(self):
@@ -2584,41 +1982,24 @@ class NoCacheRequestHandler(SimpleHTTPRequestHandler):
 
 class WindowHook:
     def __init__(self, title, api_ref=None):
-        self.title = title
-        self.api_ref = api_ref
+        self.title, self.api_ref = title, api_ref
         self.old_wndproc = None
-        self.WM_DPICHANGED = 0x02E0
-        self.WM_NCHITTEST = 0x0084
-        self.WM_COPYDATA = 0x004A
-        self.HTCAPTION = 2
-        self.GWLP_WNDPROC = -4
+        self.WM_DPICHANGED, self.WM_NCHITTEST, self.WM_COPYDATA, self.HTCAPTION, self.GWLP_WNDPROC = 0x02E0, 0x0084, 0x004A, 2, -4
 
         class RECT(ctypes.Structure):
-            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), 
-                        ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
         self.RECT = RECT
         
         self.WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p)
         self.user32 = ctypes.windll.user32
+        self.user32.FindWindowW.argtypes, self.user32.FindWindowW.restype = [ctypes.c_wchar_p, ctypes.c_wchar_p], ctypes.wintypes.HWND
+        self.user32.CallWindowProcW.argtypes, self.user32.CallWindowProcW.restype = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p
 
-        self.user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
-        self.user32.FindWindowW.restype = ctypes.wintypes.HWND
-        
-        self.user32.CallWindowProcW.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p]
-        self.user32.CallWindowProcW.restype = ctypes.c_void_p
+        if ctypes.sizeof(ctypes.c_void_p) == 8: self.SetWindowLong, self.GetWindowLong = self.user32.SetWindowLongPtrW, self.user32.GetWindowLongPtrW
+        else: self.SetWindowLong, self.GetWindowLong = self.user32.SetWindowLongW, self.user32.GetWindowLongW
 
-        if ctypes.sizeof(ctypes.c_void_p) == 8:
-            self.SetWindowLong = self.user32.SetWindowLongPtrW
-            self.GetWindowLong = self.user32.GetWindowLongPtrW
-        else:
-            self.SetWindowLong = self.user32.SetWindowLongW
-            self.GetWindowLong = self.user32.GetWindowLongW
-
-        self.SetWindowLong.argtypes = [ctypes.c_void_p, ctypes.c_int, self.WNDPROC]
-        self.SetWindowLong.restype = ctypes.c_void_p
-        self.GetWindowLong.argtypes = [ctypes.c_void_p, ctypes.c_int]
-        self.GetWindowLong.restype = ctypes.c_void_p
-
+        self.SetWindowLong.argtypes, self.SetWindowLong.restype = [ctypes.c_void_p, ctypes.c_int, self.WNDPROC], ctypes.c_void_p
+        self.GetWindowLong.argtypes, self.GetWindowLong.restype = [ctypes.c_void_p, ctypes.c_int], ctypes.c_void_p
         self.new_wndproc_cb = self.WNDPROC(self.wndproc)
 
     def hook(self):
@@ -2626,65 +2007,38 @@ class WindowHook:
         if hwnd:
             self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
             self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
-            
             try:
                 self.user32.ChangeWindowMessageFilterEx.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p]
                 self.user32.ChangeWindowMessageFilterEx(hwnd, self.WM_COPYDATA, 1, None)
-            except Exception:
-                pass
+            except Exception: pass
 
     def wndproc(self, hwnd, msg, wparam, lparam):
-        if msg in [0x0010, 0x0002, 0x0012, 0x0212]:
-            return 0
-        
-        if msg == 0x0112 and (wparam & 0xFFF0) == 0xF060:
-            return 0
-            
+        if msg in [0x0010, 0x0002, 0x0012, 0x0212] or (msg == 0x0112 and (wparam & 0xFFF0) == 0xF060): return 0
         if msg == self.WM_COPYDATA:
             try:
                 cds = COPYDATASTRUCT.from_address(lparam)
                 if cds.dwData == 1:
-                    buffer = ctypes.string_at(cds.lpData, cds.cbData)
-                    path = buffer.decode('utf-8').strip('\x00')
+                    path = ctypes.string_at(cds.lpData, cds.cbData).decode('utf-8').strip('\x00')
                     if self.api_ref:
-                        if self.api_ref._window:
-                            self.api_ref._window.restore()
-                            self.api_ref._window.show()
+                        if self.api_ref._window: self.api_ref._window.restore(); self.api_ref._window.show()
                         threading.Thread(target=self.api_ref.trigger_context_scan, args=(path,), daemon=True).start()
-                elif cds.dwData == 2:
-                    if self.api_ref and self.api_ref._window:
-                        self.api_ref._window.restore()
-                        self.api_ref._window.show()
-                elif cds.dwData == 3:
-                    if self.api_ref:
-                        self.api_ref.close()
-            except Exception:
-                pass
+                elif cds.dwData == 2 and self.api_ref and self.api_ref._window: self.api_ref._window.restore(); self.api_ref._window.show()
+                elif cds.dwData == 3 and self.api_ref: self.api_ref.close()
+            except Exception: pass
             return 1
-
         if msg == self.WM_NCHITTEST:
-            x = lparam & 0xFFFF
+            x, y = lparam & 0xFFFF, (lparam >> 16) & 0xFFFF
             if x >= 32768: x -= 65536
-            y = (lparam >> 16) & 0xFFFF
             if y >= 32768: y -= 65536
-            
             rect = self.RECT()
             self.user32.GetWindowRect(hwnd, ctypes.byref(rect))
-            
-            if rect.top <= y <= rect.top + 44 and rect.left <= x <= rect.right - 150:
-                return self.HTCAPTION
-
+            if rect.top <= y <= rect.top + 44 and rect.left <= x <= rect.right - 150: return self.HTCAPTION
         if msg == self.WM_DPICHANGED:
             try:
                 rect = self.RECT.from_address(lparam)
                 self.user32.SetWindowPos(hwnd, None, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0004 | 0x0010 | 0x0020)
-            except Exception:
-                pass
-
-        if self.old_wndproc:
-            return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam)
-
-        return self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
+            except Exception: pass
+        return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam) if self.old_wndproc else self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
 ####################################################################################################
 
@@ -2695,8 +2049,7 @@ def start_api(port_container, ready_event):
             port_container.append(httpd.server_address[1])
             ready_event.set()
             httpd.serve_forever()
-    except Exception:
-        ready_event.set()
+    except Exception: ready_event.set()
 
 if __name__ == "__main__":
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
@@ -2712,21 +2065,15 @@ if __name__ == "__main__":
 
     server_ready.wait(timeout=5.0)
 
-    if not port_container:
-        os._exit(1)
-
-    port = port_container[0]
+    if not port_container: os._exit(1)
 
     js_api = WindowAPI()
 
     user32 = ctypes.windll.user32
-    screen_width = user32.GetSystemMetrics(0)
-    screen_height = user32.GetSystemMetrics(1)
-    pos_x = (screen_width - init_width) // 2
-    pos_y = (screen_height - init_height) // 2
+    pos_x, pos_y = (user32.GetSystemMetrics(0) - init_width) // 2, (user32.GetSystemMetrics(1) - init_height) // 2
 
     window = webview.create_window(
-        title="PYAS Security", url=f"http://127.0.0.1:{port}/",
+        title="PYAS Security", url=f"http://127.0.0.1:{port_container[0]}/",
         width=init_width, height=init_height, x=pos_x, y=pos_y,
         frameless=True, easy_drag=False, js_api=js_api,
         background_color='#e0e0e0', hidden=hide_on_start)
@@ -2742,9 +2089,7 @@ if __name__ == "__main__":
         try:
             from webview.dom import DOMEventHandler
             window.dom.document.events.drop += DOMEventHandler(js_api.on_drop, True, True)
-        except Exception:
-            pass
+        except Exception: pass
 
     window.events.loaded += bind_dnd
-
     webview.start()

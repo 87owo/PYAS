@@ -189,8 +189,7 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
 }
 
 NTSTATUS InitializeProcessProtection() {
-    static UNICODE_STRING Altitude = { 0 };
-    RtlInitUnicodeString(&Altitude, L"320000");
+    static UNICODE_STRING Altitude = RTL_CONSTANT_STRING(L"320000.PYAS.Ob");
 
     ObCallbacks[0].ObjectType = PsProcessType;
     ObCallbacks[0].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
@@ -208,7 +207,15 @@ NTSTATUS InitializeProcessProtection() {
     ObRegistration.RegistrationContext = NULL;
     ObRegistration.OperationRegistration = ObCallbacks;
 
-    return ObRegisterCallbacks(&ObRegistration, &ObRegistrationHandle);
+    NTSTATUS status = ObRegisterCallbacks(&ObRegistration, &ObRegistrationHandle);
+
+    if (!NT_SUCCESS(status) && (status == STATUS_FLT_INSTANCE_ALTITUDE_COLLISION || status == STATUS_OBJECT_NAME_COLLISION)) {
+        static UNICODE_STRING FallbackAltitude = RTL_CONSTANT_STRING(L"320000.PYAS.Ob.Fallback");
+        ObRegistration.Altitude = FallbackAltitude;
+        status = ObRegisterCallbacks(&ObRegistration, &ObRegistrationHandle);
+    }
+
+    return status;
 }
 
 VOID UninitializeProcessProtection() {

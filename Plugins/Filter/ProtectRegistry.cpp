@@ -235,9 +235,15 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 }
 
 NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject) {
-    UNICODE_STRING Altitude;
-    RtlInitUnicodeString(&Altitude, L"320000");
-    return CmRegisterCallbackEx(RegistryCallback, &Altitude, DriverObject, NULL, &Cookie, NULL);
+    static UNICODE_STRING Altitude = RTL_CONSTANT_STRING(L"320000.PYAS.Cm");
+    NTSTATUS status = CmRegisterCallbackEx(RegistryCallback, &Altitude, DriverObject, NULL, &Cookie, NULL);
+
+    if (!NT_SUCCESS(status)) {
+        static UNICODE_STRING FallbackAltitude = RTL_CONSTANT_STRING(L"320000.PYAS.Cm.Fallback");
+        status = CmRegisterCallbackEx(RegistryCallback, &FallbackAltitude, DriverObject, NULL, &Cookie, NULL);
+    }
+
+    return status;
 }
 
 VOID UninitializeRegistryProtection() {

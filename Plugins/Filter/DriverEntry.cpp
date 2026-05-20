@@ -1,6 +1,7 @@
 #include "DriverCommon.h"
 
 DRIVER_DATA GlobalData;
+static BOOLEAN g_ImageNotifyRegistered = FALSE;
 
 static NTSTATUS InstanceSetup(PCFLT_RELATED_OBJECTS FltObjects, FLT_INSTANCE_SETUP_FLAGS Flags, DEVICE_TYPE VolumeDeviceType, FLT_FILESYSTEM_TYPE VolumeFilesystemType) {
     UNREFERENCED_PARAMETER(FltObjects);
@@ -39,7 +40,11 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
         GlobalData.FilterHandle = NULL;
     }
 
-    PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
+    if (g_ImageNotifyRegistered) {
+        PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
+        g_ImageNotifyRegistered = FALSE;
+    }
+
     UninitializeRegistryProtection();
     UninitializeProcessProtection();
 
@@ -57,12 +62,9 @@ static NTSTATUS PortMessage(PVOID PortCookie, PVOID InputBuffer, ULONG InputBuff
     if (InputBuffer && InputBufferLength >= sizeof(PYAS_USER_MESSAGE)) {
         PPYAS_USER_MESSAGE msg = (PPYAS_USER_MESSAGE)InputBuffer;
         if (msg->Command == 1 || msg->Command == 2) {
-
             msg->Path[MAX_PATH_LEN - 1] = L'\0';
-
             UNICODE_STRING us;
             RtlInitUnicodeString(&us, msg->Path);
-
             if (us.Length > 0) {
                 if (msg->Command == 1) {
                     AddDynamicWhitelist(&us);
@@ -174,22 +176,29 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     }
 
     if (!NT_SUCCESS(status)) {
-        if (GlobalData.FilterHandle) {
-            FltUnregisterFilter(GlobalData.FilterHandle);
-            GlobalData.FilterHandle = NULL;
-        }
+        FltUnregisterFilter(GlobalData.FilterHandle);
+        GlobalData.FilterHandle = NULL;
         UnloadRules();
         UninitializeRulesEngine();
         return status;
     }
 
     InitializeProcessProtection();
+
     InitializeRegistryProtection(DriverObject);
-    PsSetLoadImageNotifyRoutine(ImageLoadNotify);
+
+    NTSTATUS imageNotifyStatus = PsSetLoadImageNotifyRoutine(ImageLoadNotify);
+    if (NT_SUCCESS(imageNotifyStatus)) {
+        g_ImageNotifyRegistered = TRUE;
+    }
 
     status = FltStartFiltering(GlobalData.FilterHandle);
     if (!NT_SUCCESS(status)) {
-        PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
+        if (g_ImageNotifyRegistered) {
+            PsRemoveLoadImageNotifyRoutine(ImageLoadNotify);
+            g_ImageNotifyRegistered = FALSE;
+        }
+
         UninitializeRegistryProtection();
         UninitializeProcessProtection();
 

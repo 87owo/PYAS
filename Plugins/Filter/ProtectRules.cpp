@@ -525,7 +525,7 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if (g_CacheInitialized) {
         KIRQL OldIrql;
         KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
-        ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
+        ULONG Hash = (((ULONG)(ULONG_PTR)ProcessId) >> 2) & (TRUST_CACHE_SIZE - 1);
 
         if (TrustCache[Hash].Process == Process && TrustCache[Hash].ProcessCreateTime.QuadPart == createTime.QuadPart) {
             LARGE_INTEGER Now;
@@ -580,7 +580,7 @@ update_cache:
     if (g_CacheInitialized) {
         KIRQL OldIrql;
         KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
-        ULONG Hash = ((ULONG)(ULONG_PTR)ProcessId) & (TRUST_CACHE_SIZE - 1);
+        ULONG Hash = (((ULONG)(ULONG_PTR)ProcessId) >> 2) & (TRUST_CACHE_SIZE - 1);
         TrustCache[Hash].Process = Process;
         TrustCache[Hash].ProcessCreateTime = createTime;
         TrustCache[Hash].IsTrusted = isTrusted;

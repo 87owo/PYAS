@@ -143,7 +143,7 @@ def train_process(X, y, feature_names):
     n_neg = (y_train == 0).sum()
     
     base_weight = n_neg / n_pos if n_pos > 0 else 1.0
-    weight_ratio_target = 0.003
+    weight_ratio_target = 0.005
     final_pos_weight = base_weight * weight_ratio_target
     
     print(f"[*] Sample distribution: Safe={n_neg}, Malware={n_pos}")

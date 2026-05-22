@@ -135,6 +135,7 @@
     "*\\bin\\APlayer.exe",
     "*\\Neverness To Everness\\NTELauncher.exe",
     "*\\Application\\AndrowsLauncher.exe",
+    "*\\.vscode\\extensions\\*\\bin\\*\\codex.exe",
   ],
   "Rule_Process_ExploitableBlacklist": [
     "*\\cmd.exe",

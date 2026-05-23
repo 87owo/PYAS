@@ -1592,12 +1592,12 @@ class WindowAPI:
 
     def scan_system_repair(self):
         items = []
-        if self.check_system_mbr(): items.append({"display": "修復系統 MBR", "value": "mbr"})
-        if self.check_system_restrict(): items.append({"display": "修復系統限制", "value": "restrict"})
-        if self.check_system_file_type(): items.append({"display": "修復檔案關聯", "value": "file_type"})
-        if self.check_system_file_icon(): items.append({"display": "修復檔案圖標", "value": "file_icon"})
-        if self.check_system_image(): items.append({"display": "修復映像劫持", "value": "image"})
-        if self.check_system_wallpaper(): items.append({"display": "修復桌面壁紙", "value": "wallpaper"})
+        if self.check_system_mbr(): items.append({"display": "repair_mbr", "value": "mbr"})
+        if self.check_system_restrict(): items.append({"display": "repair_limit", "value": "restrict"})
+        if self.check_system_file_type(): items.append({"display": "repair_assoc", "value": "file_type"})
+        if self.check_system_file_icon(): items.append({"display": "repair_icon", "value": "file_icon"})
+        if self.check_system_image(): items.append({"display": "repair_hijack", "value": "image"})
+        if self.check_system_wallpaper(): items.append({"display": "repair_wallpaper", "value": "wallpaper"})
         return items
 
     def repair_system_mbr(self):

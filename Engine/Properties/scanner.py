@@ -112,7 +112,6 @@ class FeatureExtractor:
     @staticmethod
     def _calc_entropy(data):
         if not data: return 0.0
-        import numpy as np
         arr = np.frombuffer(data, dtype=np.uint8)
         counts = np.bincount(arr, minlength=256)
         probs = counts[counts > 0] / len(arr)
@@ -124,26 +123,21 @@ class FeatureExtractor:
         for i in range(95):
             res[f'StringHist_{i:02d}'] = 0.0
 
-        count = 0
-        total_len = 0
-        char_counts = [0] * 95
-        combined_data = bytearray()
-
-        for match in cls._STRING_PATTERN.finditer(file_bytes):
-            m = match.group()
-            count += 1
-            length = len(m)
-            total_len += length
-            combined_data.extend(m)
-            for b in m:
-                char_counts[b - 0x20] += 1
-
-        if count == 0:
+        matches = cls._STRING_PATTERN.findall(file_bytes)
+        if not matches:
             return res
+
+        combined_data = b''.join(matches)
+        count = len(matches)
+        total_len = len(combined_data)
 
         res["StringCount"] = float(count)
         res["StringMeanLength"] = float(total_len) / count
         res["StringEntropy"] = cls._calc_entropy(combined_data)
+
+        arr = np.frombuffer(combined_data, dtype=np.uint8)
+        counts = np.bincount(arr, minlength=127)
+        char_counts = counts[0x20:0x7F]
 
         for i in range(95):
             res[f'StringHist_{i:02d}'] = float(char_counts[i]) / total_len
@@ -152,7 +146,6 @@ class FeatureExtractor:
 
     @classmethod
     def _extract_histograms(cls, file_bytes):
-        import numpy as np
         arr = np.frombuffer(file_bytes, dtype=np.uint8)
         sz = len(arr)
         res = {}
@@ -171,23 +164,42 @@ class FeatureExtractor:
         ent_hist = np.zeros(256, dtype=np.float64)
         window = 2048
         step = 1024
-        num_windows = (sz - window) // step + 1 if sz >= window else 1
 
-        for i in range(num_windows):
-            w = arr if sz < window else arr[i*step : i*step+window]
-            w_counts = np.bincount(w, minlength=256)
-            
-            p = w_counts[w_counts > 0] / len(w)
+        if sz < window:
+            w_counts = byte_counts
+            p = w_counts[w_counts > 0] / sz
             entropy = -np.sum(p * np.log2(p))
-            
-            ent_bin = int(entropy * 2.0)
-            if ent_bin > 15:
-                ent_bin = 15
-                
+            ent_bin = min(int(entropy * 2.0), 15)
             byte_bins = w_counts.reshape(16, 16).sum(axis=1)
-            
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
+        else:
+            num_windows = (sz - window) // step + 1
+            batch_size = 50000
+            
+            for b_start in range(0, num_windows, batch_size):
+                b_end = min(b_start + batch_size, num_windows)
+                b_num = b_end - b_start
+                
+                b_chunks = arr[b_start * step : (b_end + 1) * step].reshape(b_num + 1, step)
+                
+                offsets = np.arange(b_num + 1, dtype=np.int32)[:, None] * 256
+                flat_idx = (b_chunks.astype(np.int32) + offsets).ravel()
+                counts_flat = np.bincount(flat_idx, minlength=(b_num + 1) * 256)
+                chunk_counts = counts_flat.reshape(b_num + 1, 256)
+                
+                window_counts = chunk_counts[:-1] + chunk_counts[1:]
+                
+                p = window_counts / float(window)
+                p_safe = np.where(p > 0, p, 1.0)
+                entropies = -np.sum(p * np.log2(p_safe), axis=1)
+                
+                ent_bins = (entropies * 2.0).astype(np.int32)
+                np.clip(ent_bins, None, 15, out=ent_bins)
+                
+                byte_bins = window_counts.reshape(b_num, 16, 16).sum(axis=2)
+                flat_ent_bins = (ent_bins[:, None] * 16 + np.arange(16)).ravel()
+                np.add.at(ent_hist, flat_ent_bins, byte_bins.ravel())
 
         ent_sum = np.sum(ent_hist)
         if ent_sum > 0:

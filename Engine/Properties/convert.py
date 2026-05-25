@@ -1,6 +1,7 @@
 import os, sys, math, time, datetime, pefile, hashlib
 import ctypes, ctypes.wintypes, multiprocessing
 import re, zlib
+import numpy as np
 
 ####################################################################################################
 

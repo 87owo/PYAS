@@ -1,6 +1,5 @@
-import os, sys, math, time, datetime, pefile, hashlib
-import ctypes, ctypes.wintypes, multiprocessing
-import re, zlib
+import re, os, sys, math, time, zlib, datetime, hashlib
+import ctypes, ctypes.wintypes, pefile, multiprocessing
 import numpy as np
 
 ####################################################################################################
@@ -110,6 +109,17 @@ def verify_signature(file_path):
 
 class FeatureExtractor:
     _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
+    
+    _BYTE_HIST_KEYS = [f'ByteHist_{i:02X}' for i in range(256)]
+    _BYTE_ENT_KEYS = [f'ByteEnt_{i:02X}' for i in range(256)]
+    _STRING_KEYS = [f'StringHist_{i:02d}' for i in range(95)]
+    _SECTION_HASH_KEYS = [f'SectionHash_{i:02d}' for i in range(50)]
+    _CHAR_FLAGS = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
+    _CHAR_COUNT_KEYS = {flag: f'Char_{flag:08X}_Count' for flag in _CHAR_FLAGS}
+    _CHAR_ENT_KEYS = {flag: f'Char_{flag:08X}_MeanEntropy' for flag in _CHAR_FLAGS}
+    
+    _C_LOG_C_TABLE = np.zeros(2049, dtype=np.float64)
+    _C_LOG_C_TABLE[1:] = np.arange(1, 2049) * np.log2(np.arange(1, 2049))
 
     @staticmethod
     def _safe_float(val):
@@ -123,15 +133,15 @@ class FeatureExtractor:
     def _calc_entropy(data):
         if not data: return 0.0
         arr = np.frombuffer(data, dtype=np.uint8)
+        sz = len(arr)
         counts = np.bincount(arr, minlength=256)
-        probs = counts[counts > 0] / len(arr)
-        return float(-np.sum(probs * np.log2(probs)))
+        counts = counts[counts > 0]
+        return float(np.log2(sz) - np.sum(counts * np.log2(counts)) / sz)
 
     @classmethod
     def _extract_strings(cls, file_bytes):
         res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
-        for i in range(95):
-            res[f'StringHist_{i:02d}'] = 0.0
+        res.update(dict.fromkeys(cls._STRING_KEYS, 0.0))
 
         matches = cls._STRING_PATTERN.findall(file_bytes)
         if not matches:
@@ -149,9 +159,7 @@ class FeatureExtractor:
         counts = np.bincount(arr, minlength=127)
         char_counts = counts[0x20:0x7F]
 
-        for i in range(95):
-            res[f'StringHist_{i:02d}'] = float(char_counts[i]) / total_len
-
+        res.update(dict(zip(cls._STRING_KEYS, char_counts.astype(np.float64) / total_len)))
         return res
 
     @classmethod
@@ -161,15 +169,13 @@ class FeatureExtractor:
         res = {}
 
         if sz == 0:
-            for i in range(256):
-                res[f'ByteHist_{i:02X}'] = 0.0
-                res[f'ByteEnt_{i:02X}'] = 0.0
+            res.update(dict.fromkeys(cls._BYTE_HIST_KEYS, 0.0))
+            res.update(dict.fromkeys(cls._BYTE_ENT_KEYS, 0.0))
             return res
 
         byte_counts = np.bincount(arr, minlength=256)
-        byte_hist = byte_counts / sz
-        for i, v in enumerate(byte_hist):
-            res[f'ByteHist_{i:02X}'] = float(v)
+        byte_hist = byte_counts.astype(np.float64) / sz
+        res.update(dict(zip(cls._BYTE_HIST_KEYS, byte_hist)))
 
         ent_hist = np.zeros(256, dtype=np.float64)
         window = 2048
@@ -177,35 +183,36 @@ class FeatureExtractor:
 
         if sz < window:
             w_counts = byte_counts
-            p = w_counts[w_counts > 0] / sz
-            entropy = -np.sum(p * np.log2(p))
+            p = w_counts[w_counts > 0] / float(sz)
+            entropy = float(-np.sum(p * np.log2(p)))
             ent_bin = min(int(entropy * 2.0), 15)
             byte_bins = w_counts.reshape(16, 16).sum(axis=1)
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
         else:
             num_windows = (sz - window) // step + 1
-            batch_size = 50000
+            batch_windows = 10000 
             
-            for b_start in range(0, num_windows, batch_size):
-                b_end = min(b_start + batch_size, num_windows)
-                b_num = b_end - b_start
+            for w_start in range(0, num_windows, batch_windows):
+                w_end = min(w_start + batch_windows, num_windows)
+                b_num = w_end - w_start
                 
-                b_chunks = arr[b_start * step : (b_end + 1) * step].reshape(b_num + 1, step)
+                start_byte = w_start * step
+                end_byte = start_byte + b_num * step + step
+                b_arr = arr[start_byte:end_byte]
                 
-                offsets = np.arange(b_num + 1, dtype=np.int32)[:, None] * 256
-                flat_idx = (b_chunks.astype(np.int32) + offsets).ravel()
-                counts_flat = np.bincount(flat_idx, minlength=(b_num + 1) * 256)
-                chunk_counts = counts_flat.reshape(b_num + 1, 256)
+                arr_2d = b_arr.reshape(b_num + 1, step)
+                offsets = (np.arange(b_num + 1, dtype=np.int32)[:, None] * 256)
+                flat_idx = (arr_2d.astype(np.int32) + offsets).ravel()
                 
+                chunk_counts = np.bincount(flat_idx, minlength=(b_num + 1) * 256).reshape(b_num + 1, 256)
                 window_counts = chunk_counts[:-1] + chunk_counts[1:]
                 
-                p = window_counts / float(window)
-                p_safe = np.where(p > 0, p, 1.0)
-                entropies = -np.sum(p * np.log2(p_safe), axis=1)
+                sum_c_log_c = np.sum(cls._C_LOG_C_TABLE[window_counts], axis=1)
+                entropies = 11.0 - sum_c_log_c / 2048.0
                 
                 ent_bins = (entropies * 2.0).astype(np.int32)
-                np.clip(ent_bins, None, 15, out=ent_bins)
+                np.clip(ent_bins, 0, 15, out=ent_bins)
                 
                 byte_bins = window_counts.reshape(b_num, 16, 16).sum(axis=2)
                 flat_ent_bins = (ent_bins[:, None] * 16 + np.arange(16)).ravel()
@@ -215,9 +222,7 @@ class FeatureExtractor:
         if ent_sum > 0:
             ent_hist /= ent_sum
 
-        for i, v in enumerate(ent_hist):
-            res[f'ByteEnt_{i:02X}'] = float(v)
-
+        res.update(dict(zip(cls._BYTE_ENT_KEYS, ent_hist)))
         return res
 
     @classmethod
@@ -386,9 +391,9 @@ class FeatureExtractor:
             except Exception: 
                 pass
             
-            base['TrustSigned'] = verify_signature(file_path)
+            base['TrustSigned'] = float(verify_signature(file_path))
             base['FileEntropy'] = cls._calc_entropy(file_bytes)
-            base['FileSize'] = fsize
+            base['FileSize'] = float(fsize)
             
             fh = pe.FILE_HEADER
             base['Machine'] = getattr(fh, 'Machine', 0)
@@ -423,13 +428,9 @@ class FeatureExtractor:
                     if len(op.DATA_DIRECTORY) > exc_idx and op.DATA_DIRECTORY[exc_idx].Size > 0:
                         base['ExceptionCount'] = op.DATA_DIRECTORY[exc_idx].Size // 12 if base['Machine'] in (0x8664, 0xAA64) else 0.0
 
-            char_flags = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
-            for flag in char_flags:
-                base[f'Char_{flag:08X}_Count'] = 0.0
-                base[f'Char_{flag:08X}_MeanEntropy'] = 0.0
-
-            for i in range(50):
-                base[f'SectionHash_{i:02d}'] = 0.0
+            res_flags_count = dict.fromkeys(cls._CHAR_COUNT_KEYS.values(), 0.0)
+            res_flags_ent = dict.fromkeys(cls._CHAR_ENT_KEYS.values(), 0.0)
+            res_sec_hash = dict.fromkeys(cls._SECTION_HASH_KEYS, 0.0)
 
             if hasattr(pe, 'sections'):
                 base['SectionCount'] = len(pe.sections)
@@ -439,7 +440,7 @@ class FeatureExtractor:
                 for section in pe.sections:
                     sec_name = section.Name.rstrip(b'\x00')
                     hash_val = zlib.crc32(sec_name) % 50
-                    base[f'SectionHash_{hash_val:02d}'] += 1.0
+                    res_sec_hash[cls._SECTION_HASH_KEYS[hash_val]] += 1.0
 
                     try:
                         s_data = section.get_data()
@@ -456,10 +457,10 @@ class FeatureExtractor:
                     if section.Characteristics & 0x40000000: read_sec += 1
                     if section.SizeOfRawData + section.PointerToRawData > fsize: sec_exc = 1
 
-                    for flag in char_flags:
+                    for flag in cls._CHAR_FLAGS:
                         if section.Characteristics & flag:
-                            base[f'Char_{flag:08X}_Count'] += 1.0
-                            base[f'Char_{flag:08X}_MeanEntropy'] += s_entropy
+                            res_flags_count[cls._CHAR_COUNT_KEYS[flag]] += 1.0
+                            res_flags_ent[cls._CHAR_ENT_KEYS[flag]] += s_entropy
 
                 base['SectionMaxEntropy'] = max(entropies) if entropies else 0.0
                 base['SectionMinEntropy'] = min(entropies) if entropies else 0.0
@@ -470,14 +471,19 @@ class FeatureExtractor:
                 base['SectionMaxVSize'] = max(v_sizes) if v_sizes else 0.0
                 base['SectionMinVSize'] = min(v_sizes) if v_sizes else 0.0
                 base['SectionMeanVSize'] = sum(v_sizes) / len(v_sizes) if v_sizes else 0.0
-                base['ExecutableSections'] = exec_sec
-                base['WritableSections'] = write_sec
-                base['ReadableSections'] = read_sec
+                base['ExecutableSections'] = float(exec_sec)
+                base['WritableSections'] = float(write_sec)
+                base['ReadableSections'] = float(read_sec)
                 base['SectionException'] = float(sec_exc)
 
-                for flag in char_flags:
-                    if base[f'Char_{flag:08X}_Count'] > 0:
-                        base[f'Char_{flag:08X}_MeanEntropy'] = base[f'Char_{flag:08X}_MeanEntropy'] / base[f'Char_{flag:08X}_Count']
+                for flag in cls._CHAR_FLAGS:
+                    cnt_key = cls._CHAR_COUNT_KEYS[flag]
+                    if res_flags_count[cnt_key] > 0:
+                        res_flags_ent[cls._CHAR_ENT_KEYS[flag]] /= res_flags_count[cnt_key]
+
+            base.update(res_flags_count)
+            base.update(res_flags_ent)
+            base.update(res_sec_hash)
 
             string_keys = ['FileDescription', 'FileVersion', 'ProductName', 'ProductVersion', 'CompanyName', 'LegalCopyright', 'Comments', 'InternalName', 'LegalTrademarks', 'SpecialBuild', 'PrivateBuild']
             for key in string_keys: 
@@ -509,7 +515,7 @@ class FeatureExtractor:
                 base['IsSpecialBuild'] = 1.0 if flags & 0x20 else 0.0
 
             if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
-                base['ImportCount'] = len(pe.DIRECTORY_ENTRY_IMPORT)
+                base['ImportCount'] = float(len(pe.DIRECTORY_ENTRY_IMPORT))
                 func_count = 0
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     if getattr(entry, 'dll', None):
@@ -520,20 +526,20 @@ class FeatureExtractor:
                         if getattr(imp, 'name', None):
                             try: apis.add(imp.name.decode('ascii', 'ignore'))
                             except Exception: pass
-                base['ImportFunctionCount'] = func_count
+                base['ImportFunctionCount'] = float(func_count)
 
-            base['ExportCount'] = len(pe.DIRECTORY_ENTRY_EXPORT.symbols) if (hasattr(pe, 'DIRECTORY_ENTRY_EXPORT') and hasattr(pe.DIRECTORY_ENTRY_EXPORT, 'symbols')) else 0.0
+            base['ExportCount'] = float(len(pe.DIRECTORY_ENTRY_EXPORT.symbols)) if (hasattr(pe, 'DIRECTORY_ENTRY_EXPORT') and hasattr(pe.DIRECTORY_ENTRY_EXPORT, 'symbols')) else 0.0
 
             if hasattr(pe, 'DIRECTORY_ENTRY_RESOURCE'):
                 icon_count = 0
                 for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries:
                     if getattr(entry, 'id', None) == 3 and hasattr(entry, 'directory'):
                         icon_count += len(getattr(entry.directory, 'entries', []))
-                base['IconCount'] = icon_count
+                base['IconCount'] = float(icon_count)
             else: 
                 base['IconCount'] = 0.0
 
-            base['DebugCount'] = len(pe.DIRECTORY_ENTRY_DEBUG) if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG') else 0.0
+            base['DebugCount'] = float(len(pe.DIRECTORY_ENTRY_DEBUG)) if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG') else 0.0
 
             base.update(cls._extract_strings(file_bytes))
             base.update(cls._extract_histograms(file_bytes))
@@ -555,13 +561,15 @@ class FeatureExtractor:
 
 def load_existing_hashes():
     hashes = set()
-    if os.path.exists(JSONL_PATH):
-        with open(JSONL_PATH, 'r', encoding='utf-8') as f:
-            for line in f:
-                try:
-                    data = JSON_LOADS(line)
-                    if 'FileHash' in data: hashes.add(data['FileHash'])
-                except Exception: pass
+    if not os.path.exists(JSONL_PATH):
+        return hashes
+        
+    pattern = re.compile(rb'"FileHash"\s*:\s*"([a-fA-F0-9]{64})"')
+    with open(JSONL_PATH, 'rb') as f:
+        for line in f:
+            match = pattern.search(line)
+            if match:
+                hashes.add(match.group(1).decode('ascii'))
     return hashes
 
 GLOBAL_HASHES = set()

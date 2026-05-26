@@ -1,4 +1,4 @@
-import os, sys, time, json, onnxmltools, zlib
+import os, sys, time, json, zlib, array, onnxmltools, multiprocessing
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
@@ -55,14 +55,15 @@ def analyze_schema(jsonl_path):
 
     with open(jsonl_path, 'rb') as f:
         for line in f:
-            try:
-                data = JSON_LOADS(line)
-                base_data = data.get('Base')
-                if base_data:
-                    base_keys.update(base_data.keys())
-                num_lines += 1
-            except Exception:
-                continue
+            num_lines += 1
+            if not base_keys:
+                try:
+                    data = JSON_LOADS(line)
+                    base_data = data.get('Base')
+                    if base_data:
+                        base_keys.update(base_data.keys())
+                except Exception:
+                    pass
 
     base_schema = sorted([k for k in base_keys if k.lower().strip() not in EXCLUDE_FEATURES])
     dll_schema = [f"DllHash_{i:03d}" for i in range(DLL_HASH_DIM)]
@@ -73,28 +74,69 @@ def analyze_schema(jsonl_path):
 ####################################################################################################
 
 def load_data_efficiently(jsonl_path, base_schema, dll_schema, api_schema, num_lines):
-    print(f"[*] Stage 2: Building sparse feature matrix dynamically (Expected samples: {num_lines})...")
+    print(f"[*] Stage 2: Building sparse feature matrix dynamically via Multiprocessing...")
     final_features = base_schema + dll_schema + api_schema
     num_features = len(final_features)
-
-    base_idx = {feat: i for i, feat in enumerate(base_schema)}
     offset_dll = len(base_schema)
     offset_api = offset_dll + DLL_HASH_DIM
 
-    rows, cols, vals = [], [], []
-    y = np.zeros(num_lines, dtype=np.int8)
+    file_size = os.path.getsize(jsonl_path)
+    workers = min(os.cpu_count() or 4, 16)
+    chunk_size = file_size // workers
+    
+    tasks = []
+    for i in range(workers):
+        start = i * chunk_size
+        end = file_size if i == workers - 1 else (i + 1) * chunk_size
+        tasks.append((jsonl_path, start, end, base_schema, num_features, offset_dll, offset_api))
+        
+    with multiprocessing.Pool(workers) as pool:
+        results = pool.map(_chunk_worker, tasks)
+        
+    Xs = [r[0] for r in results if r[0].shape[0] > 0]
+    ys = [r[1] for r in results if r[1].shape[0] > 0]
+    
+    X_final = sp.vstack(Xs, format='csr') if Xs else sp.csr_matrix((0, num_features), dtype=np.float32)
+    y_final = np.concatenate(ys) if ys else np.array([], dtype=np.int8)
+    
+    return X_final, pd.Series(y_final), final_features
 
-    with open(jsonl_path, 'rb') as f:
+def _chunk_worker(args):
+    filepath, start_byte, end_byte, base_schema, num_features, offset_dll, offset_api = args
+    
+    base_idx = {feat: i for i, feat in enumerate(base_schema)}
+    base_idx_get = base_idx.get
+    
+    rows = array.array('i')
+    cols = array.array('i')
+    vals = array.array('f')
+    y_list = array.array('b')
+    
+    with open(filepath, 'rb') as f:
+        if start_byte > 0:
+            f.seek(start_byte - 1)
+            if f.read(1) != b'\n':
+                f.seek(start_byte)
+                f.readline()
+            else:
+                f.seek(start_byte)
+        else:
+            f.seek(0)
+            
         row_idx = 0
-        for line in f:
+        while f.tell() < end_byte:
+            line = f.readline()
+            if not line:
+                break
+                
             try:
                 data = JSON_LOADS(line)
-                y[row_idx] = data.get('Label', 0)
+                y_list.append(data.get('Label', 0))
 
                 base_data = data.get('Base')
                 if base_data:
                     for k, v in base_data.items():
-                        idx = base_idx.get(k)
+                        idx = base_idx_get(k)
                         if idx is not None:
                             val = float(v)
                             if val != 0.0:
@@ -121,11 +163,15 @@ def load_data_efficiently(jsonl_path, base_schema, dll_schema, api_schema, num_l
                 row_idx += 1
             except Exception:
                 continue
-
-    y = y[:row_idx]
-    X = sp.csr_matrix((vals, (rows, cols)), shape=(row_idx, num_features), dtype=np.float32)
+                
+    y_arr = np.frombuffer(y_list, dtype=np.int8)
+    np_rows = np.frombuffer(rows, dtype=np.int32)
+    np_cols = np.frombuffer(cols, dtype=np.int32)
+    np_vals = np.frombuffer(vals, dtype=np.float32)
     
-    return X, pd.Series(y), final_features
+    X_local = sp.csr_matrix((np_vals, (np_rows, np_cols)), shape=(row_idx, num_features), dtype=np.float32)
+    
+    return X_local, y_arr
 
 ####################################################################################################
 
@@ -233,6 +279,7 @@ def evaluate_and_save(model, X_test, y_test):
 ####################################################################################################
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     print("\n---------------- PE Malware Trainer v4.0 ----------------\n")
 
     if not os.path.exists(JSONL_PATH):

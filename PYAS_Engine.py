@@ -179,6 +179,17 @@ class rule_scanner:
 class pe_scanner:
     _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
 
+    _BYTE_HIST_KEYS = [f'ByteHist_{i:02X}' for i in range(256)]
+    _BYTE_ENT_KEYS = [f'ByteEnt_{i:02X}' for i in range(256)]
+    _STRING_KEYS = [f'StringHist_{i:02d}' for i in range(95)]
+    _SECTION_HASH_KEYS = [f'SectionHash_{i:02d}' for i in range(50)]
+    _CHAR_FLAGS = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
+    _CHAR_COUNT_KEYS = {flag: f'Char_{flag:08X}_Count' for flag in _CHAR_FLAGS}
+    _CHAR_ENT_KEYS = {flag: f'Char_{flag:08X}_MeanEntropy' for flag in _CHAR_FLAGS}
+
+    _C_LOG_C_TABLE = numpy.zeros(2049, dtype=numpy.float64)
+    _C_LOG_C_TABLE[1:] = numpy.arange(1, 2049) * numpy.log2(numpy.arange(1, 2049))
+
     def __init__(self):
         self.model = None
         self.input_name = None
@@ -221,14 +232,14 @@ class pe_scanner:
         if not data: 
             return 0.0
         arr = numpy.frombuffer(data, dtype=numpy.uint8)
+        sz = len(arr)
         counts = numpy.bincount(arr, minlength=256)
-        probs = counts[counts > 0] / len(arr)
-        return float(-numpy.sum(probs * numpy.log2(probs)))
+        counts = counts[counts > 0]
+        return float(numpy.log2(sz) - numpy.sum(counts * numpy.log2(counts)) / sz)
 
     def _extract_strings(self, file_bytes):
         res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
-        for i in range(95):
-            res[f'StringHist_{i:02d}'] = 0.0
+        res.update(dict.fromkeys(self._STRING_KEYS, 0.0))
 
         matches = self._STRING_PATTERN.findall(file_bytes)
         if not matches:
@@ -246,9 +257,7 @@ class pe_scanner:
         counts = numpy.bincount(arr, minlength=127)
         char_counts = counts[0x20:0x7F]
 
-        for i in range(95):
-            res[f'StringHist_{i:02d}'] = float(char_counts[i]) / total_len
-
+        res.update(dict(zip(self._STRING_KEYS, char_counts.astype(numpy.float64) / total_len)))
         return res
 
     def _extract_histograms(self, file_bytes):
@@ -257,15 +266,13 @@ class pe_scanner:
         res = {}
 
         if sz == 0:
-            for i in range(256):
-                res[f'ByteHist_{i:02X}'] = 0.0
-                res[f'ByteEnt_{i:02X}'] = 0.0
+            res.update(dict.fromkeys(self._BYTE_HIST_KEYS, 0.0))
+            res.update(dict.fromkeys(self._BYTE_ENT_KEYS, 0.0))
             return res
 
         byte_counts = numpy.bincount(arr, minlength=256)
-        byte_hist = byte_counts / sz
-        for i, v in enumerate(byte_hist):
-            res[f'ByteHist_{i:02X}'] = float(v)
+        byte_hist = byte_counts.astype(numpy.float64) / sz
+        res.update(dict(zip(self._BYTE_HIST_KEYS, byte_hist)))
 
         ent_hist = numpy.zeros(256, dtype=numpy.float64)
         window = 2048
@@ -274,34 +281,35 @@ class pe_scanner:
         if sz < window:
             w_counts = byte_counts
             p = w_counts[w_counts > 0] / float(sz)
-            entropy = -numpy.sum(p * numpy.log2(p))
+            entropy = float(-numpy.sum(p * numpy.log2(p)))
             ent_bin = min(int(entropy * 2.0), 15)
             byte_bins = w_counts.reshape(16, 16).sum(axis=1)
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
         else:
             num_windows = (sz - window) // step + 1
-            batch_size = 50000
+            batch_windows = 10000 
             
-            for b_start in range(0, num_windows, batch_size):
-                b_end = min(b_start + batch_size, num_windows)
-                b_num = b_end - b_start
+            for w_start in range(0, num_windows, batch_windows):
+                w_end = min(w_start + batch_windows, num_windows)
+                b_num = w_end - w_start
                 
-                b_chunks = arr[b_start * step : (b_end + 1) * step].reshape(b_num + 1, step)
+                start_byte = w_start * step
+                end_byte = start_byte + b_num * step + step
+                b_arr = arr[start_byte:end_byte]
                 
-                offsets = numpy.arange(b_num + 1, dtype=numpy.int32)[:, None] * 256
-                flat_idx = (b_chunks.astype(numpy.int32) + offsets).ravel()
-                counts_flat = numpy.bincount(flat_idx, minlength=(b_num + 1) * 256)
-                chunk_counts = counts_flat.reshape(b_num + 1, 256)
+                arr_2d = b_arr.reshape(b_num + 1, step)
+                offsets = (numpy.arange(b_num + 1, dtype=numpy.int32)[:, None] * 256)
+                flat_idx = (arr_2d.astype(numpy.int32) + offsets).ravel()
                 
+                chunk_counts = numpy.bincount(flat_idx, minlength=(b_num + 1) * 256).reshape(b_num + 1, 256)
                 window_counts = chunk_counts[:-1] + chunk_counts[1:]
                 
-                p = window_counts / float(window)
-                p_safe = numpy.where(p > 0, p, 1.0)
-                entropies = -numpy.sum(p * numpy.log2(p_safe), axis=1)
+                sum_c_log_c = numpy.sum(self._C_LOG_C_TABLE[window_counts], axis=1)
+                entropies = 11.0 - sum_c_log_c / 2048.0
                 
                 ent_bins = (entropies * 2.0).astype(numpy.int32)
-                numpy.clip(ent_bins, None, 15, out=ent_bins)
+                numpy.clip(ent_bins, 0, 15, out=ent_bins)
                 
                 byte_bins = window_counts.reshape(b_num, 16, 16).sum(axis=2)
                 flat_ent_bins = (ent_bins[:, None] * 16 + numpy.arange(16)).ravel()
@@ -311,9 +319,7 @@ class pe_scanner:
         if ent_sum > 0:
             ent_hist /= ent_sum
 
-        for i, v in enumerate(ent_hist):
-            res[f'ByteEnt_{i:02X}'] = float(v)
-
+        res.update(dict(zip(self._BYTE_ENT_KEYS, ent_hist)))
         return res
 
     def _extract_overlay_features(self, pe, fsize):
@@ -531,28 +537,21 @@ class pe_scanner:
                     if len(op.DATA_DIRECTORY) > exc_idx and op.DATA_DIRECTORY[exc_idx].Size > 0:
                         base['ExceptionCount'] = op.DATA_DIRECTORY[exc_idx].Size // 12 if base['Machine'] in (0x8664, 0xAA64) else 0.0
 
-            char_flags = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
-            for flag in char_flags:
-                base[f'Char_{flag:08X}_Count'] = 0.0
-                base[f'Char_{flag:08X}_MeanEntropy'] = 0.0
-
-            for i in range(50):
-                base[f'SectionHash_{i:02d}'] = 0.0
+            res_flags_count = dict.fromkeys(self._CHAR_COUNT_KEYS.values(), 0.0)
+            res_flags_ent = dict.fromkeys(self._CHAR_ENT_KEYS.values(), 0.0)
+            res_sec_hash = dict.fromkeys(self._SECTION_HASH_KEYS, 0.0)
 
             if hasattr(pe, 'sections'):
                 base['SectionCount'] = len(pe.sections)
                 entropies = []
                 raw_sizes = []
                 v_sizes = []
-                exec_sec = 0
-                write_sec = 0
-                read_sec = 0
-                sec_exc = 0
+                exec_sec = write_sec = read_sec = sec_exc = 0
                 
                 for section in pe.sections:
                     sec_name = section.Name.rstrip(b'\x00')
                     hash_val = zlib.crc32(sec_name) % 50
-                    base[f'SectionHash_{hash_val:02d}'] += 1.0
+                    res_sec_hash[self._SECTION_HASH_KEYS[hash_val]] += 1.0
 
                     try:
                         s_data = section.get_data()
@@ -569,10 +568,10 @@ class pe_scanner:
                     if section.Characteristics & 0x40000000: read_sec += 1
                     if section.SizeOfRawData + section.PointerToRawData > fsize: sec_exc = 1
 
-                    for flag in char_flags:
+                    for flag in self._CHAR_FLAGS:
                         if section.Characteristics & flag:
-                            base[f'Char_{flag:08X}_Count'] += 1.0
-                            base[f'Char_{flag:08X}_MeanEntropy'] += s_entropy
+                            res_flags_count[self._CHAR_COUNT_KEYS[flag]] += 1.0
+                            res_flags_ent[self._CHAR_ENT_KEYS[flag]] += s_entropy
 
                 base['SectionMaxEntropy'] = max(entropies) if entropies else 0.0
                 base['SectionMinEntropy'] = min(entropies) if entropies else 0.0
@@ -588,9 +587,14 @@ class pe_scanner:
                 base['ReadableSections'] = float(read_sec)
                 base['SectionException'] = float(sec_exc)
 
-                for flag in char_flags:
-                    if base[f'Char_{flag:08X}_Count'] > 0:
-                        base[f'Char_{flag:08X}_MeanEntropy'] = base[f'Char_{flag:08X}_MeanEntropy'] / base[f'Char_{flag:08X}_Count']
+                for flag in self._CHAR_FLAGS:
+                    cnt_key = self._CHAR_COUNT_KEYS[flag]
+                    if res_flags_count[cnt_key] > 0:
+                        res_flags_ent[self._CHAR_ENT_KEYS[flag]] /= res_flags_count[cnt_key]
+
+            base.update(res_flags_count)
+            base.update(res_flags_ent)
+            base.update(res_sec_hash)
 
             string_keys = ['FileDescription', 'FileVersion', 'ProductName', 'ProductVersion', 'CompanyName', 'LegalCopyright', 'Comments', 'InternalName', 'LegalTrademarks', 'SpecialBuild', 'PrivateBuild']
             for key in string_keys: 

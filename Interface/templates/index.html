@@ -150,6 +150,12 @@
                             </div>
                             <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
                         </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="startup_window">
+                            <div class="item-info">
+                                <h2 data-i18n>啟動項管理</h2><p data-i18n>此選項可以管理各應用啟動項</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
                         <div class="list-item" style="cursor: pointer;" data-target="junk_window">
                             <div class="item-info">
                                 <h2 data-i18n>垃圾清理</h2><p data-i18n>此選項可以清理暫存垃圾檔案</p>
@@ -317,6 +323,21 @@ Last updated: 2025-12-19
                         </div>
                         <button class="action-btn modern-btn primary-btn" data-i18n>查看</button>
                         <button class="action-btn modern-btn danger-btn" data-i18n>結束</button>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+
+                <section id="startup_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>啟動項管理</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋項目..." placeholder="搜尋項目...">
+                        </div>
+                        <button class="action-btn modern-btn primary-btn" data-i18n>啟用</button>
+                        <button class="action-btn modern-btn danger-btn" data-i18n>禁用</button>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>

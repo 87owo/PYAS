@@ -80,11 +80,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const cols = {
         log: [{key: 'time_str', label: 'col_date', flex: 1.5}, {key: 'level', label: 'col_type', flex: 0.8}, {key: 'action', label: 'col_func', flex: 1.2, isI18n: true}, {key: 'source', label: 'col_path', flex: 3}],
         process: [{key: 'name', label: 'col_name', flex: 1.5}, {key: 'pid', label: 'col_pid', flex: 0.5}, {key: 'path', label: 'col_path', flex: 3}],
+        startup: [{key: 'type', label: 'col_type', flex: 0.5, isI18n: true}, {key: 'name', label: 'col_name', flex: 1.5}, {key: 'status', label: 'col_status', flex: 0.5, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
         virus: [{key: 'label', label: 'col_type', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
         pathOnly: [{key: 'path', label: 'col_path', flex: 1}],
         junk: [{key: 'path', label: 'col_path', flex: 3}, {key: 'sizeStr', label: 'col_size', flex: 1}],
         popup: [{key: 'exe', label: 'col_prog', flex: 1}, {key: 'class', label: 'col_class', flex: 1}, {key: 'title', label: 'col_title', flex: 2}],
-        repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}]
+        repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}]
     };
 
     const buildCustomSelectElement = (select) => {
@@ -513,6 +514,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const fetchStartup = () => {
+        if (!window.pywebview) return;
+        const listUl = document.querySelector('#startup_window .manage-list');
+        if (listUl && !listUl.children.length) {
+            listUl.innerHTML = `<li class="manage-list-item" style="pointer-events: none; justify-content: center; height: 100%; border: none;"><div style="color: var(--text-secondary); padding: 40px; font-size: 15px;">${getMsg('msg_init')}</div></li>`;
+        }
+        window.pywebview.api.get_startup_list().then(items => {
+            const mapped = items.map(item => ({ id: item.id, type: item.type, name: item.name, status: item.status === 'enabled' ? 'status_enabled' : 'status_disabled', path: item.path || 'path_unknown' }));
+            renderDataGrid('#startup_window', mapped, cols.startup, 'id', false);
+        });
+    };
+
+    document.querySelector('#startup_window .primary-btn')?.addEventListener('click', () => {
+        const checked = getCheckedValues('#startup_window');
+        if (checked.length > 0 && window.pywebview) {
+            const widget = document.querySelector('#startup_window .manage-widget');
+            if (widget && widget.gridState && widget.gridState.lastDisplayData) {
+                widget.gridState.lastDisplayData.forEach(item => {
+                    if (checked.includes(item.id)) item.status = 'status_enabled';
+                });
+                widget.renderData();
+            }
+            window.pywebview.api.manage_startup(checked, 'enable').then(fetchStartup);
+        }
+    });
+
+    document.querySelector('#startup_window .danger-btn')?.addEventListener('click', () => {
+        const checked = getCheckedValues('#startup_window');
+        if (checked.length > 0 && window.pywebview) {
+            const widget = document.querySelector('#startup_window .manage-widget');
+            if (widget && widget.gridState && widget.gridState.lastDisplayData) {
+                widget.gridState.lastDisplayData.forEach(item => {
+                    if (checked.includes(item.id)) item.status = 'status_disabled';
+                });
+                widget.renderData();
+            }
+            window.pywebview.api.manage_startup(checked, 'disable').then(fetchStartup);
+        }
+    });
+
     const refreshConfigLists = () => {
         if (!window.pywebview) return;
         window.pywebview.api.get_config().then(cfg => {
@@ -533,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const input = document.querySelector('#junk_window .search-box input');
                 if (input) input.value = '';
             } else if (oldActive.id === 'repair_window') {
-                renderDataGrid('#repair_window', [], cols.repair, 'value', true);
+                renderDataGrid('#repair_window', [], cols.repair, 'id', true);
             }
         }
 
@@ -544,6 +585,8 @@ document.addEventListener('DOMContentLoaded', () => {
         appState.taskmgrActive = targetId === 'taskmgr_window';
         if (appState.taskmgrActive) fetchProcs();
         else if (appState.taskmgrTimer) { clearTimeout(appState.taskmgrTimer); appState.taskmgrTimer = null; }
+
+        if (targetId === 'startup_window') fetchStartup();
 
         if (['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].includes(targetId)) refreshConfigLists();
 
@@ -718,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
         if (!window.pywebview) return;
-        window.pywebview.api.scan_system_repair().then(list => renderDataGrid('#repair_window', list, cols.repair, 'value', true));
+        window.pywebview.api.scan_system_repair().then(list => renderDataGrid('#repair_window', list, cols.repair, 'id', true));
     });
 
     document.querySelector('#repair_window .danger-btn')?.addEventListener('click', () => {
@@ -726,7 +769,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checked.length === 0 || !window.pywebview) return;
         window.pywebview.api.execute_system_repair(checked).then(() => {
             window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_repaired"), "info");
-            renderDataGrid('#repair_window', [], cols.repair, 'value');
+            renderDataGrid('#repair_window', [], cols.repair, 'id', true);
         });
     });
 
@@ -871,8 +914,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('select.modern-select').forEach(buildCustomSelectElement);
     renderDataGrid('#scan_window', appState.virusResults, cols.virus, 'path', true);
     renderDataGrid('#taskmgr_window', [], cols.process, 'pid', false);
+    renderDataGrid('#startup_window', [], cols.startup, 'id', false);
     renderDataGrid('#junk_window', [], cols.junk, 'path', true);
-    renderDataGrid('#repair_window', [], cols.repair, 'value', true);
+    renderDataGrid('#repair_window', [], cols.repair, 'id', true);
     renderDataGrid('#whitelist_window', [], cols.pathOnly, 'path', false);
     renderDataGrid('#quarantine_window', [], cols.pathOnly, 'path', false);
     renderDataGrid('#custom_protect_window', [], cols.pathOnly, 'path', false);

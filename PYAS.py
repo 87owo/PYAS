@@ -833,13 +833,15 @@ class WindowAPI:
         return []
 
     def open_file_location(self, file_path):
-        if file_path and os.path.exists(file_path):
-            try:
-                clean_path = os.path.normpath(file_path).replace('"', '')
-                subprocess.Popen(f'explorer /select,"{clean_path}"')
-                return True
-            except Exception:
-                pass
+        if file_path:
+            expanded_path = os.path.expandvars(file_path).strip('"').strip("'")
+            if os.path.exists(expanded_path):
+                try:
+                    clean_path = os.path.normpath(expanded_path)
+                    subprocess.Popen(f'explorer /select,"{clean_path}"')
+                    return True
+                except Exception:
+                    pass
         return False
 
     def open_website(self):
@@ -971,17 +973,25 @@ class WindowAPI:
 
     def extract_paths_from_cmdline(self, cmdline):
         if not cmdline: return []
-        argc = ctypes.c_int(0)
-        argv = self.shell32.CommandLineToArgvW(cmdline, ctypes.byref(argc))
-        if not argv: return []
-        args = [argv[i] for i in range(argc.value)]
-        self.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
         found = []
-        patterns = [r'([A-Za-z]:\\[^"\']+)', r'(\\\\[^"\']+)', r'(\.\\[^"\']+)', r'(\./[^"\']+)', r'([A-Za-z]:/[^"\']+)', r'([^\s]*\\[^\s]+)']
-        for arg in args:
-            for p in patterns:
-                for m in re.finditer(p, arg): found.append(m.group(1).strip('"').strip("'"))
-        return list(dict.fromkeys(found))
+        for m in re.finditer(r'"([^"]+)"|\'([^\']+)\'', cmdline):
+            path = m.group(1) or m.group(2)
+            if re.match(r'^[A-Za-z]:\\|^\\\\', path):
+                found.append(path)
+        if not found:
+            m = re.search(r'([A-Za-z]:\\[^\*?"<>\|]+\.(?:exe|dll|bat|cmd|vbs|sys|com|pif))', cmdline, re.IGNORECASE)
+            if m: found.append(m.group(1))
+        if not found:
+            argc = ctypes.c_int(0)
+            argv = self.shell32.CommandLineToArgvW(cmdline, ctypes.byref(argc))
+            if argv:
+                args = [argv[i] for i in range(argc.value)]
+                self.kernel32.LocalFree(ctypes.cast(argv, ctypes.c_void_p))
+                patterns = [r'([A-Za-z]:\\[^"\']+)', r'(\\\\[^"\']+)', r'(\.\\[^"\']+)', r'(\./[^"\']+)', r'([A-Za-z]:/[^"\']+)', r'([^\s]*\\[^\s]+)']
+                for arg in args:
+                    for p in patterns:
+                        for match in re.finditer(p, arg): found.append(match.group(1).strip('"').strip("'"))
+        return list(dict.fromkeys([p.strip('"').strip("'") for p in found]))
 
     def get_process_list(self):
         pe = PROCESSENTRY32W()
@@ -1146,6 +1156,117 @@ class WindowAPI:
         except Exception as e:
             self.write_log("WARN", "clean_system_junk", detail=str(e), operate=True, success=False)
             return 0
+
+    def get_startup_list(self):
+        items = []
+
+        def get_reg_startup():
+            res = []
+            paths = [
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", "enabled"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", "enabled"),
+                (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run_Disabled", "disabled"),
+                (winreg.HKEY_CURRENT_USER, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run_Disabled", "disabled")
+            ]
+            for root, path, status in paths:
+                try:
+                    with winreg.OpenKey(root, path, 0, winreg.KEY_READ) as reg:
+                        i = 0
+                        while True:
+                            try:
+                                name, val, _ = winreg.EnumValue(reg, i)
+                                file_path = self.extract_paths_from_cmdline(val)
+                                fp = file_path[0] if file_path else val
+                                res.append({"id": f"reg|{root}|{path}|{name}", "type": "type_reg", "name": name, "status": status, "path": fp})
+                                i += 1
+                            except OSError: break
+                except Exception: pass
+            return res
+
+        def get_services():
+            res = []
+            try:
+                with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services", 0, winreg.KEY_READ) as reg:
+                    i = 0
+                    while True:
+                        try:
+                            name = winreg.EnumKey(reg, i)
+                            i += 1
+                            try:
+                                with winreg.OpenKey(reg, name, 0, winreg.KEY_READ) as sub:
+                                    stype, _ = winreg.QueryValueEx(sub, "Type")
+                                    if stype not in (16, 32, 256): continue
+                                    start, _ = winreg.QueryValueEx(sub, "Start")
+                                    if start not in (2, 3, 4): continue
+                                    path, _ = winreg.QueryValueEx(sub, "ImagePath")
+                                    
+                                    if path and "svchost" not in path.lower() and "windows" not in path.lower():
+                                        fp = self.extract_paths_from_cmdline(path)
+                                        fpp = fp[0] if fp else path
+                                        status = "enabled" if start == 2 else "disabled"
+                                        res.append({"id": f"srv|{name}", "type": "type_srv", "name": name, "status": status, "path": fpp})
+                            except Exception: pass
+                        except OSError: break
+            except Exception: pass
+            return res
+
+        def get_tasks():
+            res = []
+            try:
+                proc = subprocess.run(["schtasks", "/query", "/fo", "csv", "/v"], capture_output=True, text=True, creationflags=0x08000000)
+                import csv, io
+                reader = csv.reader(io.StringIO(proc.stdout))
+                next(reader, None)
+                for row in reader:
+                    if len(row) > 8 and row[1].strip() and row[8].strip() and row[8] != "N/A":
+                        name = row[1].split('\\')[-1]
+                        path = row[8]
+                        status = row[3]
+                        if path and "windows" not in path.lower():
+                            fp = self.extract_paths_from_cmdline(path)
+                            fpp = fp[0] if fp else path
+                            res.append({"id": f"tsk|{row[1]}", "type": "type_tsk", "name": name, "status": "disabled" if status == "Disabled" else "enabled", "path": fpp})
+            except Exception: pass
+            return res
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            f1 = executor.submit(get_reg_startup)
+            f2 = executor.submit(get_services)
+            f3 = executor.submit(get_tasks)
+            items.extend(f1.result())
+            items.extend(f2.result())
+            items.extend(f3.result())
+
+        return items
+
+    def manage_startup(self, items, action):
+        def process_item(item_id):
+            try:
+                parts = item_id.split('|')
+                stype = parts[0]
+                if stype == "reg":
+                    root, old_path, name = int(parts[1]), parts[2], parts[3]
+                    new_path = old_path.replace("_Disabled", "") if action == "enable" else (old_path if "_Disabled" in old_path else old_path + "_Disabled")
+                    if old_path != new_path:
+                        val = self._reg_read(root, old_path, name)
+                        if val:
+                            self._reg_write(root, new_path, name, winreg.REG_SZ, val)
+                            self._reg_delete(root, old_path, name)
+                elif stype == "srv":
+                    name = parts[1]
+                    mode = "auto" if action == "enable" else "disabled"
+                    subprocess.run(["sc", "config", name, f"start=", mode], capture_output=True, creationflags=0x08000000)
+                elif stype == "tsk":
+                    name = parts[1]
+                    cmd = "/enable" if action == "enable" else "/disable"
+                    subprocess.run(["schtasks", "/change", "/tn", name, cmd], capture_output=True, creationflags=0x08000000)
+            except Exception as e:
+                self.write_log("WARN", "manage_startup", detail=str(e), success=False)
+        
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            list(executor.map(process_item, items))
+            
+        return True
 
 ####################################################################################################
 
@@ -1592,12 +1713,56 @@ class WindowAPI:
 
     def scan_system_repair(self):
         items = []
-        if self.check_system_mbr(): items.append({"display": "repair_mbr", "value": "mbr"})
-        if self.check_system_restrict(): items.append({"display": "repair_limit", "value": "restrict"})
-        if self.check_system_file_type(): items.append({"display": "repair_assoc", "value": "file_type"})
-        if self.check_system_file_icon(): items.append({"display": "repair_icon", "value": "file_icon"})
-        if self.check_system_image(): items.append({"display": "repair_hijack", "value": "image"})
-        if self.check_system_wallpaper(): items.append({"display": "repair_wallpaper", "value": "wallpaper"})
+
+        for drive, mbr_value in self.mbr_backup.items():
+            drive_path = rf"\\.\PhysicalDrive{drive}"
+            try:
+                with open(drive_path, "rb") as f:
+                    if f.read(512) != mbr_value:
+                        items.append({"id": f"mbr|{drive}", "display": "repair_mbr", "path": drive_path})
+            except Exception: pass
+
+        permissions, paths = self._get_restrict_lists()
+        for hkey, path in paths:
+            for val in permissions:
+                if self._reg_read(hkey, path, val) is not None:
+                    root = "HKLM" if hkey == winreg.HKEY_LOCAL_MACHINE else "HKCU"
+                    items.append({"id": f"restrict|{root}\\{path}\\{val}", "display": "repair_limit", "path": rf"{root}\{path}\{val}"})
+
+        for root in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+            root_str = "HKLM" if root == winreg.HKEY_LOCAL_MACHINE else "HKCU"
+            for ext in [".exe", ".bat", ".cmd", ".com"]:
+                expected = "exefile" if ext == ".exe" else ext[1:] + "file"
+                if self._reg_read(root, rf"SOFTWARE\Classes\{ext}", "") != expected:
+                    items.append({"id": f"file_type|{root_str}\\{ext}", "display": "repair_assoc", "path": rf"{root_str}\SOFTWARE\Classes\{ext}"})
+            for cmd in ["open", "runas"]:
+                if self._reg_read(root, rf"SOFTWARE\Classes\exefile\shell\{cmd}\command", "") != '"%1" %*':
+                    items.append({"id": f"file_type|{root_str}\\exefile\\{cmd}", "display": "repair_assoc", "path": rf"{root_str}\SOFTWARE\Classes\exefile\shell\{cmd}\command"})
+            if self._reg_read(root, r"SOFTWARE\Classes\exefile\DefaultIcon", "") != "%1":
+                items.append({"id": f"file_icon|{root_str}", "display": "repair_icon", "path": rf"{root_str}\SOFTWARE\Classes\exefile\DefaultIcon"})
+
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options", 0, winreg.KEY_READ) as reg:
+                i = 0
+                while True:
+                    try:
+                        subkey = winreg.EnumKey(reg, i)
+                        with winreg.OpenKey(reg, subkey, 0, winreg.KEY_READ) as sub_reg:
+                            for val in ["Debugger", "UseFilter", "GlobalFlag", "MitigationOptions"]:
+                                try:
+                                    winreg.QueryValueEx(sub_reg, val)
+                                    items.append({"id": f"image|{subkey}", "display": "repair_hijack", "path": rf"HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\{subkey}"})
+                                    break
+                                except FileNotFoundError: pass
+                        i += 1
+                    except OSError: break
+        except Exception: pass
+
+        wp = self._reg_read(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop", "Wallpaper")
+        expected_wp = os.path.join(self.path_system, "web", "wallpaper", "Windows", "img0.jpg")
+        if wp != expected_wp:
+            items.append({"id": "wallpaper|0", "display": "repair_wallpaper", "path": wp if wp else r"HKCU\Control Panel\Desktop\Wallpaper"})
+
         return items
 
     def repair_system_mbr(self):
@@ -1653,12 +1818,13 @@ class WindowAPI:
 
     def execute_system_repair(self, items):
         try:
-            if "mbr" in items: self.repair_system_mbr()
-            if "restrict" in items: self.repair_system_restrict()
-            if "file_type" in items: self.repair_system_file_type()
-            if "file_icon" in items: self.repair_system_file_icon()
-            if "image" in items: self.repair_system_image()
-            if "wallpaper" in items: self.repair_system_wallpaper()
+            types = set(item.split('|')[0] for item in items)
+            if "mbr" in types: self.repair_system_mbr()
+            if "restrict" in types: self.repair_system_restrict()
+            if "file_type" in types: self.repair_system_file_type()
+            if "file_icon" in types: self.repair_system_file_icon()
+            if "image" in types: self.repair_system_image()
+            if "wallpaper" in types: self.repair_system_wallpaper()
             self.write_log("INFO", "System Repair", detail=f"Repaired {len(items)} items", operate=True)
             return True
         except Exception as e:

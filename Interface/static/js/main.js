@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const appState = {
         lang: "english_switch",
+        theme: "system_switch",
         scanning: false,
         firstLaunch: false,
         taskmgrTimer: null,
@@ -198,13 +199,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const applyTheme = (theme) => {
-        const themeVars = themes[theme];
+        appState.theme = theme;
+        const actualTheme = theme === "system_switch" 
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? "black_switch" : "white_switch") 
+            : theme;
+
+        const themeVars = themes[actualTheme];
         if (themeVars) {
             for (const [key, value] of Object.entries(themeVars)) {
                 document.documentElement.style.setProperty(key, value.startsWith("rgba") ? value : `rgb(${value})`);
             }
         }
     };
+
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (appState.theme === "system_switch") applyTheme("system_switch");
+    });
 
     const renderDataGrid = (containerSelector, dataList, columns, valKey, defaultChecked = false) => {
         const widget = document.querySelector(`${containerSelector} .manage-widget`) || document.querySelector(`${containerSelector} .virus-widget`);

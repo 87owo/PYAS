@@ -325,7 +325,7 @@ class WindowAPI:
             "block": [2001, 3001, 5001, 6001],
             "size": 100 * 1024 * 1024,
             "language": "english_switch",
-            "theme": "white_switch",
+            "theme": "system_switch",
             "first_launch": True,
             "process_switch": False,
             "document_switch": False,

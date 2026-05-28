@@ -35,7 +35,7 @@ LGBM_PARAMS = {
     'objective': 'binary',
     'metric': ['binary_logloss', 'auc'],
     'boosting_type': 'gbdt',
-    'num_leaves': 64,
+    'num_leaves': 128,
     'feature_fraction': 0.8,
     'bagging_fraction': 1.0,
     'bagging_freq': 5,

@@ -149,7 +149,12 @@ window.AppI18n = {
             "btn_add_item": "新增項目",
             "btn_remove_item": "移除項目",
             "btn_add_file": "新增檔案",
-            "btn_add_path": "新增路徑"
+            "btn_add_path": "新增路徑",
+            "manage_netmon": "流量監控",
+            "manage_netmon_desc": "此選項可以實時監控網路流量",
+            "col_down_speed": "下載速度",
+            "col_up_speed": "上傳速度",
+            "col_conn_count": "連接數",
         },
         "simplified_switch": {
             "app_name": "PYAS Security",
@@ -300,7 +305,12 @@ window.AppI18n = {
             "btn_add_item": "新增项目",
             "btn_remove_item": "移除项目",
             "btn_add_file": "新增文件",
-            "btn_add_path": "新增路径"
+            "btn_add_path": "新增路径",
+            "manage_netmon": "流量监控",
+            "manage_netmon_desc": "此选项可以实时监控网络流量",
+            "col_down_speed": "下载速度",
+            "col_up_speed": "上传速度",
+            "col_conn_count": "连接数",
         },
         "english_switch": {
             "app_name": "PYAS Security",
@@ -451,7 +461,12 @@ window.AppI18n = {
             "btn_add_item": "Add Item",
             "btn_remove_item": "Remove Item",
             "btn_add_file": "Add File",
-            "btn_add_path": "Add Path"
+            "btn_add_path": "Add Path",
+            "manage_netmon": "Traffic Monitor",
+            "manage_netmon_desc": "Monitor network traffic in real-time",
+            "col_down_speed": "Download Speed",
+            "col_up_speed": "Upload Speed",
+            "col_conn_count": "Connections",
         },
         "japanese_switch": {
             "app_name": "PYAS Security",
@@ -602,7 +617,12 @@ window.AppI18n = {
             "btn_add_item": "項目を追加",
             "btn_remove_item": "項目を削除",
             "btn_add_file": "ファイルを追加",
-            "btn_add_path": "パスを追加"
+            "btn_add_path": "パスを追加",
+            "manage_netmon": "トラフィック監視",
+            "manage_netmon_desc": "ネットワークトラフィックをリアルタイムで監視します",
+            "col_down_speed": "ダウンロード速度",
+            "col_up_speed": "アップロード速度",
+            "col_conn_count": "接続数",
         },
         "korean_switch": {
             "app_name": "PYAS Security",
@@ -753,7 +773,12 @@ window.AppI18n = {
             "btn_add_item": "항목 추가",
             "btn_remove_item": "항목 제거",
             "btn_add_file": "파일 추가",
-            "btn_add_path": "경로 추가"
+            "btn_add_path": "경로 추가",
+            "manage_netmon": "트래픽 모니터링",
+            "manage_netmon_desc": "실시간으로 네트워크 트래픽을 모니터링합니다",
+            "col_down_speed": "다운로드 속도",
+            "col_up_speed": "업로드 속도",
+            "col_conn_count": "연결 수",
         },
         "french_switch": {
             "app_name": "PYAS Security",
@@ -904,7 +929,12 @@ window.AppI18n = {
             "btn_add_item": "Ajouter l'élément",
             "btn_remove_item": "Retirer l'élément",
             "btn_add_file": "Ajouter un fichier",
-            "btn_add_path": "Ajouter un chemin"
+            "btn_add_path": "Ajouter un chemin",
+            "manage_netmon": "Moniteur de trafic",
+            "manage_netmon_desc": "Surveille le trafic réseau en temps réel",
+            "col_down_speed": "Vitesse de téléchargement",
+            "col_up_speed": "Vitesse de téléversement",
+            "col_conn_count": "Connexions",
         },
         "spanish_switch": {
             "app_name": "PYAS Security",
@@ -1055,7 +1085,12 @@ window.AppI18n = {
             "btn_add_item": "Añadir elemento",
             "btn_remove_item": "Eliminar elemento",
             "btn_add_file": "Añadir archivo",
-            "btn_add_path": "Añadir ruta"
+            "btn_add_path": "Añadir ruta",
+            "manage_netmon": "Monitor de tráfico",
+            "manage_netmon_desc": "Monitorea el tráfico de red en tiempo real",
+            "col_down_speed": "Velocidad de descarga",
+            "col_up_speed": "Velocidad de subida",
+            "col_conn_count": "Conexiones",
         },
         "hindi_switch": {
             "app_name": "PYAS Security",
@@ -1206,7 +1241,12 @@ window.AppI18n = {
             "btn_add_item": "आइटम जोड़ें",
             "btn_remove_item": "आइटम निकालें",
             "btn_add_file": "फ़ाइल जोड़ें",
-            "btn_add_path": "पथ जोड़ें"
+            "btn_add_path": "पथ जोड़ें",
+            "manage_netmon": "ट्रैफ़िक मॉनिटर",
+            "manage_netmon_desc": "रीयल-टाइम में नेटवर्क ट्रैफ़िक की निगरानी करें",
+            "col_down_speed": "डाउनलोड गति",
+            "col_up_speed": "अपलोड गति",
+            "col_conn_count": "कनेक्शन",
         },
         "arabic_switch": {
             "app_name": "PYAS Security",
@@ -1357,7 +1397,12 @@ window.AppI18n = {
             "btn_add_item": "إضافة عنصر",
             "btn_remove_item": "إزالة العنصر",
             "btn_add_file": "إضافة ملف",
-            "btn_add_path": "إضافة مسار"
+            "btn_add_path": "إضافة مسار",
+            "manage_netmon": "مراقبة حركة المرور",
+            "manage_netmon_desc": "مراقبة حركة مرور الشبكة في الوقت الفعلي",
+            "col_down_speed": "سرعة التنزيل",
+            "col_up_speed": "سرعة الرفع",
+            "col_conn_count": "الاتصالات",
         },
         "russian_switch": {
             "app_name": "PYAS Security",
@@ -1508,7 +1553,12 @@ window.AppI18n = {
             "btn_add_item": "Добавить элемент",
             "btn_remove_item": "Удалить элемент",
             "btn_add_file": "Добавить файл",
-            "btn_add_path": "Добавить путь"
+            "btn_add_path": "Добавить путь",
+            "manage_netmon": "Монитор трафика",
+            "manage_netmon_desc": "Мониторинг сетевого трафика в реальном времени",
+            "col_down_speed": "Скорость скачивания",
+            "col_up_speed": "Скорость загрузки",
+            "col_conn_count": "Соединения",
         },
         "slovenian_switch": {
             "app_name": "PYAS Security",
@@ -1659,7 +1709,12 @@ window.AppI18n = {
             "btn_add_item": "Dodaj element",
             "btn_remove_item": "Odstrani element",
             "btn_add_file": "Dodaj datoteko",
-            "btn_add_path": "Dodaj pot"
+            "btn_add_path": "Dodaj pot",
+            "manage_netmon": "Nadzor prometa",
+            "manage_netmon_desc": "Spremlja omrežni promet v realnem času",
+            "col_down_speed": "Hitrost prenosa",
+            "col_up_speed": "Hitrost nalaganja",
+            "col_conn_count": "Povezave",
         }
     },
     langMap: {

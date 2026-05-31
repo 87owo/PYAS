@@ -174,6 +174,12 @@
                             </div>
                             <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
                         </div>
+                        <div class="list-item" style="cursor: pointer;" data-target="netmon_window">
+                            <div class="item-info">
+                                <h2 data-i18n>流量監控</h2><p data-i18n>此選項可以實時監控網路流量</p>
+                            </div>
+                            <button class="icon-action-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
+                        </div>
                         <div class="list-item" style="cursor: pointer;" data-target="whitelist_window">
                             <div class="item-info">
                                 <h2 data-i18n>白名單</h2><p data-i18n>此選項可以查看並管理白名單</p>
@@ -448,6 +454,26 @@ Last updated: 2025-12-19
                                 <option value="none" selected disabled data-i18n="btn_select">選擇</option>
                                 <option value="add" data-i18n="btn_add_item">新增項目</option>
                                 <option value="remove" data-i18n="btn_remove_item">移除項目</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
+                </section>
+                
+                <section id="netmon_window" class="page sub-page">
+                    <div class="sub-header-toolbar">
+                        <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
+                        <h2 data-i18n>流量監控</h2>
+                        <div class="spacer"></div>
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <input type="text" data-i18n-placeholder="搜尋進程..." placeholder="搜尋進程...">
+                        </div>
+                        <div class="action-group modern-action-group">
+                            <select id="netmon_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="view" data-i18n="btn_view_item">查看項目</option>
+                                <option value="end" data-i18n="btn_end">結束進程</option>
                             </select>
                         </div>
                     </div>

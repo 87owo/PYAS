@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         firstLaunch: false,
         taskmgrTimer: null,
         taskmgrActive: false,
+        netmonTimer: null,
+        netmonActive: false,
         virusMap: new Map(),
         virusResults: [],
         junkList: []
@@ -85,7 +87,8 @@ document.addEventListener('DOMContentLoaded', () => {
         pathOnly: [{key: 'path', label: 'col_path', flex: 1}],
         junk: [{key: 'path', label: 'col_path', flex: 3}, {key: 'sizeStr', label: 'col_size', flex: 1}],
         popup: [{key: 'exe', label: 'col_prog', flex: 1}, {key: 'class', label: 'col_class', flex: 1}, {key: 'title', label: 'col_title', flex: 2}],
-        repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}]
+        repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
+        netmon: [{key: 'name', label: 'col_name', flex: 1.5}, {key: 'pid', label: 'col_pid', flex: 0.5}, {key: 'downStr', label: 'col_down_speed', flex: 1}, {key: 'upStr', label: 'col_up_speed', flex: 1}, {key: 'connCount', label: 'col_conn_count', flex: 0.8}]
     };
 
     const buildCustomSelectElement = (select) => {
@@ -513,6 +516,31 @@ document.addEventListener('DOMContentLoaded', () => {
             if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000);
         }
     };
+    
+    const fetchNetmon = () => {
+        if (!appState.netmonActive || !window.pywebview) return;
+        const widget = document.querySelector('#netmon_window .manage-widget');
+        const blockFetch = widget && (widget.gridState?.checkedSet.size > 0 || widget.matches(':hover')) || document.querySelector('.custom-context-menu.show') || document.body.classList.contains('resizing-active');
+        
+        if (!blockFetch) {
+            window.pywebview.api.get_traffic_list().then(list => {
+                const mapped = list.map(item => ({
+                    name: item.name,
+                    pid: item.pid,
+                    downStr: formatSize(item.down) + '/s',
+                    down: item.down,
+                    upStr: formatSize(item.up) + '/s',
+                    up: item.up,
+                    connCount: item.conn,
+                    path: (item.path && item.path !== "None" && item.path !== "Unknown") ? item.path : "path_unknown"
+                }));
+                renderDataGrid('#netmon_window', mapped, cols.netmon, 'pid', false);
+                if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 2000);
+            }).catch(() => { if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 2000); });
+        } else {
+            if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 2000);
+        }
+    };
 
     const fetchStartup = () => {
         if (!window.pywebview) return;
@@ -580,6 +608,10 @@ document.addEventListener('DOMContentLoaded', () => {
         appState.taskmgrActive = targetId === 'taskmgr_window';
         if (appState.taskmgrActive) fetchProcs();
         else if (appState.taskmgrTimer) { clearTimeout(appState.taskmgrTimer); appState.taskmgrTimer = null; }
+
+        appState.netmonActive = targetId === 'netmon_window';
+        if (appState.netmonActive) fetchNetmon();
+        else if (appState.netmonTimer) { clearTimeout(appState.netmonTimer); appState.netmonTimer = null; }
 
         if (targetId === 'startup_window') fetchStartup();
         if (targetId === 'junk_window') fetchJunk();
@@ -756,6 +788,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         updateCustomSelectUI('taskmgr_select', 'none');
+    });
+    
+    document.getElementById('netmon_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const checkedCbs = document.querySelectorAll('#netmon_window .manage-list-item input[type="checkbox"]:checked');
+        if (checkedCbs.length === 0 || !window.pywebview) return updateCustomSelectUI('netmon_select', 'none');
+
+        if (val === 'view') {
+            checkedCbs.forEach(cb => {
+                if (cb.dataset.path && cb.dataset.path !== "path_unknown") window.pywebview.api.open_file_location(cb.dataset.path);
+            });
+        } else if (val === 'end') {
+            window.pywebview.api.show_confirm(getMsg("msg_end_proc_title"), getMsg("msg_end_proc_confirm")).then(res => {
+                if (res) Promise.all(Array.from(checkedCbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => fetchNetmon());
+            });
+        }
+        updateCustomSelectUI('netmon_select', 'none');
     });
 
     document.getElementById('startup_select')?.addEventListener('change', (e) => {
@@ -969,6 +1018,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDataGrid('#custom_protect_window', [], cols.pathOnly, 'path', false);
     renderDataGrid('#popup_window', [], cols.popup, 'value', false);
     renderDataGrid('#log_export_window', [], cols.log, 'id', true);
+    renderDataGrid('#netmon_window', [], cols.netmon, 'pid', false);
 
     window.addEventListener('pywebviewready', () => {
         window.pywebview.api.get_config().then(cfg => {

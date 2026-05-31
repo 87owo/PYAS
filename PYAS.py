@@ -115,6 +115,16 @@ class COPYDATASTRUCT(ctypes.Structure):
         ("lpData", ctypes.c_void_p)
     ]
 
+class IO_COUNTERS(ctypes.Structure):
+    _fields_ = [
+        ("ReadOperationCount", ctypes.c_ulonglong),
+        ("WriteOperationCount", ctypes.c_ulonglong),
+        ("OtherOperationCount", ctypes.c_ulonglong),
+        ("ReadTransferCount", ctypes.c_ulonglong),
+        ("WriteTransferCount", ctypes.c_ulonglong),
+        ("OtherTransferCount", ctypes.c_ulonglong)
+    ]
+
 ####################################################################################################
 
 class WindowAPI:
@@ -285,6 +295,8 @@ class WindowAPI:
         self.kernel32.ReadProcessMemory.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
         self.kernel32.QueryFullProcessImageNameW.restype = ctypes.wintypes.BOOL
         self.kernel32.QueryFullProcessImageNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD)]
+        self.kernel32.GetProcessIoCounters.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(IO_COUNTERS)]
+        self.kernel32.GetProcessIoCounters.restype = ctypes.wintypes.BOOL
 
     def init_variables(self):
         self.python = sys.executable
@@ -1073,6 +1085,54 @@ class WindowAPI:
         except Exception: pass
         return connections
 
+    def get_traffic_list(self):
+        conns = self.get_connections_list()
+        conn_map = {}
+        for pid, _, _ in conns:
+            conn_map[pid] = conn_map.get(pid, 0) + 1
+
+        current_io = {}
+        current_time = time.time()
+        time_diff = current_time - getattr(self, 'last_io_time', current_time - 1)
+        if time_diff <= 0: time_diff = 1
+        self.last_io_time = current_time
+
+        result = []
+        exist_process = self.get_process_list_pids()
+        
+        for pid in exist_process:
+            name, file_path = "Unknown", ""
+            if pid > 4: name, file_path = self.get_exe_info(pid)
+            else: name = "System"
+            
+            down_speed, up_speed = 0, 0
+            h = self.kernel32.OpenProcess(0x1000, False, pid)
+            if h:
+                try:
+                    io = IO_COUNTERS()
+                    if self.kernel32.GetProcessIoCounters(h, ctypes.byref(io)):
+                        current_io[pid] = (io.ReadTransferCount, io.WriteTransferCount)
+                        if hasattr(self, 'last_io_counters') and pid in self.last_io_counters:
+                            old_read, old_write = self.last_io_counters[pid]
+                            down_speed = max(0, (io.ReadTransferCount - old_read) / time_diff)
+                            up_speed = max(0, (io.WriteTransferCount - old_write) / time_diff)
+                finally:
+                    self.kernel32.CloseHandle(h)
+            
+            count = conn_map.get(pid, 0)
+            if count > 0 or down_speed > 0 or up_speed > 0:
+                result.append({
+                    "pid": pid,
+                    "name": name,
+                    "path": file_path or "None",
+                    "down": int(down_speed),
+                    "up": int(up_speed),
+                    "conn": count
+                })
+
+        self.last_io_counters = current_io
+        return result
+    
     def _traverse_delete(self, path):
         deleted = 0
         if not os.path.exists(path): return deleted

@@ -1729,30 +1729,60 @@ class WindowAPI:
             try: return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
             except Exception: return False
 
-    def lock_file(self, file, lock):
+    def lock_file(self, target_path, lock):
         with self.lock_file_ops:
-            try:
-                if lock:
-                    if file not in self.virus_lock:
-                        fd = os.open(file, os.O_RDWR | os.O_BINARY)
+            if lock:
+                if not os.path.exists(target_path):
+                    return
+                
+                paths_to_lock = []
+                if os.path.isdir(target_path):
+                    for root, _, files in os.walk(target_path):
+                        for f in files:
+                            paths_to_lock.append(os.path.join(root, f))
+                else:
+                    paths_to_lock.append(target_path)
+
+                for file_path in paths_to_lock:
+                    if file_path in self.virus_lock:
+                        continue
+                    try:
+                        fd = os.open(file_path, os.O_RDWR | os.O_BINARY)
                         try:
-                            try: size = os.path.getsize(file)
-                            except Exception: size = 1
+                            try:
+                                size = os.path.getsize(file_path)
+                            except Exception:
+                                size = 1
                             lock_size = size if size > 0 else 1
                             msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
-                            self.virus_lock[file] = (fd, lock_size)
+                            self.virus_lock[file_path] = (fd, lock_size)
                         except Exception:
                             os.close(fd)
                             raise
-                else:
-                    if file in self.virus_lock:
-                        fd, lock_size = self.virus_lock[file]
-                        try: msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
-                        finally:
+                    except Exception as e:
+                        self.write_log("WARN", "lock_file", source=file_path, detail=str(e), success=False)
+            else:
+                target_norm = os.path.normcase(target_path)
+                target_dir = target_norm + os.sep
+                keys_to_unlock = []
+                
+                for locked_path in self.virus_lock:
+                    locked_norm = os.path.normcase(locked_path)
+                    if locked_norm == target_norm or locked_norm.startswith(target_dir):
+                        keys_to_unlock.append(locked_path)
+
+                for file_path in keys_to_unlock:
+                    fd, lock_size = self.virus_lock[file_path]
+                    try:
+                        msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
+                    except Exception as e:
+                        self.write_log("WARN", "unlock_file", source=file_path, detail=str(e), success=False)
+                    finally:
+                        try:
                             os.close(fd)
-                            del self.virus_lock[file]
-            except Exception as e:
-                self.write_log("WARN", "lock_file", source=file, detail=str(e), success=False)
+                        except Exception:
+                            pass
+                        del self.virus_lock[file_path]
 
     def relock_file(self):
         with self.lock_config: quarantine_list = self.pyas_config.get("quarantine", [])

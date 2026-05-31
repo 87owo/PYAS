@@ -321,8 +321,15 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋進程..." placeholder="搜尋進程...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>查看</button>
-                        <button class="action-btn modern-btn danger-btn" data-i18n>結束</button>
+                        <div class="action-group modern-action-group">
+                            <select id="taskmgr_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="view" data-i18n="btn_view_item">查看項目</option>
+                                <option value="end" data-i18n="btn_end">結束進程</option>
+                                <option value="quarantine" data-i18n="act_quarantine">加入隔離區</option>
+                                <option value="whitelist" data-i18n="act_white">加入白名單</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -336,8 +343,14 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋項目..." placeholder="搜尋項目...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>啟用</button>
-                        <button class="action-btn modern-btn danger-btn" data-i18n>禁用</button>
+                        <div class="action-group modern-action-group">
+                            <select id="startup_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="enable" data-i18n="btn_enable_item">啟用項目</option>
+                                <option value="disable" data-i18n="btn_disable_item">禁用項目</option>
+                                <option value="delete" data-i18n="btn_delete_item">刪除項目</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -351,8 +364,15 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋檔案..." placeholder="搜尋檔案...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
-                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                        <div class="action-group modern-action-group">
+                            <select id="whitelist_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="add_file" data-i18n="btn_add_file">新增檔案</option>
+                                <option value="add_path" data-i18n="btn_add_path">新增路徑</option>
+                                <option value="remove" data-i18n="btn_remove_item">移除項目</option>
+                                <option value="quarantine" data-i18n="act_quarantine">加入隔離區</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -366,8 +386,15 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋檔案..." placeholder="搜尋檔案...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
-                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                        <div class="action-group modern-action-group">
+                            <select id="quarantine_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="add_file" data-i18n="btn_add_file">新增檔案</option>
+                                <option value="add_path" data-i18n="btn_add_path">新增路徑</option>
+                                <option value="remove" data-i18n="btn_remove_item">移除項目</option>
+                                <option value="whitelist" data-i18n="act_white">加入白名單</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -381,8 +408,13 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋檔案..." placeholder="搜尋檔案...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>掃描</button>
-                        <button class="action-btn modern-btn danger-btn" data-i18n>刪除</button>
+                        <div class="action-group modern-action-group">
+                            <select id="junk_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="view" data-i18n="btn_view_item">查看項目</option>
+                                <option value="delete" data-i18n="btn_delete_item">刪除項目</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -392,8 +424,12 @@ Last updated: 2025-12-19
                         <button class="icon-btn" data-target="tool_window"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
                         <h2 data-i18n>系統修復</h2>
                         <div class="spacer"></div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>掃描</button>
-                        <button class="action-btn modern-btn danger-btn" data-i18n>修復</button>
+                        <div class="action-group modern-action-group">
+                            <select id="repair_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="repair" data-i18n="btn_repair_item">修復項目</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -407,8 +443,13 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋窗口..." placeholder="搜尋窗口...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
-                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                        <div class="action-group modern-action-group">
+                            <select id="popup_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="add" data-i18n="btn_add_item">新增項目</option>
+                                <option value="remove" data-i18n="btn_remove_item">移除項目</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -422,8 +463,13 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋規則..." placeholder="搜尋規則...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>加入</button>
-                        <button class="action-btn modern-btn" data-i18n>移除</button>
+                        <div class="action-group modern-action-group">
+                            <select id="custom_protect_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="add" data-i18n="btn_add_item">新增項目</option>
+                                <option value="remove" data-i18n="btn_remove_item">移除項目</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>
@@ -437,8 +483,13 @@ Last updated: 2025-12-19
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                             <input type="text" data-i18n-placeholder="搜尋日誌..." placeholder="搜尋日誌...">
                         </div>
-                        <button class="action-btn modern-btn primary-btn" data-i18n>導出</button>
-                        <button class="action-btn modern-btn danger-btn" data-i18n>刪除</button>
+                        <div class="action-group modern-action-group">
+                            <select id="log_export_select" class="modern-select">
+                                <option value="none" selected disabled data-i18n="btn_select">選擇</option>
+                                <option value="export" data-i18n="btn_export">導出項目</option>
+                                <option value="delete" data-i18n="btn_remove_item">移除項目</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="manage-widget flex-grow"><ul class="manage-list"></ul></div>
                 </section>

@@ -1,4 +1,4 @@
-import os, re, yara, time, math, json, numpy, base64, datetime, requests, zlib
+import os, re, yara, time, math, json, zlib, numpy, base64, requests, datetime
 import ctypes, ctypes.wintypes, hashlib, pefile, threading, onnxruntime
 
 ####################################################################################################

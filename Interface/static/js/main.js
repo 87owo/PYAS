@@ -526,33 +526,28 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    document.querySelector('#startup_window .primary-btn')?.addEventListener('click', () => {
-        const checked = getCheckedValues('#startup_window');
-        if (checked.length > 0 && window.pywebview) {
-            const widget = document.querySelector('#startup_window .manage-widget');
-            if (widget && widget.gridState && widget.gridState.lastDisplayData) {
-                widget.gridState.lastDisplayData.forEach(item => {
-                    if (checked.includes(item.id)) item.status = 'status_enabled';
-                });
-                widget.renderData();
-            }
-            window.pywebview.api.manage_startup(checked, 'enable').then(fetchStartup);
+    const fetchJunk = () => {
+        if (!window.pywebview) return;
+        const widget = document.querySelector('#junk_window .manage-widget');
+        if (widget?.gridState) widget.gridState.checkedSet.clear();
+        const listUl = document.querySelector('#junk_window .manage-list');
+        if (listUl && !listUl.children.length) {
+            listUl.innerHTML = `<li class="manage-list-item" style="pointer-events: none; justify-content: center; height: 100%; border: none;"><div style="color: var(--text-secondary); padding: 40px; font-size: 15px;">${getMsg('msg_init')}</div></li>`;
         }
-    });
+        window.pywebview.api.scan_system_junk().then(list => {
+            appState.junkList = list.map(item => ({ path: item.path, sizeStr: formatSize(item.size), size: item.size }));
+            renderDataGrid('#junk_window', appState.junkList, cols.junk, 'path', true);
+        });
+    };
 
-    document.querySelector('#startup_window .danger-btn')?.addEventListener('click', () => {
-        const checked = getCheckedValues('#startup_window');
-        if (checked.length > 0 && window.pywebview) {
-            const widget = document.querySelector('#startup_window .manage-widget');
-            if (widget && widget.gridState && widget.gridState.lastDisplayData) {
-                widget.gridState.lastDisplayData.forEach(item => {
-                    if (checked.includes(item.id)) item.status = 'status_disabled';
-                });
-                widget.renderData();
-            }
-            window.pywebview.api.manage_startup(checked, 'disable').then(fetchStartup);
+    const fetchRepair = () => {
+        if (!window.pywebview) return;
+        const listUl = document.querySelector('#repair_window .manage-list');
+        if (listUl && !listUl.children.length) {
+            listUl.innerHTML = `<li class="manage-list-item" style="pointer-events: none; justify-content: center; height: 100%; border: none;"><div style="color: var(--text-secondary); padding: 40px; font-size: 15px;">${getMsg('msg_init')}</div></li>`;
         }
-    });
+        window.pywebview.api.scan_system_repair().then(list => renderDataGrid('#repair_window', list, cols.repair, 'id', true));
+    };
 
     const refreshConfigLists = () => {
         if (!window.pywebview) return;
@@ -587,6 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (appState.taskmgrTimer) { clearTimeout(appState.taskmgrTimer); appState.taskmgrTimer = null; }
 
         if (targetId === 'startup_window') fetchStartup();
+        if (targetId === 'junk_window') fetchJunk();
+        if (targetId === 'repair_window') fetchRepair();
 
         if (['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].includes(targetId)) refreshConfigLists();
 
@@ -736,41 +733,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.querySelector('#junk_window .primary-btn')?.addEventListener('click', (e) => {
-        if (!window.pywebview) return;
-        e.target.setAttribute('data-i18n', 'msg_init'); e.target.textContent = getMsg('msg_init');
-        const widget = document.querySelector('#junk_window .manage-widget');
-        if (widget?.gridState) widget.gridState.checkedSet.clear();
-        
-        window.pywebview.api.scan_system_junk().then(list => {
-            appState.junkList = list.map(item => ({ path: item.path, sizeStr: formatSize(item.size), size: item.size }));
-            renderDataGrid('#junk_window', appState.junkList, cols.junk, 'path', true);
-            e.target.setAttribute('data-i18n', 'btn_scan'); e.target.textContent = getMsg('btn_scan');
-        });
+    document.getElementById('taskmgr_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const checkedCbs = document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked');
+        if (checkedCbs.length === 0 || !window.pywebview) return updateCustomSelectUI('taskmgr_select', 'none');
+
+        if (val === 'view') {
+            checkedCbs.forEach(cb => {
+                if (cb.dataset.path && cb.dataset.path !== "path_unknown") window.pywebview.api.open_file_location(cb.dataset.path);
+            });
+        } else if (val === 'end') {
+            window.pywebview.api.show_confirm(getMsg("msg_end_proc_title"), getMsg("msg_end_proc_confirm")).then(res => {
+                if (res) Promise.all(Array.from(checkedCbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => fetchProcs());
+            });
+        } else if (val === 'quarantine' || val === 'whitelist') {
+            const paths = Array.from(checkedCbs).map(cb => cb.dataset.path).filter(p => p && p !== "path_unknown");
+            if (paths.length > 0) {
+                const listKey = val === 'quarantine' ? 'quarantine' : 'white_list';
+                window.pywebview.api.manage_named_list(listKey, paths, 'add').then(() => {
+                    Promise.all(Array.from(checkedCbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => fetchProcs());
+                });
+            }
+        }
+        updateCustomSelectUI('taskmgr_select', 'none');
     });
 
-    document.querySelector('#junk_window .danger-btn')?.addEventListener('click', () => {
+    document.getElementById('startup_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const checked = getCheckedValues('#startup_window');
+        if (checked.length > 0 && window.pywebview) {
+            if (val === 'enable' || val === 'disable') {
+                const widget = document.querySelector('#startup_window .manage-widget');
+                if (widget && widget.gridState && widget.gridState.lastDisplayData) {
+                    widget.gridState.lastDisplayData.forEach(item => {
+                        if (checked.includes(item.id)) item.status = val === 'enable' ? 'status_enabled' : 'status_disabled';
+                    });
+                    widget.renderData();
+                }
+            }
+            window.pywebview.api.manage_startup(checked, val).then(fetchStartup);
+        }
+        updateCustomSelectUI('startup_select', 'none');
+    });
+
+    document.getElementById('junk_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
         const checked = getCheckedValues('#junk_window');
-        if (checked.length === 0 || !window.pywebview) return;
-        window.pywebview.api.clean_system_junk(checked).then(size => {
-            window.pywebview.api.show_alert(getMsg("title_prompt"), `${getMsg("msg_cleaned")}${formatSize(size)}`, "info");
-            appState.junkList = appState.junkList.filter(item => !checked.includes(item.path));
-            renderDataGrid('#junk_window', appState.junkList, cols.junk, 'path', true);
-        });
-    });
-
-    document.querySelector('#repair_window .primary-btn')?.addEventListener('click', () => {
         if (!window.pywebview) return;
-        window.pywebview.api.scan_system_repair().then(list => renderDataGrid('#repair_window', list, cols.repair, 'id', true));
+        
+        if (val === 'view') {
+            checked.forEach(path => window.pywebview.api.open_file_location(path));
+        } else if (val === 'delete') {
+            if (checked.length > 0) {
+                window.pywebview.api.clean_system_junk(checked).then(size => {
+                    window.pywebview.api.show_alert(getMsg("title_prompt"), `${getMsg("msg_cleaned")}${formatSize(size)}`, "info");
+                    appState.junkList = appState.junkList.filter(item => !checked.includes(item.path));
+                    renderDataGrid('#junk_window', appState.junkList, cols.junk, 'path', true);
+                });
+            }
+        }
+        updateCustomSelectUI('junk_select', 'none');
     });
 
-    document.querySelector('#repair_window .danger-btn')?.addEventListener('click', () => {
-        const checked = getCheckedValues('#repair_window');
-        if (checked.length === 0 || !window.pywebview) return;
-        window.pywebview.api.execute_system_repair(checked).then(() => {
-            window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_repaired"), "info");
-            renderDataGrid('#repair_window', [], cols.repair, 'id', true);
-        });
+    document.getElementById('repair_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === 'repair') {
+            const checked = getCheckedValues('#repair_window');
+            if (checked.length > 0 && window.pywebview) {
+                window.pywebview.api.execute_system_repair(checked).then(() => {
+                    window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_repaired"), "info");
+                    renderDataGrid('#repair_window', [], cols.repair, 'id', true);
+                });
+            }
+        }
+        updateCustomSelectUI('repair_select', 'none');
     });
 
     ['whitelist_window', 'quarantine_window', 'popup_window', 'custom_protect_window'].forEach(id => {
@@ -781,63 +817,74 @@ document.addEventListener('DOMContentLoaded', () => {
             'quarantine_window': 'quarantine'
         };
         const listKey = listKeyMap[id];
+        const selectId = id.replace('_window', '_select');
 
-        document.querySelector(`#${id} .modern-btn:not(.primary-btn)`)?.addEventListener('click', () => {
-            const checked = getCheckedValues(`#${id}`);
-            if (checked.length > 0 && window.pywebview) window.pywebview.api.remove_list_items(listKey, checked).then(refreshConfigLists);
-        });
-        
-        if (id !== 'popup_window') {
-            document.querySelector(`#${id} .primary-btn`)?.addEventListener('click', () => {
-                window.pywebview?.api.select_files().then(files => {
+        document.getElementById(selectId)?.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (!window.pywebview) return;
+
+            if (val === 'add') {
+                if (id === 'popup_window') {
+                    const wrapper = document.getElementById(selectId).nextElementSibling;
+                    const triggerText = wrapper.querySelector('.custom-select-text');
+                    const originalI18n = triggerText.getAttribute('data-i18n');
+                    const originalText = triggerText.textContent;
+                    
+                    triggerText.setAttribute('data-i18n', 'msg_click_target');
+                    triggerText.textContent = getMsg('msg_click_target');
+                    
+                    window.pywebview.api.capture_popup_window().then(rule => {
+                        triggerText.setAttribute('data-i18n', originalI18n || 'btn_select');
+                        triggerText.textContent = originalText;
+                        if (rule) window.pywebview.api.add_popup_rule(rule).then(ok => ok && refreshConfigLists());
+                    });
+                } else {
+                    window.pywebview.api.select_files().then(files => {
+                        if (files?.length > 0) window.pywebview.api.manage_named_list(listKey, files, 'add').then(refreshConfigLists);
+                    });
+                }
+            } else if (val === 'add_file') {
+                window.pywebview.api.select_files().then(files => {
                     if (files?.length > 0) window.pywebview.api.manage_named_list(listKey, files, 'add').then(refreshConfigLists);
                 });
-            });
-        }
-    });
-
-    document.querySelector('#popup_window .primary-btn')?.addEventListener('click', (e) => {
-        if (!window.pywebview) return;
-        e.target.setAttribute('data-i18n', 'msg_click_target'); e.target.textContent = getMsg('msg_click_target'); e.target.disabled = true;
-        window.pywebview.api.capture_popup_window().then(rule => {
-            e.target.setAttribute('data-i18n', 'btn_add'); e.target.textContent = getMsg('btn_add'); e.target.disabled = false;
-            if (rule) window.pywebview.api.add_popup_rule(rule).then(ok => ok && refreshConfigLists());
-        });
-    });
-
-    document.querySelector('#taskmgr_window .primary-btn')?.addEventListener('click', () => {
-        if (!window.pywebview) return;
-        document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked').forEach(cb => {
-            if (cb.dataset.path && cb.dataset.path !== "path_unknown") window.pywebview.api.open_file_location(cb.dataset.path);
-        });
-    });
-
-    document.querySelector('#taskmgr_window .danger-btn')?.addEventListener('click', () => {
-        const cbs = document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked');
-        if (cbs.length > 0 && window.pywebview) {
-            window.pywebview.api.show_confirm(getMsg("msg_end_proc_title"), getMsg("msg_end_proc_confirm")).then(res => {
-                if (res) Promise.all(Array.from(cbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => {
-                    window.pywebview.api.get_process_list().then(procs => renderDataGrid('#taskmgr_window', procs.map(p => ({ name: p.name, pid: p.pid, path: (p.path && p.path !== "None" && p.path !== "Unknown") ? p.path : "path_unknown" })), cols.process, 'pid', false));
+            } else if (val === 'add_path') {
+                window.pywebview.api.select_folder().then(folder => {
+                    if (folder?.length > 0) window.pywebview.api.manage_named_list(listKey, folder, 'add').then(refreshConfigLists);
                 });
-            });
-        }
-    });
-
-    document.querySelector('#log_export_window .primary-btn')?.addEventListener('click', () => {
-        const checked = getCheckedValues('#log_export_window');
-        if (checked.length === 0) return window.pywebview?.api.show_alert(getMsg("title_prompt"), getMsg("msg_sel_log_export"), "warning");
-        window.pywebview?.api.export_logs(checked).then(res => res && window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_export_success"), "info"));
-    });
-
-    document.querySelector('#log_export_window .danger-btn')?.addEventListener('click', () => {
-        const checked = getCheckedValues('#log_export_window');
-        if (checked.length === 0 || !window.pywebview) return;
-        window.pywebview.api.show_confirm(getMsg("title_prompt"), getMsg("msg_del_log_confirm")).then(res => {
-            if (res) window.pywebview.api.clear_logs(checked).then(() => {
-                window.pywebview.api.get_logs().then(logs => renderDataGrid('#log_export_window', logs.reverse().map(log => ({ time_str: `[${log.time_str}]`, level: log.level, action: log.action, source: log.source || '-', id: log.id })), cols.log, 'id', true));
-                window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_log_deleted"), "info");
-            });
+            } else if (val === 'remove') {
+                const checked = getCheckedValues(`#${id}`);
+                if (checked.length > 0) window.pywebview.api.remove_list_items(listKey, checked).then(refreshConfigLists);
+            } else if (val === 'quarantine' || val === 'whitelist') {
+                const checked = getCheckedValues(`#${id}`);
+                if (checked.length > 0) {
+                    const targetKey = val === 'quarantine' ? 'quarantine' : 'white_list';
+                    window.pywebview.api.manage_named_list(targetKey, checked, 'add').then(() => refreshConfigLists());
+                }
+            }
+            updateCustomSelectUI(selectId, 'none');
         });
+    });
+
+    document.getElementById('log_export_select')?.addEventListener('change', (e) => {
+        const val = e.target.value;
+        const checked = getCheckedValues('#log_export_window');
+        if (val === 'export') {
+            if (checked.length === 0) {
+                window.pywebview?.api.show_alert(getMsg("title_prompt"), getMsg("msg_sel_log_export"), "warning");
+            } else {
+                window.pywebview?.api.export_logs(checked).then(res => res && window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_export_success"), "info"));
+            }
+        } else if (val === 'delete') {
+            if (checked.length > 0 && window.pywebview) {
+                window.pywebview.api.show_confirm(getMsg("title_prompt"), getMsg("msg_del_log_confirm")).then(res => {
+                    if (res) window.pywebview.api.clear_logs(checked).then(() => {
+                        window.pywebview.api.get_logs().then(logs => renderDataGrid('#log_export_window', logs.reverse().map(log => ({ time_str: `[${log.time_str}]`, level: log.level, action: log.action, source: log.source || '-', id: log.id })), cols.log, 'id', true));
+                        window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_log_deleted"), "info");
+                    });
+                });
+            }
+        }
+        updateCustomSelectUI('log_export_select', 'none');
     });
 
     document.getElementById('minimize_button')?.addEventListener('click', () => window.pywebview?.api.minimize());

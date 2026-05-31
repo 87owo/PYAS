@@ -318,7 +318,7 @@ class WindowAPI:
         self.cloud_pending = set()
 
         self.pyas_default = {
-            "version": "3.5.7",
+            "version": "3.5.8",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd", ".ax"],
@@ -563,7 +563,7 @@ class WindowAPI:
         if list_key == "quarantine" and lock_func is None:
             lock_func = self.lock_file
 
-        norm_paths = self.norm_path(files or [], must_exist=True)
+        norm_paths = self.norm_path(files or [], must_exist=False)
         if isinstance(norm_paths, str):
             norm_paths = [norm_paths] if norm_paths else []
 
@@ -582,7 +582,15 @@ class WindowAPI:
             
             if action == "add":
                 for path in norm_paths:
-                    exists = any(self.norm_path(item.get("file", "")) == path for item in target_list if isinstance(item, dict))
+                    path_case = os.path.normcase(path)
+                    exists = False
+                    for item in target_list:
+                        if isinstance(item, dict):
+                            val = item.get("file", "")
+                            np = self.norm_path(val, must_exist=False)
+                            if np and os.path.normcase(np) == path_case:
+                                exists = True
+                                break
                     if not exists:
                         if lock_func:
                             lock_func(path, True)
@@ -591,15 +599,21 @@ class WindowAPI:
                         if list_key == "white_list":
                             self.sync_driver_whitelist(path, True)
             elif action == "remove":
-                for item in list(target_list):
-                    file_path = self.norm_path(item.get("file", ""))
-                    if isinstance(item, dict) and file_path in norm_paths:
-                        if lock_func:
-                            lock_func(file_path, False)
-                        target_list.remove(item)
-                        acted_items.append(file_path)
-                        if list_key == "white_list":
-                            self.sync_driver_whitelist(file_path, False)
+                norm_paths_case = {os.path.normcase(p) for p in norm_paths}
+                new_list = []
+                for item in target_list:
+                    val = item.get("file", "") if isinstance(item, dict) else item
+                    if val:
+                        np = self.norm_path(val, must_exist=False)
+                        if np and os.path.normcase(np) in norm_paths_case:
+                            if lock_func:
+                                lock_func(val, False)
+                            acted_items.append(val)
+                            if list_key == "white_list":
+                                self.sync_driver_whitelist(val, False)
+                            continue
+                    new_list.append(item)
+                target_list[:] = new_list
 
             if acted_items:
                 self.write_log("INFO", "Config Update", detail=f"List [{list_key}] {action}: {acted_items}")
@@ -611,29 +625,32 @@ class WindowAPI:
             target_list = self.pyas_config.get(list_key, [])
             original_len = len(target_list)
             
+            norm_paths_to_remove = set()
+            for p in paths_to_remove:
+                np = self.norm_path(p, must_exist=False)
+                if np:
+                    norm_paths_to_remove.add(os.path.normcase(np))
+            
             if list_key == "quarantine":
                 for item in target_list:
-                    if isinstance(item, dict) and item.get("file") in paths_to_remove:
-                        self.lock_file(item["file"], False)
+                    val = item.get("file") if isinstance(item, dict) else item
+                    if val:
+                        np = self.norm_path(val, must_exist=False)
+                        if np and os.path.normcase(np) in norm_paths_to_remove:
+                            self.lock_file(val, False)
             
             new_list = []
             removed_items = []
             for item in target_list:
-                if isinstance(item, dict):
-                    val = item.get("file") or item.get("exe") or item.get("title")
-                    if val not in paths_to_remove:
-                        new_list.append(item)
-                    else:
+                val = item.get("file") or item.get("exe") or item.get("title") if isinstance(item, dict) else item
+                if val:
+                    np = self.norm_path(val, must_exist=False)
+                    if np and os.path.normcase(np) in norm_paths_to_remove:
                         removed_items.append(val)
                         if list_key == "white_list":
                             self.sync_driver_whitelist(val, False)
-                else:
-                    if item not in paths_to_remove:
-                        new_list.append(item)
-                    else:
-                        removed_items.append(item)
-                        if list_key == "white_list":
-                            self.sync_driver_whitelist(item, False)
+                        continue
+                new_list.append(item)
             
             self.pyas_config[list_key] = new_list
             
@@ -825,11 +842,13 @@ class WindowAPI:
         threading.Thread(target=_process_drop, daemon=True).start()
 
     def select_files(self):
-        if self._window: return self._window.create_file_dialog(webview.FileDialog.OPEN, allow_multiple=True) or []
+        if self._window: 
+            return self._window.create_file_dialog(getattr(webview, 'OPEN_DIALOG', 10), allow_multiple=True) or []
         return []
 
     def select_folder(self):
-        if self._window: return self._window.create_file_dialog(webview.FileDialog.FOLDER) or []
+        if self._window: 
+            return self._window.create_file_dialog(getattr(webview, 'FOLDER_DIALOG', 20)) or []
         return []
 
     def open_file_location(self, file_path):
@@ -1246,20 +1265,29 @@ class WindowAPI:
                 stype = parts[0]
                 if stype == "reg":
                     root, old_path, name = int(parts[1]), parts[2], parts[3]
-                    new_path = old_path.replace("_Disabled", "") if action == "enable" else (old_path if "_Disabled" in old_path else old_path + "_Disabled")
-                    if old_path != new_path:
-                        val = self._reg_read(root, old_path, name)
-                        if val:
-                            self._reg_write(root, new_path, name, winreg.REG_SZ, val)
-                            self._reg_delete(root, old_path, name)
+                    if action == "delete":
+                        self._reg_delete(root, old_path, name)
+                    else:
+                        new_path = old_path.replace("_Disabled", "") if action == "enable" else (old_path if "_Disabled" in old_path else old_path + "_Disabled")
+                        if old_path != new_path:
+                            val = self._reg_read(root, old_path, name)
+                            if val:
+                                self._reg_write(root, new_path, name, winreg.REG_SZ, val)
+                                self._reg_delete(root, old_path, name)
                 elif stype == "srv":
                     name = parts[1]
-                    mode = "auto" if action == "enable" else "disabled"
-                    subprocess.run(["sc", "config", name, f"start=", mode], capture_output=True, creationflags=0x08000000)
+                    if action == "delete":
+                        subprocess.run(["sc", "delete", name], capture_output=True, creationflags=0x08000000)
+                    else:
+                        mode = "auto" if action == "enable" else "disabled"
+                        subprocess.run(["sc", "config", name, f"start=", mode], capture_output=True, creationflags=0x08000000)
                 elif stype == "tsk":
                     name = parts[1]
-                    cmd = "/enable" if action == "enable" else "/disable"
-                    subprocess.run(["schtasks", "/change", "/tn", name, cmd], capture_output=True, creationflags=0x08000000)
+                    if action == "delete":
+                        subprocess.run(["schtasks", "/delete", "/tn", name, "/f"], capture_output=True, creationflags=0x08000000)
+                    else:
+                        cmd = "/enable" if action == "enable" else "/disable"
+                        subprocess.run(["schtasks", "/change", "/tn", name, cmd], capture_output=True, creationflags=0x08000000)
             except Exception as e:
                 self.write_log("WARN", "manage_startup", detail=str(e), success=False)
         
@@ -1596,11 +1624,34 @@ class WindowAPI:
 ####################################################################################################
 
     def is_in_whitelist(self, file_path):
-        p = self.norm_path(file_path)
-        if not p: return False
-        with self.lock_config: whitelist = self.pyas_config.get("white_list", [])
+        p = self.norm_path(file_path, must_exist=False)
+        if not p: 
+            return False
+            
         p_norm = os.path.normcase(p)
-        return any(os.path.normcase(item.get("file", "")) == p_norm for item in whitelist if isinstance(item, dict))
+        
+        with self.lock_config: 
+            whitelist = self.pyas_config.get("white_list", [])
+            
+        for item in whitelist:
+            if isinstance(item, dict):
+                wl_path = item.get("file", "")
+                wl_norm = self.norm_path(wl_path, must_exist=False)
+                if not wl_norm:
+                    continue
+                    
+                wl_norm = os.path.normcase(wl_norm)
+                
+                if p_norm == wl_norm:
+                    return True
+                    
+                if not wl_norm.endswith(os.sep):
+                    wl_norm += os.sep
+                    
+                if p_norm.startswith(wl_norm):
+                    return True
+                    
+        return False
 
     def init_whitelist(self):
         self.manage_named_list("white_list", [self.file_pyas], action="add")

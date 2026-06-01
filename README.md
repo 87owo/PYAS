@@ -169,4 +169,4 @@ Ersin Özdoğan
 
 Elif Miray Özcan
 
-
+# Proje kurulumu test edildi

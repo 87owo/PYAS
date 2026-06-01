@@ -1,0 +1,42 @@
+{
+    "version": "3.5.1",
+    "api_host": "https://pyas-security.com/",
+    "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
+    "suffix": [
+        ".exe",
+        ".dll",
+        ".sys",
+        ".ocx",
+        ".scr",
+        ".efi",
+        ".acm",
+        ".ax",
+        ".cpl",
+        ".drv",
+        ".com",
+        ".mui",
+        ".pyd"
+    ],
+    "block": [
+        2001,
+        3001,
+        5001,
+        6001
+    ],
+    "size": 104857600,
+    "language": "english_switch",
+    "theme": "white_switch",
+    "process_switch": true,
+    "document_switch": true,
+    "system_switch": true,
+    "driver_switch": true,
+    "network_switch": true,
+    "extension_switch": false,
+    "sensitive_switch": false,
+    "cloud_switch": true,
+    "context_switch": false,
+    "custom_rule": [],
+    "white_list": [],
+    "quarantine": [],
+    "block_list": []
+}

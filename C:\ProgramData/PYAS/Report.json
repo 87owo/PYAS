@@ -1,0 +1,17 @@
+[
+    {
+        "id": "b438c424-bc38-4f28-a360-ecaf451d9a52",
+        "timestamp": 1778407476.994476,
+        "time_str": "2026-05-10 13:04:36",
+        "level": "INFO",
+        "action": "Config Update",
+        "detail": "Create default config",
+        "code": null,
+        "pid": null,
+        "hash": null,
+        "source": null,
+        "target": null,
+        "operate": null,
+        "success": true
+    }
+]

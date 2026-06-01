@@ -169,4 +169,6 @@ Ersin Özdoğan
 
 Elif Miray Özcan
 
+#Kapatılan issuelar gözden geçirildi. Kodlar optimize edildi.
+
 

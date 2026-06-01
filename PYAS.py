@@ -307,6 +307,9 @@ class WindowAPI:
         self.cloud = cloud_scanner()
         self.cloud_queue = queue.Queue()
         
+        self.ui_queue = queue.Queue()
+        self.start_daemon_thread(self.ui_dispatcher_thread)
+        
         self.lock_driver = threading.RLock()
         self.lock_update = threading.RLock()
         self.driver_port = None
@@ -324,6 +327,9 @@ class WindowAPI:
         self.lock_proc = threading.RLock()
         self.lock_net = threading.RLock()
         self.lock_file_ops = threading.RLock()
+        self.lock_io = threading.RLock()
+        self.last_io_counters = {}
+        self.last_io_time = time.time()
 
         self.scan_events = {} 
         self.scan_cache = {}
@@ -366,6 +372,35 @@ class WindowAPI:
 
         for _ in range(2):
             self.start_daemon_thread(self.cloud_worker)
+
+    def ui_dispatcher_thread(self):
+        batch = []
+        while True:
+            try:
+                task = self.ui_queue.get(timeout=0.1)
+                batch.append(task)
+                
+                while not self.ui_queue.empty() and len(batch) < 50:
+                    try:
+                        batch.append(self.ui_queue.get_nowait())
+                    except queue.Empty:
+                        break
+
+                if self._window and batch:
+                    js_script = "".join(batch)
+                    try:
+                        self._window.evaluate_js(js_script)
+                    except Exception:
+                        pass
+
+                for _ in batch:
+                    self.ui_queue.task_done()
+                batch.clear()
+
+            except queue.Empty:
+                continue
+            except Exception:
+                batch.clear()
 
     def _loc(self, text_dict):
         with self.lock_config:
@@ -527,7 +562,8 @@ class WindowAPI:
             self.logs_dirty = True
 
             if self._window:
-                self._window.evaluate_js(f"if(window.updateLogs) window.updateLogs({json.dumps(entry)});")
+                js_cmd = f"if(window.updateLogs) window.updateLogs({json.dumps(entry)});"
+                self.ui_queue.put(js_cmd)
 
         if level == "BLOCK" and self.tray_icon:
             self.trigger_block_notification(action, source, target, code)
@@ -734,6 +770,12 @@ class WindowAPI:
                 "spanish_switch": "Abrir PYAS", "hindi_switch": "PYAS खोलें", "arabic_switch": "فتح PYAS",
                 "russian_switch": "Открыть PYAS", "slovenian_switch": "Odpri PYAS"
             },
+            "check_update": {
+                "traditional_switch": "檢查更新", "simplified_switch": "检查更新", "english_switch": "Check Update",
+                "japanese_switch": "更新を確認", "korean_switch": "업데이트 확인", "french_switch": "Vérifier la mise à jour",
+                "spanish_switch": "Buscar actualizaciones", "hindi_switch": "अद्यतन जाँचे", "arabic_switch": "التحقق من التحديثات",
+                "russian_switch": "Проверить обновления", "slovenian_switch": "Preveri posodobitve"
+            },
             "exit_app": {
                 "traditional_switch": "退出防護", "simplified_switch": "退出防护", "english_switch": "Exit Security",
                 "japanese_switch": "保護を終了", "korean_switch": "보호 종료", "french_switch": "Quitter la sécurité",
@@ -748,10 +790,33 @@ class WindowAPI:
             return
         menu = pystray.Menu(
             pystray.MenuItem(lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True),
+            pystray.MenuItem(lambda item: self.get_tray_text("check_update"), self.tray_check_update),
             pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close)
         )
         self.tray_icon = pystray.Icon("PYAS", self.get_app_icon(), "PYAS Security", menu)
         self.tray_icon.run_detached()
+
+    def tray_check_update(self, icon=None, item=None):
+        def _check():
+            res = self.check_update()
+            
+            title_error = self._loc({"traditional_switch": "錯誤", "simplified_switch": "错误", "english_switch": "Error", "japanese_switch": "エラー", "korean_switch": "오류", "french_switch": "Erreur", "spanish_switch": "Error", "hindi_switch": "त्रुटि", "arabic_switch": "خطأ", "russian_switch": "Ошибка", "slovenian_switch": "Napaka"})
+            title_prompt = self._loc({"traditional_switch": "提示", "simplified_switch": "提示", "english_switch": "Prompt", "japanese_switch": "プロンプト", "korean_switch": "프롬프트", "french_switch": "Indication", "spanish_switch": "Aviso", "hindi_switch": "सुझाव", "arabic_switch": "تلميح", "russian_switch": "Подсказка", "slovenian_switch": "Namig"})
+            msg_fail = self._loc({"traditional_switch": "檢查更新失敗", "simplified_switch": "检查更新失败", "english_switch": "Update check failed", "japanese_switch": "アップデートの確認に失敗しました", "korean_switch": "업데이트 확인 실패", "french_switch": "Échec de la vérification des mises à jour", "spanish_switch": "Fallo al buscar actualizaciones", "hindi_switch": "अपडेट की जाँच विफल रही", "arabic_switch": "فشل التحقق من التحديثات", "russian_switch": "Ошибка проверки обновлений", "slovenian_switch": "Preverjanje posodobitev ni uspelo"})
+            msg_new = self._loc({"traditional_switch": "發現新版本", "simplified_switch": "发现新版本", "english_switch": "New version found", "japanese_switch": "新しいバージョンが見つかりました", "korean_switch": "새 버전을 찾았습니다", "french_switch": "Nouvelle version trouvée", "spanish_switch": "Nueva versión encontrada", "hindi_switch": "नया संस्करण मिला", "arabic_switch": "تم العثور على إصدار جديد", "russian_switch": "Найдена новая версия", "slovenian_switch": "Najdena nova različica"})
+            msg_latest = self._loc({"traditional_switch": "當前已是最新版本", "simplified_switch": "当前已是最新版本", "english_switch": "Currently at latest version", "japanese_switch": "現在は最新バージョンです", "korean_switch": "현재 최신 버전입니다", "french_switch": "Actuellement à la dernière version", "spanish_switch": "Actualmente en la última versión", "hindi_switch": "वर्तमान में नवीनतम संस्करण है", "arabic_switch": "أنت تستخدم أحدث إصدار حاليًا", "russian_switch": "Установлена последняя версия", "slovenian_switch": "Trenutno imate najnovejšo različico"})
+
+            if res.get("error"):
+                self.show_alert(title_error, msg_fail, "error")
+            elif res.get("has_update"):
+                msg = f"{msg_new} {res.get('latest')}\n({res.get('current')} -> {res.get('latest')})"
+                if self.show_confirm(title_prompt, msg):
+                    self.open_url(res.get("url"))
+            else:
+                msg = f"{msg_latest} {res.get('current')}"
+                self.show_alert(title_prompt, msg, "info")
+                
+        threading.Thread(target=_check, daemon=True).start()
 
     def restore_from_tray(self, icon=None, item=None):
         if self._window:
@@ -1122,9 +1187,12 @@ class WindowAPI:
 
         current_io = {}
         current_time = time.time()
-        time_diff = current_time - getattr(self, 'last_io_time', current_time - 1)
-        if time_diff <= 0: time_diff = 1
-        self.last_io_time = current_time
+        
+        with self.lock_io:
+            time_diff = current_time - self.last_io_time
+            if time_diff <= 0: time_diff = 1
+            self.last_io_time = current_time
+            old_counters = self.last_io_counters.copy()
 
         result = []
         exist_process = self.get_process_list_pids()
@@ -1141,8 +1209,8 @@ class WindowAPI:
                     io = IO_COUNTERS()
                     if self.kernel32.GetProcessIoCounters(h, ctypes.byref(io)):
                         current_io[pid] = (io.ReadTransferCount, io.WriteTransferCount)
-                        if hasattr(self, 'last_io_counters') and pid in self.last_io_counters:
-                            old_read, old_write = self.last_io_counters[pid]
+                        if pid in old_counters:
+                            old_read, old_write = old_counters[pid]
                             down_speed = max(0, (io.ReadTransferCount - old_read) / time_diff)
                             up_speed = max(0, (io.WriteTransferCount - old_write) / time_diff)
                 finally:
@@ -1159,7 +1227,9 @@ class WindowAPI:
                     "conn": count
                 })
 
-        self.last_io_counters = current_io
+        with self.lock_io:
+            self.last_io_counters = current_io
+
         return result
     
     def _traverse_delete(self, path):
@@ -1515,7 +1585,8 @@ class WindowAPI:
                 current_time = time.time()
                 if current_time - last_update >= 0.05:
                     if self._window:
-                        self._window.evaluate_js(f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});")
+                        js_cmd = f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});"
+                        self.ui_queue.put(js_cmd)
                     last_update = current_time
 
                 was_locked = False
@@ -1535,7 +1606,9 @@ class WindowAPI:
                     result = self.safe_scan_engine(norm_path)
                     if result:
                         with self.lock_virus: self.virus_results.append(norm_path)
-                        if self._window: self._window.evaluate_js(f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});")
+                        if self._window: 
+                            js_cmd = f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});"
+                            self.ui_queue.put(js_cmd)
                         self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
                     
                     self.cloud_check(norm_path)
@@ -1562,7 +1635,9 @@ class WindowAPI:
                 "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
                 "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
             }
-            if self._window: self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});")
+            if self._window:
+                js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});"
+                self.ui_queue.put(js_cmd)
             self.write_log("INFO", "Scan Completed", detail=f"Found {count} viruses, scanned {scanned} files, time {elapsed}s")
 
     def stop_scan(self):
@@ -2189,12 +2264,13 @@ class WindowAPI:
             return True
 
     def popup_intercept_thread(self):
-        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
         hwnd_list = []
         def enum_windows_callback(hWnd, lParam):
             if self.user32.IsWindowVisible(hWnd): hwnd_list.append(hWnd)
             return True
-        enum_cb = WNDENUMPROC(enum_windows_callback)
+            
+        WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_int)
+        self._enum_cb_keepalive = WNDENUMPROC(enum_windows_callback)
 
         while True:
             try:
@@ -2203,7 +2279,8 @@ class WindowAPI:
                 if not rules: continue
 
                 hwnd_list.clear()
-                self.user32.EnumWindows(enum_cb, 0)
+                self.user32.EnumWindows(self._enum_cb_keepalive, 0)
+                
                 for hWnd in list(hwnd_list):
                     pid = ctypes.c_ulong(0)
                     self.user32.GetWindowThreadProcessId(hWnd, ctypes.byref(pid))

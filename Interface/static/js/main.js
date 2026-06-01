@@ -516,10 +516,10 @@ document.addEventListener('DOMContentLoaded', () => {
             window.pywebview.api.get_process_list().then(procs => {
                 const mapped = procs.map(p => ({ name: p.name, pid: p.pid, path: (p.path && p.path !== "None" && p.path !== "Unknown") ? p.path : "path_unknown" }));
                 renderDataGrid('#taskmgr_window', mapped, cols.process, 'pid', false);
-                if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000);
-            }).catch(() => { if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000); });
+                if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 1000);
+            }).catch(() => { if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 1000); });
         } else {
-            if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 2000);
+            if (appState.taskmgrActive) appState.taskmgrTimer = setTimeout(fetchProcs, 1000);
         }
     };
     
@@ -541,10 +541,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     path: (item.path && item.path !== "None" && item.path !== "Unknown") ? item.path : "path_unknown"
                 }));
                 renderDataGrid('#netmon_window', mapped, cols.netmon, 'pid', false);
-                if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 2000);
-            }).catch(() => { if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 2000); });
+                if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 1000);
+            }).catch(() => { if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 1000); });
         } else {
-            if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 2000);
+            if (appState.netmonActive) appState.netmonTimer = setTimeout(fetchNetmon, 1000);
         }
     };
 
@@ -1010,7 +1010,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    bindSettingAction('key_product', async () => {
+        if (!window.pywebview) return;
+        try {
+            const cfg = await window.pywebview.api.get_config();
+            if (cfg && cfg.api_key && cfg.api_key.trim() !== "") {
+                window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_key_activated"), "info");
+            }
+        } catch (e) {}
+    });
+
     bindSettingAction('web_official', () => window.pywebview?.api.open_website());
+    
     bindSettingAction('update_check', () => {
         window.pywebview?.api.check_update().then(res => {
             if (res.error) window.pywebview.api.show_alert(getMsg("title_error"), getMsg("msg_update_fail"), "error");
@@ -1018,6 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
             else window.pywebview.api.show_alert(getMsg("title_prompt"), `${getMsg("msg_latest_version")} ${res.current}`, "info");
         });
     });
+    
     bindSettingAction('opt_reset', () => {
         window.pywebview?.api.show_confirm(getMsg("title_prompt"), getMsg("opt_reset_desc")).then(res => {
             if (res) window.pywebview.api.reset_config().then(() => window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_reset_success"), "info"));
@@ -1081,7 +1093,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (res !== undefined && res !== null) toggle.checked = res;
                     } catch { toggle.checked = false; } 
                     finally { toggle.disabled = false; }
-                    await new Promise(r => setTimeout(r, 200));
+                    await new Promise(r => setTimeout(r, 100));
                 }
             }
         }

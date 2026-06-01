@@ -156,7 +156,8 @@ window.AppI18n = {
             "col_up_speed": "上傳速度",
             "col_conn_count": "連接數",
             "btn_extract_item": "提取項目",
-            "msg_extract_success": "成功提取選取項目"
+            "msg_extract_success": "成功提取選取項目",
+            "msg_key_activated": "產品金鑰已啟用"
         },
         "simplified_switch": {
             "app_name": "PYAS Security",
@@ -314,7 +315,8 @@ window.AppI18n = {
             "col_up_speed": "上传速度",
             "col_conn_count": "连接数",
             "btn_extract_item": "提取项目",
-            "msg_extract_success": "成功提取选取项目"
+            "msg_extract_success": "成功提取选取项目",
+            "msg_key_activated": "产品密钥已启用"
         },
         "english_switch": {
             "app_name": "PYAS Security",
@@ -472,7 +474,8 @@ window.AppI18n = {
             "col_up_speed": "Upload Speed",
             "col_conn_count": "Connections",
             "btn_extract_item": "Extract Item",
-            "msg_extract_success": "Successfully extracted selected items"
+            "msg_extract_success": "Successfully extracted selected items",
+            "msg_key_activated": "Product key activated"
         },
         "japanese_switch": {
             "app_name": "PYAS Security",
@@ -630,7 +633,8 @@ window.AppI18n = {
             "col_up_speed": "アップロード速度",
             "col_conn_count": "接続数",
             "btn_extract_item": "アイテムを抽出",
-            "msg_extract_success": "選択したアイテムを正常に抽出しました"
+            "msg_extract_success": "選択したアイテムを正常に抽出しました",
+            "msg_key_activated": "プロダクトキーが有効化されました"
         },
         "korean_switch": {
             "app_name": "PYAS Security",
@@ -788,7 +792,8 @@ window.AppI18n = {
             "col_up_speed": "업로드 속도",
             "col_conn_count": "연결 수",
             "btn_extract_item": "항목 추출",
-            "msg_extract_success": "선택한 항목을 성공적으로 추출했습니다"
+            "msg_extract_success": "선택한 항목을 성공적으로 추출했습니다",
+            "msg_key_activated": "제품 키가 활성화되었습니다"
         },
         "french_switch": {
             "app_name": "PYAS Security",
@@ -946,7 +951,8 @@ window.AppI18n = {
             "col_up_speed": "Vitesse de téléversement",
             "col_conn_count": "Connexions",
             "btn_extract_item": "Extraire l'élément",
-            "msg_extract_success": "Éléments sélectionnés extraits avec succès"
+            "msg_extract_success": "Éléments sélectionnés extraits avec succès",
+            "msg_key_activated": "Clé de produit activée"
         },
         "spanish_switch": {
             "app_name": "PYAS Security",
@@ -954,7 +960,7 @@ window.AppI18n = {
             "scan_smart": "Escaneo inteligente",
             "scan_smart_desc": "Escanear rápidamente la seguridad del dispositivo",
             "log_export": "Exportar registros",
-            "log_export_desc": "Filtrar registros y exportar a un archivo",
+            "log_export_desc": "Filtrer registros y exportar a un archivo",
             "scan_virus": "Escaneo de virus",
             "scan_virus_desc": "Seleccione un método de escaneo avanzado",
             "btn_delete": "Eliminar",
@@ -1104,7 +1110,8 @@ window.AppI18n = {
             "col_up_speed": "Velocidad de subida",
             "col_conn_count": "Conexiones",
             "btn_extract_item": "Extraer elemento",
-            "msg_extract_success": "Elementos seleccionados extraídos con éxito"
+            "msg_extract_success": "Elementos seleccionados extraídos con éxito",
+            "msg_key_activated": "Clave de producto activada"
         },
         "hindi_switch": {
             "app_name": "PYAS Security",
@@ -1262,7 +1269,8 @@ window.AppI18n = {
             "col_up_speed": "अपलोड गति",
             "col_conn_count": "कनेक्शन",
             "btn_extract_item": "आइटम निकालें",
-            "msg_extract_success": "चयनित आइटम सफलतापूर्वक निकाले गए"
+            "msg_extract_success": "चयनित आइटम सफलतापूर्वक निकाले गए",
+            "msg_key_activated": "उत्पाद कुंजी सक्रिय हो गई"
         },
         "arabic_switch": {
             "app_name": "PYAS Security",
@@ -1420,7 +1428,8 @@ window.AppI18n = {
             "col_up_speed": "سرعة الرفع",
             "col_conn_count": "الاتصالات",
             "btn_extract_item": "استخراج العنصر",
-            "msg_extract_success": "تم استخراج العناصر المحددة بنجاح"
+            "msg_extract_success": "تم استخراج العناصر المحددة بنجاح",
+            "msg_key_activated": "تم تنشيط مفتاح المنتج"
         },
         "russian_switch": {
             "app_name": "PYAS Security",
@@ -1578,7 +1587,8 @@ window.AppI18n = {
             "col_up_speed": "Скорость загрузки",
             "col_conn_count": "Соединения",
             "btn_extract_item": "Извлечь элемент",
-            "msg_extract_success": "Выбранные элементы успешно извлечены"
+            "msg_extract_success": "Выбранные элементы успешно извлечены",
+            "msg_key_activated": "Ключ продукта активирован"
         },
         "slovenian_switch": {
             "app_name": "PYAS Security",
@@ -1736,7 +1746,8 @@ window.AppI18n = {
             "col_up_speed": "Hitrost nalaganja",
             "col_conn_count": "Povezave",
             "btn_extract_item": "Izvleči element",
-            "msg_extract_success": "Izbrani elementi so bili uspešno izvlečeni"
+            "msg_extract_success": "Izbrani elementi so bili uspešno izvlečeni",
+            "msg_key_activated": "Ključ izdelka je aktiviran"
         }
     },
     langMap: {

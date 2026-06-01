@@ -171,4 +171,6 @@ Elif Miray Özcan
 
 #Kapatılan issuelar gözden geçirildi. Kodlar optimize edildi.
 
+# Issue 5: Loglama sistemi kontrolleri sağlandı.
+
 

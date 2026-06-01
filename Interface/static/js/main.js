@@ -345,7 +345,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             displayData.sort((a, b) => {
                 const valA = a[state.sortKey] ?? '', valB = b[state.sortKey] ?? '';
-                if (state.sortKey === 'sizeStr' && 'size' in a && 'size' in b) return state.sortAsc ? a.size - b.size : b.size - a.size;
+                
+                const rawKeyMap = { 'sizeStr': 'size', 'downStr': 'down', 'upStr': 'up' };
+                if (rawKeyMap[state.sortKey] && rawKeyMap[state.sortKey] in a && rawKeyMap[state.sortKey] in b) {
+                    const rawKey = rawKeyMap[state.sortKey];
+                    return state.sortAsc ? a[rawKey] - b[rawKey] : b[rawKey] - a[rawKey];
+                }
+
                 const numA = parseFloat(valA), numB = parseFloat(valB);
                 if (!isNaN(numA) && !isNaN(numB) && String(valA).trim() !== '' && String(valB).trim() !== '') return state.sortAsc ? numA - numB : numB - numA;
                 return state.sortAsc ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
@@ -900,6 +906,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.pywebview.api.select_folder().then(folder => {
                     if (folder?.length > 0) window.pywebview.api.manage_named_list(listKey, folder, 'add').then(refreshConfigLists);
                 });
+            } else if (val === 'extract') {
+                const checked = getCheckedValues(`#${id}`);
+                if (checked.length > 0) {
+                    window.pywebview.api.select_folder().then(folder => {
+                        if (folder?.length > 0) {
+                            window.pywebview.api.extract_list_items(checked, folder[0]).then(success => {
+                                if (success) window.pywebview.api.show_alert(getMsg("title_prompt"), getMsg("msg_extract_success"), "info");
+                            });
+                        }
+                    });
+                }
             } else if (val === 'remove') {
                 const checked = getCheckedValues(`#${id}`);
                 if (checked.length > 0) window.pywebview.api.remove_list_items(listKey, checked).then(refreshConfigLists);

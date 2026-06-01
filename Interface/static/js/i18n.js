@@ -155,6 +155,8 @@ window.AppI18n = {
             "col_down_speed": "下載速度",
             "col_up_speed": "上傳速度",
             "col_conn_count": "連接數",
+            "btn_extract_item": "提取項目",
+            "msg_extract_success": "成功提取選取項目"
         },
         "simplified_switch": {
             "app_name": "PYAS Security",
@@ -311,6 +313,8 @@ window.AppI18n = {
             "col_down_speed": "下载速度",
             "col_up_speed": "上传速度",
             "col_conn_count": "连接数",
+            "btn_extract_item": "提取项目",
+            "msg_extract_success": "成功提取选取项目"
         },
         "english_switch": {
             "app_name": "PYAS Security",
@@ -467,6 +471,8 @@ window.AppI18n = {
             "col_down_speed": "Download Speed",
             "col_up_speed": "Upload Speed",
             "col_conn_count": "Connections",
+            "btn_extract_item": "Extract Item",
+            "msg_extract_success": "Successfully extracted selected items"
         },
         "japanese_switch": {
             "app_name": "PYAS Security",
@@ -623,6 +629,8 @@ window.AppI18n = {
             "col_down_speed": "ダウンロード速度",
             "col_up_speed": "アップロード速度",
             "col_conn_count": "接続数",
+            "btn_extract_item": "アイテムを抽出",
+            "msg_extract_success": "選択したアイテムを正常に抽出しました"
         },
         "korean_switch": {
             "app_name": "PYAS Security",
@@ -779,6 +787,8 @@ window.AppI18n = {
             "col_down_speed": "다운로드 속도",
             "col_up_speed": "업로드 속도",
             "col_conn_count": "연결 수",
+            "btn_extract_item": "항목 추출",
+            "msg_extract_success": "선택한 항목을 성공적으로 추출했습니다"
         },
         "french_switch": {
             "app_name": "PYAS Security",
@@ -935,6 +945,8 @@ window.AppI18n = {
             "col_down_speed": "Vitesse de téléchargement",
             "col_up_speed": "Vitesse de téléversement",
             "col_conn_count": "Connexions",
+            "btn_extract_item": "Extraire l'élément",
+            "msg_extract_success": "Éléments sélectionnés extraits avec succès"
         },
         "spanish_switch": {
             "app_name": "PYAS Security",
@@ -1091,6 +1103,8 @@ window.AppI18n = {
             "col_down_speed": "Velocidad de descarga",
             "col_up_speed": "Velocidad de subida",
             "col_conn_count": "Conexiones",
+            "btn_extract_item": "Extraer elemento",
+            "msg_extract_success": "Elementos seleccionados extraídos con éxito"
         },
         "hindi_switch": {
             "app_name": "PYAS Security",
@@ -1247,6 +1261,8 @@ window.AppI18n = {
             "col_down_speed": "डाउनलोड गति",
             "col_up_speed": "अपलोड गति",
             "col_conn_count": "कनेक्शन",
+            "btn_extract_item": "आइटम निकालें",
+            "msg_extract_success": "चयनित आइटम सफलतापूर्वक निकाले गए"
         },
         "arabic_switch": {
             "app_name": "PYAS Security",
@@ -1403,6 +1419,8 @@ window.AppI18n = {
             "col_down_speed": "سرعة التنزيل",
             "col_up_speed": "سرعة الرفع",
             "col_conn_count": "الاتصالات",
+            "btn_extract_item": "استخراج العنصر",
+            "msg_extract_success": "تم استخراج العناصر المحددة بنجاح"
         },
         "russian_switch": {
             "app_name": "PYAS Security",
@@ -1559,6 +1577,8 @@ window.AppI18n = {
             "col_down_speed": "Скорость скачивания",
             "col_up_speed": "Скорость загрузки",
             "col_conn_count": "Соединения",
+            "btn_extract_item": "Извлечь элемент",
+            "msg_extract_success": "Выбранные элементы успешно извлечены"
         },
         "slovenian_switch": {
             "app_name": "PYAS Security",
@@ -1715,6 +1735,8 @@ window.AppI18n = {
             "col_down_speed": "Hitrost prenosa",
             "col_up_speed": "Hitrost nalaganja",
             "col_conn_count": "Povezave",
+            "btn_extract_item": "Izvleči element",
+            "msg_extract_success": "Izbrani elementi so bili uspešno izvlečeni"
         }
     },
     langMap: {

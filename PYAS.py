@@ -672,6 +672,35 @@ class WindowAPI:
                 return True
         return False
 
+    def extract_list_items(self, paths, dest_dir):
+        if not dest_dir or not os.path.exists(dest_dir):
+            return False
+        extracted_count = 0
+        for raw_path in paths:
+            src = self.norm_path(raw_path, must_exist=True)
+            if not src:
+                continue
+            base_name = os.path.basename(src)
+            target_path = os.path.join(dest_dir, base_name)
+            
+            if os.path.exists(target_path):
+                name, ext = os.path.splitext(base_name)
+                counter = 1
+                while os.path.exists(target_path):
+                    target_path = os.path.join(dest_dir, f"{name} ({counter}){ext}")
+                    counter += 1
+                    
+            try:
+                if os.path.isdir(src):
+                    shutil.copytree(src, target_path)
+                else:
+                    shutil.copy2(src, target_path)
+                extracted_count += 1
+                self.write_log("INFO", "File Extract", source=src, target=target_path, operate=True)
+            except Exception as e:
+                self.write_log("WARN", "extract_list_items", source=src, detail=str(e), success=False)
+        return extracted_count > 0
+
 ####################################################################################################
 
     def set_window(self, window):

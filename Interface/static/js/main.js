@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const cols = {
-        log: [{key: 'time_str', label: 'col_date', flex: 1.5}, {key: 'level', label: 'col_type', flex: 0.8}, {key: 'action', label: 'col_func', flex: 1.2, isI18n: true}, {key: 'source', label: 'col_path', flex: 3}],
+        log: [{key: 'time_str', label: 'col_date', flex: 1.5}, {key: 'level', label: 'col_type', flex: 0.8, isI18n: true}, {key: 'action', label: 'col_func', flex: 1.2, isI18n: true}, {key: 'source', label: 'col_path', flex: 3}],
         process: [{key: 'name', label: 'col_name', flex: 1.5}, {key: 'pid', label: 'col_pid', flex: 0.5}, {key: 'path', label: 'col_path', flex: 3}],
         startup: [{key: 'type', label: 'col_type', flex: 0.5, isI18n: true}, {key: 'name', label: 'col_name', flex: 1.5}, {key: 'status', label: 'col_status', flex: 0.5, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
         virus: [{key: 'label', label: 'col_type', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
@@ -341,7 +341,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (selectAllCb) selectAllCb.disabled = dataList.length === 0;
 
             const ft = filterText.toLowerCase();
-            let displayData = dataList.filter(item => !filterText || columns.some(col => String(item[col.key] || '').toLowerCase().includes(ft)));
+            let displayData = dataList.filter(item => !filterText || columns.some(col => {
+                const rawVal = String(item[col.key] || '');
+                if (rawVal.toLowerCase().includes(ft)) return true;
+                if (col.isI18n) {
+                    const transVal = getMsg(rawVal);
+                    if (transVal && transVal.toLowerCase().includes(ft)) return true;
+                }
+                return false;
+            }));
 
             displayData.sort((a, b) => {
                 const valA = a[state.sortKey] ?? '', valB = b[state.sortKey] ?? '';
@@ -684,13 +692,17 @@ document.addEventListener('DOMContentLoaded', () => {
     window.updateLogs = (entry) => {
         const logWidget = document.querySelector('.log-text');
         if (logWidget) {
-            let parts = [`[${entry.time_str}]`, entry.level, getMsg(entry.action || '')];
+            let parts = [`[${entry.time_str}]`, getMsg(entry.level || ''), getMsg(entry.action || '')];
             if (entry.source) parts.push(`Src: ${entry.source}`);
             if (entry.target) parts.push(`Tgt: ${entry.target}`);
             if (entry.code) parts.push(`Code: ${entry.code}`);
             if (entry.pid) parts.push(`PID: ${entry.pid}`);
             if (entry.hash) parts.push(`Hash: ${entry.hash}`);
-            if (entry.detail) parts.push(`Detail: ${entry.detail}`);
+            
+            if (entry.detail) {
+                const transDetail = getMsg(entry.detail);
+                parts.push(`Detail: ${transDetail !== entry.detail ? transDetail : entry.detail}`);
+            }
             if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
             parts.push(`Success: ${entry.success}`);
             let val = logWidget.value + parts.join(' | ') + '\n';

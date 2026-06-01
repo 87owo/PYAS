@@ -1903,7 +1903,7 @@ class WindowAPI:
             except Exception: continue
 
     def check_system_mbr(self):
-        for drive, mbr_value in self.mbr_backup.items():
+        for drive, mbr_value in list(self.mbr_backup.items()):
             try:
                 with open(rf"\\.\PhysicalDrive{drive}", "rb") as f:
                     if f.read(512) != mbr_value: return True
@@ -1959,7 +1959,7 @@ class WindowAPI:
     def scan_system_repair(self):
         items = []
 
-        for drive, mbr_value in self.mbr_backup.items():
+        for drive, mbr_value in list(self.mbr_backup.items()):
             drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
                 with open(drive_path, "rb") as f:
@@ -2011,7 +2011,7 @@ class WindowAPI:
         return items
 
     def repair_system_mbr(self):
-        for drive, mbr_value in self.mbr_backup.items():
+        for drive, mbr_value in list(self.mbr_backup.items()):
             drive_path = rf"\\.\PhysicalDrive{drive}"
             try:
                 with open(drive_path, "rb+") as f:

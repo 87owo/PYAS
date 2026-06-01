@@ -518,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fetchProcs = () => {
         if (!appState.taskmgrActive || !window.pywebview) return;
         const widget = document.querySelector('#taskmgr_window .manage-widget');
-        const blockFetch = widget && (widget.gridState?.checkedSet.size > 0 || widget.matches(':hover')) || document.querySelector('.custom-context-menu.show') || document.body.classList.contains('resizing-active');
+        const blockFetch = (widget && widget.gridState?.checkedSet.size > 0) || document.querySelector('.custom-context-menu.show') || document.body.classList.contains('resizing-active');
         
         if (!blockFetch) {
             window.pywebview.api.get_process_list().then(procs => {
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fetchNetmon = () => {
         if (!appState.netmonActive || !window.pywebview) return;
         const widget = document.querySelector('#netmon_window .manage-widget');
-        const blockFetch = widget && (widget.gridState?.checkedSet.size > 0 || widget.matches(':hover')) || document.querySelector('.custom-context-menu.show') || document.body.classList.contains('resizing-active');
+        const blockFetch = (widget && widget.gridState?.checkedSet.size > 0) || document.querySelector('.custom-context-menu.show') || document.body.classList.contains('resizing-active');
         
         if (!blockFetch) {
             window.pywebview.api.get_traffic_list().then(list => {

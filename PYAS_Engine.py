@@ -749,30 +749,23 @@ class pe_scanner:
 
 class cloud_scanner:
     def __init__(self):
-        self.session = None
         self.api_host = None
         self.api_key = None
         self.timeout = 30
         self.lock = threading.RLock()
+        self.local = threading.local()
 
-    def _init_session(self, api_host, api_key):
-        with self.lock:
-            if self.session is None or self.api_host != api_host or self.api_key != api_key:
-                self.api_host = api_host.rstrip('/')
-                self.api_key = api_key
-                self.session = requests.Session()
-                self.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.1"})
+    def _get_session(self, api_host, api_key):
+        if not hasattr(self.local, 'session') or getattr(self.local, 'host', None) != api_host:
+            self.local.session = requests.Session()
+            self.local.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.1"})
+            self.local.host = api_host
+        return self.local.session
 
-    def _request(self, method, endpoint, **kwargs):
-        with self.lock:
-            current_session = self.session
-            current_host = self.api_host
-            
-        if not current_session:
-            return None
-            
+    def _request(self, method, endpoint, api_host, api_key, **kwargs):
+        session = self._get_session(api_host, api_key)
         try:
-            r = current_session.request(method, f"{current_host}{endpoint}", timeout=self.timeout, **kwargs)
+            r = session.request(method, f"{api_host}{endpoint}", timeout=self.timeout, **kwargs)
             if r.status_code == 200:
                 return r
         except Exception:
@@ -792,18 +785,16 @@ class cloud_scanner:
 ####################################################################################################
 
     def rescan(self, sha256, api_host, api_key):
-        self._init_session(api_host, api_key)
-        r = self._request("POST", f"/api/rescan/{sha256}")
+        r = self._request("POST", f"/api/rescan/{sha256}", api_host, api_key)
         return r is not None and r.json().get('status') == 'success'
 
     def upload_file(self, file_path, api_host, api_key, chunk_size=4194304, need_rescan=False, max_retries=3):
         try:
-            self._init_session(api_host, api_key)
             sha256 = self.calc_hash(file_path)
             if not sha256:
                 return False, None
 
-            status_req = self._request("GET", f"/api/processing_status/{sha256}")
+            status_req = self._request("GET", f"/api/processing_status/{sha256}", api_host, api_key)
             if status_req:
                 current_status = status_req.json().get('status')
                 if current_status == 'done':
@@ -831,7 +822,7 @@ class cloud_scanner:
                     
                     chunk_success = False
                     for attempt in range(max_retries):
-                        r = self._request("POST", "/api/upload", files={'file': (os.path.basename(file_path), chunk_data)}, headers=headers)
+                        r = self._request("POST", "/api/upload", api_host, api_key, files={'file': (os.path.basename(file_path), chunk_data)}, headers=headers)
                         if r:
                             if i == total_chunks - 1:
                                 try:
@@ -857,11 +848,10 @@ class cloud_scanner:
         try:
             if not sha256:
                 return False
-            self._init_session(api_host, api_key)
 
             is_done = False
             for _ in range(max_retries):
-                r = self._request("GET", f"/api/processing_status/{sha256}")
+                r = self._request("GET", f"/api/processing_status/{sha256}", api_host, api_key)
                 if r:
                     st = r.json().get('status', 'error')
                     if st == 'done':
@@ -874,7 +864,7 @@ class cloud_scanner:
             if not is_done:
                 return False
 
-            r = self._request("GET", f"/api/report/{sha256}")
+            r = self._request("GET", f"/api/report/{sha256}", api_host, api_key)
             if r:
                 data = r.json().get('data', {})
                 metadata = data.get('metadata', {})

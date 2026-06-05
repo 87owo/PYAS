@@ -332,11 +332,11 @@ class WindowAPI:
         self.last_io_time = time.time()
 
         self.scan_events = {} 
-        self.scan_cache = {}
+        self.hash_cache = {}
         self.cloud_pending = set()
 
         self.pyas_default = {
-            "version": "3.5.8",
+            "version": "3.5.9",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd", ".ax"],
@@ -469,6 +469,11 @@ class WindowAPI:
                 if old_value == value:
                     return value
                 self.pyas_config[key] = value
+
+            if key in ["extension_switch", "sensitive_switch"]:
+                with self.lock_file_ops:
+                    if hasattr(self, 'hash_cache'):
+                        self.hash_cache.clear()
 
             success = True
             if value:
@@ -1527,12 +1532,12 @@ class WindowAPI:
         norm_path = self.norm_path(file_path)
         if not norm_path: return False
 
-        cache_key = os.path.normcase(norm_path)
+        file_hash = self.calc_file_hash(norm_path)
+        cache_key = file_hash if file_hash else os.path.normcase(norm_path)
 
         with self.lock_file_ops:
-            if cache_key in self.scan_cache:
-                last_time, last_result = self.scan_cache[cache_key]
-                if time.time() - last_time < 10: return last_result
+            if cache_key in self.hash_cache:
+                return self.hash_cache[cache_key]
 
             if cache_key in self.scan_events:
                 event = self.scan_events[cache_key]
@@ -1545,16 +1550,15 @@ class WindowAPI:
         if not needs_scan:
             event.wait(timeout=60)
             with self.lock_file_ops:
-                if cache_key in self.scan_cache: return self.scan_cache[cache_key][1]
-            return False
+                return self.hash_cache.get(cache_key, False)
 
         try:
             result = self.scan_engine(norm_path)
             with self.lock_file_ops:
-                self.scan_cache[cache_key] = (time.time(), result)
-                current_time = time.time()
-                expired = [k for k, v in self.scan_cache.items() if current_time - v[0] > 30]
-                for k in expired: del self.scan_cache[k]
+                if len(self.hash_cache) > 10000:
+                    for k in list(self.hash_cache.keys())[:1000]:
+                        del self.hash_cache[k]
+                self.hash_cache[cache_key] = result
             return result
         finally:
             with self.lock_file_ops:
@@ -1698,12 +1702,24 @@ class WindowAPI:
                     try: os.chmod(path, stat.S_IWRITE)
                     except Exception: pass
 
+                    delete_success = False
+                    for _ in range(5):
+                        try:
+                            os.remove(path)
+                            delete_success = True
+                            break
+                        except Exception:
+                            time.sleep(0.1)
+                            
+                    if not delete_success:
+                        os.remove(path)
+
                     self.remove_list_items("quarantine", [path])
-                    os.remove(path)
                     deleted_paths.append(raw_path) 
                     deleted_set.add(path)
                     self.write_log("INFO", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), operate=True, success=True)
                 except Exception as e:
+                    self.lock_file(path, True)
                     self.write_log("SCAN", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), detail=str(e), operate=True, success=False)
 
             if deleted_set: self.virus_results = [p for p in self.virus_results if p not in deleted_set]
@@ -1833,7 +1849,7 @@ class WindowAPI:
             try: return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
             except Exception: return False
 
-    def lock_file(self, target_path, lock):
+    def lock_file(self, target_path, lock, quiet=False):
         with self.lock_file_ops:
             if lock:
                 if not os.path.exists(target_path):
@@ -1850,21 +1866,29 @@ class WindowAPI:
                 for file_path in paths_to_lock:
                     if file_path in self.virus_lock:
                         continue
-                    try:
-                        fd = os.open(file_path, os.O_RDWR | os.O_BINARY)
+                        
+                    success = False
+                    last_error = None
+                    for _ in range(5):
                         try:
+                            fd = os.open(file_path, os.O_RDWR | os.O_BINARY)
                             try:
-                                size = os.path.getsize(file_path)
-                            except Exception:
-                                size = 1
-                            lock_size = size if size > 0 else 1
-                            msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
-                            self.virus_lock[file_path] = (fd, lock_size)
-                        except Exception:
-                            os.close(fd)
-                            raise
-                    except Exception as e:
-                        self.write_log("WARN", "lock_file", source=file_path, detail=str(e), success=False)
+                                try: size = os.path.getsize(file_path)
+                                except Exception: size = 1
+                                lock_size = size if size > 0 else 1
+                                msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
+                                self.virus_lock[file_path] = (fd, lock_size)
+                                success = True
+                                break
+                            except Exception as e:
+                                os.close(fd)
+                                raise e
+                        except Exception as e:
+                            last_error = e
+                            time.sleep(0.2)
+                            
+                    if not success and not quiet:
+                        self.write_log("WARN", "lock_file", source=file_path, detail=str(last_error), success=False)
             else:
                 target_norm = os.path.normcase(target_path)
                 target_dir = target_norm + os.sep
@@ -1880,18 +1904,34 @@ class WindowAPI:
                     try:
                         msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
                     except Exception as e:
-                        self.write_log("WARN", "unlock_file", source=file_path, detail=str(e), success=False)
+                        if not quiet:
+                            self.write_log("WARN", "unlock_file", source=file_path, detail=str(e), success=False)
                     finally:
-                        try:
-                            os.close(fd)
-                        except Exception:
-                            pass
+                        try: os.close(fd)
+                        except Exception: pass
                         del self.virus_lock[file_path]
 
     def relock_file(self):
-        with self.lock_config: quarantine_list = self.pyas_config.get("quarantine", [])
-        for item in quarantine_list:
-            if os.path.exists(item["file"]): self.lock_file(item["file"], True)
+        while True:
+            try:
+                with self.lock_config:
+                    quarantine_list = self.pyas_config.get("quarantine", [])
+                
+                with self.lock_file_ops:
+                    locked_keys = set(self.virus_lock.keys())
+
+                for item in quarantine_list:
+                    file_path = item.get("file")
+                    if not file_path or not os.path.exists(file_path):
+                        continue
+                        
+                    if os.path.isdir(file_path):
+                        self.lock_file(file_path, True, quiet=True)
+                    elif file_path not in locked_keys:
+                        self.lock_file(file_path, True, quiet=True)
+            except Exception:
+                pass
+            time.sleep(5)
 
     def backup_mbr(self, max_drives=26):
         self.mbr_backup = {}
@@ -2087,13 +2127,22 @@ class WindowAPI:
                 with self.lock_proc:
                     new_pids = cur - self.exist_process
                     self.exist_process = cur
-                for pid in new_pids: self.protect_pool.submit(self.handle_new_process, pid)
+                for pid in new_pids:
+                    h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+                    if h:
+                        self.ntdll.NtSuspendProcess(h)
+                        try:
+                            self.protect_pool.submit(self.handle_new_process, pid, h)
+                        except Exception:
+                            self.ntdll.NtResumeProcess(h)
+                            self.kernel32.CloseHandle(h)
             except Exception as e: self.write_log("WARN", "protect_proc_thread", detail=str(e), success=False)
 
-    def handle_new_process(self, pid):
-        h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
-        if not h: return
-        self.ntdll.NtSuspendProcess(h)
+    def handle_new_process(self, pid, h=None):
+        if not h:
+            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            if not h: return
+            self.ntdll.NtSuspendProcess(h)
         try:
             cmdline, process_file = self.get_process_cmdline(h), self.get_process_file(h)
             if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas): return

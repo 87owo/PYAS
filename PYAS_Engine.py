@@ -57,6 +57,7 @@ class sign_scanner:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception:
                 pass
+
         try:
             self.WinVerifyTrust = self.wintrust.WinVerifyTrust
             self.WinVerifyTrust.restype = ctypes.wintypes.LONG
@@ -75,8 +76,10 @@ class sign_scanner:
             fi.pcwszFilePath = os.path.abspath(file_path)
             fi.hFile = None
             fi.pgKnownSubject = None
+
             wt_union = WINTRUST_DATA_UNION()
             wt_union.pFile = ctypes.pointer(fi)
+
             td = WINTRUST_DATA()
             td.cbStruct = ctypes.sizeof(WINTRUST_DATA)
             td.pPolicyCallbackData = None
@@ -91,6 +94,7 @@ class sign_scanner:
             td.dwProvFlags = 0
             td.dwUIContext = 0
             td.pSignatureSettings = None
+
             return self.WinVerifyTrust(None, ctypes.byref(self.verify), ctypes.byref(td)) == 0
         except Exception:
             return False
@@ -106,15 +110,19 @@ class rule_scanner:
         yara_files = {}
         for root, _, files in os.walk(path):
             for file in files:
+
                 full_path = os.path.join(root, file)
                 if callback:
                     callback(full_path)
+
                 ext = os.path.splitext(file)[1].lower()
                 if ext in ('.yara', '.yar'):
                     namespace = os.path.relpath(full_path, path).replace(os.sep, '_')
                     yara_files[namespace] = full_path
+
                 elif ext in ('.yc', '.yrc'):
                     self.load_compiled_rule(full_path)
+
                 elif ext in ('.ip', '.txt'):
                     self.load_network_list(full_path)
 
@@ -155,6 +163,7 @@ class rule_scanner:
                 label = rule_name.split("_")[0]
                 level = rule_name.split("_")[-1]
                 return f"{label}:WinPE/Unknown.{level}!yr", level
+
             return False, False
         except Exception:
             return False, False
@@ -170,6 +179,7 @@ class rule_scanner:
                 label = rule_name.split("_")[0]
                 level = rule_name.split("_")[-1]
                 return f"{label}:WinPE/Unknown.{level}!ym", level
+
             return False, False
         except Exception:
             return False, False
@@ -183,6 +193,7 @@ class pe_scanner:
     _BYTE_ENT_KEYS = [f'ByteEnt_{i:02X}' for i in range(256)]
     _STRING_KEYS = [f'StringHist_{i:02d}' for i in range(95)]
     _SECTION_HASH_KEYS = [f'SectionHash_{i:02d}' for i in range(50)]
+
     _CHAR_FLAGS = [0x00000020, 0x00000040, 0x00000080, 0x02000000, 0x20000000, 0x40000000, 0x80000000]
     _CHAR_COUNT_KEYS = {flag: f'Char_{flag:08X}_Count' for flag in _CHAR_FLAGS}
     _CHAR_ENT_KEYS = {flag: f'Char_{flag:08X}_MeanEntropy' for flag in _CHAR_FLAGS}
@@ -201,21 +212,26 @@ class pe_scanner:
         for root, _, files in os.walk(path):
             for file in files:
                 full_path = os.path.join(root, file)
+
                 if callback:
                     callback(full_path)
+
                 if full_path.endswith('.onnx'):
                     self.load_model(full_path)
 
     def load_model(self, model_path):
         if not os.path.exists(model_path):
             return
+
         try:
             self.model = onnxruntime.InferenceSession(model_path, providers=['CPUExecutionProvider'])
             self.input_name = self.model.get_inputs()[0].name
+
             feat_path = os.path.join(os.path.dirname(model_path), "features.json")
             if os.path.exists(feat_path):
                 with open(feat_path, 'r', encoding='utf-8') as f:
                     self.feature_order = json.load(f)
+
         except Exception:
             pass
 
@@ -225,16 +241,19 @@ class pe_scanner:
             if math.isinf(f) or math.isnan(f): 
                 return 0.0
             return f
+
         except Exception:
             return 0.0
 
     def _calc_entropy(self, data):
         if not data: 
             return 0.0
+
         arr = numpy.frombuffer(data, dtype=numpy.uint8)
         sz = len(arr)
         counts = numpy.bincount(arr, minlength=256)
         counts = counts[counts > 0]
+
         return float(numpy.log2(sz) - numpy.sum(counts * numpy.log2(counts)) / sz)
 
     def _extract_strings(self, file_bytes):
@@ -342,6 +361,7 @@ class pe_scanner:
     def _extract_rich_header(self, pe):
         if not hasattr(pe, 'RICH_HEADER') or not pe.RICH_HEADER:
             return {"HasRichHeader": 0.0, "RichHeaderCount": 0.0}
+
         return {
             "HasRichHeader": 1.0,
             "RichHeaderCount": float(len(pe.RICH_HEADER.values) // 2) if hasattr(pe.RICH_HEADER, 'values') else 0.0
@@ -398,6 +418,7 @@ class pe_scanner:
                 for entry_lang in entry_id.directory.entries:
                     if hasattr(entry_lang, 'id'):
                         langs.add(entry_lang.id)
+
                     if hasattr(entry_lang, 'data'):
                         try:
                             data = pe.get_data(entry_lang.data.struct.OffsetToData, entry_lang.data.struct.Size)
@@ -417,13 +438,16 @@ class pe_scanner:
 
     def _extract_load_config(self, pe):
         cfg = {"HasLoadConfig": 0.0, "HasCFG": 0.0, "HasSEHTable": 0.0}
+
         if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG'):
             cfg["HasLoadConfig"] = 1.0
             struct = pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct
+
             if getattr(struct, 'GuardCFFunctionTable', 0) != 0:
                 cfg["HasCFG"] = 1.0
             if getattr(struct, 'SEHandlerTable', 0) != 0:
                 cfg["HasSEHTable"] = 1.0
+
         return cfg
 
     def _extract_security_directory(self, pe, file_bytes, fsize):
@@ -455,6 +479,7 @@ class pe_scanner:
             dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
             if dw_length < 8:
                 break
+
             count += 1
             curr += (dw_length + 7) & ~7
 
@@ -508,7 +533,6 @@ class pe_scanner:
             base['Is64Bit'] = 1.0 if base['Machine'] in (0x8664, 0xAA64, 0x0200) else 0.0
             base['IsExe'] = 1.0 if pe.is_exe() else 0.0
             base['IsDll'] = 1.0 if pe.is_dll() else 0.0
-
             base['ExceptionCount'] = 0.0
 
             if hasattr(pe, 'OPTIONAL_HEADER'):
@@ -563,10 +587,14 @@ class pe_scanner:
                     raw_sizes.append(section.SizeOfRawData)
                     v_sizes.append(section.Misc_VirtualSize)
 
-                    if section.Characteristics & 0x20000000: exec_sec += 1
-                    if section.Characteristics & 0x80000000: write_sec += 1
-                    if section.Characteristics & 0x40000000: read_sec += 1
-                    if section.SizeOfRawData + section.PointerToRawData > fsize: sec_exc = 1
+                    if section.Characteristics & 0x20000000:
+                        exec_sec += 1
+                    if section.Characteristics & 0x80000000:
+                        write_sec += 1
+                    if section.Characteristics & 0x40000000:
+                        read_sec += 1
+                    if section.SizeOfRawData + section.PointerToRawData > fsize:
+                        sec_exc = 1
 
                     for flag in self._CHAR_FLAGS:
                         if section.Characteristics & flag:
@@ -605,12 +633,14 @@ class pe_scanner:
                     for fileinfo in fileinfo_list:
                         if getattr(fileinfo, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
                             for st in getattr(fileinfo, 'StringTable', []):
+
                                 for key, val in st.entries.items():
                                     try:
                                         k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
                                         if k in string_keys:
                                             v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
                                             base[f'{k}Length'] = float(len(v))
+
                                     except Exception: 
                                         continue
 
@@ -629,12 +659,14 @@ class pe_scanner:
             if hasattr(pe, 'DIRECTORY_ENTRY_IMPORT'):
                 base['ImportCount'] = float(len(pe.DIRECTORY_ENTRY_IMPORT))
                 func_count = 0
+
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     if getattr(entry, 'dll', None):
                         try:
                             dlls.add(entry.dll.decode('ascii', 'ignore').lower())
                         except Exception:
                             pass
+
                     for imp in getattr(entry, 'imports', []):
                         func_count += 1
                         if getattr(imp, 'name', None):
@@ -642,6 +674,7 @@ class pe_scanner:
                                 apis.add(imp.name.decode('ascii', 'ignore'))
                             except Exception:
                                 pass
+
                 base['ImportFunctionCount'] = float(func_count)
             else:
                 base['ImportCount'] = 0.0
@@ -708,6 +741,7 @@ class pe_scanner:
                 old_fn = f"Dll_{d}"
                 if old_fn in feat_map: 
                     vec[0, feat_map[old_fn]] = 1.0
+
                 h = zlib.crc32(d.encode('utf-8', 'ignore')) % 256
                 new_fn = f"DllHash_{h:03d}"
                 if new_fn in feat_map: 
@@ -717,6 +751,7 @@ class pe_scanner:
                 old_fn = f"Api_{a}"
                 if old_fn in feat_map: 
                     vec[0, feat_map[old_fn]] = 1.0
+
                 h = zlib.crc32(a.encode('utf-8', 'ignore')) % 1024
                 new_fn = f"ApiHash_{h:04d}"
                 if new_fn in feat_map: 
@@ -730,6 +765,7 @@ class pe_scanner:
                 prob_dict = result[0]
                 if hasattr(prob_dict, 'get'):
                     prob = float(prob_dict.get(1, prob_dict.get('1', 0.0)))
+
             elif isinstance(result, numpy.ndarray):
                 if result.ndim == 2 and result.shape[1] > 1:
                     prob = float(result[0][1])
@@ -760,6 +796,7 @@ class cloud_scanner:
             self.local.session = requests.Session()
             self.local.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.1"})
             self.local.host = api_host
+
         return self.local.session
 
     def _request(self, method, endpoint, api_host, api_key, **kwargs):
@@ -768,19 +805,10 @@ class cloud_scanner:
             r = session.request(method, f"{api_host}{endpoint}", timeout=self.timeout, **kwargs)
             if r.status_code == 200:
                 return r
+
         except Exception:
             pass
         return None
-
-    def calc_hash(self, file_path, block_size=65536):
-        try:
-            h = hashlib.sha256()
-            with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(block_size), b""):
-                    h.update(chunk)
-            return h.hexdigest()
-        except Exception:
-            return ""
 
 ####################################################################################################
 
@@ -788,19 +816,21 @@ class cloud_scanner:
         r = self._request("POST", f"/api/rescan/{sha256}", api_host, api_key)
         return r is not None and r.json().get('status') == 'success'
 
-    def upload_file(self, file_path, api_host, api_key, chunk_size=4194304, need_rescan=False, max_retries=3):
+    def upload_file(self, file_path, api_host, api_key, chunk_size=4194304, need_rescan=False, max_retries=3, file_hash=None):
         try:
-            sha256 = self.calc_hash(file_path)
+            sha256 = file_hash
             if not sha256:
                 return False, None
 
             status_req = self._request("GET", f"/api/processing_status/{sha256}", api_host, api_key)
             if status_req:
                 current_status = status_req.json().get('status')
+
                 if current_status == 'done':
                     if need_rescan:
                         self.rescan(sha256, api_host, api_key)
                     return True, sha256
+
                 elif current_status in ('queued', 'processing'):
                     return True, sha256
 
@@ -814,11 +844,7 @@ class cloud_scanner:
             with open(file_path, 'rb') as f:
                 for i in range(total_chunks):
                     chunk_data = f.read(chunk_size)
-                    headers = {
-                        "X-Chunk-Index": str(i),
-                        "X-Total-Chunks": str(total_chunks),
-                        "X-Upload-ID": upload_id
-                    }
+                    headers = {"X-Chunk-Index": str(i), "X-Total-Chunks": str(total_chunks), "X-Upload-ID": upload_id}
                     
                     chunk_success = False
                     for attempt in range(max_retries):
@@ -831,6 +857,7 @@ class cloud_scanner:
                                         sha256 = resp.get('url', '').split('/')[-1]
                                 except Exception:
                                     pass
+
                             chunk_success = True
                             break
                         time.sleep(2 ** attempt)
@@ -857,8 +884,10 @@ class cloud_scanner:
                     if st == 'done':
                         is_done = True
                         break
+
                     if st in ['error', 'failed']:
                         return False
+
                 time.sleep(interval)
 
             if not is_done:
@@ -875,6 +904,7 @@ class cloud_scanner:
                 is_malicious = 'General' in label
                 sim_malicious_count = 0
                 valid_sim_count = 0
+
                 for s in sims:
                     if s.get('similarity', 0) > 80:
                         valid_sim_count += 1
@@ -883,6 +913,7 @@ class cloud_scanner:
 
                 if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
                     return f"General:WinPE/Malware.{score}!cl"
+
         except Exception:
             pass
         return False

@@ -1885,7 +1885,7 @@ class WindowAPI:
                                 raise e
                         except Exception as e:
                             last_error = e
-                            time.sleep(0.2)
+                            time.sleep(0.1)
                             
                     if not success and not quiet:
                         self.write_log("WARN", "lock_file", source=file_path, detail=str(last_error), success=False)
@@ -2198,12 +2198,18 @@ class WindowAPI:
 
     def handle_new_file(self, file_path):
         try:
-            for _ in range(3):
-                size1 = os.path.getsize(file_path)
-                time.sleep(0.5)
-                size2 = os.path.getsize(file_path)
-                if size1 == size2 and size1 > 0: break
-            else: return
+            for _ in range(5):
+                try:
+                    fd = os.open(file_path, os.O_RDONLY | os.O_BINARY)
+                    os.close(fd)
+                    size = os.path.getsize(file_path)
+                    if size > 0:
+                        break
+                except Exception:
+                    pass
+                time.sleep(0.1)
+            else:
+                return
 
             with self.lock_file_ops:
                 if file_path in self.virus_lock: return
@@ -2374,10 +2380,10 @@ class WindowAPI:
                     self.driver_port = None
 
             subprocess.run(["sc", "stop", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
-            for _ in range(3):
+            for _ in range(5):
                 res = subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
                 if "STOPPED" in res.stdout or "FAILED" in res.stderr or "1060" in res.stdout: break
-                time.sleep(0.5)
+                time.sleep(0.1)
             subprocess.run(["sc", "delete", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
             return True
         except Exception: return False

@@ -1,4 +1,4 @@
-import os, re, sys, time, json, uuid, stat, queue, msvcrt, winreg
+import os, re, gc, sys, time, json, uuid, stat, queue, msvcrt, winreg
 import shutil, hashlib, platform, threading, subprocess, pefile, pystray
 import socket, requests, webview, webbrowser, ctypes, ctypes.wintypes
 
@@ -123,6 +123,17 @@ class IO_COUNTERS(ctypes.Structure):
         ("ReadTransferCount", ctypes.c_ulonglong),
         ("WriteTransferCount", ctypes.c_ulonglong),
         ("OtherTransferCount", ctypes.c_ulonglong)
+    ]
+
+class MEMORY_BASIC_INFORMATION(ctypes.Structure):
+    _fields_ = [
+        ("BaseAddress", ctypes.c_void_p),
+        ("AllocationBase", ctypes.c_void_p),
+        ("AllocationProtect", ctypes.wintypes.DWORD),
+        ("RegionSize", ctypes.c_size_t),
+        ("State", ctypes.wintypes.DWORD),
+        ("Protect", ctypes.wintypes.DWORD),
+        ("Type", ctypes.wintypes.DWORD)
     ]
 
 ####################################################################################################
@@ -297,6 +308,15 @@ class WindowAPI:
         self.kernel32.QueryFullProcessImageNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD)]
         self.kernel32.GetProcessIoCounters.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(IO_COUNTERS)]
         self.kernel32.GetProcessIoCounters.restype = ctypes.wintypes.BOOL
+        self.kernel32.VirtualQueryEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(MEMORY_BASIC_INFORMATION), ctypes.c_size_t]
+        self.kernel32.VirtualQueryEx.restype = ctypes.c_size_t
+        
+        self.psapi.EnumProcessModulesEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(ctypes.wintypes.HMODULE), ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.DWORD]
+        self.psapi.EnumProcessModulesEx.restype = ctypes.wintypes.BOOL
+        self.psapi.GetModuleFileNameExW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.HMODULE, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
+        self.psapi.GetModuleFileNameExW.restype = ctypes.wintypes.DWORD
+        self.psapi.GetMappedFileNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
+        self.psapi.GetMappedFileNameW.restype = ctypes.wintypes.DWORD
 
     def init_variables(self):
         self.python = sys.executable
@@ -731,6 +751,19 @@ class WindowAPI:
                     target_path = os.path.join(dest_dir, f"{name} ({counter}){ext}")
                     counter += 1
                     
+            was_locked = False
+            src_norm = os.path.normcase(src)
+            src_dir = src_norm + os.sep
+            
+            with self.lock_file_ops:
+                for locked_path in self.virus_lock:
+                    locked_norm = os.path.normcase(locked_path)
+                    if locked_norm == src_norm or locked_norm.startswith(src_dir):
+                        was_locked = True
+                        break
+                if was_locked:
+                    self.lock_file(src, False)
+                    
             try:
                 if os.path.isdir(src):
                     shutil.copytree(src, target_path)
@@ -740,6 +773,10 @@ class WindowAPI:
                 self.write_log("INFO", "File Extract", source=src, target=target_path, operate=True)
             except Exception as e:
                 self.write_log("WARN", "extract_list_items", source=src, detail=str(e), success=False)
+            finally:
+                if was_locked:
+                    self.lock_file(src, True)
+                    
         return extracted_count > 0
 
 ####################################################################################################
@@ -873,11 +910,12 @@ class WindowAPI:
             self.write_log("WARN", "show_notification", detail=str(e), success=False)
 
     def trigger_block_notification(self, action, source, target, code):
-        if action not in ["Process Block", "File Block", "Network Block", "Driver Block"]:
+        if action not in ["Process Block", "Process DLL Block", "File Block", "Network Block", "Driver Block"]:
             return
 
         titles = {
             "Process Block": {"traditional_switch": "進程防護", "simplified_switch": "进程防护", "english_switch": "Process Protection", "japanese_switch": "プロセス保護", "korean_switch": "프로세스 보호", "french_switch": "Protection des Processus", "spanish_switch": "Protección de Procesos", "hindi_switch": "प्रक्रिया सुरक्षा", "arabic_switch": "حماية العمليات", "russian_switch": "Защита процессов", "slovenian_switch": "Zaščita procesov"},
+            "Process DLL Block": {"traditional_switch": "記憶體防護", "simplified_switch": "内存防护", "english_switch": "Memory Protection", "japanese_switch": "メモリ保護", "korean_switch": "메모리 보호", "french_switch": "Protection de la mémoire", "spanish_switch": "Protección de memoria", "hindi_switch": "मेमोरी सुरक्षा", "arabic_switch": "حماية الذاكرة", "russian_switch": "Защита памяти", "slovenian_switch": "Zaščita pomnilnika"},
             "File Block": {"traditional_switch": "檔案防護", "simplified_switch": "文件防护", "english_switch": "File Protection", "japanese_switch": "ファイル保護", "korean_switch": "파일 보호", "french_switch": "Protection des Fichiers", "spanish_switch": "Protección de Archivos", "hindi_switch": "फ़ाइल सुरक्षा", "arabic_switch": "حماية الملفات", "russian_switch": "Защита файлов", "slovenian_switch": "Zaščita datotek"},
             "Network Block": {"traditional_switch": "網路防護", "simplified_switch": "网络防护", "english_switch": "Network Protection", "japanese_switch": "ネットワーク保護", "korean_switch": "네트워크 보호", "french_switch": "Protection Réseau", "spanish_switch": "Protección de Red", "hindi_switch": "नेटवर्क सुरक्षा", "arabic_switch": "حماية الشبكة", "russian_switch": "Сетевая защита", "slovenian_switch": "Omrežna zaščita"},
             "Driver Block": {"traditional_switch": "驅動防護", "simplified_switch": "驱动防护", "english_switch": "Driver Protection", "japanese_switch": "ドライバー保護", "korean_switch": "드라이버 보호", "french_switch": "Protection des Pilotes", "spanish_switch": "Protección de Controladores", "hindi_switch": "ड्राइवर सुरक्षा", "arabic_switch": "حماية برامج التشغيل", "russian_switch": "Защита драйверов", "slovenian_switch": "Zaščita gonilnikov"}
@@ -1566,6 +1604,8 @@ class WindowAPI:
                     self.scan_events[cache_key].set()
                     del self.scan_events[cache_key]
 
+            gc.collect()
+
     def start_scan(self, targets):
         with self.lock_virus:
             if getattr(self, 'scan_running', False): return
@@ -2144,15 +2184,31 @@ class WindowAPI:
             if not h: return
             self.ntdll.NtSuspendProcess(h)
         try:
-            cmdline, process_file = self.get_process_cmdline(h), self.get_process_file(h)
+            cmdline = self.get_process_cmdline(h)
+            process_file = self.get_process_file(h)
             if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas): return
-            paths = self.extract_paths_from_cmdline(cmdline)
-            with self.lock_config: suffix = self.pyas_config.get("suffix", [])
-            for p in paths:
-                file_path = self.norm_path(self.device_path_to_drive(p))
-                if not file_path or not os.path.isfile(file_path): continue
-                if os.path.splitext(file_path)[-1].lower() not in suffix or self.is_in_whitelist(file_path): continue
-                if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower(): continue
+
+            raw_targets = self.extract_paths_from_cmdline(cmdline)
+            if process_file:
+                raw_targets.append(process_file)
+
+            all_targets = []
+            for p in raw_targets:
+                np = self.norm_path(self.device_path_to_drive(p))
+                if np and np not in all_targets:
+                    all_targets.append(np)
+
+            with self.lock_config:
+                suffix = self.pyas_config.get("suffix", [])
+
+            virus_found = False
+            for file_path in all_targets:
+                if not file_path or not os.path.isfile(file_path):
+                    continue
+                if os.path.splitext(file_path)[-1].lower() not in suffix or self.is_in_whitelist(file_path):
+                    continue
+                if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower():
+                    continue
 
                 result = self.safe_scan_engine(file_path)
                 self.cloud_check(file_path)
@@ -2160,10 +2216,59 @@ class WindowAPI:
                 if result:
                     self.kernel32.TerminateProcess(h, 0)
                     self.write_log("BLOCK", "Process Block", pid=pid, source=file_path, file_hash=self.calc_file_hash(file_path))
+                    virus_found = True
                     break
+            
+            if not virus_found:
+                hidden_virus_path = self.scan_process_memory(pid, h)
+                if hidden_virus_path:
+                    self.kernel32.TerminateProcess(h, 0)
+                    self.write_log("BLOCK", "Process DLL Block", pid=pid, source=hidden_virus_path, file_hash=self.calc_file_hash(hidden_virus_path))
+
         finally:
             self.ntdll.NtResumeProcess(h)
             self.kernel32.CloseHandle(h)
+
+    def scan_process_memory(self, pid, h_process):
+        scanned_paths = set()
+        address = 0
+        mbi = MEMORY_BASIC_INFORMATION()
+        system_dir = self.path_system.lower()
+        
+        buf = ctypes.create_unicode_buffer(1024)
+        max_address = 0x7FFFFFFFFFFF if ctypes.sizeof(ctypes.c_void_p) == 8 else 0x7FFFFFFF
+
+        with self.lock_config:
+            suffix = self.pyas_config.get("suffix", [])
+
+        try:
+            while address < max_address and self.kernel32.VirtualQueryEx(h_process, ctypes.c_void_p(address), ctypes.byref(mbi), ctypes.sizeof(mbi)):
+                if mbi.State == 0x1000 and mbi.Type == 0x1000000:
+                    if self.psapi.GetMappedFileNameW(h_process, ctypes.c_void_p(address), buf, 1024):
+                        raw_path = buf.value
+                        if raw_path.startswith("\\"):
+                            raw_path = self.device_path_to_drive(raw_path)
+
+                        file_path = self.norm_path(raw_path)
+                        if file_path and file_path not in scanned_paths:
+                            scanned_paths.add(file_path)
+                            file_path_lower = file_path.lower()
+                            
+                            if not file_path_lower.startswith(system_dir) and not self.is_in_whitelist(file_path):
+                                ext = os.path.splitext(file_path_lower)[-1]
+                                if ext != ".exe" and ext in suffix:
+                                    if self.safe_scan_engine(file_path):
+                                        return file_path
+                                    self.cloud_check(file_path)
+                
+                if mbi.RegionSize == 0:
+                    break
+                address += mbi.RegionSize
+                
+        finally:
+            scanned_paths.clear()
+            
+        return None
 
     def protect_file_thread(self):
         hDir = self.kernel32.CreateFileW(self.path_user, 0x0001, 0x00000007, None, 3, 0x02000000, None)

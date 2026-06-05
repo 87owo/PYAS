@@ -12,6 +12,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 try:
     import orjson
     JSON_LOADS = orjson.loads
+
 except ImportError:
     JSON_LOADS = json.loads
 
@@ -21,9 +22,9 @@ JSONL_PATH = "pe_features.jsonl"
 MODEL_FILE = "model.txt"
 ONNX_FILE = "Pefile_General_T1.onnx"
 FEATURE_FILE = "features.json"
+
 TEST_SIZE = 0.0001
 RANDOM_SEED = 42
-
 DLL_HASH_DIM = 256
 API_HASH_DIM = 1024
 
@@ -56,12 +57,14 @@ def analyze_schema(jsonl_path):
     with open(jsonl_path, 'rb') as f:
         for line in f:
             num_lines += 1
+
             if not base_keys:
                 try:
                     data = JSON_LOADS(line)
                     base_data = data.get('Base')
                     if base_data:
                         base_keys.update(base_data.keys())
+
                 except Exception:
                     pass
 
@@ -76,6 +79,7 @@ def analyze_schema(jsonl_path):
 def load_data_efficiently(jsonl_path, base_schema, dll_schema, api_schema, num_lines):
     print(f"[*] Stage 2: Building sparse feature matrix dynamically via Multiprocessing...")
     final_features = base_schema + dll_schema + api_schema
+
     num_features = len(final_features)
     offset_dll = len(base_schema)
     offset_api = offset_dll + DLL_HASH_DIM
@@ -118,6 +122,7 @@ def _chunk_worker(args):
             if f.read(1) != b'\n':
                 f.seek(start_byte)
                 f.readline()
+
             else:
                 f.seek(start_byte)
         else:
@@ -181,9 +186,7 @@ def _calculate_dynamic_lr(current_iter: int) -> float:
 def train_process(X, y, feature_names):
     print(f"[*] Dataset shape: {X.shape}")
     
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y
-    )
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y)
     
     n_pos = (y_train == 1).sum()
     n_neg = (y_train == 0).sum()
@@ -300,6 +303,7 @@ if __name__ == "__main__":
     try:
         model, X_test, y_test = train_process(X, y, final_features)
         evaluate_and_save(model, X_test, y_test)
+
     except KeyboardInterrupt:
         print("\n\n[-] Training aborted.")
     except Exception as e:

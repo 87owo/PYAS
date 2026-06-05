@@ -116,16 +116,20 @@ class FeatureExtractor:
         try:
             f = float(val)
             return f if not (math.isinf(f) or math.isnan(f)) else 0.0
+
         except Exception: 
             return 0.0
 
     @staticmethod
     def _calc_entropy(data):
-        if not data: return 0.0
+        if not data:
+            return 0.0
+
         arr = np.frombuffer(data, dtype=np.uint8)
         sz = len(arr)
         counts = np.bincount(arr, minlength=256)
         counts = counts[counts > 0]
+
         return float(np.log2(sz) - np.sum(counts * np.log2(counts)) / sz)
 
     @classmethod
@@ -295,6 +299,7 @@ class FeatureExtractor:
                 for entry_lang in entry_id.directory.entries:
                     if hasattr(entry_lang, 'id'):
                         langs.add(entry_lang.id)
+
                     if hasattr(entry_lang, 'data'):
                         try:
                             data = pe.get_data(entry_lang.data.struct.OffsetToData, entry_lang.data.struct.Size)
@@ -318,10 +323,13 @@ class FeatureExtractor:
         if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG'):
             cfg["HasLoadConfig"] = 1.0
             struct = pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct
+
             if getattr(struct, 'GuardCFFunctionTable', 0) != 0:
                 cfg["HasCFG"] = 1.0
+
             if getattr(struct, 'SEHandlerTable', 0) != 0:
                 cfg["HasSEHTable"] = 1.0
+
         return cfg
 
     @classmethod
@@ -354,6 +362,7 @@ class FeatureExtractor:
             dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
             if dw_length < 8:
                 break
+
             count += 1
             curr += (dw_length + 7) & ~7
 
@@ -406,7 +415,6 @@ class FeatureExtractor:
             base['Is64Bit'] = 1.0 if base['Machine'] in (0x8664, 0xAA64, 0x0200) else 0.0
             base['IsExe'] = 1.0 if pe.is_exe() else 0.0
             base['IsDll'] = 1.0 if pe.is_dll() else 0.0
-
             base['ExceptionCount'] = 0.0
 
             if hasattr(pe, 'OPTIONAL_HEADER'):
@@ -448,10 +456,14 @@ class FeatureExtractor:
                     raw_sizes.append(section.SizeOfRawData)
                     v_sizes.append(section.Misc_VirtualSize)
 
-                    if section.Characteristics & 0x20000000: exec_sec += 1
-                    if section.Characteristics & 0x80000000: write_sec += 1
-                    if section.Characteristics & 0x40000000: read_sec += 1
-                    if section.SizeOfRawData + section.PointerToRawData > fsize: sec_exc = 1
+                    if section.Characteristics & 0x20000000:
+                        exec_sec += 1
+                    if section.Characteristics & 0x80000000:
+                        write_sec += 1
+                    if section.Characteristics & 0x40000000:
+                        read_sec += 1
+                    if section.SizeOfRawData + section.PointerToRawData > fsize:
+                        sec_exc = 1
 
                     for flag in cls._CHAR_FLAGS:
                         if section.Characteristics & flag:
@@ -491,11 +503,13 @@ class FeatureExtractor:
                         if getattr(fileinfo, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
                             for st in getattr(fileinfo, 'StringTable', []):
                                 for key, val in st.entries.items():
+
                                     try:
                                         k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
                                         if k in string_keys:
                                             v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
                                             base[f'{k}Length'] = float(len(v))
+
                                     except Exception: 
                                         continue
 
@@ -515,13 +529,19 @@ class FeatureExtractor:
                 func_count = 0
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     if getattr(entry, 'dll', None):
-                        try: dlls.add(entry.dll.decode('ascii', 'ignore').lower())
-                        except Exception: pass
+                        try:
+                            dlls.add(entry.dll.decode('ascii', 'ignore').lower())
+                        except Exception:
+                            pass
+
                     for imp in getattr(entry, 'imports', []):
                         func_count += 1
                         if getattr(imp, 'name', None):
-                            try: apis.add(imp.name.decode('ascii', 'ignore'))
-                            except Exception: pass
+                            try:
+                                apis.add(imp.name.decode('ascii', 'ignore'))
+                            except Exception:
+                                pass
+
                 base['ImportFunctionCount'] = float(func_count)
 
             base['ExportCount'] = float(len(pe.DIRECTORY_ENTRY_EXPORT.symbols)) if (hasattr(pe, 'DIRECTORY_ENTRY_EXPORT') and hasattr(pe.DIRECTORY_ENTRY_EXPORT, 'symbols')) else 0.0
@@ -546,12 +566,16 @@ class FeatureExtractor:
             base.update(cls._extract_load_config(pe))
             base.update(cls._extract_security_directory(pe, file_bytes, fsize))
 
-            for k in base: base[k] = cls._safe_float(base[k])
+            for k in base:
+                base[k] = cls._safe_float(base[k])
+
             return {"Base": base, "DLLs": list(dlls), "APIs": list(apis)}
 
-        except Exception: return None
+        except Exception:
+            return None
         finally:
-            if pe: pe.close()
+            if pe:
+                pe.close()
 
 ####################################################################################################
 
@@ -571,6 +595,7 @@ class ModelPredictor:
     def _load_features(self, path):
         if not os.path.exists(path):
             raise FileNotFoundError(f"Feature file not found: {path}")
+
         with open(path, 'r') as f:
             return json.load(f)
 
@@ -604,9 +629,11 @@ class ModelPredictor:
                 prob_dict = result[0]
                 if hasattr(prob_dict, 'get'):
                     return float(prob_dict.get(1, prob_dict.get('1', 0.0)))
+
             elif isinstance(result, np.ndarray):
                 if result.ndim == 2 and result.shape[1] > 1:
                     return float(result[0][1])
+
         return 0.0
 
 ####################################################################################################
@@ -615,6 +642,7 @@ def scan_target(target, predictor):
     files = []
     if os.path.isfile(target):
         files.append(target)
+
     elif os.path.isdir(target):
         for r, _, fs in os.walk(target):
             for f in fs:
@@ -679,6 +707,7 @@ if __name__ == "__main__":
                 print()
                 print("-" * 80)
                 scan_target(target, predictor)
+
             else:
                 print(f"[-] Path does not exist: {target}")
     else:
@@ -687,11 +716,15 @@ if __name__ == "__main__":
                 print()
                 print("-" * 80)
                 path = input("\n[?] Enter File or Folder Path (or 'q' to exit): ").strip().strip('"').strip("'")
-                if path.lower() in ['q', 'exit']: break
+                if path.lower() in ['q', 'exit']:
+                    break
+
                 if not os.path.exists(path):
                     print("[-] Path does not exist.")
                     continue
+
                 scan_target(path, predictor)
+
             except KeyboardInterrupt:
                 break
             except Exception as e:

@@ -9,11 +9,14 @@ try:
     JSON_DUMPS = lambda x: orjson.dumps(x).decode('utf-8')
     JSON_LOADS = orjson.loads
     HAS_ORJSON = True
+
 except ImportError:
     import json
     JSON_DUMPS = json.dumps
     JSON_LOADS = json.loads
     HAS_ORJSON = False
+
+####################################################################################################
 
 JSONL_PATH = "pe_features.jsonl"
 BATCH_SIZE = 1000
@@ -69,7 +72,8 @@ V2_GUID = GUID(0x00AAC56B, 0xCD44, 0x11D0, (ctypes.c_ubyte * 8)(0x8C, 0xC2, 0x00
 ####################################################################################################
 
 def verify_signature(file_path):
-    if os.name != 'nt': return 0
+    if os.name != 'nt':
+        return 0
     try:
         wintrust = ctypes.windll.wintrust
         wintrust.WinVerifyTrust.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(GUID), ctypes.wintypes.LPVOID]
@@ -126,16 +130,20 @@ class FeatureExtractor:
         try:
             f = float(val)
             return f if not (math.isinf(f) or math.isnan(f)) else 0.0
+
         except Exception: 
             return 0.0
 
     @staticmethod
     def _calc_entropy(data):
-        if not data: return 0.0
+        if not data:
+            return 0.0
+
         arr = np.frombuffer(data, dtype=np.uint8)
         sz = len(arr)
         counts = np.bincount(arr, minlength=256)
         counts = counts[counts > 0]
+
         return float(np.log2(sz) - np.sum(counts * np.log2(counts)) / sz)
 
     @classmethod
@@ -189,6 +197,7 @@ class FeatureExtractor:
             byte_bins = w_counts.reshape(16, 16).sum(axis=1)
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
+
         else:
             num_windows = (sz - window) // step + 1
             batch_windows = 10000 
@@ -247,6 +256,7 @@ class FeatureExtractor:
     def _extract_rich_header(cls, pe):
         if not hasattr(pe, 'RICH_HEADER') or not pe.RICH_HEADER:
             return {"HasRichHeader": 0.0, "RichHeaderCount": 0.0}
+
         return {
             "HasRichHeader": 1.0,
             "RichHeaderCount": float(len(pe.RICH_HEADER.values) // 2) if hasattr(pe.RICH_HEADER, 'values') else 0.0
@@ -305,6 +315,7 @@ class FeatureExtractor:
                 for entry_lang in entry_id.directory.entries:
                     if hasattr(entry_lang, 'id'):
                         langs.add(entry_lang.id)
+
                     if hasattr(entry_lang, 'data'):
                         try:
                             data = pe.get_data(entry_lang.data.struct.OffsetToData, entry_lang.data.struct.Size)
@@ -328,10 +339,13 @@ class FeatureExtractor:
         if hasattr(pe, 'DIRECTORY_ENTRY_LOAD_CONFIG'):
             cfg["HasLoadConfig"] = 1.0
             struct = pe.DIRECTORY_ENTRY_LOAD_CONFIG.struct
+
             if getattr(struct, 'GuardCFFunctionTable', 0) != 0:
                 cfg["HasCFG"] = 1.0
+
             if getattr(struct, 'SEHandlerTable', 0) != 0:
                 cfg["HasSEHTable"] = 1.0
+
         return cfg
 
     @classmethod
@@ -364,6 +378,7 @@ class FeatureExtractor:
             dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
             if dw_length < 8:
                 break
+
             count += 1
             curr += (dw_length + 7) & ~7
 
@@ -372,9 +387,10 @@ class FeatureExtractor:
 
     @classmethod
     def extract(cls, file_bytes, file_path, fsize):
-        if fsize == 0: return None
-        base, dlls, apis, pe = {}, set(), set(), None
+        if fsize == 0:
+            return None
 
+        base, dlls, apis, pe = {}, set(), set(), None
         try:
             pe = pefile.PE(data=file_bytes, fast_load=True)
             
@@ -410,7 +426,6 @@ class FeatureExtractor:
             base['Is64Bit'] = 1.0 if base['Machine'] in (0x8664, 0xAA64, 0x0200) else 0.0
             base['IsExe'] = 1.0 if pe.is_exe() else 0.0
             base['IsDll'] = 1.0 if pe.is_dll() else 0.0
-
             base['ExceptionCount'] = 0.0
 
             if hasattr(pe, 'OPTIONAL_HEADER'):
@@ -452,10 +467,14 @@ class FeatureExtractor:
                     raw_sizes.append(section.SizeOfRawData)
                     v_sizes.append(section.Misc_VirtualSize)
 
-                    if section.Characteristics & 0x20000000: exec_sec += 1
-                    if section.Characteristics & 0x80000000: write_sec += 1
-                    if section.Characteristics & 0x40000000: read_sec += 1
-                    if section.SizeOfRawData + section.PointerToRawData > fsize: sec_exc = 1
+                    if section.Characteristics & 0x20000000:
+                        exec_sec += 1
+                    if section.Characteristics & 0x80000000:
+                        write_sec += 1
+                    if section.Characteristics & 0x40000000:
+                        read_sec += 1
+                    if section.SizeOfRawData + section.PointerToRawData > fsize:
+                        sec_exc = 1
 
                     for flag in cls._CHAR_FLAGS:
                         if section.Characteristics & flag:
@@ -495,11 +514,13 @@ class FeatureExtractor:
                         if getattr(fileinfo, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
                             for st in getattr(fileinfo, 'StringTable', []):
                                 for key, val in st.entries.items():
+
                                     try:
                                         k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
                                         if k in string_keys:
                                             v = val.decode('utf-8', 'ignore') if isinstance(val, bytes) else str(val)
                                             base[f'{k}Length'] = float(len(v))
+
                                     except Exception: 
                                         continue
 
@@ -519,13 +540,19 @@ class FeatureExtractor:
                 func_count = 0
                 for entry in pe.DIRECTORY_ENTRY_IMPORT:
                     if getattr(entry, 'dll', None):
-                        try: dlls.add(entry.dll.decode('ascii', 'ignore').lower())
-                        except Exception: pass
+                        try:
+                            dlls.add(entry.dll.decode('ascii', 'ignore').lower())
+                        except Exception:
+                            pass
+
                     for imp in getattr(entry, 'imports', []):
                         func_count += 1
                         if getattr(imp, 'name', None):
-                            try: apis.add(imp.name.decode('ascii', 'ignore'))
-                            except Exception: pass
+                            try:
+                                apis.add(imp.name.decode('ascii', 'ignore'))
+                            except Exception:
+                                pass
+
                 base['ImportFunctionCount'] = float(func_count)
 
             base['ExportCount'] = float(len(pe.DIRECTORY_ENTRY_EXPORT.symbols)) if (hasattr(pe, 'DIRECTORY_ENTRY_EXPORT') and hasattr(pe.DIRECTORY_ENTRY_EXPORT, 'symbols')) else 0.0
@@ -550,10 +577,13 @@ class FeatureExtractor:
             base.update(cls._extract_load_config(pe))
             base.update(cls._extract_security_directory(pe, file_bytes, fsize))
 
-            for k in base: base[k] = cls._safe_float(base[k])
+            for k in base:
+                base[k] = cls._safe_float(base[k])
+
             return {"Base": base, "DLLs": list(dlls), "APIs": list(apis)}
 
-        except Exception: return None
+        except Exception:
+            return None
         finally:
             if pe: pe.close()
 
@@ -570,6 +600,7 @@ def load_existing_hashes():
             match = pattern.search(line)
             if match:
                 hashes.add(match.group(1).decode('ascii'))
+
     return hashes
 
 GLOBAL_HASHES = set()
@@ -636,6 +667,7 @@ def scan_and_save(path, label, existing_hashes):
                 skipped += 1
             elif status == 'success':
                 sha256, json_str = data
+
                 if sha256 not in existing_hashes:
                     existing_hashes.add(sha256)
                     batch_buffer.append(json_str)
@@ -660,10 +692,12 @@ def scan_and_save(path, label, existing_hashes):
         print("\n\n[-] User aborted. Force terminating all child processes...")
         pool.terminate()
         pool.join()
+
     except Exception as e:
         print(f"\n[-] Critical error: {e}")
         pool.terminate()
         pool.join()
+
     finally:
         if batch_buffer:
             try:
@@ -688,15 +722,20 @@ if __name__ == "__main__":
         while True:
             print("-" * 57)
             target_path = input("\n[*] Enter path (file or directory): ").strip().strip('"').strip("'")
-            if target_path.lower() in ['exit', 'q']: break
+            if target_path.lower() in ['exit', 'q']:
+                break
+
             if not target_path or not os.path.exists(target_path):
                 print("[-] Invalid path.")
                 continue
 
             while True:
                 label_input = input("[*] Enter label (0=Safe, 1=Malware): ").strip()
-                if label_input.lower() in ['exit', 'q']: sys.exit()
-                if label_input in ['0', '1']: break
+                if label_input.lower() in ['exit', 'q']:
+                    sys.exit()
+                if label_input in ['0', '1']:
+                    break
+
                 print("[-] Please enter 0 or 1.")
 
             scan_and_save(target_path, int(label_input), existing_hashes)

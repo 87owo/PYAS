@@ -387,6 +387,7 @@ class WindowAPI:
         
         self.scan_pool = ThreadPoolExecutor(max_workers=2)
         self.protect_pool = ThreadPoolExecutor(max_workers=8)
+        self.proc_pool = ThreadPoolExecutor(max_workers=16)
         self.start_daemon_thread(self.log_flush_thread)
 
         for _ in range(2):
@@ -2567,7 +2568,8 @@ class WindowAPI:
 
         while True:
             with self.lock_config:
-                if not self.pyas_config.get("process_switch", False): break
+                if not self.pyas_config.get("process_switch", False):
+                    break
             try:
                 time.sleep(0.1)
                 cur = self.get_process_list_pids()
@@ -2581,7 +2583,7 @@ class WindowAPI:
                     if h:
                         self.ntdll.NtSuspendProcess(h)
                         try:
-                            self.protect_pool.submit(self.handle_new_process, pid, h)
+                            self.proc_pool.submit(self.handle_new_process, pid, h)
 
                         except Exception:
                             self.ntdll.NtResumeProcess(h)
@@ -2615,7 +2617,7 @@ class WindowAPI:
             with self.lock_config:
                 suffix = self.pyas_config.get("suffix", [])
 
-            virus_found = False
+            scan_targets = []
             for file_path in all_targets:
                 if not file_path or not os.path.isfile(file_path):
                     continue
@@ -2623,7 +2625,13 @@ class WindowAPI:
                     continue
                 if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower():
                     continue
+                scan_targets.append(file_path)
 
+            if not scan_targets:
+                return
+
+            virus_found = False
+            for file_path in scan_targets:
                 result = self.safe_scan_engine(file_path)
                 self.cloud_check(file_path)
                 

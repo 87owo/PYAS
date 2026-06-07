@@ -597,8 +597,38 @@ update_cache:
 }
 
 BOOLEAN IsTargetProtected(HANDLE ProcessId) {
+    // 检查是否为已连接的 PYAS 进程
     if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
-    return FALSE;
+
+    // 额外检查：通过进程路径匹配保护规则（后备保护机制）
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
+
+    PUNICODE_STRING imageFileName = NULL;
+    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
+    if (!NT_SUCCESS(status) || !imageFileName || !imageFileName->Buffer) {
+        return FALSE;
+    }
+
+    BOOLEAN isProtected = FALSE;
+
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    // 检查进程路径是否匹配保护路径规则
+    PRULE_NODE Node = g_FileProtectedPaths;
+    while (Node) {
+        if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
+            isProtected = TRUE;
+            break;
+        }
+        Node = Node->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+
+    if (imageFileName) ExFreePool(imageFileName);
+    return isProtected;
 }
 
 BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {

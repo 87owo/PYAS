@@ -5,57 +5,57 @@ IMPORTANT NOTICE: THIS LICENSE IS "SOURCE AVAILABLE" AND IS NOT AN OPEN SOURCE L
 
 1. Definitions and Interpretation
 
-  - 1.1. Author: Refers to 87owo (PYAS Security).
-  - 1.2. Software: Refers to the source code, binaries, project archives, assets, and documentation associated with this repository or distribution.
-  - 1.3. Personal Local Use: Means viewing, downloading, executing, and modifying the Software strictly on local hardware owned or directly controlled by an individual for private, non-commercial, non-production, and non-distribution purposes.
-  - 1.4. Enterprise Use: Includes enterprise internal deployment, multi-user institutional use, or utilization within any corporate environment, which is strictly excluded from Personal Local Use.
+   - 1.1. Author: Refers to 87owo (PYAS Security).
+   - 1.2. Software: Refers to the source code, binaries, project archives, assets, and documentation associated with this repository or distribution.
+   - 1.3. Personal Local Use: Means viewing, downloading, executing, and modifying the Software strictly on local hardware owned or directly controlled by an individual for private, non-commercial, non-production, and non-distribution purposes.
+   - 1.4. Enterprise Use: Includes enterprise internal deployment, multi-user institutional use, or utilization within any corporate environment, which is strictly excluded from Personal Local Use.
 
 2. Intellectual Property and Ownership
 
-  - 2.1. Retention of Rights: The Author reserves all legal rights, titles, and interests in and to the Software, including but not limited to all copyrights, trademarks, patents, and trade secrets.
-  - 2.2. No Transfer: No intellectual property rights or ownership stakes are transferred under this Agreement. All project components remain fully proprietary.
-  - 2.3. Activation Keys: Access to or execution of certain premium features, modules, or binary distributions within the Software may require a valid, authorized activation key issued solely by the Author.
+   - 2.1. Retention of Rights: The Author reserves all legal rights, titles, and interests in and to the Software, including but not limited to all copyrights, trademarks, patents, and trade secrets.
+   - 2.2. No Transfer: No intellectual property rights or ownership stakes are transferred under this Agreement. All project components remain fully proprietary.
+   - 2.3. Activation Keys: Access to or execution of certain premium features, modules, or binary distributions within the Software may require a valid, authorized activation key issued solely by the Author.
 
 3. Grant of License and Permitted Use
 
-  Subject to your strict compliance with all terms of this Agreement, the Author hereby grants you a limited, non-exclusive, world-wide, royalty-free, revocable, and non-transferable license to:
-  - 3.1. Code Inspection: View and download the source code from official authorized repositories.
-  - 3.2. Local Modification: Modify the source code strictly for the purposes of Personal Local Use.
-  - 3.3. Local Execution: Execute the Software locally for personal evaluation and private deployment.
+   Subject to your strict compliance with all terms of this Agreement, the Author hereby grants you a limited, non-exclusive, world-wide, royalty-free, revocable, and non-transferable license to:
+   - 3.1. Code Inspection: View and download the source code from official authorized repositories.
+   - 3.2. Local Modification: Modify the source code strictly for the purposes of Personal Local Use.
+   - 3.3. Local Execution: Execute the Software locally for personal evaluation and private deployment.
 
 4. Prohibitions and Restrictions
 
-  Except as explicitly granted in Section 3, you shall not, and shall not permit any third party to:
-  - 4.1. Unauthorized Redistribution: Copy, redistribute, sublicense, republish, mirror, or publicly disclose any original or modified versions of the source code, binaries, or assets.
-  - 4.2. Commercial and SaaS Deployment: Host, deploy, embed, or utilize the Software for commercial purposes, including but not limited to Software-as-a-Service (SaaS), commercial web hosting, paid remote execution, cloud infrastructure integration, or enterprise internal utility.
-  - 4.3. Reverse Engineering: Reverse engineer, decompile, decrypt, or disassemble any binary components of the Software, except and only to the extent that such restriction is explicitly prohibited by applicable mandatory laws.
-  - 4.4. Notice Preservation: Remove, obscure, deface, or alter any copyright notices, trademarks, hyperlinked terms, or license files included within the Software distribution.
+   Except as explicitly granted in Section 3, you shall not, and shall not permit any third party to:
+   - 4.1. Unauthorized Redistribution: Copy, redistribute, sublicense, republish, mirror, or publicly disclose any original or modified versions of the source code, binaries, or assets.
+   - 4.2. Commercial and SaaS Deployment: Host, deploy, embed, or utilize the Software for commercial purposes, including but not limited to Software-as-a-Service (SaaS), commercial web hosting, paid remote execution, cloud infrastructure integration, or enterprise internal utility.
+   - 4.3. Reverse Engineering: Reverse engineer, decompile, decrypt, or disassemble any binary components of the Software, except and only to the extent that such restriction is explicitly prohibited by applicable mandatory laws.
+   - 4.4. Notice Preservation: Remove, obscure, deface, or alter any copyright notices, trademarks, hyperlinked terms, or license files included within the Software distribution.
 
 5. Prior Authorization and Application Channels
 
-  - 5.1. Authorization Requirement: Any activity exceeding the scope of Personal Local Use (including but not limited to public redistribution, independent forks not targeting upstream contributions, commercial deployment, or enterprise use) requires prior explicit written consent from the Author.
-  - 5.2. Official Application Channels: Users seeking such authorization must submit a formal request through one of the following official channels:
-    - Channel A (GitHub Fork): Initiating a standard Fork on the official GitHub repository for collaborative and upstream contributions.
-    - Channel B (GitHub Issues): Submitting a public issue utilizing the designated authorization request template.
-    - Channel C (Official Email): Sending a detailed inquiry to the official organizational email address associated with the PYAS Security project.
-  - 5.3. Request Content: Any application must explicitly state the specific use case, intended target audience, scope of deployment, and whether any commercial monetization is involved.
+   - 5.1. Authorization Requirement: Any activity exceeding the scope of Personal Local Use (including but not limited to public redistribution, independent forks not targeting upstream contributions, commercial deployment, or enterprise use) requires prior explicit written consent from the Author.
+   - 5.2. Official Application Channels: Users seeking such authorization must submit a formal request through one of the following official channels:
+      - Channel A (GitHub Fork): Initiating a standard Fork on the official GitHub repository for collaborative and upstream contributions.
+      - Channel B (GitHub Issues): Submitting a public issue utilizing the designated authorization request template.
+      - Channel C (Official Email): Sending a detailed inquiry to the official organizational email address associated with the PYAS Security project.
+   - 5.3. Request Content: Any application must explicitly state the specific use case, intended target audience, scope of deployment, and whether any commercial monetization is involved.
 
 6. Updates, Amendments, and Scope of Terms
 
-  - 6.1. New Releases: The Author may deliver updates, critical security patches, feature enhancements, or user interface modifications. Continued use of the Software constitutes acceptance of the latest distributed version.
-  - 6.2. Non-Retroactivity: The Author reserves the right to amend this License Agreement at any time. Amendments apply strictly to subsequent versions or new downloads. Copies lawfully acquired prior to such modification remain governed by the exact version of the License under which they were originally obtained.
+   - 6.1. New Releases: The Author may deliver updates, critical security patches, feature enhancements, or user interface modifications. Continued use of the Software constitutes acceptance of the latest distributed version.
+   - 6.2. Non-Retroactivity: The Author reserves the right to amend this License Agreement at any time. Amendments apply strictly to subsequent versions or new downloads. Copies lawfully acquired prior to such modification remain governed by the exact version of the License under which they were originally obtained.
 
 7. Telemetry, Data, and Privacy
 
-  - 7.1. Operational Data Collection: The Software may collect anonymized technical, operational, and usage data strictly for security analysis, performance optimization, and bug reporting.
-  - 7.2. Cloud Sample Submission: To enhance threat detection and malware analysis, the Software may automatically or manually transmit suspicious executable files and software samples to the Author's cloud infrastructure for deep analysis.
-  - 7.3. Scope of Collected Extensions: Sample collection targets potential executable and system binary formats, which explicitly include, but are not limited to, files with the following extensions: `.exe`, `.dll`, `.sys`, `.ocx`, `.scr`, `.efi`, `.acm`, `.ax`, `.cpl`, `.drv`, `.com`, `.mui`, `.pyd`, `.wfx`, `.api`, `.awx`, `.rll`, and `.winmd`.
-  - 7.4. Public Disclosure of Threat Intelligence: You explicitly acknowledge and agree that the metadata, behavioral reports, and threat intelligence data generated from the cloud analysis of submitted samples may be publicly disclosed, published, or shared with the cybersecurity community for collaborative defense purposes.
-  - 7.5. Opt-Out Mechanism: Cloud-based telemetry and sample submission are fully optional. Users who do not wish to participate in sample collection or cloud-assisted analysis may disable the corresponding cloud services at any time via the toggle switches provided within the Software’s settings interface.
+   - 7.1. Operational Data Collection: The Software may collect anonymized technical, operational, and usage data strictly for security analysis, performance optimization, and bug reporting.
+   - 7.2. Cloud Sample Submission: To enhance threat detection and malware analysis, the Software may automatically or manually transmit suspicious executable files and software samples to the Author's cloud infrastructure for deep analysis.
+   - 7.3. Scope of Collected Extensions: Sample collection targets potential executable and system binary formats, which explicitly include, but are not limited to, files with the following extensions: `.exe`, `.dll`, `.sys`, `.ocx`, `.scr`, `.efi`, `.acm`, `.ax`, `.cpl`, `.drv`, `.com`, `.mui`, `.pyd`, `.wfx`, `.api`, `.awx`, `.rll`, and `.winmd`.
+   - 7.4. Public Disclosure of Threat Intelligence: You explicitly acknowledge and agree that the metadata, behavioral reports, and threat intelligence data generated from the cloud analysis of submitted samples may be publicly disclosed, published, or shared with the cybersecurity community for collaborative defense purposes.
+   - 7.5. Opt-Out Mechanism: Cloud-based telemetry and sample submission are fully optional. Users who do not wish to participate in sample collection or cloud-assisted analysis may disable the corresponding cloud services at any time via the toggle switches provided within the Software’s settings interface.
 
 8. Warranty Disclaimer and Limitation of Liability
 
-  - 8.1. Disclaimer of Warranty: TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE AND ALL RELATED ASSETS ARE PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED.
-  - 8.2. Limitation of Liability: TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AUTHOR, COPYRIGHT HOLDERS, OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE. USERS ASSUME ALL RISKS REGARDING PERFORMANCE, DATA INTEGRITY, AND SYSTEM STABILITY.
+   - 8.1. Disclaimer of Warranty: TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE AND ALL RELATED ASSETS ARE PROVIDED ON AN "AS IS" AND "AS AVAILABLE" BASIS, WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED.
+   - 8.2. Limitation of Liability: TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE AUTHOR, COPYRIGHT HOLDERS, OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE. USERS ASSUME ALL RISKS REGARDING PERFORMANCE, DATA INTEGRITY, AND SYSTEM STABILITY.
 
 © 2020-2026 87owo (PYAS Security). All rights reserved.

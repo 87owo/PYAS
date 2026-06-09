@@ -278,6 +278,8 @@ class WindowAPI:
         self.kernel32.GetProcessIoCounters.restype = ctypes.wintypes.BOOL
         self.kernel32.VirtualQueryEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(MEMORY_BASIC_INFORMATION), ctypes.c_size_t]
         self.kernel32.VirtualQueryEx.restype = ctypes.c_size_t
+        self.kernel32.SetProcessWorkingSetSize.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_size_t, ctypes.c_size_t]
+        self.kernel32.SetProcessWorkingSetSize.restype = ctypes.wintypes.BOOL
         
         self.psapi.GetMappedFileNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
         self.psapi.GetMappedFileNameW.restype = ctypes.wintypes.DWORD
@@ -816,6 +818,12 @@ class WindowAPI:
                 "spanish_switch": "Abrir PYAS", "hindi_switch": "PYAS खोलें", "arabic_switch": "فتح PYAS",
                 "russian_switch": "Открыть PYAS", "slovenian_switch": "Odpri PYAS"
             },
+            "optimize_mem": {
+                "traditional_switch": "一鍵加速", "simplified_switch": "一键加速", "english_switch": "Memory Boost",
+                "japanese_switch": "メモリ最適化", "korean_switch": "메모리 최적화", "french_switch": "Optimiser",
+                "spanish_switch": "Optimizar", "hindi_switch": "मेमोरी बूस्ट", "arabic_switch": "تسريع",
+                "russian_switch": "Ускорение", "slovenian_switch": "Optimizacija"
+            },
             "check_update": {
                 "traditional_switch": "檢查更新", "simplified_switch": "检查更新", "english_switch": "Check Update",
                 "japanese_switch": "更新を確認", "korean_switch": "업데이트 확인", "french_switch": "Vérifier la mise à jour",
@@ -837,6 +845,7 @@ class WindowAPI:
 
         menu = pystray.Menu(
             pystray.MenuItem(lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True),
+            pystray.MenuItem(lambda item: self.get_tray_text("optimize_mem"), self.optimize_memory),
             pystray.MenuItem(lambda item: self.get_tray_text("check_update"), self.tray_check_update),
             pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close)
         )
@@ -1561,6 +1570,68 @@ class WindowAPI:
         except Exception as e:
             self.write_log("WARN", "clean_system_junk", detail=str(e), operate=True, success=False)
             return 0
+
+    def optimize_memory(self, icon=None, item=None):
+        def _optimize():
+            try:
+                hwnd = self.user32.GetForegroundWindow()
+                fg_pid = ctypes.wintypes.DWORD(0)
+                if hwnd:
+                    self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(fg_pid))
+
+                pids = self.get_process_list_pids()
+                optimized_count = 0
+                
+                skip_set = {
+                    "dwm.exe", "explorer.exe", "csrss.exe", "smss.exe", "winlogon.exe",
+                    "lsass.exe", "services.exe", "svchost.exe", "wininit.exe", "audiodg.exe",
+                    "spoolsv.exe", "sihost.exe", "fontdrvhost.exe", "taskmgr.exe"
+                }
+
+                for pid in pids:
+                    if pid <= 4 or pid == self.pid_pyas or pid == fg_pid.value:
+                        continue
+                        
+                    name, _ = self.get_exe_info(pid)
+                    if name and name.lower() in skip_set:
+                        continue
+
+                    h = self.kernel32.OpenProcess(0x0100, False, pid)
+                    if h:
+                        try:
+                            if self.kernel32.SetProcessWorkingSetSize(h, ctypes.c_size_t(-1), ctypes.c_size_t(-1)):
+                                optimized_count += 1
+                        finally:
+                            self.kernel32.CloseHandle(h)
+
+                title = self._loc({
+                    "traditional_switch": "一鍵加速", "simplified_switch": "一键加速", "english_switch": "Memory Boost",
+                    "japanese_switch": "メモリ最適化", "korean_switch": "메모리 최적화", "french_switch": "Optimiser",
+                    "spanish_switch": "Optimizar", "hindi_switch": "मेमोरी बूस्ट", "arabic_switch": "تسريع",
+                    "russian_switch": "Ускорение", "slovenian_switch": "Optimizacija"
+                })
+                
+                msg = self._loc({
+                    "traditional_switch": f"已釋放 {optimized_count} 個背景進程的記憶體",
+                    "simplified_switch": f"已释放 {optimized_count} 个后台进程的内存",
+                    "english_switch": f"Freed memory for {optimized_count} background processes",
+                    "japanese_switch": f"{optimized_count} 個のバックグラウンドプロセスのメモリを解放しました",
+                    "korean_switch": f"{optimized_count}개 백그라운드 프로세스 메모리 확보",
+                    "french_switch": f"Mémoire libérée pour {optimized_count} processus",
+                    "spanish_switch": f"Memoria liberada para {optimized_count} procesos",
+                    "hindi_switch": f"{optimized_count} पृष्ठभूमि प्रक्रियाओं के लिए मेमोरी मुक्त की गई",
+                    "arabic_switch": f"تم تحرير الذاكرة لـ {optimized_count} من العمليات في الخلفية",
+                    "russian_switch": f"Освобождена память {optimized_count} фоновых процессов",
+                    "slovenian_switch": f"Sproščen pomnilnik za {optimized_count} procesov v ozadju"
+                })
+
+                self.show_notification(title, msg)
+                self.write_log("INFO", "Memory Boost", detail=f"Optimized {optimized_count} processes", operate=True)
+
+            except Exception as e:
+                self.write_log("WARN", "optimize_memory", detail=str(e), success=False)
+
+        threading.Thread(target=_optimize, daemon=True).start()
 
     def get_startup_list(self):
         items = []

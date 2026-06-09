@@ -1,4 +1,4 @@
-#include "DriverCommon.h"
+﻿#include "DriverCommon.h"
 
 constexpr auto MAX_TRACKERS = 64;
 constexpr auto RANSOM_TIME_WINDOW_MS = 3000;

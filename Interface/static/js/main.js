@@ -447,23 +447,23 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const checkVirusListEmpty = () => {
-    updateCustomSelectUI('scan_method_select', 'none');
-    if (appState.virusResults.length === 0) {
-        appState.virusMap.clear();
-        changeScanSelectMode('scan');
-        const title = document.querySelector('#scan_window .section-title');
-        const text = document.getElementById('progress_text');
-        if (title) { 
-            title.setAttribute('data-i18n', 'scan_virus'); 
-            title.textContent = getMsg('scan_virus'); 
+        updateCustomSelectUI('scan_method_select', 'none');
+        if (appState.virusResults.length === 0) {
+            appState.virusMap.clear();
+            changeScanSelectMode('scan');
+            const title = document.querySelector('#scan_window .section-title');
+            const text = document.getElementById('progress_text');
+            if (title) { 
+                title.setAttribute('data-i18n', 'scan_virus'); 
+                title.textContent = getMsg('scan_virus'); 
+            }
+            if (text) {
+                text.setAttribute('data-i18n', 'scan_virus_desc');
+                text.removeAttribute('data-dynamic-msg');
+                text.textContent = getMsg('scan_virus_desc');
+            }
         }
-        if (text) {
-            text.setAttribute('data-i18n', 'scan_virus_desc');
-            text.removeAttribute('data-dynamic-msg');
-            text.textContent = getMsg('scan_virus_desc');
-        }
-    }
-};
+    };
 
     const triggerScan = (method) => {
         if (!window.pywebview) return;

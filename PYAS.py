@@ -355,7 +355,7 @@ class WindowAPI:
         self.lock_io = threading.RLock()
         
         self.pyas_default = {
-            "version": "3.5.9",
+            "version": "3.6.0",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd", ".ax"],
@@ -680,25 +680,24 @@ class WindowAPI:
         acted_items = []
         with self.lock_config:
             target_list = self.pyas_config.setdefault(list_key, [])
-            
             if action == "add":
                 for path in norm_paths:
                     path_case = os.path.normcase(path)
                     exists = False
 
                     for item in target_list:
-                        if isinstance(item, dict):
-                            val = item.get("file", "")
-                            np = self.norm_path(val, must_exist=False)
-                            if np and os.path.normcase(np) == path_case:
-                                exists = True
-                                break
+                        val = item.get("file", "") if isinstance(item, dict) else item
+                        np = self.norm_path(val, must_exist=False)
+
+                        if np and os.path.normcase(np) == path_case:
+                            exists = True
+                            break
 
                     if not exists:
                         if lock_func:
                             lock_func(path, True)
 
-                        target_list.append({"file": path})
+                        target_list.append({"file": path, "time": time.time()})
                         acted_items.append(path)
                         if list_key == "white_list":
                             self.sync_driver_whitelist(path, True)
@@ -706,7 +705,6 @@ class WindowAPI:
             elif action == "remove":
                 norm_paths_case = {os.path.normcase(p) for p in norm_paths}
                 new_list = []
-
                 for item in target_list:
                     val = item.get("file", "") if isinstance(item, dict) else item
                     if val:
@@ -1094,18 +1092,43 @@ class WindowAPI:
         return []
 
     def open_file_location(self, file_path):
-        if file_path:
-            expanded_path = os.path.expandvars(file_path).strip('"').strip("'")
+        if not file_path:
+            return False
 
-            if os.path.exists(expanded_path):
-                try:
-                    clean_path = os.path.normpath(expanded_path)
-                    subprocess.Popen(f'explorer /select,"{clean_path}"')
+        expanded_path = os.path.expandvars(file_path).strip('"').strip("'")
+        reg_prefixes = ("HKLM", "HKCU", "HKCR", "HKU", "HKCC", "HKEY_")
 
-                    return True
-                except Exception:
-                    pass
+        if expanded_path.upper().startswith(reg_prefixes):
+            try:
+                full_path = expanded_path
+                if full_path.startswith("HKLM"):
+                    full_path = full_path.replace("HKLM", "HKEY_LOCAL_MACHINE", 1)
+                elif full_path.startswith("HKCU"):
+                    full_path = full_path.replace("HKCU", "HKEY_CURRENT_USER", 1)
+                elif full_path.startswith("HKCR"):
+                    full_path = full_path.replace("HKCR", "HKEY_CLASSES_ROOT", 1)
+                elif full_path.startswith("HKU"):
+                    full_path = full_path.replace("HKU", "HKEY_USERS", 1)
+                elif full_path.startswith("HKCC"):
+                    full_path = full_path.replace("HKCC", "HKEY_CURRENT_CONFIG", 1)
 
+                subprocess.run(["taskkill", "/F", "/IM", "regedit.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
+                self._reg_write(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit", "LastKey", winreg.REG_SZ, full_path)
+                subprocess.Popen("regedit.exe")
+
+                return True
+            except Exception:
+                pass
+            return False
+
+        if os.path.exists(expanded_path):
+            try:
+                clean_path = os.path.normpath(expanded_path)
+                subprocess.Popen(f'explorer /select,"{clean_path}"')
+                return True
+
+            except Exception:
+                pass
         return False
 
     def open_website(self):

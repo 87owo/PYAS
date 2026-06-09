@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         startup: [{key: 'type', label: 'col_type', flex: 0.5, isI18n: true}, {key: 'name', label: 'col_name', flex: 1.5}, {key: 'status', label: 'col_status', flex: 0.5, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
         virus: [{key: 'label', label: 'col_type', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
         pathOnly: [{key: 'path', label: 'col_path', flex: 1}],
+        fileList: [{key: 'time_str', label: 'col_date', flex: 1.5}, {key: 'path', label: 'col_path', flex: 5}],
         junk: [{key: 'path', label: 'col_path', flex: 3}, {key: 'sizeStr', label: 'col_size', flex: 1}],
         popup: [{key: 'exe', label: 'col_prog', flex: 1}, {key: 'class', label: 'col_class', flex: 1}, {key: 'title', label: 'col_title', flex: 2}],
         repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
@@ -594,9 +595,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshConfigLists = () => {
         if (!window.pywebview) return;
         window.pywebview.api.get_config().then(cfg => {
-            renderDataGrid('#whitelist_window', (cfg.white_list || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
-            renderDataGrid('#quarantine_window', (cfg.quarantine || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
-            renderDataGrid('#custom_protect_window', (cfg.custom_rule || []).map(i => ({path: i.file || i})), cols.pathOnly, 'path');
+            const formatTime = (ts) => {
+                if (!ts) return '-';
+                const d = new Date(ts * 1000);
+                const pad = n => n.toString().padStart(2, '0');
+                return `[${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}]`;
+            };
+            const mapList = (arr) => (arr || []).map(i => ({
+                path: i.file || (typeof i === 'string' ? i : ''),
+                time_str: formatTime(i.time)
+            }));
+            renderDataGrid('#whitelist_window', mapList(cfg.white_list), cols.fileList, 'path');
+            renderDataGrid('#quarantine_window', mapList(cfg.quarantine), cols.fileList, 'path');
+            renderDataGrid('#custom_protect_window', mapList(cfg.custom_rule), cols.fileList, 'path');
             const popupRules = (cfg.block_list || []).map(item => ({ exe: item.exe || '*', class: item.class || '*', title: item.title || '*', value: item.exe || item.title }));
             renderDataGrid('#popup_window', popupRules, cols.popup, 'value');
         });
@@ -1054,9 +1065,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDataGrid('#startup_window', [], cols.startup, 'id', false);
     renderDataGrid('#junk_window', [], cols.junk, 'path', true);
     renderDataGrid('#repair_window', [], cols.repair, 'id', true);
-    renderDataGrid('#whitelist_window', [], cols.pathOnly, 'path', false);
-    renderDataGrid('#quarantine_window', [], cols.pathOnly, 'path', false);
-    renderDataGrid('#custom_protect_window', [], cols.pathOnly, 'path', false);
+    renderDataGrid('#whitelist_window', [], cols.fileList, 'path', false);
+    renderDataGrid('#quarantine_window', [], cols.fileList, 'path', false);
+    renderDataGrid('#custom_protect_window', [], cols.fileList, 'path', false);
     renderDataGrid('#popup_window', [], cols.popup, 'value', false);
     renderDataGrid('#log_export_window', [], cols.log, 'id', true);
     renderDataGrid('#netmon_window', [], cols.netmon, 'pid', false);

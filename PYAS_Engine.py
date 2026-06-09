@@ -1,4 +1,4 @@
-import os, re, yara, time, math, json, zlib, numpy, base64, requests, datetime
+import os, re, gc, yara, time, math, json, zlib, mmap, numpy, base64, requests, datetime
 import ctypes, ctypes.wintypes, hashlib, pefile, threading, onnxruntime
 
 ####################################################################################################
@@ -240,8 +240,8 @@ class pe_scanner:
             f = float(val)
             if math.isinf(f) or math.isnan(f): 
                 return 0.0
-            return f
 
+            return f
         except Exception:
             return 0.0
 
@@ -267,6 +267,8 @@ class pe_scanner:
         combined_data = b''.join(matches)
         count = len(matches)
         total_len = len(combined_data)
+        
+        del matches
 
         res["StringCount"] = float(count)
         res["StringMeanLength"] = float(total_len) / count
@@ -277,6 +279,8 @@ class pe_scanner:
         char_counts = counts[0x20:0x7F]
 
         res.update(dict(zip(self._STRING_KEYS, char_counts.astype(numpy.float64) / total_len)))
+        
+        del combined_data, arr
         return res
 
     def _extract_histograms(self, file_bytes):
@@ -305,6 +309,7 @@ class pe_scanner:
             byte_bins = w_counts.reshape(16, 16).sum(axis=1)
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
+
         else:
             num_windows = (sz - window) // step + 1
             batch_windows = 10000 
@@ -445,6 +450,7 @@ class pe_scanner:
 
             if getattr(struct, 'GuardCFFunctionTable', 0) != 0:
                 cfg["HasCFG"] = 1.0
+
             if getattr(struct, 'SEHandlerTable', 0) != 0:
                 cfg["HasSEHTable"] = 1.0
 
@@ -479,7 +485,6 @@ class pe_scanner:
             dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
             if dw_length < 8:
                 break
-
             count += 1
             curr += (dw_length + 7) & ~7
 
@@ -488,18 +493,21 @@ class pe_scanner:
 
     def extract_features(self, file_path):
         pe = None
+        mm = None
+        f = None
+
         try:
             fsize = os.path.getsize(file_path)
             if fsize == 0 or fsize > 536870912:
                 return None
 
-            with open(file_path, "rb") as f:
-                file_bytes = f.read()
+            f = open(file_path, "rb")
+            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
             base = {}
             dlls = set()
             apis = set()
-            pe = pefile.PE(data=file_bytes, fast_load=True)
+            pe = pefile.PE(data=mm, fast_load=True)
             
             try:
                 pe.parse_rich_header()
@@ -515,7 +523,7 @@ class pe_scanner:
                 pass
             
             base['TrustSigned'] = 1.0 if self.signer.sign_verify(file_path) else 0.0
-            base['FileEntropy'] = self._calc_entropy(file_bytes)
+            base['FileEntropy'] = self._calc_entropy(mm)
             base['FileSize'] = float(fsize)
             
             fh = pe.FILE_HEADER
@@ -580,6 +588,7 @@ class pe_scanner:
                     try:
                         s_data = section.get_data()
                         s_entropy = self._calc_entropy(s_data)
+
                     except Exception:
                         s_entropy = 0.0
 
@@ -631,9 +640,9 @@ class pe_scanner:
             if hasattr(pe, 'FileInfo'):
                 for fileinfo_list in pe.FileInfo:
                     for fileinfo in fileinfo_list:
+
                         if getattr(fileinfo, 'name', '') in ('StringFileInfo', b'StringFileInfo'):
                             for st in getattr(fileinfo, 'StringTable', []):
-
                                 for key, val in st.entries.items():
                                     try:
                                         k = key.decode('utf-8', 'ignore') if isinstance(key, bytes) else str(key)
@@ -690,6 +699,7 @@ class pe_scanner:
                 for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries:
                     if getattr(entry, 'id', None) == 3 and hasattr(entry, 'directory'):
                         icon_count += len(getattr(entry.directory, 'entries', []))
+
                 base['IconCount'] = float(icon_count)
             else:
                 base['IconCount'] = 0.0
@@ -699,14 +709,14 @@ class pe_scanner:
             else:
                 base['DebugCount'] = 0.0
 
-            base.update(self._extract_strings(file_bytes))
-            base.update(self._extract_histograms(file_bytes))
+            base.update(self._extract_strings(mm))
+            base.update(self._extract_histograms(mm))
             base.update(self._extract_overlay_features(pe, fsize))
             base.update(self._extract_rich_header(pe))
             base.update(self._extract_ep_anomalies(pe))
             base.update(self._extract_advanced_resources(pe))
             base.update(self._extract_load_config(pe))
-            base.update(self._extract_security_directory(pe, file_bytes, fsize))
+            base.update(self._extract_security_directory(pe, mm, fsize))
 
             for k in base:
                 base[k] = self._safe_float(base[k])
@@ -718,10 +728,15 @@ class pe_scanner:
         finally:
             if pe:
                 pe.close()
+            if mm:
+                mm.close()
+            if f:
+                f.close()
 
     def pe_scan(self, file_path, enhanced_mode=False):
         if not self.model or not self.feature_order:
             return False, False
+
         try:
             raw_data = self.extract_features(file_path)
             if not raw_data:
@@ -758,6 +773,8 @@ class pe_scanner:
                     vec[0, feat_map[new_fn]] += 1.0
 
             outputs = self.model.run(None, {self.input_name: vec})
+            
+            del raw_data, vec
             result = outputs[1]
             prob = 0.0
 
@@ -771,7 +788,6 @@ class pe_scanner:
                     prob = float(result[0][1])
 
             score = int(prob * 100)
-            
             if score >= 80:
                 return f"General:WinPE/Malware.{score}!ml", score
             elif enhanced_mode and score >= 50:

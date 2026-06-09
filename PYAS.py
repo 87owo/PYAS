@@ -1,8 +1,8 @@
-import os, re, gc, io, csv, sys, time, json, uuid, stat, queue, msvcrt, winreg
-import shutil, hashlib, platform, threading, subprocess, pefile, pystray
-import socket, requests, webview, webbrowser, ctypes, ctypes.wintypes
+import os, re, gc, io, csv, sys, time, json, uuid, stat, queue, msvcrt
+import shutil, hashlib, platform, threading, subprocess, pefile, winreg
+import pystray, requests, webview, webbrowser, ctypes, ctypes.wintypes
 
-from PIL import Image, ImageDraw
+from PIL import Image
 from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler
 from socketserver import TCPServer
@@ -36,29 +36,12 @@ class MIB_TCPROW_OWNER_PID(ctypes.Structure):
         ("dwOwningPid", ctypes.wintypes.DWORD)
     ]
 
-class MIB_TCPTABLE_OWNER_PID(ctypes.Structure):
-    _fields_ = [
-        ("dwNumEntries", ctypes.wintypes.DWORD),
-        ("table", MIB_TCPROW_OWNER_PID * 1)
-    ]
-
 class FILE_NOTIFY_INFORMATION(ctypes.Structure):
     _fields_ = [
         ("NextEntryOffset", ctypes.wintypes.DWORD),
         ("Action", ctypes.wintypes.DWORD),
         ("FileNameLength", ctypes.wintypes.DWORD),
         ("FileName", ctypes.wintypes.WCHAR * 1024)
-    ]
-
-class SERVICE_STATUS(ctypes.Structure):
-    _fields_ = [
-        ("dwServiceType", ctypes.wintypes.DWORD),
-        ("dwCurrentState", ctypes.wintypes.DWORD),
-        ("dwControlsAccepted", ctypes.wintypes.DWORD),
-        ("dwWin32ExitCode", ctypes.wintypes.DWORD),
-        ("dwServiceSpecificExitCode", ctypes.wintypes.DWORD),
-        ("dwCheckPoint", ctypes.wintypes.DWORD),
-        ("dwWaitHint", ctypes.wintypes.DWORD)
     ]
 
 class PROCESS_BASIC_INFORMATION(ctypes.Structure):
@@ -232,13 +215,12 @@ class WindowAPI:
         self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
         self.file_log = os.path.join(self.path_config, "PYAS", "Report.json")
         self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
-        self.path_pattern = os.path.join(self.path_pyas, "Engine", "Pattern")
         self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
         self.path_protect = os.path.join(self.path_pyas, "Plugins", "Filter")
         self.path_drivers = os.path.join(self.path_protect, "PYAS_Driver.sys")
 
     def init_windll(self):
-        for name in ["ntdll", "Psapi", "user32", "kernel32", "advapi32", "iphlpapi", "shell32", "fltlib"]:
+        for name in ["ntdll", "Psapi", "user32", "kernel32", "iphlpapi", "shell32", "fltlib"]:
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
@@ -250,21 +232,6 @@ class WindowAPI:
         self.user32.ShowWindow.restype = ctypes.wintypes.BOOL
         self.user32.SendMessageTimeoutW.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.UINT, ctypes.wintypes.WPARAM, ctypes.c_void_p, ctypes.wintypes.UINT, ctypes.wintypes.UINT, ctypes.c_void_p]
         self.user32.SendMessageTimeoutW.restype = ctypes.wintypes.LPARAM
-
-        self.advapi32.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
-        self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.CreateServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p]
-        self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.OpenServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
-        self.advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.StartServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.c_wchar_p)]
-        self.advapi32.StartServiceW.restype = ctypes.wintypes.BOOL
-        self.advapi32.ControlService.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(SERVICE_STATUS)]
-        self.advapi32.ControlService.restype = ctypes.wintypes.BOOL
-        self.advapi32.DeleteService.argtypes = [ctypes.wintypes.HANDLE]
-        self.advapi32.DeleteService.restype = ctypes.wintypes.BOOL
-        self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
-        self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
 
         self.ntdll.NtQueryInformationProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.ULONG, ctypes.c_void_p, ctypes.wintypes.ULONG, ctypes.POINTER(ctypes.wintypes.ULONG)]
         self.ntdll.NtQueryInformationProcess.restype = ctypes.wintypes.ULONG
@@ -312,10 +279,6 @@ class WindowAPI:
         self.kernel32.VirtualQueryEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(MEMORY_BASIC_INFORMATION), ctypes.c_size_t]
         self.kernel32.VirtualQueryEx.restype = ctypes.c_size_t
         
-        self.psapi.EnumProcessModulesEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(ctypes.wintypes.HMODULE), ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.DWORD]
-        self.psapi.EnumProcessModulesEx.restype = ctypes.wintypes.BOOL
-        self.psapi.GetModuleFileNameExW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.HMODULE, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
-        self.psapi.GetModuleFileNameExW.restype = ctypes.wintypes.DWORD
         self.psapi.GetMappedFileNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
         self.psapi.GetMappedFileNameW.restype = ctypes.wintypes.DWORD
 

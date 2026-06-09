@@ -1,5 +1,5 @@
-import os, re, gc, yara, time, math, json, zlib, mmap, numpy, base64, requests, datetime
-import ctypes, ctypes.wintypes, hashlib, pefile, threading, onnxruntime
+import os, re, yara, time, math, json, zlib, mmap, numpy, datetime, requests
+import ctypes, ctypes.wintypes, pefile, threading, onnxruntime
 
 ####################################################################################################
 
@@ -260,27 +260,31 @@ class pe_scanner:
         res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
         res.update(dict.fromkeys(self._STRING_KEYS, 0.0))
 
-        matches = self._STRING_PATTERN.findall(file_bytes)
-        if not matches:
-            return res
+        total_len = 0
+        count = 0
+        global_counts = numpy.zeros(256, dtype=numpy.int64)
+        mv = memoryview(file_bytes)
 
-        combined_data = b''.join(matches)
-        count = len(matches)
-        total_len = len(combined_data)
-        
-        del matches
+        for m in self._STRING_PATTERN.finditer(file_bytes):
+            count += 1
+            start, end = m.span()
+            total_len += (end - start)
+            arr = numpy.frombuffer(mv[start:end], dtype=numpy.uint8)
+            global_counts += numpy.bincount(arr, minlength=256)
+
+        if count == 0 or total_len == 0:
+            return res
 
         res["StringCount"] = float(count)
         res["StringMeanLength"] = float(total_len) / count
-        res["StringEntropy"] = self._calc_entropy(combined_data)
 
-        arr = numpy.frombuffer(combined_data, dtype=numpy.uint8)
-        counts = numpy.bincount(arr, minlength=127)
-        char_counts = counts[0x20:0x7F]
+        counts_nonzero = global_counts[global_counts > 0]
+        if len(counts_nonzero) > 0:
+            res["StringEntropy"] = float(numpy.log2(total_len) - numpy.sum(counts_nonzero * numpy.log2(counts_nonzero)) / total_len)
 
-        res.update(dict(zip(self._STRING_KEYS, char_counts.astype(numpy.float64) / total_len)))
-        
-        del combined_data, arr
+        valid_chars = global_counts[0x20:0x7F]
+        res.update(dict(zip(self._STRING_KEYS, valid_chars.astype(numpy.float64) / total_len)))
+
         return res
 
     def _extract_histograms(self, file_bytes):

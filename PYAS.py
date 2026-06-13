@@ -311,6 +311,7 @@ class WindowAPI:
         self.cloud_pending = set()
         self.last_io_counters = {}
         self.last_io_time = time.time()
+        self.suspended_procs = set()
         
         self.lock_driver = threading.RLock()
         self.lock_update = threading.RLock()
@@ -456,7 +457,6 @@ class WindowAPI:
     def update_config(self, key, value):
         with self.lock_update:
             with self.lock_config:
-
                 old_value = self.pyas_config.get(key)
                 if old_value == value:
                     return value
@@ -495,6 +495,14 @@ class WindowAPI:
                     success = self.stop_system_driver()
                 elif key == "context_switch":
                     self.register_context_menu(False)
+                elif key == "document_switch":
+                    with self.lock_file_ops:
+                        if getattr(self, 'h_dir_file', None):
+                            try:
+                                self.kernel32.CloseHandle(self.h_dir_file)
+                            except Exception:
+                                pass
+                            self.h_dir_file = None
 
             if success:
                 with self.lock_config:
@@ -932,6 +940,36 @@ class WindowAPI:
 
         self.stop_system_driver()
         
+        with self.lock_file_ops:
+            if getattr(self, 'h_dir_file', None):
+                try:
+                    self.kernel32.CloseHandle(self.h_dir_file)
+                except Exception:
+                    pass
+                self.h_dir_file = None
+                
+            if hasattr(self, 'virus_lock'):
+                for file_path, (fd, lock_size) in list(self.virus_lock.items()):
+                    try:
+                        msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
+                    except Exception:
+                        pass
+                    try:
+                        os.close(fd)
+                    except Exception:
+                        pass
+                self.virus_lock.clear()
+        
+        with self.lock_proc:
+            if hasattr(self, 'suspended_procs'):
+                for h in list(self.suspended_procs):
+                    try:
+                        self.ntdll.NtResumeProcess(h)
+                        self.kernel32.CloseHandle(h)
+                    except Exception:
+                        pass
+                self.suspended_procs.clear()
+
         if hasattr(self, 'h_mutex') and self.h_mutex:
             try:
                 self.kernel32.CloseHandle(self.h_mutex)
@@ -940,6 +978,19 @@ class WindowAPI:
 
         if self._window:
             self._window.destroy()
+
+        with self.lock_logs:
+            if getattr(self, 'logs_dirty', False):
+                try:
+                    os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
+                    with open(self.file_log, "w", encoding="utf-8") as f:
+                        json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
+                except Exception:
+                    pass
+
+        with self.lock_config:
+            pass
+
         os._exit(0)
 
     def init_ui_ready(self):
@@ -2639,11 +2690,15 @@ class WindowAPI:
                     h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                     if h:
                         self.ntdll.NtSuspendProcess(h)
+                        with self.lock_proc:
+                            self.suspended_procs.add(h)
                         try:
                             self.proc_pool.submit(self.handle_new_process, pid, h)
 
                         except Exception:
                             self.ntdll.NtResumeProcess(h)
+                            with self.lock_proc:
+                                self.suspended_procs.discard(h)
                             self.kernel32.CloseHandle(h)
 
             except Exception as e:
@@ -2656,6 +2711,10 @@ class WindowAPI:
                 return
 
             self.ntdll.NtSuspendProcess(h)
+            with self.lock_proc:
+                if not hasattr(self, 'suspended_procs'):
+                    self.suspended_procs = set()
+                self.suspended_procs.add(h)
         try:
             cmdline = self.get_process_cmdline(h)
             process_file = self.get_process_file(h)
@@ -2706,6 +2765,8 @@ class WindowAPI:
 
         finally:
             self.ntdll.NtResumeProcess(h)
+            with self.lock_proc:
+                self.suspended_procs.discard(h)
             self.kernel32.CloseHandle(h)
 
     def scan_process_memory(self, pid, h_process):
@@ -2754,9 +2815,16 @@ class WindowAPI:
         return None
 
     def protect_file_thread(self):
+        with self.lock_file_ops:
+            if getattr(self, 'h_dir_file', None):
+                return
+            
         hDir = self.kernel32.CreateFileW(self.path_user, 0x0001, 0x00000007, None, 3, 0x02000000, None)
         if not hDir or hDir == -1:
             return
+
+        with self.lock_file_ops:
+            self.h_dir_file = hDir
 
         try:
             buffer = ctypes.create_string_buffer(262144)
@@ -2766,12 +2834,13 @@ class WindowAPI:
 
             while True:
                 with self.lock_config:
-                    if not self.pyas_config.get("document_switch", False): break
+                    if not self.pyas_config.get("document_switch", False): 
+                        break
                 try:
                     bytes_returned = ctypes.wintypes.DWORD()
-                    res = self.kernel32.ReadDirectoryChangesW(hDir, buffer, ctypes.sizeof(buffer), True, 0x0000001F, ctypes.byref(bytes_returned), None, None)
+                    res = self.kernel32.ReadDirectoryChangesW(self.h_dir_file, buffer, ctypes.sizeof(buffer), True, 0x0000001F, ctypes.byref(bytes_returned), None, None)
                     if not res or bytes_returned.value == 0:
-                        continue
+                        break
 
                     offset = 0
                     while True:
@@ -2796,10 +2865,16 @@ class WindowAPI:
 
                         offset += notify.NextEntryOffset
 
-                except Exception as e:
-                    self.write_log("WARN", "protect_file_thread", detail=str(e), success=False)
+                except Exception:
+                    break
         finally:
-            self.kernel32.CloseHandle(hDir)
+            with self.lock_file_ops:
+                if getattr(self, 'h_dir_file', None):
+                    try:
+                        self.kernel32.CloseHandle(self.h_dir_file)
+                    except Exception:
+                        pass
+                    self.h_dir_file = None
 
     def handle_new_file(self, file_path):
         try:

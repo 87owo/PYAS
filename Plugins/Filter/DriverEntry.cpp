@@ -51,6 +51,8 @@ static NTSTATUS DriverUnload(FLT_FILTER_UNLOAD_FLAGS Flags) {
     UnloadRules();
     UninitializeRulesEngine();
 
+    GlobalData.Initialized = FALSE;
+
     return STATUS_SUCCESS;
 }
 
@@ -92,7 +94,7 @@ static NTSTATUS PortConnect(PFLT_PORT ClientPort, PVOID ServerPortCookie, PVOID 
     KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
 
     GlobalData.ClientPort = ClientPort;
-    GlobalData.PyasPid = (ULONG)(ULONG_PTR)PsGetCurrentProcessId();
+    SafeSetPyasPid((ULONG)(ULONG_PTR)PsGetCurrentProcessId());
     GlobalData.PyasProcess = PsGetCurrentProcess();
 
     ExReInitializeRundownProtection(&GlobalData.PortRundown);
@@ -109,7 +111,7 @@ static VOID PortDisconnect(PVOID ConnectionCookie) {
     KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
 
     GlobalData.ClientPort = NULL;
-    GlobalData.PyasPid = 0;
+    SafeSetPyasPid(0);
     GlobalData.PyasProcess = NULL;
 
     KeReleaseSpinLock(&GlobalData.PortMutex, OldIrql);
@@ -153,6 +155,8 @@ extern "C" NTSTATUS DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING Reg
     GlobalData.DriverObject = DriverObject;
     KeInitializeSpinLock(&GlobalData.PortMutex);
     KeInitializeSpinLock(&GlobalData.TrackerMutex);
+    KeInitializeSpinLock(&GlobalData.PidLock);
+    GlobalData.Initialized = TRUE;
 
     ExInitializeRundownProtection(&GlobalData.PortRundown);
 

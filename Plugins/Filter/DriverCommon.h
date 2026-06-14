@@ -116,6 +116,8 @@ typedef struct _DRIVER_DATA {
     LARGE_INTEGER Cookie;
     KSPIN_LOCK PortMutex;
     KSPIN_LOCK TrackerMutex;
+    KSPIN_LOCK PidLock;
+    BOOLEAN Initialized;
     EX_RUNDOWN_REF PortRundown;
 } DRIVER_DATA, * PDRIVER_DATA;
 
@@ -150,6 +152,9 @@ VOID RemoveDynamicWhitelist(PUNICODE_STRING RuleStr);
 VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
 
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName);
+
+ULONG SafeGetPyasPid();
+VOID SafeSetPyasPid(ULONG Pid);
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId);
 BOOLEAN IsTargetProtected(HANDLE ProcessId);

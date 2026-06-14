@@ -1,8 +1,10 @@
 #include "DriverCommon.h"
 
 static PVOID ObRegistrationHandle = NULL;
-static OB_CALLBACK_REGISTRATION ObRegistration;
-static OB_OPERATION_REGISTRATION ObCallbacks[2];
+static OB_CALLBACK_REGISTRATION ObRegistration = {0};
+static OB_OPERATION_REGISTRATION ObCallbacks[2] = {0};
+static KSPIN_LOCK ObDataLock = {0};
+static BOOLEAN ObDataInitialized = FALSE;
 
 static BOOLEAN IsSystemImage(PUNICODE_STRING FullImageName) {
     if (!FullImageName || !FullImageName->Buffer) return FALSE;
@@ -57,6 +59,11 @@ static BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId) {
             WildcardMatch(L"*\\Windows\\System32\\smss.exe", imageFileName->Buffer, imageFileName->Length)) {
             isCritical = TRUE;
         }
+    }
+
+    // 修复：只有在 imageFileName->Buffer 非空时才释放
+    if (imageFileName) {
+        if (imageFileName->Buffer) ExFreePool(imageFileName->Buffer);
         ExFreePool(imageFileName);
     }
 
@@ -77,15 +84,18 @@ static BOOLEAN IsBlacklistedAdminTool(HANDLE ProcessId) {
 
     status = SeLocateProcessImageName(Process, &imageFileName);
 
-    if (NT_SUCCESS(status) && imageFileName) {
-        if (imageFileName->Buffer) {
-            if (WildcardMatch(L"*Taskmgr.exe", imageFileName->Buffer, imageFileName->Length) ||
-                WildcardMatch(L"*taskkill.exe", imageFileName->Buffer, imageFileName->Length) ||
-                WildcardMatch(L"*ProcessHacker.exe", imageFileName->Buffer, imageFileName->Length) ||
-                WildcardMatch(L"*procmon.exe", imageFileName->Buffer, imageFileName->Length)) {
-                isBlacklisted = TRUE;
-            }
+    if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
+        if (WildcardMatch(L"*Taskmgr.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*taskkill.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*ProcessHacker.exe", imageFileName->Buffer, imageFileName->Length) ||
+            WildcardMatch(L"*procmon.exe", imageFileName->Buffer, imageFileName->Length)) {
+            isBlacklisted = TRUE;
         }
+    }
+
+    // 修复：只有在 imageFileName->Buffer 非空时才释放
+    if (imageFileName) {
+        if (imageFileName->Buffer) ExFreePool(imageFileName->Buffer);
         ExFreePool(imageFileName);
     }
 
@@ -105,20 +115,39 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     HANDLE SourcePid = PsGetCurrentProcessId();
 
     if (SourcePid == TargetPid) return OB_PREOP_SUCCESS;
-    if ((ULONG)(ULONG_PTR)SourcePid == GlobalData.PyasPid) return OB_PREOP_SUCCESS;
+    if ((ULONG)(ULONG_PTR)SourcePid == SafeGetPyasPid()) return OB_PREOP_SUCCESS;
     if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
 
     if (IsTargetProtected(TargetPid)) {
         if (IsCriticalSystemProcess(SourcePid)) return OB_PREOP_SUCCESS;
 
-        BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
-
-        if (bIsTrusted) {
-            if (IsBlacklistedAdminTool(SourcePid)) {
-                bIsTrusted = FALSE;
-            }
+        // 优先检查黑名单（在 PASSIVE_LEVEL 时）
+        BOOLEAN isBlacklisted = FALSE;
+        if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
+            isBlacklisted = IsBlacklistedAdminTool(SourcePid);
         }
 
+        // 黑名单进程直接阻止，不检查信任
+        if (isBlacklisted) {
+            ACCESS_MASK DenyMask = PROCESS_TERMINATE |
+                PROCESS_VM_OPERATION |
+                PROCESS_VM_WRITE |
+                PROCESS_CREATE_THREAD |
+                PROCESS_VM_READ |
+                PROCESS_DUP_HANDLE |
+                PROCESS_SUSPEND_RESUME |
+                PROCESS_SET_INFORMATION |
+                PROCESS_SET_QUOTA;
+
+            OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
+
+            if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
+                OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
+            }
+            return OB_PREOP_SUCCESS;
+        }
+
+        BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
         if (bIsTrusted) return OB_PREOP_SUCCESS;
 
         ACCESS_MASK DenyMask = PROCESS_TERMINATE |
@@ -156,20 +185,35 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
     HANDLE SourcePid = PsGetCurrentProcessId();
 
     if (SourcePid == TargetPid) return OB_PREOP_SUCCESS;
-    if ((ULONG)(ULONG_PTR)SourcePid == GlobalData.PyasPid) return OB_PREOP_SUCCESS;
+    if ((ULONG)(ULONG_PTR)SourcePid == SafeGetPyasPid()) return OB_PREOP_SUCCESS;
     if (SourcePid == (HANDLE)4) return OB_PREOP_SUCCESS;
 
     if (IsTargetProtected(TargetPid)) {
         if (IsCriticalSystemProcess(SourcePid)) return OB_PREOP_SUCCESS;
 
-        BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
-
-        if (bIsTrusted) {
-            if (IsBlacklistedAdminTool(SourcePid)) {
-                bIsTrusted = FALSE;
-            }
+        // 优先检查黑名单（在 PASSIVE_LEVEL 时）
+        BOOLEAN isBlacklisted = FALSE;
+        if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
+            isBlacklisted = IsBlacklistedAdminTool(SourcePid);
         }
 
+        // 黑名单进程直接阻止，不检查信任
+        if (isBlacklisted) {
+            ACCESS_MASK DenyMask = THREAD_TERMINATE |
+                THREAD_SUSPEND_RESUME |
+                THREAD_SET_CONTEXT |
+                THREAD_SET_INFORMATION |
+                THREAD_SET_THREAD_TOKEN;
+
+            OperationInformation->Parameters->CreateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
+
+            if (OperationInformation->Operation == OB_OPERATION_HANDLE_DUPLICATE) {
+                OperationInformation->Parameters->DuplicateHandleInformation.DesiredAccess &= (ACCESS_MASK)(~DenyMask);
+            }
+            return OB_PREOP_SUCCESS;
+        }
+
+        BOOLEAN bIsTrusted = IsProcessTrusted(SourcePid);
         if (bIsTrusted) return OB_PREOP_SUCCESS;
 
         ACCESS_MASK DenyMask = THREAD_TERMINATE |
@@ -190,6 +234,9 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
 
 NTSTATUS InitializeProcessProtection() {
     static UNICODE_STRING Altitude = RTL_CONSTANT_STRING(L"320000.PYAS.Ob");
+
+    KeInitializeSpinLock(&ObDataLock);
+    ObDataInitialized = TRUE;
 
     ObCallbacks[0].ObjectType = PsProcessType;
     ObCallbacks[0].Operations = OB_OPERATION_HANDLE_CREATE | OB_OPERATION_HANDLE_DUPLICATE;
@@ -219,6 +266,8 @@ NTSTATUS InitializeProcessProtection() {
 }
 
 VOID UninitializeProcessProtection() {
+    ObDataInitialized = FALSE;
+
     if (ObRegistrationHandle) {
         ObUnRegisterCallbacks(ObRegistrationHandle);
         ObRegistrationHandle = NULL;

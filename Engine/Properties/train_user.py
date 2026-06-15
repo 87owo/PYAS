@@ -211,7 +211,7 @@ def train_process(X, y, feature_names):
         params,
         train_data,
         valid_sets=[valid_data],
-        num_boost_round=500,
+        num_boost_round=300,
         callbacks=[
             lgb.log_evaluation(period=50),
             lgb.reset_parameter(learning_rate=_calculate_dynamic_lr)

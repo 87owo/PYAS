@@ -331,6 +331,7 @@ class WindowAPI:
             "theme": "system_switch",
             "first_launch": True,
             "process_switch": False,
+            "suspend_switch": True,
             "document_switch": False,
             "system_switch": False,
             "driver_switch": False,
@@ -338,6 +339,7 @@ class WindowAPI:
             "extension_switch": False,
             "sensitive_switch": False,
             "cloud_switch": False,
+            "autostart_switch": True,
             "context_switch": False,
             "custom_rule": [],
             "white_list": [],
@@ -483,9 +485,10 @@ class WindowAPI:
                             self.start_daemon_thread(self.pipe_server_thread)
                         else:
                             success = False
-
                     elif key == "context_switch":
                         self.register_context_menu(True)
+                    elif key == "autostart_switch":
+                        self.manage_autostart(True)
 
                 except Exception as e:
                     self.write_log("WARN", "Feature Start", detail=str(e), success=False)
@@ -503,6 +506,17 @@ class WindowAPI:
                             except Exception:
                                 pass
                             self.h_dir_file = None
+                elif key == "autostart_switch":
+                    self.manage_autostart(False)
+                elif key == "suspend_switch":
+                    with self.lock_proc:
+                        if hasattr(self, 'suspended_procs'):
+                            for h in list(self.suspended_procs):
+                                try:
+                                    self.ntdll.NtResumeProcess(h)
+                                except Exception:
+                                    pass
+                            self.suspended_procs.clear()
 
             if success:
                 with self.lock_config:
@@ -632,6 +646,20 @@ class WindowAPI:
                     except Exception:
                         pass
         return False
+
+    def manage_autostart(self, enable):
+        try:
+            task_name = "PYAS_Security_ATS"
+            if enable:
+                cmd = f"$Action = New-ScheduledTaskAction -Execute '{self.file_pyas}' -Argument '-hide'; $Trigger = New-ScheduledTaskTrigger -AtLogOn; $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; Register-ScheduledTask -TaskName '{task_name}' -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -Force"
+                subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", cmd], creationflags=0x08000000)
+            else:
+                subprocess.run(["schtasks", "/Delete", "/TN", task_name, "/F"], creationflags=0x08000000)
+
+            return True
+        except Exception as e:
+            self.write_log("WARN", "manage_autostart", detail=str(e), success=False)
+            return False
 
     def manage_named_list(self, list_key, files, action="add", lock_func=None):
         if list_key == "quarantine" and lock_func is None:
@@ -2689,32 +2717,42 @@ class WindowAPI:
                 for pid in new_pids:
                     h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
                     if h:
-                        self.ntdll.NtSuspendProcess(h)
-                        with self.lock_proc:
-                            self.suspended_procs.add(h)
+                        with self.lock_config:
+                            should_suspend = self.pyas_config.get("suspend_switch", True)
+                        
+                        if should_suspend:
+                            self.ntdll.NtSuspendProcess(h)
+                            with self.lock_proc:
+                                self.suspended_procs.add(h)
                         try:
-                            self.proc_pool.submit(self.handle_new_process, pid, h)
+                            self.proc_pool.submit(self.handle_new_process, pid, h, should_suspend)
 
                         except Exception:
-                            self.ntdll.NtResumeProcess(h)
-                            with self.lock_proc:
-                                self.suspended_procs.discard(h)
-                            self.kernel32.CloseHandle(h)
+                            if should_suspend:
+                                self.ntdll.NtResumeProcess(h)
+                                with self.lock_proc:
+                                    self.suspended_procs.discard(h)
 
+                            self.kernel32.CloseHandle(h)
             except Exception as e:
                 self.write_log("WARN", "protect_proc_thread", detail=str(e), success=False)
 
-    def handle_new_process(self, pid, h=None):
+    def handle_new_process(self, pid, h=None, suspended=None):
+        if suspended is None:
+            with self.lock_config:
+                suspended = self.pyas_config.get("suspend_switch", True)
+
         if not h:
             h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
             if not h:
                 return
 
-            self.ntdll.NtSuspendProcess(h)
-            with self.lock_proc:
-                if not hasattr(self, 'suspended_procs'):
-                    self.suspended_procs = set()
-                self.suspended_procs.add(h)
+            if suspended:
+                self.ntdll.NtSuspendProcess(h)
+                with self.lock_proc:
+                    if not hasattr(self, 'suspended_procs'):
+                        self.suspended_procs = set()
+                    self.suspended_procs.add(h)
         try:
             cmdline = self.get_process_cmdline(h)
             process_file = self.get_process_file(h)
@@ -2764,10 +2802,17 @@ class WindowAPI:
                     self.write_log("BLOCK", "Process DLL Block", pid=pid, source=hidden_virus_path, file_hash=self.calc_file_hash(hidden_virus_path))
 
         finally:
-            self.ntdll.NtResumeProcess(h)
-            with self.lock_proc:
-                self.suspended_procs.discard(h)
-            self.kernel32.CloseHandle(h)
+            if suspended:
+                try:
+                    self.ntdll.NtResumeProcess(h)
+                except Exception:
+                    pass
+                with self.lock_proc:
+                    self.suspended_procs.discard(h)
+            try:
+                self.kernel32.CloseHandle(h)
+            except Exception:
+                pass
 
     def scan_process_memory(self, pid, h_process):
         scanned_paths = set()

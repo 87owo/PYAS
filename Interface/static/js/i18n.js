@@ -179,7 +179,11 @@ window.AppI18n = {
             "Network Block": "網路攔截",
             "Driver Block": "驅動攔截",
             "System Restart": "系統重啟",
-            "Clean Junk": "清理垃圾"
+            "Clean Junk": "清理垃圾",
+            "protect_suspend": "進程暫停",
+            "protect_suspend_desc": "此選項可以暫停進程等待掃描",
+            "opt_autostart": "開機啟動",
+            "opt_autostart_desc": "此選項可以設定開機自動執行",
         },
         "simplified_switch": {
             "app_name": "PYAS Security",
@@ -360,7 +364,11 @@ window.AppI18n = {
             "Network Block": "网络拦截",
             "Driver Block": "驱动拦截",
             "System Restart": "系统重启",
-            "Clean Junk": "清理垃圾"
+            "Clean Junk": "清理垃圾",
+            "protect_suspend": "进程暂停",
+            "protect_suspend_desc": "此选项可以暂停进程等待扫描",
+            "opt_autostart": "开机启动",
+            "opt_autostart_desc": "此选项可以设定开机自动运行",
         },
         "english_switch": {
             "app_name": "PYAS Security",
@@ -541,7 +549,11 @@ window.AppI18n = {
             "Network Block": "Network Block",
             "Driver Block": "Driver Block",
             "System Restart": "System Restart",
-            "Clean Junk": "Clean Junk"
+            "Clean Junk": "Clean Junk",
+            "protect_suspend": "Process Suspend",
+            "protect_suspend_desc": "Suspend processes while waiting for scanning",
+            "opt_autostart": "Auto Start",
+            "opt_autostart_desc": "Run automatically at system startup",
         },
         "japanese_switch": {
             "app_name": "PYAS Security",
@@ -722,7 +734,11 @@ window.AppI18n = {
             "Network Block": "ネットワークブロック",
             "Driver Block": "ドライバーブロック",
             "System Restart": "システムの再起動",
-            "Clean Junk": "ジャンククリーンアップ"
+            "Clean Junk": "ジャンククリーンアップ",
+            "protect_suspend": "プロセスの一時停止",
+            "protect_suspend_desc": "スキャン待ちの間プロセスを一時停止します",
+            "opt_autostart": "自動起動",
+            "opt_autostart_desc": "システム起動時に自動的に実行します",
         },
         "korean_switch": {
             "app_name": "PYAS Security",
@@ -903,7 +919,11 @@ window.AppI18n = {
             "Network Block": "네트워크 차단",
             "Driver Block": "드라이버 차단",
             "System Restart": "시스템 재시작",
-            "Clean Junk": "정크 정리"
+            "Clean Junk": "정크 정리",
+            "protect_suspend": "프로세스 일시 중지",
+            "protect_suspend_desc": "스캔을 기다리는 동안 프로세스를 일시 중지합니다",
+            "opt_autostart": "자동 시작",
+            "opt_autostart_desc": "시스템 시작 시 자동으로 실행합니다",
         },
         "french_switch": {
             "app_name": "PYAS Security",
@@ -1084,7 +1104,11 @@ window.AppI18n = {
             "Network Block": "Réseau bloqué",
             "Driver Block": "Pilote bloqué",
             "System Restart": "Redémarrage système",
-            "Clean Junk": "Nettoyage"
+            "Clean Junk": "Nettoyage",
+            "protect_suspend": "Suspendre processus",
+            "protect_suspend_desc": "Suspend les processus en attente d'analyse",
+            "opt_autostart": "Démarrage auto",
+            "opt_autostart_desc": "Exécuter automatiquement au démarrage",
         },
         "spanish_switch": {
             "app_name": "PYAS Security",
@@ -1265,7 +1289,11 @@ window.AppI18n = {
             "Network Block": "Red bloqueada",
             "Driver Block": "Controlador bloqueado",
             "System Restart": "Reinicio del sistema",
-            "Clean Junk": "Limpieza de basura"
+            "Clean Junk": "Limpieza de basura",
+            "protect_suspend": "Suspender procesos",
+            "protect_suspend_desc": "Suspender procesos mientras espera el escaneo",
+            "opt_autostart": "Inicio automático",
+            "opt_autostart_desc": "Ejecutar automáticamente al inicio",
         },
         "hindi_switch": {
             "app_name": "PYAS Security",
@@ -1446,7 +1474,11 @@ window.AppI18n = {
             "Network Block": "नेटवर्क अवरुद्ध",
             "Driver Block": "ड्राइवर अवरुद्ध",
             "System Restart": "सिस्टम पुनरारंभ",
-            "Clean Junk": "कचरा साफ़ करें"
+            "Clean Junk": "कचरा साफ़ करें",
+            "protect_suspend": "प्रक्रिया रोकें",
+            "protect_suspend_desc": "स्कैन की प्रतीक्षा करते समय प्रक्रियाओं को रोकें",
+            "opt_autostart": "स्वतः प्रारंभ",
+            "opt_autostart_desc": "सिस्टम स्टार्टअप पर स्वचालित रूप से चलाएं",
         },
         "arabic_switch": {
             "app_name": "PYAS Security",
@@ -1627,7 +1659,11 @@ window.AppI18n = {
             "Network Block": "حظر شبكة",
             "Driver Block": "حظر محرك",
             "System Restart": "إعادة تشغيل النظام",
-            "Clean Junk": "تنظيف المخلفات"
+            "Clean Junk": "تنظيف المخلفات",
+            "protect_suspend": "تعليق العمليات",
+            "protect_suspend_desc": "تعليق العمليات أثناء انتظار الفحص",
+            "opt_autostart": "بدء تلقائي",
+            "opt_autostart_desc": "التشغيل تلقائيًا عند بدء التشغيل",
         },
         "russian_switch": {
             "app_name": "PYAS Security",
@@ -1808,7 +1844,11 @@ window.AppI18n = {
             "Network Block": "Блокировка сети",
             "Driver Block": "Блокировка драйвера",
             "System Restart": "Перезапуск системы",
-            "Clean Junk": "Очистка мусора"
+            "Clean Junk": "Очистка мусора",
+            "protect_suspend": "Приостановка процессов",
+            "protect_suspend_desc": "Приостановка процессов в ожидании сканирования",
+            "opt_autostart": "Автозапуск",
+            "opt_autostart_desc": "Автоматический запуск при старте системы",
         },
         "slovenian_switch": {
             "app_name": "PYAS Security",
@@ -1989,7 +2029,11 @@ window.AppI18n = {
             "Network Block": "Omrežje blokirano",
             "Driver Block": "Gonilnik blokiran",
             "System Restart": "Ponovni zagon sistema",
-            "Clean Junk": "Čiščenje nesnage"
+            "Clean Junk": "Čiščenje nesnage",
+            "protect_suspend": "Začasna ustavitev",
+            "protect_suspend_desc": "Zaustavite procese med čakanjem na skeniranje",
+            "opt_autostart": "Samodejni zagon",
+            "opt_autostart_desc": "Samodejni zagon ob zagonu sistema",
         }
     },
     langMap: {

@@ -128,9 +128,9 @@
         "*\\360Safe.exe",
         "*\\bilibili\\bilibili.exe",
 
-        "*\\Kingsoft\\WPS Office\\ksolaunch.exe",
-        "*\\Kingsoft\\WPS Office\\*\\wps.exe",
-        "*\\Kingsoft\\WPS Office\\*\\*.exe",
+        "*\\WPS Office\\ksolaunch.exe",
+        "*\\WPS Office\\*\\wps.exe",
+        "*\\WPS Office\\*\\*.exe",
 
         "*\\PC4399_WPFLauncher.exe",
         "*\\bin\\APlayer.exe",

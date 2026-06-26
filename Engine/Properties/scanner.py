@@ -588,9 +588,15 @@ class ModelPredictor:
         expected_dim = self.sess.get_inputs()[0].shape[1]
         current_dim = len(self.model_features)
         if current_dim != expected_dim:
-            raise ValueError(f"Dimension mismatch! Model expects {expected_dim} features, but feature file lists {current_dim}.")
+            raise ValueError(f"Dimension error: Model expects {expected_dim}, but feature file has {current_dim}")
 
         self.feat_map = {feat: i for i, feat in enumerate(self.model_features)}
+        
+        self.dll_hash_dim = 512
+        self.api_hash_dim = 4096
+        self.dll_hash_pad = 3
+        self.api_hash_pad = 4
+        self._parse_hash_dims()
 
     def _load_features(self, path):
         if not os.path.exists(path):
@@ -598,6 +604,31 @@ class ModelPredictor:
 
         with open(path, 'r') as f:
             return json.load(f)
+
+    def _parse_hash_dims(self):
+        max_dll = -1
+        max_api = -1
+        
+        for feat in self.model_features:
+            if feat.startswith("DllHash_"):
+                try:
+                    val_str = feat.split("_")[1]
+                    max_dll = max(max_dll, int(val_str))
+                    self.dll_hash_pad = len(val_str)
+                except Exception:
+                    pass
+            elif feat.startswith("ApiHash_"):
+                try:
+                    val_str = feat.split("_")[1]
+                    max_api = max(max_api, int(val_str))
+                    self.api_hash_pad = len(val_str)
+                except Exception:
+                    pass
+                    
+        if max_dll >= 0:
+            self.dll_hash_dim = max_dll + 1
+        if max_api >= 0:
+            self.api_hash_dim = max_api + 1
 
     def predict(self, raw_data):
         vec = np.zeros((1, len(self.model_features)), dtype=np.float32)
@@ -610,14 +641,14 @@ class ModelPredictor:
                 vec[0, self.feat_map[k]] = v
 
         for d in dlls:
-            h = zlib.crc32(d.encode('utf-8', 'ignore')) % 256
-            feat_name = f"DllHash_{h:03d}"
+            h = zlib.crc32(d.encode('utf-8', 'ignore')) % self.dll_hash_dim
+            feat_name = f"DllHash_{h:0{self.dll_hash_pad}d}"
             if feat_name in self.feat_map:
                 vec[0, self.feat_map[feat_name]] += 1.0
 
         for a in apis:
-            h = zlib.crc32(a.encode('utf-8', 'ignore')) % 1024
-            feat_name = f"ApiHash_{h:04d}"
+            h = zlib.crc32(a.encode('utf-8', 'ignore')) % self.api_hash_dim
+            feat_name = f"ApiHash_{h:0{self.api_hash_pad}d}"
             if feat_name in self.feat_map:
                 vec[0, self.feat_map[feat_name]] += 1.0
 
@@ -633,7 +664,7 @@ class ModelPredictor:
             elif isinstance(result, np.ndarray):
                 if result.ndim == 2 and result.shape[1] > 1:
                     return float(result[0][1])
-
+                    
         return 0.0
 
 ####################################################################################################

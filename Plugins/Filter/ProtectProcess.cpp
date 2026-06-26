@@ -61,7 +61,6 @@ static BOOLEAN IsCriticalSystemProcess(HANDLE ProcessId) {
         }
     }
 
-    // 修复：只有在 imageFileName->Buffer 非空时才释放
     if (imageFileName) {
         if (imageFileName->Buffer) ExFreePool(imageFileName->Buffer);
         ExFreePool(imageFileName);
@@ -93,7 +92,6 @@ static BOOLEAN IsBlacklistedAdminTool(HANDLE ProcessId) {
         }
     }
 
-    // 修复：只有在 imageFileName->Buffer 非空时才释放
     if (imageFileName) {
         if (imageFileName->Buffer) ExFreePool(imageFileName->Buffer);
         ExFreePool(imageFileName);
@@ -121,13 +119,11 @@ static OB_PREOP_CALLBACK_STATUS PreOpenProcess(PVOID RegistrationContext, POB_PR
     if (IsTargetProtected(TargetPid)) {
         if (IsCriticalSystemProcess(SourcePid)) return OB_PREOP_SUCCESS;
 
-        // 优先检查黑名单（在 PASSIVE_LEVEL 时）
         BOOLEAN isBlacklisted = FALSE;
         if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
             isBlacklisted = IsBlacklistedAdminTool(SourcePid);
         }
 
-        // 黑名单进程直接阻止，不检查信任
         if (isBlacklisted) {
             ACCESS_MASK DenyMask = PROCESS_TERMINATE |
                 PROCESS_VM_OPERATION |
@@ -191,13 +187,11 @@ static OB_PREOP_CALLBACK_STATUS PreOpenThread(PVOID RegistrationContext, POB_PRE
     if (IsTargetProtected(TargetPid)) {
         if (IsCriticalSystemProcess(SourcePid)) return OB_PREOP_SUCCESS;
 
-        // 优先检查黑名单（在 PASSIVE_LEVEL 时）
         BOOLEAN isBlacklisted = FALSE;
         if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
             isBlacklisted = IsBlacklistedAdminTool(SourcePid);
         }
 
-        // 黑名单进程直接阻止，不检查信任
         if (isBlacklisted) {
             ACCESS_MASK DenyMask = THREAD_TERMINATE |
                 THREAD_SUSPEND_RESUME |

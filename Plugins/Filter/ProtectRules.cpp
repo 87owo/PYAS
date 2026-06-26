@@ -36,11 +36,8 @@ static PRULE_NODE g_FileProtectedPaths = NULL;
 static PRULE_NODE g_FileExceptionPaths = NULL;
 static PRULE_NODE g_FileRansomExts = NULL;
 
-// 安全的 PyasPid 读写函数（带锁保护）
 ULONG SafeGetPyasPid() {
     if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
-        // 高 IRQL 时直接读取（避免自旋锁死锁）
-        // 64位系统上读取 ULONG 是原子的
         return GlobalData.PyasPid;
     }
 
@@ -53,7 +50,6 @@ ULONG SafeGetPyasPid() {
 
 VOID SafeSetPyasPid(ULONG Pid) {
     if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
-        // 高 IRQL 时无法获取锁，降级处理
         return;
     }
 
@@ -625,11 +621,9 @@ update_cache:
 }
 
 BOOLEAN IsTargetProtected(HANDLE ProcessId) {
-    // 检查是否为已连接的 PYAS 进程
     ULONG PyasPid = SafeGetPyasPid();
     if ((ULONG)(ULONG_PTR)ProcessId == PyasPid) return TRUE;
 
-    // 额外检查：通过进程路径匹配保护规则（后备保护机制）
     if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
 
     PUNICODE_STRING imageFileName = NULL;
@@ -643,7 +637,6 @@ BOOLEAN IsTargetProtected(HANDLE ProcessId) {
     KeEnterCriticalRegion();
     ExAcquireResourceSharedLite(&RuleLock, TRUE);
 
-    // 检查进程路径是否匹配保护路径规则
     PRULE_NODE Node = g_FileProtectedPaths;
     while (Node) {
         if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {

@@ -1,4 +1,4 @@
-﻿#include "DriverCommon.h"
+#include "DriverCommon.h"
 
 constexpr auto MAX_TRACKERS = 64;
 constexpr auto RANSOM_TIME_WINDOW_MS = 3000;
@@ -35,6 +35,33 @@ static PRULE_NODE g_ProcessExploitable = NULL;
 static PRULE_NODE g_FileProtectedPaths = NULL;
 static PRULE_NODE g_FileExceptionPaths = NULL;
 static PRULE_NODE g_FileRansomExts = NULL;
+
+// 安全的 PyasPid 读写函数（带锁保护）
+ULONG SafeGetPyasPid() {
+    if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
+        // 高 IRQL 时直接读取（避免自旋锁死锁）
+        // 64位系统上读取 ULONG 是原子的
+        return GlobalData.PyasPid;
+    }
+
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&GlobalData.PidLock, &OldIrql);
+    ULONG Pid = GlobalData.PyasPid;
+    KeReleaseSpinLock(&GlobalData.PidLock, OldIrql);
+    return Pid;
+}
+
+VOID SafeSetPyasPid(ULONG Pid) {
+    if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
+        // 高 IRQL 时无法获取锁，降级处理
+        return;
+    }
+
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&GlobalData.PidLock, &OldIrql);
+    GlobalData.PyasPid = Pid;
+    KeReleaseSpinLock(&GlobalData.PidLock, OldIrql);
+}
 
 const PCWSTR Helper_NaturallyCompressedExtensions[] = {
     L".zip", L".7z", L".rar", L".tar", L".gz",
@@ -511,7 +538,8 @@ static BOOLEAN IsWindowsSystemApp(PCWSTR Buffer, USHORT Length) {
 }
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
-    if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
+    ULONG PyasPid = SafeGetPyasPid();
+    if ((ULONG)(ULONG_PTR)ProcessId == PyasPid) return TRUE;
     if (ProcessId == (HANDLE)4) return TRUE;
 
     PEPROCESS Process = NULL;
@@ -598,7 +626,8 @@ update_cache:
 
 BOOLEAN IsTargetProtected(HANDLE ProcessId) {
     // 检查是否为已连接的 PYAS 进程
-    if ((ULONG)(ULONG_PTR)ProcessId == GlobalData.PyasPid) return TRUE;
+    ULONG PyasPid = SafeGetPyasPid();
+    if ((ULONG)(ULONG_PTR)ProcessId == PyasPid) return TRUE;
 
     // 额外检查：通过进程路径匹配保护规则（后备保护机制）
     if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;

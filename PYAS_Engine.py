@@ -205,6 +205,10 @@ class pe_scanner:
         self.model = None
         self.input_name = None
         self.feature_order = []
+        self.dll_hash_dim = 512
+        self.api_hash_dim = 4096
+        self.dll_hash_pad = 3
+        self.api_hash_pad = 4
         self.signer = sign_scanner()
         self.signer.init_windll(["wintrust"])
 
@@ -232,8 +236,35 @@ class pe_scanner:
                 with open(feat_path, 'r', encoding='utf-8') as f:
                     self.feature_order = json.load(f)
 
+            self._parse_hash_dims()
+
         except Exception:
             pass
+
+    def _parse_hash_dims(self):
+        max_dll = -1
+        max_api = -1
+        
+        for feat in self.feature_order:
+            if feat.startswith("DllHash_"):
+                try:
+                    val_str = feat.split("_")[1]
+                    max_dll = max(max_dll, int(val_str))
+                    self.dll_hash_pad = len(val_str)
+                except Exception:
+                    pass
+            elif feat.startswith("ApiHash_"):
+                try:
+                    val_str = feat.split("_")[1]
+                    max_api = max(max_api, int(val_str))
+                    self.api_hash_pad = len(val_str)
+                except Exception:
+                    pass
+                    
+        if max_dll >= 0:
+            self.dll_hash_dim = max_dll + 1
+        if max_api >= 0:
+            self.api_hash_dim = max_api + 1
 
     def _safe_float(self, val):
         try:
@@ -761,8 +792,8 @@ class pe_scanner:
                 if old_fn in feat_map: 
                     vec[0, feat_map[old_fn]] = 1.0
 
-                h = zlib.crc32(d.encode('utf-8', 'ignore')) % 256
-                new_fn = f"DllHash_{h:03d}"
+                h = zlib.crc32(d.encode('utf-8', 'ignore')) % self.dll_hash_dim
+                new_fn = f"DllHash_{h:0{self.dll_hash_pad}d}"
                 if new_fn in feat_map: 
                     vec[0, feat_map[new_fn]] += 1.0
 
@@ -771,8 +802,8 @@ class pe_scanner:
                 if old_fn in feat_map: 
                     vec[0, feat_map[old_fn]] = 1.0
 
-                h = zlib.crc32(a.encode('utf-8', 'ignore')) % 1024
-                new_fn = f"ApiHash_{h:04d}"
+                h = zlib.crc32(a.encode('utf-8', 'ignore')) % self.api_hash_dim
+                new_fn = f"ApiHash_{h:0{self.api_hash_pad}d}"
                 if new_fn in feat_map: 
                     vec[0, feat_map[new_fn]] += 1.0
 

@@ -184,6 +184,8 @@ window.AppI18n = {
             "protect_suspend_desc": "此選項可以暫停進程等待掃描",
             "opt_autostart": "開機啟動",
             "opt_autostart_desc": "此選項可以設定開機自動執行",
+            "opt_ext_filter": "副檔名過濾",
+            "opt_ext_filter_desc": "此選項僅掃描指定檔案副檔名",
         },
         "simplified_switch": {
             "app_name": "PYAS Security",
@@ -369,6 +371,8 @@ window.AppI18n = {
             "protect_suspend_desc": "此选项可以暂停进程等待扫描",
             "opt_autostart": "开机启动",
             "opt_autostart_desc": "此选项可以设定开机自动运行",
+            "opt_ext_filter": "后缀名过滤",
+            "opt_ext_filter_desc": "此选项仅扫描指定文件后缀名",
         },
         "english_switch": {
             "app_name": "PYAS Security",
@@ -554,6 +558,8 @@ window.AppI18n = {
             "protect_suspend_desc": "Suspend processes while waiting for scanning",
             "opt_autostart": "Auto Start",
             "opt_autostart_desc": "Run automatically at system startup",
+            "opt_ext_filter": "Suffix Filter",
+            "opt_ext_filter_desc": "This option only scans specified file extensions",
         },
         "japanese_switch": {
             "app_name": "PYAS Security",
@@ -739,6 +745,8 @@ window.AppI18n = {
             "protect_suspend_desc": "スキャン待ちの間プロセスを一時停止します",
             "opt_autostart": "自動起動",
             "opt_autostart_desc": "システム起動時に自動的に実行します",
+            "opt_ext_filter": "拡張子フィルタ",
+            "opt_ext_filter_desc": "このオプションは指定された拡張子のファイルのみをスキャンします",
         },
         "korean_switch": {
             "app_name": "PYAS Security",
@@ -924,6 +932,8 @@ window.AppI18n = {
             "protect_suspend_desc": "스캔을 기다리는 동안 프로세스를 일시 중지합니다",
             "opt_autostart": "자동 시작",
             "opt_autostart_desc": "시스템 시작 시 자동으로 실행합니다",
+            "opt_ext_filter": "확장자 필터",
+            "opt_ext_filter_desc": "이 옵션은 지정된 파일 확장자만 스캔합니다",
         },
         "french_switch": {
             "app_name": "PYAS Security",
@@ -1109,6 +1119,8 @@ window.AppI18n = {
             "protect_suspend_desc": "Suspend les processus en attente d'analyse",
             "opt_autostart": "Démarrage auto",
             "opt_autostart_desc": "Exécuter automatiquement au démarrage",
+            "opt_ext_filter": "Filtre d'extension",
+            "opt_ext_filter_desc": "Cette option analyse uniquement les extensions de fichiers spécifiées",
         },
         "spanish_switch": {
             "app_name": "PYAS Security",
@@ -1294,6 +1306,8 @@ window.AppI18n = {
             "protect_suspend_desc": "Suspender procesos mientras espera el escaneo",
             "opt_autostart": "Inicio automático",
             "opt_autostart_desc": "Ejecutar automáticamente al inicio",
+            "opt_ext_filter": "Filtro de extensión",
+            "opt_ext_filter_desc": "Esta opción solo escanea extensiones de archivo especificadas",
         },
         "hindi_switch": {
             "app_name": "PYAS Security",
@@ -1479,6 +1493,8 @@ window.AppI18n = {
             "protect_suspend_desc": "स्कैन की प्रतीक्षा करते समय प्रक्रियाओं को रोकें",
             "opt_autostart": "स्वतः प्रारंभ",
             "opt_autostart_desc": "सिस्टम स्टार्टअप पर स्वचालित रूप से चलाएं",
+            "opt_ext_filter": "एक्सटेंशन फ़िल्टर",
+            "opt_ext_filter_desc": "यह विकल्प केवल निर्दिष्ट फ़ाइल एक्सटेंशन को स्कैन करता है",
         },
         "arabic_switch": {
             "app_name": "PYAS Security",
@@ -1664,6 +1680,8 @@ window.AppI18n = {
             "protect_suspend_desc": "تعليق العمليات أثناء انتظار الفحص",
             "opt_autostart": "بدء تلقائي",
             "opt_autostart_desc": "التشغيل تلقائيًا عند بدء التشغيل",
+            "opt_ext_filter": "تصفية الامتداد",
+            "opt_ext_filter_desc": "يقوم هذا الخيار بفحص امتدادات الملفات المحددة فقط",
         },
         "russian_switch": {
             "app_name": "PYAS Security",
@@ -1849,6 +1867,8 @@ window.AppI18n = {
             "protect_suspend_desc": "Приостановка процессов в ожидании сканирования",
             "opt_autostart": "Автозапуск",
             "opt_autostart_desc": "Автоматический запуск при старте системы",
+            "opt_ext_filter": "Фильтр расширений",
+            "opt_ext_filter_desc": "Этот параметр сканирует только указанные расширения файлов",
         },
         "slovenian_switch": {
             "app_name": "PYAS Security",
@@ -2034,6 +2054,8 @@ window.AppI18n = {
             "protect_suspend_desc": "Zaustavite procese med čakanjem na skeniranje",
             "opt_autostart": "Samodejni zagon",
             "opt_autostart_desc": "Samodejni zagon ob zagonu sistema",
+            "opt_ext_filter": "Filter končnic",
+            "opt_ext_filter_desc": "Ta možnost skenira samo določene končnice datotek",
         }
     },
     langMap: {

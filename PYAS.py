@@ -321,12 +321,12 @@ class WindowAPI:
         self.lock_io = threading.RLock()
         
         self.pyas_default = {
-            "version": "3.6.0",
+            "version": "3.6.1",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
-            "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd", ".ax"],
+            "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd"],
             "block": [2001, 3001, 5001, 6001],
-            "size": 100 * 1024 * 1024,
+            "size": 256 * 1024 * 1024,
             "language": "english_switch",
             "theme": "system_switch",
             "first_launch": True,
@@ -339,8 +339,9 @@ class WindowAPI:
             "extension_switch": False,
             "sensitive_switch": False,
             "cloud_switch": False,
+            "suffix_switch": True,
             "autostart_switch": True,
-            "context_switch": False,
+            "context_switch": True,
             "custom_rule": [],
             "white_list": [],
             "quarantine": [],
@@ -1510,7 +1511,7 @@ class WindowAPI:
     
     def _traverse_delete(self, path):
         deleted = 0
-        if not os.path.exists(path):
+        if not path or not os.path.exists(path):
             return deleted
 
         try:
@@ -1522,6 +1523,9 @@ class WindowAPI:
             file = os.path.join(path, fd)
             try:
                 if os.path.isdir(file):
+                    if self._is_reparse_point(file):
+                        continue
+                        
                     deleted += self._traverse_delete(file)
                     try:
                         os.rmdir(file)
@@ -1881,7 +1885,12 @@ class WindowAPI:
             with self.lock_config:
                 first_launch = self.pyas_config.get("first_launch", True)
                 driver_enabled = self.pyas_config.get("driver_switch", False)
+                context_enabled = self.pyas_config.get("context_switch", True)
+                autostart_enabled = self.pyas_config.get("autostart_switch", True)
 
+            self.register_context_menu(context_enabled)
+            self.manage_autostart(autostart_enabled)
+            
             if not first_launch:
                 with self.lock_config:
                     if self.pyas_config.get("process_switch"):
@@ -1909,16 +1918,29 @@ class WindowAPI:
     def yield_files(self, targets):
         if isinstance(targets, str):
             if os.path.isdir(targets):
-                for root, _, files in os.walk(targets):
+                for root, dirs, files in os.walk(targets):
+                    dirs[:] = [d for d in dirs if not self._is_reparse_point(os.path.join(root, d))]
                     for f in files:
-                        yield self.norm_path(os.path.join(root, f))
+                        yield self.norm_path(os.path.join(root, f)), False
 
             elif os.path.isfile(targets):
-                yield self.norm_path(targets)
+                yield self.norm_path(targets), True
 
         elif isinstance(targets, (list, tuple, set)):
             for t in targets:
                 yield from self.yield_files(t)
+
+    def _is_reparse_point(self, path):
+        try:
+            if os.path.islink(path):
+                return True
+            if hasattr(os.path, 'isjunction') and os.path.isjunction(path):
+                return True
+            
+            st = os.lstat(path)
+            return bool(getattr(st, 'st_file_attributes', 0) & 0x400)
+        except OSError:
+            return False
 
     def scan_engine(self, file_path):
         with self.lock_config:
@@ -2001,7 +2023,7 @@ class WindowAPI:
     def scan_worker(self, targets):
         last_update = 0.0
         try:
-            for file_path in self.yield_files(targets):
+            for file_path, is_explicit in self.yield_files(targets):
                 with self.lock_virus:
                     if not self.scan_running:
                         break
@@ -2031,9 +2053,10 @@ class WindowAPI:
                     with self.lock_virus:
                         self.scan_count += 1
                     with self.lock_config:
+                        ext_filter = self.pyas_config.get("suffix_switch", True)
                         suffix = self.pyas_config.get("suffix", [])
                         
-                    if os.path.splitext(norm_path)[-1].lower() not in suffix:
+                    if not is_explicit and ext_filter and os.path.splitext(norm_path)[-1].lower() not in suffix:
                         continue
 
                     result = self.safe_scan_engine(norm_path)
@@ -2260,7 +2283,7 @@ class WindowAPI:
                 if not self.pyas_config.get("cloud_switch", True):
                     return False
 
-                api_host, api_key, max_size = self.pyas_config.get("api_host"), self.pyas_config.get("api_key"), self.pyas_config.get("size", 100 * 1024 * 1024)
+                api_host, api_key, max_size = self.pyas_config.get("api_host"), self.pyas_config.get("api_key"), self.pyas_config.get("size", 256 * 1024 * 1024)
 
             if not os.path.exists(file_path) or not os.path.isfile(file_path):
                 return False
@@ -2769,13 +2792,16 @@ class WindowAPI:
                     all_targets.append(np)
 
             with self.lock_config:
+                ext_filter = self.pyas_config.get("suffix_switch", True)
                 suffix = self.pyas_config.get("suffix", [])
 
             scan_targets = []
             for file_path in all_targets:
                 if not file_path or not os.path.isfile(file_path):
                     continue
-                if os.path.splitext(file_path)[-1].lower() not in suffix or self.is_in_whitelist(file_path):
+                if ext_filter and os.path.splitext(file_path)[-1].lower() not in suffix:
+                    continue
+                if self.is_in_whitelist(file_path):
                     continue
                 if process_file and process_file.lower().endswith("explorer.exe") and "/select" in cmdline.lower():
                     continue
@@ -2824,6 +2850,7 @@ class WindowAPI:
         max_address = 0x7FFFFFFFFFFF if ctypes.sizeof(ctypes.c_void_p) == 8 else 0x7FFFFFFF
 
         with self.lock_config:
+            ext_filter = self.pyas_config.get("suffix_switch", True)
             suffix = self.pyas_config.get("suffix", [])
 
         try:
@@ -2844,7 +2871,7 @@ class WindowAPI:
                             if not file_path_lower.startswith(system_dir) and not self.is_in_whitelist(file_path):
                                 ext = os.path.splitext(file_path_lower)[-1]
 
-                                if ext != ".exe" and ext in suffix:
+                                if ext != ".exe" and (not ext_filter or ext in suffix):
                                     if self.safe_scan_engine(file_path):
                                         return file_path
 
@@ -2900,9 +2927,10 @@ class WindowAPI:
 
                                 if not (norm_path.startswith(temp_prefix) and norm_path[len(temp_prefix):].startswith("_mei")):
                                     with self.lock_config:
+                                        ext_filter = self.pyas_config.get("suffix_switch", True)
                                         suffix = self.pyas_config.get("suffix", [])
 
-                                    if os.path.splitext(file_path)[-1].lower() in suffix:
+                                    if not ext_filter or os.path.splitext(file_path)[-1].lower() in suffix:
                                         self.protect_pool.submit(self.handle_new_file, file_path)
 
                         if notify.NextEntryOffset == 0:

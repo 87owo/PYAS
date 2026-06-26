@@ -781,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
         toggle.addEventListener('change', async (e) => {
-            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "autostart_switch", "context_switch"];
+            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
             const key = switchMap[index];
             if (window.pywebview && key) {
                 toggle.disabled = true;
@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCustomSelectUI('theme_select', theme);
             updateCustomSelectUI('lang_select', lang);
 
-            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "autostart_switch", "context_switch"];
+            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
             document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
                 if (appState.firstLaunch) { 
                     toggle.checked = false; 
@@ -1102,8 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.onEngineReady = async () => {
         if (!appState.firstLaunch) return;
         await window.pywebview.api.update_config("first_launch", false);
-        const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "autostart_switch", "context_switch"];
-        const seq = ["cloud_switch", "autostart_switch", "process_switch", "suspend_switch", "document_switch", "system_switch", "network_switch", "driver_switch"];
+        const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
+        const seq = ["cloud_switch", "autostart_switch", "suffix_switch", "process_switch", "suspend_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "context_switch"];
         
         for (const key of seq) {
             const index = switchMap.indexOf(key);

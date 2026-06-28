@@ -2158,8 +2158,39 @@ class WindowAPI:
             if os.path.exists(self.path_config):
                 targets.append(self.path_config)
 
+            buf = ctypes.create_unicode_buffer(1024)
+            max_address = 0x7FFFFFFFFFFF if ctypes.sizeof(ctypes.c_void_p) == 8 else 0x7FFFFFFF
+            system_dir = self.path_system.lower()
+
             for proc in self.get_process_list():
-                if proc["path"] and proc["path"] != "None": targets.append(proc["path"])
+                if proc["path"] and proc["path"] != "None": 
+                    targets.append(proc["path"])
+                
+                pid = proc["pid"]
+                if pid <= 4:
+                    continue
+
+                h_process = self.kernel32.OpenProcess(0x1000, False, pid)
+                if h_process:
+                    try:
+                        address = 0
+                        mbi = MEMORY_BASIC_INFORMATION()
+                        while address < max_address and self.kernel32.VirtualQueryEx(h_process, ctypes.c_void_p(address), ctypes.byref(mbi), ctypes.sizeof(mbi)):
+                            if mbi.State == 0x1000 and mbi.Type == 0x1000000:
+                                if self.psapi.GetMappedFileNameW(h_process, ctypes.c_void_p(address), buf, 1024):
+                                    raw_path = buf.value
+                                    if raw_path.startswith("\\"):
+                                        raw_path = self.device_path_to_drive(raw_path)
+
+                                    file_path = self.norm_path(raw_path)
+                                    if file_path and not file_path.lower().startswith(system_dir):
+                                        targets.append(file_path)
+                            
+                            if mbi.RegionSize == 0:
+                                break
+                            address += mbi.RegionSize
+                    finally:
+                        self.kernel32.CloseHandle(h_process)
 
             self.start_scan(list(set(targets)))
 

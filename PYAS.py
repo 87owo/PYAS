@@ -120,6 +120,20 @@ class MEMORY_BASIC_INFORMATION(ctypes.Structure):
         ("Type", ctypes.wintypes.DWORD)
     ]
 
+class POINT(ctypes.Structure):
+    _fields_ = [
+        ("x", ctypes.c_long),
+        ("y", ctypes.c_long)
+    ]
+
+class RECT(ctypes.Structure):
+    _fields_ = [
+        ("left", ctypes.c_long),
+        ("top", ctypes.c_long),
+        ("right", ctypes.c_long),
+        ("bottom", ctypes.c_long)
+    ]
+
 ####################################################################################################
 
 class WindowAPI:
@@ -232,6 +246,20 @@ class WindowAPI:
         self.user32.ShowWindow.restype = ctypes.wintypes.BOOL
         self.user32.SendMessageTimeoutW.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.UINT, ctypes.wintypes.WPARAM, ctypes.c_void_p, ctypes.wintypes.UINT, ctypes.wintypes.UINT, ctypes.c_void_p]
         self.user32.SendMessageTimeoutW.restype = ctypes.wintypes.LPARAM
+
+        self.user32.WindowFromPoint.argtypes = [POINT]
+        self.user32.WindowFromPoint.restype = ctypes.wintypes.HWND
+        self.user32.GetAncestor.argtypes = [ctypes.wintypes.HWND, ctypes.c_uint]
+        self.user32.GetAncestor.restype = ctypes.wintypes.HWND
+        self.user32.GetCursorPos.argtypes = [ctypes.POINTER(POINT)]
+        self.user32.GetCursorPos.restype = ctypes.wintypes.BOOL
+        self.user32.GetWindowRect.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(RECT)]
+        self.user32.GetWindowRect.restype = ctypes.wintypes.BOOL
+        self.user32.SetWindowPos.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.wintypes.UINT]
+        self.user32.SetWindowPos.restype = ctypes.wintypes.BOOL
+        self.user32.SetLayeredWindowAttributes.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.DWORD, ctypes.c_byte, ctypes.wintypes.DWORD]
+        self.user32.SetLayeredWindowAttributes.restype = ctypes.wintypes.BOOL
+        self.user32.CreateWindowExW.restype = ctypes.wintypes.HWND
 
         self.ntdll.NtQueryInformationProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.ULONG, ctypes.c_void_p, ctypes.wintypes.ULONG, ctypes.POINTER(ctypes.wintypes.ULONG)]
         self.ntdll.NtQueryInformationProcess.restype = ctypes.wintypes.ULONG
@@ -3054,34 +3082,74 @@ class WindowAPI:
             pass
 
     def capture_popup_window(self):
+        overlay = self.user32.CreateWindowExW(0x000800A8, "STATIC", "", 0x90000004, 0, 0, 0, 0, None, None, None, None)
+        self.user32.SetLayeredWindowAttributes(overlay, 0, 120, 2)
+
+        target_hwnd = None
+        last_hwnd = None
+        msg = ctypes.wintypes.MSG()
+
+        while self.user32.GetAsyncKeyState(0x01) & 0x8000:
+            time.sleep(0.01)
+
         try:
             start_time = time.time()
-            while time.time() - start_time < 5:
+            while time.time() - start_time < 30:
+                if self.user32.GetAsyncKeyState(0x1B) & 0x8000:
+                    break
 
-                hwnd = self.user32.GetForegroundWindow()
-                if not hwnd:
-                    time.sleep(0.5)
-                    continue
+                pt = POINT()
+                self.user32.GetCursorPos(ctypes.byref(pt))
+                
+                hwnd = self.user32.WindowFromPoint(pt)
+                root_hwnd = self.user32.GetAncestor(hwnd, 2)
+                if not root_hwnd:
+                    root_hwnd = hwnd
 
-                pid = ctypes.c_ulong(0)
-                self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
-                if pid.value != self.pid_pyas and pid.value > 4:
+                if root_hwnd and root_hwnd != overlay:
+                    if root_hwnd != last_hwnd:
+                        last_hwnd = root_hwnd
+                        rect = RECT()
+                        self.user32.GetWindowRect(root_hwnd, ctypes.byref(rect))
+                        self.user32.SetWindowPos(
+                            overlay, -1, 
+                            rect.left, rect.top, 
+                            rect.right - rect.left, rect.bottom - rect.top, 
+                            0x0050
+                        )
+                    
+                    if self.user32.GetAsyncKeyState(0x01) & 0x8000:
+                        target_hwnd = root_hwnd
+                        break
 
-                    length = self.user32.GetWindowTextLengthW(hwnd)
-                    title, class_name = ctypes.create_unicode_buffer(length + 1), ctypes.create_unicode_buffer(256)
-                    self.user32.GetWindowTextW(hwnd, title, length + 1)
-                    self.user32.GetClassNameW(hwnd, class_name, 256)
+                while self.user32.PeekMessageW(ctypes.byref(msg), 0, 0, 0, 1):
+                    self.user32.TranslateMessage(ctypes.byref(msg))
+                    self.user32.DispatchMessageW(ctypes.byref(msg))
 
-                    proc_name, _ = self.get_exe_info(pid.value)
-                    t_str, c_str = str(title.value), str(class_name.value)
+                time.sleep(0.02)
+        finally:
+            self.user32.DestroyWindow(overlay)
 
-                    if proc_name and not any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows):
-                        return {"exe": proc_name, "class": c_str, "title": t_str}
+        if not target_hwnd:
+            return None
 
-                time.sleep(0.5)
-
-        except Exception as e:
-            self.write_log("WARN", "capture_popup_window", detail=str(e), success=False)
+        pid = ctypes.c_ulong(0)
+        self.user32.GetWindowThreadProcessId(target_hwnd, ctypes.byref(pid))
+        
+        if pid.value != self.pid_pyas and pid.value > 4:
+            length = self.user32.GetWindowTextLengthW(target_hwnd)
+            title = ctypes.create_unicode_buffer(length + 1)
+            class_name = ctypes.create_unicode_buffer(256)
+            
+            self.user32.GetWindowTextW(target_hwnd, title, length + 1)
+            self.user32.GetClassNameW(target_hwnd, class_name, 256)
+            
+            proc_name, _ = self.get_exe_info(pid.value)
+            t_str, c_str = str(title.value), str(class_name.value)
+            
+            if proc_name and not any(item.get("exe") == proc_name or item.get("class") == c_str for item in self.pass_windows):
+                return {"exe": proc_name, "class": c_str, "title": t_str}
+                
         return None
 
     def add_popup_rule(self, rule):

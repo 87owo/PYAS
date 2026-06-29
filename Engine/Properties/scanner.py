@@ -5,7 +5,7 @@ import onnxruntime as ort
 
 ####################################################################################################
 
-MODEL_FILE = "Pefile_General_S1.onnx"
+MODEL_FILE = "Pefile_General_T1.onnx"
 FEATURE_FILE = "features.json"
 MAX_FILE_SIZE = 4 * 1024 * 1024 * 1024
 
@@ -683,47 +683,83 @@ def scan_target(target, predictor):
         print("[-] No valid PE files found.")
         return
 
-    print(f"\n[*] Scanning {len(files)} files...\n")
-    print(f"{'RESULT':<10} | {'PROB':<8} | {'FILE'}")
-    print("-" * 80)
+    log_buffer = []
+
+    def _log(message):
+        print(message)
+        log_buffer.append(message)
+
+    _log(f"[*] Scanning {len(files)} files...\n")
+    _log(f"{'RESULT':<10} | {'PROB':<8} | {'FILE'}")
+    _log("-" * 80)
 
     safe_count = 0
     mal_count = 0
+    unsupport_count = 0
+    error_count = 0
     
-    for fpath in files:
-        try:
-            data = FeatureExtractor.extract(fpath)
-            if not data:
-                print(f"{'UNSUPPORT':<10} | {'------':<8} | {fpath}")
-                continue
-            
-            prob = predictor.predict(data)
-            is_malware = prob > 0.5
-            
-            label = "MALWARE" if is_malware else "SAFE"
-            if is_malware:
-                mal_count += 1
-            else:
-                safe_count += 1
+    try:
+        for fpath in files:
+            try:
+                data = FeatureExtractor.extract(fpath)
+                if not data:
+                    _log(f"{'UNSUPPORT':<10} | {'-':<8} | {fpath}")
+                    unsupport_count += 1
+                    continue
+                
+                prob = predictor.predict(data)
+                is_malware = prob > 0.5
+                
+                label = "MALWARE" if is_malware else "SAFE"
+                if is_malware:
+                    mal_count += 1
+                else:
+                    safe_count += 1
 
-            print(f"{label:<10} | {prob:.4f}   | {fpath}")
-            
-        except Exception as e:
-            print(f"{'FAIL':<10} | {'------':<8} | {fpath} ({str(e)})")
+                _log(f"{label:<10} | {prob:.4f}   | {fpath}")
+                
+            except Exception as e:
+                _log(f"{'FAIL':<10} | {'-':<8} | {fpath} ({str(e)})")
+                error_count += 1
+                
+    except KeyboardInterrupt:
+        _log("\n[-] Scan aborted by user (Ctrl+C).\n")
 
-    print("-" * 80)
-    print(f"[*] Summary: Safe={safe_count}, Malware={mal_count}, Total={len(files)}")
+    _log("-" * 80)
+    _log(f"\n[*] Summary: Safe={safe_count}, Malware={mal_count}, Unsupport={unsupport_count}, Error={error_count}, Total={len(files)}")
+
+    log_filename = datetime.datetime.now().strftime("%Y%m%d_%H%M%S.log")
+    try:
+        with open(log_filename, "w", encoding="utf-8") as f:
+            f.write("\n".join(log_buffer) + "\n")
+        print(f"[*] Log saved successfully: {log_filename}")
+    except Exception as e:
+        print(f"[-] Failed to save log: {e}")
 
 ####################################################################################################
 
 if __name__ == "__main__":
+    base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+    
+    custom_model = MODEL_FILE
+    targets = []
+    
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] in ("-m", "-model", "--model") and i + 1 < len(args):
+            custom_model = args[i+1]
+            i += 2
+        else:
+            targets.append(args[i])
+            i += 1
+
     print("\n-------------------------- PE Malware Predictor v4.0 --------------------------\n")
     print(f"[*] © 2020-2026 87owo (PYAS Security)")
     print(f"[*] Official Website: https://github.com/87owo/PYAS")
-    print(f"[*] Loading model features and weights...")
+    print(f"[*] Loading model: {custom_model}")
 
-    base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(base_dir, MODEL_FILE)
+    model_path = os.path.join(base_dir, custom_model) if not os.path.isabs(custom_model) else custom_model
     feature_path = os.path.join(base_dir, FEATURE_FILE)
 
     try:
@@ -732,14 +768,13 @@ if __name__ == "__main__":
         print(f"[-] Critical Error: {e}")
         sys.exit(1)
 
-    if len(sys.argv) > 1:
-        for path in sys.argv[1:]:
+    if targets:
+        for path in targets:
             target = path.strip('"').strip("'")
             if os.path.exists(target):
                 print()
                 print("-" * 80)
                 scan_target(target, predictor)
-
             else:
                 print(f"[-] Path does not exist: {target}")
     else:

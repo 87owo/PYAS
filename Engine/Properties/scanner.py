@@ -694,7 +694,7 @@ def scan_target(target, predictor):
         try:
             data = FeatureExtractor.extract(fpath)
             if not data:
-                print(f"{'ERROR':<10} | {'----':<8} | {fpath}")
+                print(f"{'UNSUPPORT':<10} | {'------':<8} | {fpath}")
                 continue
             
             prob = predictor.predict(data)
@@ -709,7 +709,7 @@ def scan_target(target, predictor):
             print(f"{label:<10} | {prob:.4f}   | {fpath}")
             
         except Exception as e:
-            print(f"{'FAIL':<10} | {'----':<8} | {fpath} ({str(e)})")
+            print(f"{'FAIL':<10} | {'------':<8} | {fpath} ({str(e)})")
 
     print("-" * 80)
     print(f"[*] Summary: Safe={safe_count}, Malware={mal_count}, Total={len(files)}")
@@ -719,6 +719,7 @@ def scan_target(target, predictor):
 if __name__ == "__main__":
     print("\n-------------------------- PE Malware Predictor v4.0 --------------------------\n")
     print(f"[*] © 2020-2026 87owo (PYAS Security)")
+    print(f"[*] Official Website: https://github.com/87owo/PYAS")
     print(f"[*] Loading model features and weights...")
 
     base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))

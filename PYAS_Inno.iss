@@ -1,6 +1,6 @@
 #define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
 #define AppName "PYAS"
-#define AppVersion "3.6.1.0"
+#define AppVersion "3.6.2.0"
 #define AppPublisher "PYAS Security"
 #define AppURL "https://github.com/87owo/PYAS"
 #define AppExeName "PYAS.exe"

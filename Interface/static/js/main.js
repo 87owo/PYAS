@@ -781,7 +781,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
         toggle.addEventListener('change', async (e) => {
-            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
+            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
             const key = switchMap[index];
             if (window.pywebview && key) {
                 toggle.disabled = true;
@@ -917,13 +917,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (rule) window.pywebview.api.add_popup_rule(rule).then(ok => ok && refreshConfigLists());
                     });
                 } else {
-                    window.pywebview.api.select_files().then(files => {
-                        if (files?.length > 0) window.pywebview.api.manage_named_list(listKey, files, 'add').then(refreshConfigLists);
+                    const fTypes = id === 'custom_protect_window' ? ['JSON Files (*.json)'] : null;
+                    const currentListKey = id === 'custom_protect_window' ? 'custom_rule' : listKey;
+                    window.pywebview.api.select_files(fTypes).then(files => {
+                        if (files?.length > 0) window.pywebview.api.manage_named_list(currentListKey, files, 'add').then(refreshConfigLists);
                     });
                 }
             } else if (val === 'add_file') {
-                window.pywebview.api.select_files().then(files => {
-                    if (files?.length > 0) window.pywebview.api.manage_named_list(listKey, files, 'add').then(refreshConfigLists);
+                const fTypes = id === 'custom_protect_window' ? ['JSON Files (*.json)'] : null;
+                const currentListKey = id === 'custom_protect_window' ? 'custom_rule' : listKey;
+                window.pywebview.api.select_files(fTypes).then(files => {
+                    if (files?.length > 0) window.pywebview.api.manage_named_list(currentListKey, files, 'add').then(refreshConfigLists);
                 });
             } else if (val === 'add_path') {
                 window.pywebview.api.select_folder().then(folder => {
@@ -1082,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCustomSelectUI('theme_select', theme);
             updateCustomSelectUI('lang_select', lang);
 
-            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
+            const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
             document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
                 if (appState.firstLaunch) { 
                     toggle.checked = false; 
@@ -1102,7 +1106,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.onEngineReady = async () => {
         if (!appState.firstLaunch) return;
         await window.pywebview.api.update_config("first_launch", false);
-        const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "driver_switch", "network_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
+        const switchMap = ["process_switch", "suspend_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
         const seq = ["cloud_switch", "autostart_switch", "suffix_switch", "process_switch", "suspend_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "context_switch"];
         
         for (const key of seq) {

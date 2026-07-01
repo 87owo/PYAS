@@ -231,6 +231,7 @@ class WindowAPI:
         self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
         self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
         self.path_protect = os.path.join(self.path_pyas, "Plugins", "Filter")
+        self.path_rules = os.path.join(self.path_pyas, "Plugins", "Rules")
         self.path_drivers = os.path.join(self.path_protect, "PYAS_Driver.sys")
 
     def init_windll(self):
@@ -349,11 +350,10 @@ class WindowAPI:
         self.lock_io = threading.RLock()
         
         self.pyas_default = {
-            "version": "3.6.1",
+            "version": "3.6.2",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd"],
-            "block": [2001, 3001, 5001, 6001],
             "size": 256 * 1024 * 1024,
             "language": "english_switch",
             "theme": "system_switch",
@@ -569,7 +569,17 @@ class WindowAPI:
 
     def get_config(self):
         with self.lock_config:
-            return self.pyas_config.copy()
+            cfg = self.pyas_config.copy()
+
+            rules = []
+            if os.path.exists(self.path_rules):
+                for f in os.listdir(self.path_rules):
+                    if f.lower().endswith(".json"):
+                        fp = os.path.join(self.path_rules, f)
+                        rules.append({"file": fp, "time": os.path.getmtime(fp)})
+
+            cfg["custom_rule"] = rules
+            return cfg
 
     def reset_config(self):
         with self.lock_config:
@@ -701,9 +711,46 @@ class WindowAPI:
         if not norm_paths:
             return 0
 
+        if list_key == "custom_rule":
+            acted_items = []
+            os.makedirs(self.path_rules, exist_ok=True)
+
+            for file_path in norm_paths:
+                if action == "add":
+                    if os.path.exists(file_path) and file_path.lower().endswith(".json"):
+                        dest = os.path.join(self.path_rules, os.path.basename(file_path))
+
+                        if file_path != dest:
+                            try:
+                                shutil.copy2(file_path, dest)
+                                acted_items.append(dest)
+
+                            except Exception:
+                                pass
+                        else:
+                            acted_items.append(dest)
+
+                elif action == "remove":
+                    try:
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+
+                        acted_items.append(file_path)
+                    except Exception:
+                        pass
+            
+            if acted_items and getattr(self, 'driver_port', None):
+                self.clear_driver_rules()
+                for f in os.listdir(self.path_rules):
+                    if f.lower().endswith(".json"):
+                        self.load_driver_rule_file(os.path.join(self.path_rules, f))
+
+            return len(acted_items)
+
         if action == "add":
             if list_key == "white_list":
                 self.remove_list_items("quarantine", norm_paths)
+
             elif list_key == "quarantine":
                 self.remove_list_items("white_list", norm_paths)
 
@@ -735,6 +782,7 @@ class WindowAPI:
             elif action == "remove":
                 norm_paths_case = {os.path.normcase(p) for p in norm_paths}
                 new_list = []
+
                 for item in target_list:
                     val = item.get("file", "") if isinstance(item, dict) else item
                     if val:
@@ -758,6 +806,9 @@ class WindowAPI:
         return len(acted_items)
 
     def remove_list_items(self, list_key, paths_to_remove):
+        if list_key == "custom_rule":
+            return self.manage_named_list(list_key, paths_to_remove, action="remove") > 0
+
         with self.lock_config:
             target_list = self.pyas_config.get(list_key, [])
             original_len = len(target_list)
@@ -1161,9 +1212,12 @@ class WindowAPI:
 
         threading.Thread(target=_process_drop, daemon=True).start()
 
-    def select_files(self):
+    def select_files(self, file_types=None):
         if self._window: 
-            return self._window.create_file_dialog(getattr(webview, 'OPEN_DIALOG', 10), allow_multiple=True) or []
+            kwargs = {"allow_multiple": True}
+            if file_types:
+                kwargs["file_types"] = tuple(file_types)
+            return self._window.create_file_dialog(getattr(webview, 'OPEN_DIALOG', 10), **kwargs) or []
         return []
 
     def select_folder(self):
@@ -3296,6 +3350,42 @@ class WindowAPI:
         except Exception:
             return False
 
+    def clear_driver_rules(self):
+        with self.lock_driver:
+            if not self.driver_port:
+                return False
+
+            msg = PYAS_USER_MESSAGE()
+            msg.Command = 4
+            msg.Path = ""
+            bytes_returned = ctypes.wintypes.DWORD(0)
+
+            try:
+                return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
+            except Exception:
+                return False
+
+    def load_driver_rule_file(self, json_path):
+        with self.lock_driver:
+            if not self.driver_port:
+                return False
+
+            norm_path = os.path.abspath(json_path)
+            if not os.path.exists(norm_path):
+                return False
+
+            nt_path = f"\\??\\{norm_path}"
+
+            msg = PYAS_USER_MESSAGE()
+            msg.Command = 3
+            msg.Path = nt_path
+            bytes_returned = ctypes.wintypes.DWORD(0)
+
+            try:
+                return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
+            except Exception:
+                return False
+
     def pipe_server_thread(self):
         try:
             while True:
@@ -3308,11 +3398,20 @@ class WindowAPI:
                     with self.lock_driver:
                         self.driver_port = temp_port
 
+                    self.clear_driver_rules()
+                    
+                    if os.path.exists(self.path_rules):
+                        for file in os.listdir(self.path_rules):
+                            if file.endswith(".json"):
+                                full_path = os.path.join(self.path_rules, file)
+                                self.load_driver_rule_file(full_path)
+
                     with self.lock_config:
                         whitelist = self.pyas_config.get("white_list", [])
 
                     for item in whitelist:
-                        if isinstance(item, dict) and item.get("file"): self.sync_driver_whitelist(item["file"], True)
+                        if isinstance(item, dict) and item.get("file"): 
+                            self.sync_driver_whitelist(item["file"], True)
 
                     message = PYAS_FULL_MESSAGE()
                     while True:
@@ -3331,13 +3430,9 @@ class WindowAPI:
                                 exe_info = self.get_exe_info(pid)
                                 safe_source = exe_info[1] if exe_info and exe_info[1] else "Unknown"
 
-                                with self.lock_config:
-                                    block_codes = self.pyas_config.get("block", [])
-
-                                if code in block_codes and not self.is_in_whitelist(safe_source):
+                                if not self.is_in_whitelist(safe_source):
                                     self.kill_process(pid)
                                     self.write_log("BLOCK", "Driver Block", pid=pid, source=safe_source, target=target, code=code, file_hash=self.calc_file_hash(safe_source))
-
                             else:
                                 break
                         except OSError:
@@ -3351,7 +3446,6 @@ class WindowAPI:
                 time.sleep(0.1)
         except Exception as e:
             self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
-
 
 ####################################################################################################
 

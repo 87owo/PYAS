@@ -1,19 +1,17 @@
 #include "DriverCommon.h"
 
-constexpr auto MAX_TRACKERS = 64;
-constexpr auto RANSOM_TIME_WINDOW_MS = 3000;
-constexpr auto RANSOM_COUNT_THRESHOLD = 5;
-constexpr auto HIGH_ENTROPY_THRESHOLD = 10;
-
+constexpr auto MAX_TRACKERS = 128;
 constexpr auto TRUST_CACHE_SIZE = 128;
 constexpr auto TRUST_CACHE_TTL_SEC = 300;
+constexpr auto HIGH_ENTROPY_THRESHOLD = 10;
 
-typedef struct _RANSOM_TRACKER {
+typedef struct _BEHAVIOR_TRACKER {
     PEPROCESS Process;
+    PDYNAMIC_RULE Rule;
     LARGE_INTEGER ProcessCreateTime;
     ULONG ActivityCount;
     LARGE_INTEGER LastActivityTime;
-} RANSOM_TRACKER, * PRANSOM_TRACKER;
+} BEHAVIOR_TRACKER, * PBEHAVIOR_TRACKER;
 
 typedef struct _TRUST_CACHE_ENTRY {
     PEPROCESS Process;
@@ -22,25 +20,19 @@ typedef struct _TRUST_CACHE_ENTRY {
     LARGE_INTEGER CacheTime;
 } TRUST_CACHE_ENTRY, * PTRUST_CACHE_ENTRY;
 
-static RANSOM_TRACKER RansomTrackers[MAX_TRACKERS];
+static BEHAVIOR_TRACKER BehaviorTrackers[MAX_TRACKERS];
 static TRUST_CACHE_ENTRY TrustCache[TRUST_CACHE_SIZE];
 static KSPIN_LOCK TrustCacheLock;
 static BOOLEAN g_CacheInitialized = FALSE;
 
 static ERESOURCE RuleLock;
-static PRULE_NODE g_RegistryBlockList = NULL;
-static PRULE_NODE g_RegistryTrustedList = NULL;
+static PDYNAMIC_RULE g_DynamicRules = NULL;
 static PRULE_NODE g_ProcessTrustedPaths = NULL;
-static PRULE_NODE g_ProcessExploitable = NULL;
-static PRULE_NODE g_FileProtectedPaths = NULL;
-static PRULE_NODE g_FileExceptionPaths = NULL;
-static PRULE_NODE g_FileRansomExts = NULL;
+
+static BOOLEAN CheckRuleThreshold(PDYNAMIC_RULE Rule, HANDLE ProcessId);
 
 ULONG SafeGetPyasPid() {
-    if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
-        return GlobalData.PyasPid;
-    }
-
+    if (KeGetCurrentIrql() >= DISPATCH_LEVEL) return GlobalData.PyasPid;
     KIRQL OldIrql;
     KeAcquireSpinLock(&GlobalData.PidLock, &OldIrql);
     ULONG Pid = GlobalData.PyasPid;
@@ -49,24 +41,12 @@ ULONG SafeGetPyasPid() {
 }
 
 VOID SafeSetPyasPid(ULONG Pid) {
-    if (KeGetCurrentIrql() >= DISPATCH_LEVEL) {
-        return;
-    }
-
+    if (KeGetCurrentIrql() >= DISPATCH_LEVEL) return;
     KIRQL OldIrql;
     KeAcquireSpinLock(&GlobalData.PidLock, &OldIrql);
     GlobalData.PyasPid = Pid;
     KeReleaseSpinLock(&GlobalData.PidLock, OldIrql);
 }
-
-const PCWSTR Helper_NaturallyCompressedExtensions[] = {
-    L".zip", L".7z", L".rar", L".tar", L".gz",
-    L".jpg", L".jpeg", L".png", L".webp", L".gif",
-    L".mp3", L".wav", L".aac", L".ogg", L".flac",
-    L".mp4", L".avi", L".mov", L".wmv", L".mkv",
-    L".docx", L".xlsx", L".pptx", L".pdf", L".wps",
-    L".apk", L".jar", L".class", L".db", L".sqlite"
-};
 
 static VOID FreeList(PRULE_NODE* Head) {
     PRULE_NODE Current = *Head;
@@ -81,59 +61,61 @@ static VOID FreeList(PRULE_NODE* Head) {
 
 static VOID AddRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
     if (!RuleStr || !RuleStr->Buffer) return;
-
     PRULE_NODE Check = *Head;
     while (Check) {
-        if (RtlEqualUnicodeString(&Check->Pattern, RuleStr, TRUE)) {
-            return;
-        }
+        if (RtlEqualUnicodeString(&Check->Pattern, RuleStr, TRUE)) return;
         Check = Check->Next;
     }
-
     PRULE_NODE Node = (PRULE_NODE)PyasAllocate(sizeof(RULE_NODE));
     if (!Node) return;
-
     SIZE_T Size = RuleStr->Length + sizeof(WCHAR);
     Node->Pattern.Buffer = (PWCHAR)PyasAllocate(Size);
     if (!Node->Pattern.Buffer) {
         PyasFree(Node);
         return;
     }
-
     RtlCopyMemory(Node->Pattern.Buffer, RuleStr->Buffer, RuleStr->Length);
     Node->Pattern.Buffer[RuleStr->Length / sizeof(WCHAR)] = L'\0';
     Node->Pattern.Length = RuleStr->Length;
     Node->Pattern.MaximumLength = (USHORT)Size;
-
     Node->Next = *Head;
     *Head = Node;
 }
 
+static VOID RemoveRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
+    if (!RuleStr || !RuleStr->Buffer) return;
+    PRULE_NODE Current = *Head;
+    PRULE_NODE Previous = NULL;
+    while (Current) {
+        if (RtlEqualUnicodeString(&Current->Pattern, RuleStr, TRUE)) {
+            PRULE_NODE ToDelete = Current;
+            if (Previous) Previous->Next = Current->Next;
+            else *Head = Current->Next;
+            Current = Current->Next;
+            if (ToDelete->Pattern.Buffer) PyasFree(ToDelete->Pattern.Buffer);
+            PyasFree(ToDelete);
+        }
+        else {
+            Previous = Current;
+            Current = Current->Next;
+        }
+    }
+}
+
 static BOOLEAN HasSuffix(PCUNICODE_STRING String, PCWSTR Suffix) {
     if (!String || !String->Buffer || !Suffix) return FALSE;
-
     SIZE_T StringLenChars = String->Length / sizeof(WCHAR);
-    SIZE_T SuffixLenChars = 0;
-
-    while (Suffix[SuffixLenChars] != L'\0') {
-        SuffixLenChars++;
-    }
-
+    SIZE_T SuffixLenChars = wcslen(Suffix);
     if (StringLenChars < SuffixLenChars) return FALSE;
-
     PCWSTR Ptr = String->Buffer + (StringLenChars - SuffixLenChars);
-
     for (SIZE_T i = 0; i < SuffixLenChars; i++) {
-        if (RtlDowncaseUnicodeChar(Ptr[i]) != RtlDowncaseUnicodeChar(Suffix[i])) {
-            return FALSE;
-        }
+        if (RtlDowncaseUnicodeChar(Ptr[i]) != RtlDowncaseUnicodeChar(Suffix[i])) return FALSE;
     }
     return TRUE;
 }
 
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
     if (Pattern == NULL || String == NULL) return FALSE;
-
     USHORT StringLenChars = StringLengthBytes / sizeof(WCHAR);
     PCWSTR mp = NULL;
     PCWSTR cp = NULL;
@@ -156,38 +138,46 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes) {
             return FALSE;
         }
     }
-    while (*Pattern == L'*') {
-        Pattern++;
-    }
-
+    while (*Pattern == L'*') Pattern++;
     return (*Pattern == L'\0') ? TRUE : FALSE;
+}
+
+static BOOLEAN MatchNodeListAny(PRULE_NODE Node, PCUNICODE_STRING Target) {
+    if (!Node) return FALSE;
+    if (!Target || !Target->Buffer) return FALSE;
+    while (Node) {
+        if (WildcardMatch(Node->Pattern.Buffer, Target->Buffer, Target->Length)) return TRUE;
+        Node = Node->Next;
+    }
+    return FALSE;
+}
+
+static BOOLEAN MatchExtensionList(PRULE_NODE Node, PCUNICODE_STRING Target) {
+    if (!Node) return FALSE;
+    if (!Target || !Target->Buffer) return FALSE;
+    while (Node) {
+        if (HasSuffix(Target, Node->Pattern.Buffer)) return TRUE;
+        Node = Node->Next;
+    }
+    return FALSE;
 }
 
 static ULONG ProcessJsonUnescape(PWCHAR Buffer, ULONG LengthChars) {
     if (!Buffer || LengthChars == 0) return 0;
-
-    ULONG WriteIdx = 0;
-    ULONG ReadIdx = 0;
-
+    ULONG WriteIdx = 0, ReadIdx = 0;
     while (ReadIdx < LengthChars) {
         if (Buffer[ReadIdx] == L'\\' && (ReadIdx + 1 < LengthChars)) {
             WCHAR NextChar = Buffer[ReadIdx + 1];
             if (NextChar == L'\\' || NextChar == L'"' || NextChar == L'/') {
-                Buffer[WriteIdx++] = NextChar;
-                ReadIdx += 2;
+                Buffer[WriteIdx++] = NextChar; ReadIdx += 2;
             }
             else if (NextChar == L'n') { Buffer[WriteIdx++] = L'\n'; ReadIdx += 2; }
             else if (NextChar == L'r') { Buffer[WriteIdx++] = L'\r'; ReadIdx += 2; }
             else if (NextChar == L't') { Buffer[WriteIdx++] = L'\t'; ReadIdx += 2; }
-            else {
-                Buffer[WriteIdx++] = Buffer[ReadIdx++];
-            }
+            else { Buffer[WriteIdx++] = Buffer[ReadIdx++]; }
         }
-        else {
-            Buffer[WriteIdx++] = Buffer[ReadIdx++];
-        }
+        else { Buffer[WriteIdx++] = Buffer[ReadIdx++]; }
     }
-
     Buffer[WriteIdx] = L'\0';
     return WriteIdx * sizeof(WCHAR);
 }
@@ -195,101 +185,215 @@ static ULONG ProcessJsonUnescape(PWCHAR Buffer, ULONG LengthChars) {
 static VOID SkipWhitespace(PCHAR* Ptr, PCHAR End) {
     while (*Ptr < End) {
         char c = **Ptr;
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            (*Ptr)++;
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') (*Ptr)++;
+        else break;
+    }
+}
+
+static ULONG ParseInt(PCHAR* Ptr, PCHAR End) {
+    ULONG val = 0;
+    SkipWhitespace(Ptr, End);
+    while (*Ptr < End && **Ptr >= '0' && **Ptr <= '9') {
+        val = val * 10 + (**Ptr - '0');
+        (*Ptr)++;
+    }
+    return val;
+}
+
+static VOID ParseStringArray(PCHAR* Ptr, PCHAR End, PRULE_NODE* Head) {
+    SkipWhitespace(Ptr, End);
+    if (*Ptr >= End || **Ptr != '[') return;
+    (*Ptr)++;
+    while (*Ptr < End) {
+        SkipWhitespace(Ptr, End);
+        if (*Ptr >= End || **Ptr == ']') {
+            if (*Ptr < End) (*Ptr)++;
+            return;
+        }
+        if (**Ptr == '"') {
+            PCHAR StartQuote = ++(*Ptr);
+            BOOLEAN Escaped = FALSE;
+            while (*Ptr < End) {
+                if (**Ptr == '"' && !Escaped) break;
+                Escaped = (**Ptr == '\\' && !Escaped);
+                (*Ptr)++;
+            }
+            if (*Ptr < End && **Ptr == '"') {
+                ULONG UTF8Len = (ULONG)(*Ptr - StartQuote);
+                if (UTF8Len > 0) {
+                    ULONG WideSize = 0;
+                    RtlUTF8ToUnicodeN(NULL, 0, &WideSize, StartQuote, UTF8Len);
+                    if (WideSize > 0) {
+                        PWCHAR WideBuffer = (PWCHAR)PyasAllocate(WideSize + sizeof(WCHAR));
+                        if (WideBuffer) {
+                            ULONG ResultSize = 0;
+                            RtlUTF8ToUnicodeN(WideBuffer, WideSize, &ResultSize, StartQuote, UTF8Len);
+                            ULONG FinalSize = ProcessJsonUnescape(WideBuffer, ResultSize / sizeof(WCHAR));
+                            UNICODE_STRING Us;
+                            Us.Buffer = WideBuffer;
+                            Us.Length = (USHORT)FinalSize;
+                            Us.MaximumLength = (USHORT)(WideSize + sizeof(WCHAR));
+                            AddRule(Head, &Us);
+                            PyasFree(WideBuffer);
+                        }
+                    }
+                }
+                (*Ptr)++;
+            }
         }
         else {
-            break;
+            (*Ptr)++;
         }
     }
 }
 
-static VOID ParseAndLoadRules(PCHAR JsonContent, ULONG ContentLength, PCSTR KeyName, PRULE_NODE* ListHead) {
-    if (!JsonContent || !KeyName || !ListHead) return;
+static VOID ParseOperationsArray(PCHAR* Ptr, PCHAR End, PULONG Operations) {
+    PRULE_NODE TempHead = NULL;
+    ParseStringArray(Ptr, End, &TempHead);
+    PRULE_NODE Node = TempHead;
+    while (Node) {
+        UNICODE_STRING WriteStr = RTL_CONSTANT_STRING(L"Write");
+        UNICODE_STRING DeleteStr = RTL_CONSTANT_STRING(L"Delete");
+        UNICODE_STRING CreateStr = RTL_CONSTANT_STRING(L"Create");
+        UNICODE_STRING ExecuteStr = RTL_CONSTANT_STRING(L"Execute");
+        UNICODE_STRING RenameStr = RTL_CONSTANT_STRING(L"Rename");
+        UNICODE_STRING IoctlStr = RTL_CONSTANT_STRING(L"Ioctl");
 
+        if (RtlEqualUnicodeString(&Node->Pattern, &WriteStr, TRUE)) *Operations |= OP_WRITE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &DeleteStr, TRUE)) *Operations |= OP_DELETE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &CreateStr, TRUE)) *Operations |= OP_CREATE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &ExecuteStr, TRUE)) *Operations |= OP_EXECUTE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &RenameStr, TRUE)) *Operations |= OP_RENAME;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &IoctlStr, TRUE)) *Operations |= OP_IOCTL;
+
+        Node = Node->Next;
+    }
+    FreeList(&TempHead);
+}
+
+static VOID ParseDynamicRules(PCHAR JsonContent, ULONG ContentLength) {
     PCHAR Ptr = JsonContent;
     PCHAR End = JsonContent + ContentLength;
-    SIZE_T KeyLen = 0;
-    while (KeyName[KeyLen] != '\0') KeyLen++;
 
-    while (Ptr < End) {
-        if (*Ptr == '"') {
-            if ((SIZE_T)(End - Ptr) > KeyLen && RtlCompareMemory(Ptr + 1, KeyName, KeyLen) == KeyLen) {
-                if (*(Ptr + 1 + KeyLen) == '"') {
-                    Ptr += 1 + KeyLen + 1;
+    const char* TargetKey = "\"DynamicRules\"";
+    SIZE_T KeyLen = strlen(TargetKey);
 
-                    SkipWhitespace(&Ptr, End);
-                    if (Ptr >= End || *Ptr != ':') continue;
+    while (Ptr < End - KeyLen) {
+        if (RtlCompareMemory(Ptr, TargetKey, KeyLen) == KeyLen) {
+            Ptr += KeyLen;
+            SkipWhitespace(&Ptr, End);
+            if (Ptr >= End || *Ptr != ':') continue;
+            Ptr++;
+            SkipWhitespace(&Ptr, End);
+            if (Ptr >= End || *Ptr != '[') continue;
+            Ptr++;
+
+            while (Ptr < End) {
+                SkipWhitespace(&Ptr, End);
+                if (Ptr >= End || *Ptr == ']') break;
+                if (*Ptr == '{') {
                     Ptr++;
-
-                    SkipWhitespace(&Ptr, End);
-                    if (Ptr >= End || *Ptr != '[') continue;
-                    Ptr++;
-
-                    while (Ptr < End) {
-                        SkipWhitespace(&Ptr, End);
-                        if (Ptr >= End || *Ptr == ']') {
-                            if (Ptr < End) Ptr++;
-                            return;
-                        }
-
-                        if (*Ptr == '"') {
-                            PCHAR StartQuote = ++Ptr;
-                            BOOLEAN Escaped = FALSE;
-
-                            while (Ptr < End) {
-                                if (*Ptr == '"' && Escaped == FALSE) break;
-                                if (*Ptr == '\\') {
-                                    Escaped = (Escaped == FALSE) ? TRUE : FALSE;
-                                }
-                                else {
-                                    Escaped = FALSE;
-                                }
-                                Ptr++;
+                    PDYNAMIC_RULE Rule = (PDYNAMIC_RULE)PyasAllocate(sizeof(DYNAMIC_RULE));
+                    if (Rule) {
+                        RtlZeroMemory(Rule, sizeof(DYNAMIC_RULE));
+                        while (Ptr < End) {
+                            SkipWhitespace(&Ptr, End);
+                            if (Ptr >= End || *Ptr == '}') {
+                                if (Ptr < End) Ptr++;
+                                break;
                             }
+                            if (*Ptr == '"') {
+                                PCHAR KeyStart = ++Ptr;
+                                while (Ptr < End && *Ptr != '"') Ptr++;
+                                ULONG KeyLenStr = (ULONG)(Ptr - KeyStart);
+                                if (Ptr < End) Ptr++;
+                                SkipWhitespace(&Ptr, End);
+                                if (Ptr < End && *Ptr == ':') Ptr++;
+                                SkipWhitespace(&Ptr, End);
 
-                            if (Ptr < End && *Ptr == '"') {
-                                ULONG UTF8Len = (ULONG)(Ptr - StartQuote);
-                                if (UTF8Len > 0) {
-                                    ULONG WideSize = 0;
-                                    RtlUTF8ToUnicodeN(NULL, 0, &WideSize, StartQuote, UTF8Len);
-
-                                    if (WideSize > 0) {
-                                        PWCHAR WideBuffer = (PWCHAR)PyasAllocate(WideSize + sizeof(WCHAR));
-                                        if (WideBuffer) {
-                                            ULONG ResultSize = 0;
-                                            RtlUTF8ToUnicodeN(WideBuffer, WideSize, &ResultSize, StartQuote, UTF8Len);
-                                            ULONG FinalSize = ProcessJsonUnescape(WideBuffer, ResultSize / sizeof(WCHAR));
-
-                                            UNICODE_STRING Us;
-                                            Us.Buffer = WideBuffer;
-                                            Us.Length = (USHORT)FinalSize;
-                                            Us.MaximumLength = (USHORT)(WideSize + sizeof(WCHAR));
-
-                                            AddRule(ListHead, &Us);
-                                            PyasFree(WideBuffer);
-                                        }
+                                if (KeyLenStr == 4 && RtlCompareMemory(KeyStart, "Code", 4) == 4) Rule->Code = ParseInt(&Ptr, End);
+                                else if (KeyLenStr == 9 && RtlCompareMemory(KeyStart, "Threshold", 9) == 9) Rule->Threshold = ParseInt(&Ptr, End);
+                                else if (KeyLenStr == 10 && RtlCompareMemory(KeyStart, "TimeWindow", 10) == 10) Rule->TimeWindow = ParseInt(&Ptr, End);
+                                else if (KeyLenStr == 8 && RtlCompareMemory(KeyStart, "Category", 8) == 8) {
+                                    if (*Ptr == '"') {
+                                        Ptr++;
+                                        if (RtlCompareMemory(Ptr, "Process", 7) == 7) Rule->Category = RuleCategoryProcess;
+                                        else if (RtlCompareMemory(Ptr, "File", 4) == 4) Rule->Category = RuleCategoryFile;
+                                        else if (RtlCompareMemory(Ptr, "Registry", 8) == 8) Rule->Category = RuleCategoryRegistry;
+                                        else if (RtlCompareMemory(Ptr, "Device", 6) == 6) Rule->Category = RuleCategoryDevice;
+                                        while (Ptr < End && *Ptr != '"') Ptr++;
+                                        if (Ptr < End) Ptr++;
                                     }
                                 }
-                                Ptr++;
+                                else if (KeyLenStr == 9 && RtlCompareMemory(KeyStart, "Initiator", 9) == 9) ParseStringArray(&Ptr, End, &Rule->Initiator);
+                                else if (KeyLenStr == 16 && RtlCompareMemory(KeyStart, "InitiatorExclude", 16) == 16) ParseStringArray(&Ptr, End, &Rule->InitiatorExclude);
+                                else if (KeyLenStr == 6 && RtlCompareMemory(KeyStart, "Target", 6) == 6) ParseStringArray(&Ptr, End, &Rule->Target);
+                                else if (KeyLenStr == 13 && RtlCompareMemory(KeyStart, "TargetExclude", 13) == 13) ParseStringArray(&Ptr, End, &Rule->TargetExclude);
+                                else if (KeyLenStr == 11 && RtlCompareMemory(KeyStart, "CommandLine", 11) == 11) ParseStringArray(&Ptr, End, &Rule->CommandLine);
+                                else if (KeyLenStr == 10 && RtlCompareMemory(KeyStart, "Extensions", 10) == 10) ParseStringArray(&Ptr, End, &Rule->Extensions);
+                                else if (KeyLenStr == 10 && RtlCompareMemory(KeyStart, "Operations", 10) == 10) ParseOperationsArray(&Ptr, End, &Rule->Operations);
+                                else {
+                                    BOOLEAN InQuote = FALSE, InArray = FALSE;
+                                    while (Ptr < End) {
+                                        if (*Ptr == '"' && *(Ptr - 1) != '\\') InQuote = !InQuote;
+                                        else if (!InQuote && *Ptr == '[') InArray = TRUE;
+                                        else if (!InQuote && *Ptr == ']') InArray = FALSE;
+                                        else if (!InQuote && !InArray && (*Ptr == ',' || *Ptr == '}')) break;
+                                        Ptr++;
+                                    }
+                                }
                             }
+                            else Ptr++;
                         }
-                        else {
-                            Ptr++;
-                        }
+                        Rule->Next = g_DynamicRules;
+                        g_DynamicRules = Rule;
                     }
-                    return;
                 }
+                else Ptr++;
             }
+            break;
         }
         Ptr++;
     }
+}
+
+BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode) {
+    if (IsProcessTrusted(ProcessId)) return FALSE;
+    PUNICODE_STRING InitiatorPath = NULL;
+    GetProcessImageName(ProcessId, &InitiatorPath);
+
+    BOOLEAN Blocked = FALSE;
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryDevice && (Rule->Operations & OP_IOCTL)) {
+            BOOLEAN Match = TRUE;
+
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, ProcessId)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    return Blocked;
 }
 
 VOID InitializeRulesEngine() {
     ExInitializeResourceLite(&RuleLock);
     KeInitializeSpinLock(&TrustCacheLock);
     RtlZeroMemory(TrustCache, sizeof(TrustCache));
+    RtlZeroMemory(BehaviorTrackers, sizeof(BehaviorTrackers));
     g_CacheInitialized = TRUE;
 }
 
@@ -298,39 +402,10 @@ VOID UninitializeRulesEngine() {
     g_CacheInitialized = FALSE;
 }
 
-static VOID RemoveRule(PRULE_NODE* Head, PUNICODE_STRING RuleStr) {
-    if (!RuleStr || !RuleStr->Buffer) return;
-    PRULE_NODE Current = *Head;
-    PRULE_NODE Previous = NULL;
-
-    while (Current) {
-        if (RtlEqualUnicodeString(&Current->Pattern, RuleStr, TRUE)) {
-            PRULE_NODE ToDelete = Current;
-
-            if (Previous) {
-                Previous->Next = Current->Next;
-            }
-            else {
-                *Head = Current->Next;
-            }
-
-            Current = Current->Next;
-
-            if (ToDelete->Pattern.Buffer) PyasFree(ToDelete->Pattern.Buffer);
-            PyasFree(ToDelete);
-        }
-        else {
-            Previous = Current;
-            Current = Current->Next;
-        }
-    }
-}
-
 VOID AddDynamicWhitelist(PUNICODE_STRING RuleStr) {
     KeEnterCriticalRegion();
     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
     AddRule(&g_ProcessTrustedPaths, RuleStr);
-    AddRule(&g_FileExceptionPaths, RuleStr);
 
     KIRQL OldIrql;
     KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
@@ -345,7 +420,6 @@ VOID RemoveDynamicWhitelist(PUNICODE_STRING RuleStr) {
     KeEnterCriticalRegion();
     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
     RemoveRule(&g_ProcessTrustedPaths, RuleStr);
-    RemoveRule(&g_FileExceptionPaths, RuleStr);
 
     KIRQL OldIrql;
     KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
@@ -371,7 +445,6 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
     UNICODE_STRING FinalPath = { 0 };
 
     RtlInitUnicodeString(&ImagePathName, L"ImagePath");
-
     InitializeObjectAttributes(&RegOa, RegistryPath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
     status = ZwOpenKey(&RegHandle, KEY_READ, &RegOa);
     if (!NT_SUCCESS(status)) return status;
@@ -398,12 +471,9 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
     if (Info->Type == REG_EXPAND_SZ || Info->Type == REG_SZ) {
         PathBufferSize = Info->DataLength + 1024;
         PathBuffer = (PWCHAR)PyasAllocate(PathBufferSize);
-
         if (PathBuffer) {
             RtlZeroMemory(PathBuffer, PathBufferSize);
-            if (Info->DataLength > 0) {
-                RtlCopyMemory(PathBuffer, Info->Data, Info->DataLength);
-            }
+            if (Info->DataLength > 0) RtlCopyMemory(PathBuffer, Info->Data, Info->DataLength);
 
             PWCHAR LastSlash = NULL;
             PWCHAR Current = PathBuffer;
@@ -414,7 +484,6 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
 
             if (LastSlash) {
                 *LastSlash = L'\0';
-
                 SIZE_T CurrentPathLen = wcslen(PathBuffer);
                 const WCHAR FilterSuffix[] = L"\\Filter";
                 SIZE_T FilterLen = (sizeof(FilterSuffix) / sizeof(WCHAR)) - 1;
@@ -428,17 +497,12 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
                             break;
                         }
                     }
-                    if (Match) {
-                        *SuffixStart = L'\0';
-                    }
+                    if (Match) *SuffixStart = L'\0';
                 }
 
                 RtlStringCbCatW(PathBuffer, PathBufferSize, L"\\Rules\\Rules_Driver_P1.json");
 
-                if (wcsncmp(PathBuffer, L"\\??\\", 4) != 0 &&
-                    wcsncmp(PathBuffer, L"\\SystemRoot", 11) != 0 &&
-                    wcsncmp(PathBuffer, L"\\DosDevices\\", 12) != 0) {
-
+                if (wcsncmp(PathBuffer, L"\\??\\", 4) != 0 && wcsncmp(PathBuffer, L"\\SystemRoot", 11) != 0 && wcsncmp(PathBuffer, L"\\DosDevices\\", 12) != 0) {
                     PWCHAR TmpBuffer = (PWCHAR)PyasAllocate(PathBufferSize + 16);
                     if (TmpBuffer) {
                         RtlStringCbCopyW(TmpBuffer, PathBufferSize + 16, L"\\??\\");
@@ -471,16 +535,9 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
                 status = ZwReadFile(FileHandle, NULL, NULL, NULL, &IoStatus, FileBuffer, FileInfo.EndOfFile.LowPart, NULL, NULL);
                 if (NT_SUCCESS(status)) {
                     ((PCHAR)FileBuffer)[FileInfo.EndOfFile.LowPart] = '\0';
-
                     KeEnterCriticalRegion();
                     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Registry_BlockList", &g_RegistryBlockList);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Registry_TrustedList", &g_RegistryTrustedList);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Process_TrustedPaths", &g_ProcessTrustedPaths);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_Process_ExploitableBlacklist", &g_ProcessExploitable);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_ProtectedPaths", &g_FileProtectedPaths);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_ExceptionPaths", &g_FileExceptionPaths);
-                    ParseAndLoadRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart, "Rule_File_RansomwareExtensions", &g_FileRansomExts);
+                    ParseDynamicRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart);
                     ExReleaseResourceLite(&RuleLock);
                     KeLeaveCriticalRegion();
                 }
@@ -489,48 +546,86 @@ NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath) {
         }
         ZwClose(FileHandle);
     }
-
     if (PathBuffer) PyasFree(PathBuffer);
     return status;
 }
 
-VOID UnloadRules() {
+NTSTATUS LoadRuleFile(PCUNICODE_STRING FilePath) {
+    if (!FilePath || !FilePath->Buffer) return STATUS_INVALID_PARAMETER;
+
+    NTSTATUS status = STATUS_SUCCESS;
+    HANDLE FileHandle = NULL;
+    IO_STATUS_BLOCK IoStatus = { 0 };
+    OBJECT_ATTRIBUTES oa = { 0 };
+
+    InitializeObjectAttributes(&oa, (PUNICODE_STRING)FilePath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+    status = ZwCreateFile(&FileHandle, GENERIC_READ | SYNCHRONIZE, &oa, &IoStatus, NULL, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, FILE_OPEN, FILE_SYNCHRONOUS_IO_NONALERT, NULL, 0);
+
+    if (NT_SUCCESS(status)) {
+        FILE_STANDARD_INFORMATION FileInfo = { 0 };
+        status = ZwQueryInformationFile(FileHandle, &IoStatus, &FileInfo, sizeof(FileInfo), FileStandardInformation);
+
+        if (NT_SUCCESS(status) && FileInfo.EndOfFile.LowPart > 0) {
+            PVOID FileBuffer = PyasAllocate(FileInfo.EndOfFile.LowPart + 1);
+            if (FileBuffer) {
+                status = ZwReadFile(FileHandle, NULL, NULL, NULL, &IoStatus, FileBuffer, FileInfo.EndOfFile.LowPart, NULL, NULL);
+                if (NT_SUCCESS(status)) {
+                    ((PCHAR)FileBuffer)[FileInfo.EndOfFile.LowPart] = '\0';
+                    KeEnterCriticalRegion();
+                    ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
+                    ParseDynamicRules((PCHAR)FileBuffer, FileInfo.EndOfFile.LowPart);
+                    ExReleaseResourceLite(&RuleLock);
+                    KeLeaveCriticalRegion();
+                }
+                PyasFree(FileBuffer);
+            }
+            else {
+                status = STATUS_INSUFFICIENT_RESOURCES;
+            }
+        }
+        ZwClose(FileHandle);
+    }
+    return status;
+}
+
+VOID ClearDynamicRules() {
     KeEnterCriticalRegion();
     ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
-    FreeList(&g_RegistryBlockList);
-    FreeList(&g_RegistryTrustedList);
+    PDYNAMIC_RULE CurrentRule = g_DynamicRules;
+    while (CurrentRule) {
+        PDYNAMIC_RULE Next = CurrentRule->Next;
+        FreeList(&CurrentRule->Initiator);
+        FreeList(&CurrentRule->InitiatorExclude);
+        FreeList(&CurrentRule->Target);
+        FreeList(&CurrentRule->TargetExclude);
+        FreeList(&CurrentRule->CommandLine);
+        FreeList(&CurrentRule->Extensions);
+        PyasFree(CurrentRule);
+        CurrentRule = Next;
+    }
+    g_DynamicRules = NULL;
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+}
+
+VOID UnloadRules() {
+    ClearDynamicRules();
+    KeEnterCriticalRegion();
+    ExAcquireResourceExclusiveLite(&RuleLock, TRUE);
     FreeList(&g_ProcessTrustedPaths);
-    FreeList(&g_ProcessExploitable);
-    FreeList(&g_FileProtectedPaths);
-    FreeList(&g_FileExceptionPaths);
-    FreeList(&g_FileRansomExts);
     ExReleaseResourceLite(&RuleLock);
     KeLeaveCriticalRegion();
 }
 
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName) {
-    if (KeGetCurrentIrql() != PASSIVE_LEVEL) {
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    NTSTATUS status;
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return STATUS_UNSUCCESSFUL;
     PEPROCESS Process = NULL;
-
     *ImageName = NULL;
-    status = PsLookupProcessByProcessId(ProcessId, &Process);
+    NTSTATUS status = PsLookupProcessByProcessId(ProcessId, &Process);
     if (!NT_SUCCESS(status)) return status;
-
     status = SeLocateProcessImageName(Process, ImageName);
     ObDereferenceObject(Process);
-
     return status;
-}
-
-static BOOLEAN IsWindowsSystemApp(PCWSTR Buffer, USHORT Length) {
-    if (WildcardMatch(L"*\\Windows\\SystemApps\\*", Buffer, Length)) return TRUE;
-    if (WildcardMatch(L"*\\Windows\\ImmersiveControlPanel\\*", Buffer, Length)) return TRUE;
-    if (WildcardMatch(L"*\\Windows\\explorer.exe", Buffer, Length)) return TRUE;
-    return FALSE;
 }
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
@@ -539,9 +634,7 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     if (ProcessId == (HANDLE)4) return TRUE;
 
     PEPROCESS Process = NULL;
-    if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) {
-        return FALSE;
-    }
+    if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) return FALSE;
 
     LARGE_INTEGER createTime;
     createTime.QuadPart = PsGetProcessCreateTimeQuadPart(Process);
@@ -550,7 +643,6 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
         KIRQL OldIrql;
         KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
         ULONG Hash = (((ULONG)(ULONG_PTR)ProcessId) >> 2) & (TRUST_CACHE_SIZE - 1);
-
         if (TrustCache[Hash].Process == Process && TrustCache[Hash].ProcessCreateTime.QuadPart == createTime.QuadPart) {
             LARGE_INTEGER Now;
             KeQuerySystemTime(&Now);
@@ -573,34 +665,21 @@ BOOLEAN IsProcessTrusted(HANDLE ProcessId) {
     NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
     BOOLEAN isTrusted = FALSE;
 
-    KeEnterCriticalRegion();
-    ExAcquireResourceSharedLite(&RuleLock, TRUE);
-
     if (NT_SUCCESS(status) && imageFileName && imageFileName->Buffer) {
-        PRULE_NODE Node = g_ProcessExploitable;
-        while (Node) {
-            if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
-                goto update_cache;
-            }
-            Node = Node->Next;
-        }
-
-        if (IsWindowsSystemApp(imageFileName->Buffer, imageFileName->Length)) {
-            isTrusted = TRUE;
-            goto update_cache;
-        }
-
-        Node = g_ProcessTrustedPaths;
+        KeEnterCriticalRegion();
+        ExAcquireResourceSharedLite(&RuleLock, TRUE);
+        PRULE_NODE Node = g_ProcessTrustedPaths;
         while (Node) {
             if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
                 isTrusted = TRUE;
-                goto update_cache;
+                break;
             }
             Node = Node->Next;
         }
+        ExReleaseResourceLite(&RuleLock);
+        KeLeaveCriticalRegion();
     }
 
-update_cache:
     if (g_CacheInitialized) {
         KIRQL OldIrql;
         KeAcquireSpinLock(&TrustCacheLock, &OldIrql);
@@ -612,274 +691,35 @@ update_cache:
         KeReleaseSpinLock(&TrustCacheLock, OldIrql);
     }
 
-    ExReleaseResourceLite(&RuleLock);
-    KeLeaveCriticalRegion();
-
     if (imageFileName) ExFreePool(imageFileName);
     ObDereferenceObject(Process);
     return isTrusted;
 }
 
-BOOLEAN IsTargetProtected(HANDLE ProcessId) {
-    ULONG PyasPid = SafeGetPyasPid();
-    if ((ULONG)(ULONG_PTR)ProcessId == PyasPid) return TRUE;
-
-    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
-
-    PUNICODE_STRING imageFileName = NULL;
-    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
-    if (!NT_SUCCESS(status) || !imageFileName || !imageFileName->Buffer) {
-        return FALSE;
-    }
-
-    BOOLEAN isProtected = FALSE;
-
-    KeEnterCriticalRegion();
-    ExAcquireResourceSharedLite(&RuleLock, TRUE);
-
-    PRULE_NODE Node = g_FileProtectedPaths;
-    while (Node) {
-        if (WildcardMatch(Node->Pattern.Buffer, imageFileName->Buffer, imageFileName->Length)) {
-            isProtected = TRUE;
-            break;
-        }
-        Node = Node->Next;
-    }
-
-    ExReleaseResourceLite(&RuleLock);
-    KeLeaveCriticalRegion();
-
-    if (imageFileName) ExFreePool(imageFileName);
-    return isProtected;
-}
-
-BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName) {
-    if (!KeyName || !KeyName->Buffer) return FALSE;
-    if (KeyName->Length < 4 * sizeof(WCHAR)) return FALSE;
-
-    if (WildcardMatch(L"*{645FF040-5081-101B-9F08-00AA002F954E}\\DefaultIcon", KeyName->Buffer, KeyName->Length)) {
-        return FALSE;
-    }
-
-    KeEnterCriticalRegion();
-    ExAcquireResourceSharedLite(&RuleLock, TRUE);
-
-    PRULE_NODE AllowNode = g_RegistryTrustedList;
-    while (AllowNode) {
-        if (WildcardMatch(AllowNode->Pattern.Buffer, KeyName->Buffer, KeyName->Length)) {
-            ExReleaseResourceLite(&RuleLock);
-            KeLeaveCriticalRegion();
-            return FALSE;
-        }
-        AllowNode = AllowNode->Next;
-    }
-
-    PRULE_NODE Node = g_RegistryBlockList;
-    BOOLEAN Match = FALSE;
-    while (Node) {
-        if (WildcardMatch(Node->Pattern.Buffer, KeyName->Buffer, KeyName->Length)) {
-            Match = TRUE;
-            break;
-        }
-        Node = Node->Next;
-    }
-    ExReleaseResourceLite(&RuleLock);
-    KeLeaveCriticalRegion();
-    return Match;
-}
-
-BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName) {
-    if (!FileName || !FileName->Buffer) return FALSE;
-
-    KeEnterCriticalRegion();
-    ExAcquireResourceSharedLite(&RuleLock, TRUE);
-
-    PRULE_NODE ExNode = g_FileExceptionPaths;
-    while (ExNode) {
-        if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
-            ExReleaseResourceLite(&RuleLock);
-            KeLeaveCriticalRegion();
-            return FALSE;
-        }
-        ExNode = ExNode->Next;
-    }
-
-    PRULE_NODE Node = g_FileRansomExts;
-    BOOLEAN Match = FALSE;
-    while (Node) {
-        if (HasSuffix(FileName, Node->Pattern.Buffer)) {
-            Match = TRUE;
-            break;
-        }
-        Node = Node->Next;
-    }
-    ExReleaseResourceLite(&RuleLock);
-    KeLeaveCriticalRegion();
-    return Match;
-}
-
-BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName) {
-    if (!FileName || !FileName->Buffer) return FALSE;
-
-    if (WildcardMatch(L"*\\Windows\\System32\\config\\systemprofile*", FileName->Buffer, FileName->Length)) {
-        return FALSE;
-    }
-
-    KeEnterCriticalRegion();
-    ExAcquireResourceSharedLite(&RuleLock, TRUE);
-
-    PRULE_NODE ExNode = g_FileExceptionPaths;
-    while (ExNode) {
-        if (WildcardMatch(ExNode->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
-            ExReleaseResourceLite(&RuleLock);
-            KeLeaveCriticalRegion();
-            return FALSE;
-        }
-        ExNode = ExNode->Next;
-    }
-
-    PRULE_NODE Node = g_FileProtectedPaths;
-    BOOLEAN Match = FALSE;
-    while (Node) {
-        if (WildcardMatch(Node->Pattern.Buffer, FileName->Buffer, FileName->Length)) {
-            Match = TRUE;
-            break;
-        }
-        Node = Node->Next;
-    }
-    ExReleaseResourceLite(&RuleLock);
-    KeLeaveCriticalRegion();
-    return Match;
-}
-
-static BOOLEAN IsHighEntropy(PVOID Buffer, ULONG Length) {
-    if (!Buffer || Length < 256) return FALSE;
-
-    PUSHORT Histogram = (PUSHORT)PyasAllocate(256 * sizeof(USHORT));
-    if (!Histogram) return FALSE;
-
-    PUCHAR Ptr = (PUCHAR)Buffer;
-    ULONG ScanLen = (Length > 1024) ? 1024 : Length;
-
-    __try {
-        for (ULONG i = 0; i < ScanLen; i++) {
-            Histogram[Ptr[i]]++;
-        }
-    }
-    __except (EXCEPTION_EXECUTE_HANDLER) {
-        PyasFree(Histogram);
-        return FALSE;
-    }
-
-    USHORT MaxFreq = 0;
-    for (int i = 0; i < 256; i++) {
-        if (Histogram[i] > MaxFreq) MaxFreq = Histogram[i];
-    }
-
-    ULONG ExpectedAvg = ScanLen / 256;
-    BOOLEAN Result = (MaxFreq < (ExpectedAvg + HIGH_ENTROPY_THRESHOLD));
-
-    PyasFree(Histogram);
-    return Result;
-}
-
-static BOOLEAN IsNaturallyCompressed(PCUNICODE_STRING FileName) {
-    if (!FileName || !FileName->Buffer) return FALSE;
-    for (int i = 0; i < sizeof(Helper_NaturallyCompressedExtensions) / sizeof(Helper_NaturallyCompressedExtensions[0]); i++) {
-        if (HasSuffix(FileName, Helper_NaturallyCompressedExtensions[i])) return TRUE;
-    }
-    return FALSE;
-}
-
-static BOOLEAN IsNoisyRansomPath(PCUNICODE_STRING FileName) {
-    if (!FileName || !FileName->Buffer) return FALSE;
-
-    if (WildcardMatch(L"*\\Windows\\Temp\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Windows\\SystemTemp\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Windows\\Prefetch\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Windows\\Logs\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Profiles\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\Program*\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\AppData\\Local\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*\\User Data\\*", FileName->Buffer, FileName->Length) ||
-        WildcardMatch(L"*$Recycle.Bin*", FileName->Buffer, FileName->Length)) {
-        return TRUE;
-    }
-    return FALSE;
-}
-
-static BOOLEAN IsUserDirectoryPath(PCUNICODE_STRING FileName) {
-    if (!FileName || !FileName->Buffer) return FALSE;
-    return WildcardMatch(L"*\\Users\\*", FileName->Buffer, FileName->Length);
-}
-
-static BOOLEAN IsExplorerProcess(HANDLE ProcessId) {
-    if (KeGetCurrentIrql() > APC_LEVEL) return FALSE;
-
-    PUNICODE_STRING imageFileName = NULL;
-    NTSTATUS status = GetProcessImageName(ProcessId, &imageFileName);
-    BOOLEAN isExplorer = FALSE;
-
-    if (NT_SUCCESS(status) && imageFileName) {
-        if (imageFileName->Buffer && HasSuffix(imageFileName, L"\\explorer.exe")) {
-            isExplorer = TRUE;
-        }
-        ExFreePool(imageFileName);
-    }
-
-    return isExplorer;
-}
-
-BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID WriteBuffer, ULONG WriteLength, BOOLEAN IsWrite) {
-    if (!IsUserDirectoryPath(FileName)) {
-        return FALSE;
-    }
-
-    if (IsNoisyRansomPath(FileName)) {
-        return FALSE;
-    }
-
-    if (!IsWrite) {
-        if (IsExplorerProcess(ProcessId)) return FALSE;
-    }
-
-    BOOLEAN SuspiciousWrite = FALSE;
-    if (IsWrite && WriteBuffer && WriteLength > 0) {
-        if (!IsNaturallyCompressed(FileName) && IsHighEntropy(WriteBuffer, WriteLength)) {
-            SuspiciousWrite = TRUE;
-        }
-    }
-
-    if (IsWrite && !SuspiciousWrite) {
-        return FALSE;
-    }
+static BOOLEAN CheckRuleThreshold(PDYNAMIC_RULE Rule, HANDLE ProcessId) {
+    if (Rule->Threshold == 0) return TRUE;
 
     PEPROCESS Process = NULL;
-    if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) {
-        return FALSE;
-    }
+    if (!NT_SUCCESS(PsLookupProcessByProcessId(ProcessId, &Process))) return FALSE;
 
-    LARGE_INTEGER Now = { 0 };
+    LARGE_INTEGER Now;
     KeQuerySystemTime(&Now);
     LARGE_INTEGER createTime;
     createTime.QuadPart = PsGetProcessCreateTimeQuadPart(Process);
-    BOOLEAN Result = FALSE;
+    BOOLEAN Triggered = FALSE;
 
     KIRQL OldIrql;
     KeAcquireSpinLock(&GlobalData.TrackerMutex, &OldIrql);
 
-    PRANSOM_TRACKER Tracker = NULL;
-    PRANSOM_TRACKER CandidateSlot = NULL;
-    PRANSOM_TRACKER LruSlot = &RansomTrackers[0];
+    PBEHAVIOR_TRACKER Tracker = NULL;
+    PBEHAVIOR_TRACKER CandidateSlot = NULL;
+    PBEHAVIOR_TRACKER LruSlot = &BehaviorTrackers[0];
 
     for (int i = 0; i < MAX_TRACKERS; i++) {
-        PRANSOM_TRACKER Current = &RansomTrackers[i];
+        PBEHAVIOR_TRACKER Current = &BehaviorTrackers[i];
+        if (Current->LastActivityTime.QuadPart < LruSlot->LastActivityTime.QuadPart) LruSlot = Current;
 
-        if (Current->LastActivityTime.QuadPart < LruSlot->LastActivityTime.QuadPart) {
-            LruSlot = Current;
-        }
-
-        if (Current->Process == Process && Current->ProcessCreateTime.QuadPart == createTime.QuadPart) {
+        if (Current->Process == Process && Current->Rule == Rule && Current->ProcessCreateTime.QuadPart == createTime.QuadPart) {
             Tracker = Current;
             break;
         }
@@ -888,25 +728,15 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
         if (Current->Process != NULL) {
             LARGE_INTEGER Diff;
             Diff.QuadPart = Now.QuadPart - Current->LastActivityTime.QuadPart;
-            if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
-                IsExpired = TRUE;
-            }
+            if (Diff.QuadPart > (Rule->TimeWindow * 10000LL)) IsExpired = TRUE;
         }
-
-        if ((Current->Process == NULL || IsExpired) && !CandidateSlot) {
-            CandidateSlot = Current;
-        }
+        if ((Current->Process == NULL || IsExpired) && !CandidateSlot) CandidateSlot = Current;
     }
 
     if (!Tracker) {
-        if (CandidateSlot) {
-            Tracker = CandidateSlot;
-        }
-        else {
-            Tracker = LruSlot;
-        }
-
+        Tracker = CandidateSlot ? CandidateSlot : LruSlot;
         Tracker->Process = Process;
+        Tracker->Rule = Rule;
         Tracker->ProcessCreateTime = createTime;
         Tracker->ActivityCount = 0;
         Tracker->LastActivityTime = Now;
@@ -914,31 +744,125 @@ BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID Wr
     else {
         LARGE_INTEGER Diff;
         Diff.QuadPart = Now.QuadPart - Tracker->LastActivityTime.QuadPart;
-
-        if (Diff.QuadPart > (RANSOM_TIME_WINDOW_MS * 10000LL)) {
-            Tracker->ActivityCount = 0;
-        }
+        if (Diff.QuadPart > (Rule->TimeWindow * 10000LL)) Tracker->ActivityCount = 0;
         Tracker->LastActivityTime = Now;
     }
 
-    ULONG Weight = 2;
-    Tracker->ActivityCount += Weight;
-
-    if (Tracker->ActivityCount >= RANSOM_COUNT_THRESHOLD) {
-        Result = TRUE;
-    }
+    Tracker->ActivityCount++;
+    if (Tracker->ActivityCount >= Rule->Threshold) Triggered = TRUE;
 
     KeReleaseSpinLock(&GlobalData.TrackerMutex, OldIrql);
     ObDereferenceObject(Process);
-    return Result;
+    return Triggered;
+}
+
+BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNICODE_STRING CommandLine, PULONG OutCode) {
+    if (IsProcessTrusted(ProcessId)) return FALSE;
+    PUNICODE_STRING InitiatorPath = NULL;
+    GetProcessImageName(ProcessId, &InitiatorPath);
+
+    BOOLEAN Blocked = FALSE;
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryProcess && (Rule->Operations & OP_EXECUTE)) {
+            BOOLEAN Match = TRUE;
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
+            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+            if (Match && Rule->CommandLine && !MatchNodeListAny(Rule->CommandLine, CommandLine)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, ProcessId)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    return Blocked;
+}
+
+BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Operation, PVOID WriteBuffer, ULONG WriteLength, PULONG OutCode) {
+    UNREFERENCED_PARAMETER(WriteBuffer);
+    UNREFERENCED_PARAMETER(WriteLength);
+
+    if (IsProcessTrusted(ProcessId)) return FALSE;
+    PUNICODE_STRING InitiatorPath = NULL;
+    GetProcessImageName(ProcessId, &InitiatorPath);
+
+    BOOLEAN Blocked = FALSE;
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryFile && (Rule->Operations & Operation)) {
+            BOOLEAN Match = TRUE;
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
+            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+            if (Match && Rule->Extensions && !MatchExtensionList(Rule->Extensions, TargetPath)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, ProcessId)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    return Blocked;
+}
+
+BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG Operation, PULONG OutCode) {
+    if (IsProcessTrusted(ProcessId)) return FALSE;
+    PUNICODE_STRING InitiatorPath = NULL;
+    GetProcessImageName(ProcessId, &InitiatorPath);
+
+    BOOLEAN Blocked = FALSE;
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryRegistry && (Rule->Operations & Operation)) {
+            BOOLEAN Match = TRUE;
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, KeyName)) Match = FALSE;
+            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, KeyName)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, ProcessId)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    return Blocked;
 }
 
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize) {
     if (KeGetCurrentIrql() > APC_LEVEL) return STATUS_UNSUCCESSFUL;
-
-    if (!ExAcquireRundownProtection(&GlobalData.PortRundown)) {
-        return STATUS_PORT_DISCONNECTED;
-    }
+    if (!ExAcquireRundownProtection(&GlobalData.PortRundown)) return STATUS_PORT_DISCONNECTED;
 
     NTSTATUS status = STATUS_PORT_DISCONNECTED;
 
@@ -964,22 +888,14 @@ NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize) 
             }
 
             LARGE_INTEGER timeout;
-            if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
-                timeout.QuadPart = -(5 * 10000);
-            }
-            else {
-                timeout.QuadPart = 0;
-            }
-
+            timeout.QuadPart = (KeGetCurrentIrql() == PASSIVE_LEVEL) ? -(5 * 10000) : 0;
             status = FltSendMessage(GlobalData.FilterHandle, &GlobalData.ClientPort, msg, sizeof(PYAS_MESSAGE), NULL, NULL, &timeout);
-
             PyasFree(msg);
         }
         else {
             status = STATUS_INSUFFICIENT_RESOURCES;
         }
     }
-
     ExReleaseRundownProtection(&GlobalData.PortRundown);
     return status;
 }

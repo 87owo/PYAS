@@ -22,9 +22,11 @@ FLT_PREOP_CALLBACK_STATUS ProtectBoot_PreDeviceControl(PFLT_CALLBACK_DATA Data, 
         IoControlCode == IOCTL_DISK_FORMAT_TRACKS_EX) {
 
         HANDLE Pid = PsGetCurrentProcessId();
-        if (!IsProcessTrusted(Pid)) {
+        ULONG RuleCode = 0;
+
+        if (EvaluateDeviceRule(Pid, &RuleCode)) {
             UNICODE_STRING MsgStr = RTL_CONSTANT_STRING(L"Disk_Wiper_Attempt");
-            SendMessageToUser(4001, (ULONG)(ULONG_PTR)Pid, MsgStr.Buffer, MsgStr.Length);
+            SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, MsgStr.Buffer, MsgStr.Length);
             Data->IoStatus.Status = STATUS_ACCESS_DENIED;
             return FLT_PREOP_COMPLETE;
         }

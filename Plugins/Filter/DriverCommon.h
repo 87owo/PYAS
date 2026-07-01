@@ -92,7 +92,6 @@ typedef struct _FS_BPIO_OUTPUT {
     ULONGLONG Reserved2;
     NTSTATUS Status;
 } FS_BPIO_OUTPUT, * PFS_BPIO_OUTPUT;
-
 #endif
 
 typedef struct _PYAS_MESSAGE {
@@ -126,6 +125,41 @@ typedef struct _RULE_NODE {
     UNICODE_STRING Pattern;
 } RULE_NODE, * PRULE_NODE;
 
+typedef enum _RULE_CATEGORY {
+    RuleCategoryProcess,
+    RuleCategoryFile,
+    RuleCategoryRegistry,
+    RuleCategoryDevice,
+    RuleCategoryUnknown
+} RULE_CATEGORY;
+
+#define OP_WRITE   0x01
+#define OP_DELETE  0x02
+#define OP_CREATE  0x04
+#define OP_EXECUTE 0x08
+#define OP_RENAME  0x10
+#define OP_IOCTL   0x20
+
+BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode);
+
+typedef struct _DYNAMIC_RULE {
+    ULONG Code;
+    RULE_CATEGORY Category;
+    ULONG Operations;
+
+    PRULE_NODE Initiator;
+    PRULE_NODE InitiatorExclude;
+    PRULE_NODE Target;
+    PRULE_NODE TargetExclude;
+    PRULE_NODE CommandLine;
+    PRULE_NODE Extensions;
+
+    ULONG Threshold;
+    ULONG TimeWindow;
+
+    struct _DYNAMIC_RULE* Next;
+} DYNAMIC_RULE, * PDYNAMIC_RULE;
+
 extern DRIVER_DATA GlobalData;
 
 FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
@@ -135,8 +169,6 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_FileSystemControl(PFLT_CALLBACK_DATA Data,
 FLT_PREOP_CALLBACK_STATUS ProtectFile_SetSecurity(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 FLT_PREOP_CALLBACK_STATUS ProtectBoot_PreDeviceControl(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 
-NTSTATUS InitializeProcessProtection();
-VOID UninitializeProcessProtection();
 NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject);
 VOID UninitializeRegistryProtection();
 
@@ -149,21 +181,21 @@ VOID UninitializeRulesEngine();
 VOID AddDynamicWhitelist(PUNICODE_STRING RuleStr);
 VOID RemoveDynamicWhitelist(PUNICODE_STRING RuleStr);
 
-VOID ImageLoadNotify(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo);
+NTSTATUS LoadRuleFile(PCUNICODE_STRING FilePath);
+VOID ClearDynamicRules();
 
+VOID ProcessNotifyCallbackEx(PEPROCESS Process, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo);
 NTSTATUS GetProcessImageName(HANDLE ProcessId, PUNICODE_STRING* ImageName);
 
 ULONG SafeGetPyasPid();
 VOID SafeSetPyasPid(ULONG Pid);
 
 BOOLEAN IsProcessTrusted(HANDLE ProcessId);
-BOOLEAN IsTargetProtected(HANDLE ProcessId);
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes);
 
-BOOLEAN CheckRegistryRule(PCUNICODE_STRING KeyName);
-BOOLEAN CheckFileExtensionRule(PCUNICODE_STRING FileName);
-BOOLEAN CheckProtectedPathRule(PCUNICODE_STRING FileName);
-BOOLEAN CheckRansomActivity(HANDLE ProcessId, PUNICODE_STRING FileName, PVOID WriteBuffer, ULONG WriteLength, BOOLEAN IsWrite);
+BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNICODE_STRING CommandLine, PULONG OutCode);
+BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Operation, PVOID WriteBuffer, ULONG WriteLength, PULONG OutCode);
+BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG Operation, PULONG OutCode);
 
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize);
 

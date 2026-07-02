@@ -1437,3 +1437,22 @@ rule General_52 {
       uint16(0) == 0x5a4d and filesize < 2000KB and
       8 of them
 }
+
+rule General_53 {
+   meta:
+      description = "53"
+      author = "PYAS Security"
+      date = "2026-07-02"
+   strings:
+      $s1 = "VUZsQlUxO" wide
+      $s2 = "VRaV04xY21s" wide
+      $s3 = "MGVW" wide
+      $s4 = "OUJkWFJvYjNKc" wide
+      $s5 = "GVtRjBhVz" wide
+      $s6 = "l1WDFabGNtbG" ascii
+      $s7 = "1hV05o" fullword ascii
+      $s8 = "ZEdsdmJnPT0=" ascii
+   condition:
+      uint16(0) == 0x5a4d and filesize > 20MB and
+      7 of them
+}

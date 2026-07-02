@@ -30,6 +30,7 @@ static PDYNAMIC_RULE g_DynamicRules = NULL;
 static PRULE_NODE g_ProcessTrustedPaths = NULL;
 
 static BOOLEAN CheckRuleThreshold(PDYNAMIC_RULE Rule, HANDLE ProcessId);
+BOOLEAN IsAddressInUnmappedMemory(HANDLE ProcessId, PVOID Address);
 
 ULONG SafeGetPyasPid() {
     if (KeGetCurrentIrql() >= DISPATCH_LEVEL) return GlobalData.PyasPid;
@@ -258,6 +259,8 @@ static VOID ParseOperationsArray(PCHAR* Ptr, PCHAR End, PULONG Operations) {
         UNICODE_STRING ExecuteStr = RTL_CONSTANT_STRING(L"Execute");
         UNICODE_STRING RenameStr = RTL_CONSTANT_STRING(L"Rename");
         UNICODE_STRING IoctlStr = RTL_CONSTANT_STRING(L"Ioctl");
+        UNICODE_STRING VmReadStr = RTL_CONSTANT_STRING(L"VmRead");
+        UNICODE_STRING VmWriteStr = RTL_CONSTANT_STRING(L"VmWrite");
 
         if (RtlEqualUnicodeString(&Node->Pattern, &WriteStr, TRUE)) *Operations |= OP_WRITE;
         else if (RtlEqualUnicodeString(&Node->Pattern, &DeleteStr, TRUE)) *Operations |= OP_DELETE;
@@ -265,6 +268,8 @@ static VOID ParseOperationsArray(PCHAR* Ptr, PCHAR End, PULONG Operations) {
         else if (RtlEqualUnicodeString(&Node->Pattern, &ExecuteStr, TRUE)) *Operations |= OP_EXECUTE;
         else if (RtlEqualUnicodeString(&Node->Pattern, &RenameStr, TRUE)) *Operations |= OP_RENAME;
         else if (RtlEqualUnicodeString(&Node->Pattern, &IoctlStr, TRUE)) *Operations |= OP_IOCTL;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &VmReadStr, TRUE)) *Operations |= OP_VM_READ;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &VmWriteStr, TRUE)) *Operations |= OP_VM_WRITE;
 
         Node = Node->Next;
     }
@@ -321,6 +326,8 @@ static VOID ParseDynamicRules(PCHAR JsonContent, ULONG ContentLength) {
                                         else if (RtlCompareMemory(Ptr, "File", 4) == 4) Rule->Category = RuleCategoryFile;
                                         else if (RtlCompareMemory(Ptr, "Registry", 8) == 8) Rule->Category = RuleCategoryRegistry;
                                         else if (RtlCompareMemory(Ptr, "Device", 6) == 6) Rule->Category = RuleCategoryDevice;
+                                        else if (RtlCompareMemory(Ptr, "Memory", 6) == 6) Rule->Category = RuleCategoryMemory;
+                                        else if (RtlCompareMemory(Ptr, "Thread", 6) == 6) Rule->Category = RuleCategoryThread;
                                         while (Ptr < End && *Ptr != '"') Ptr++;
                                         if (Ptr < End) Ptr++;
                                     }
@@ -355,38 +362,6 @@ static VOID ParseDynamicRules(PCHAR JsonContent, ULONG ContentLength) {
         }
         Ptr++;
     }
-}
-
-BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode) {
-    if (IsProcessTrusted(ProcessId)) return FALSE;
-    PUNICODE_STRING InitiatorPath = NULL;
-    GetProcessImageName(ProcessId, &InitiatorPath);
-
-    BOOLEAN Blocked = FALSE;
-    KeEnterCriticalRegion();
-    ExAcquireResourceSharedLite(&RuleLock, TRUE);
-
-    PDYNAMIC_RULE Rule = g_DynamicRules;
-    while (Rule) {
-        if (Rule->Category == RuleCategoryDevice && (Rule->Operations & OP_IOCTL)) {
-            BOOLEAN Match = TRUE;
-
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
-
-            if (Match && CheckRuleThreshold(Rule, ProcessId)) {
-                *OutCode = Rule->Code;
-                Blocked = TRUE;
-                break;
-            }
-        }
-        Rule = Rule->Next;
-    }
-
-    ExReleaseResourceLite(&RuleLock);
-    KeLeaveCriticalRegion();
-    if (InitiatorPath) ExFreePool(InitiatorPath);
-    return Blocked;
 }
 
 VOID InitializeRulesEngine() {
@@ -857,6 +832,120 @@ BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG O
     ExReleaseResourceLite(&RuleLock);
     KeLeaveCriticalRegion();
     if (InitiatorPath) ExFreePool(InitiatorPath);
+    return Blocked;
+}
+
+BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode) {
+    if (IsProcessTrusted(ProcessId)) return FALSE;
+    PUNICODE_STRING InitiatorPath = NULL;
+    GetProcessImageName(ProcessId, &InitiatorPath);
+
+    BOOLEAN Blocked = FALSE;
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryDevice && (Rule->Operations & OP_IOCTL)) {
+            BOOLEAN Match = TRUE;
+
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, ProcessId)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    return Blocked;
+}
+
+BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode) {
+    PUNICODE_STRING InitiatorPath = NULL;
+    PUNICODE_STRING TargetPath = NULL;
+
+    GetProcessImageName(SourcePid, &InitiatorPath);
+    GetProcessImageName(TargetPid, &TargetPath);
+
+    BOOLEAN Blocked = FALSE;
+
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryMemory && (Rule->Operations & Operation)) {
+            BOOLEAN Match = TRUE;
+
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
+            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, SourcePid)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    if (TargetPath) ExFreePool(TargetPath);
+
+    return Blocked;
+}
+
+BOOLEAN EvaluateThreadRule(HANDLE SourcePid, HANDLE TargetPid, PVOID StartAddress, PULONG OutCode) {
+    if (!IsAddressInUnmappedMemory(TargetPid, StartAddress)) return FALSE;
+
+    PUNICODE_STRING InitiatorPath = NULL;
+    PUNICODE_STRING TargetPath = NULL;
+
+    GetProcessImageName(SourcePid, &InitiatorPath);
+    GetProcessImageName(TargetPid, &TargetPath);
+
+    BOOLEAN Blocked = FALSE;
+
+    KeEnterCriticalRegion();
+    ExAcquireResourceSharedLite(&RuleLock, TRUE);
+
+    PDYNAMIC_RULE Rule = g_DynamicRules;
+    while (Rule) {
+        if (Rule->Category == RuleCategoryThread && (Rule->Operations & OP_EXECUTE)) {
+            BOOLEAN Match = TRUE;
+
+            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
+            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+
+            if (Match && CheckRuleThreshold(Rule, SourcePid)) {
+                *OutCode = Rule->Code;
+                Blocked = TRUE;
+                break;
+            }
+        }
+        Rule = Rule->Next;
+    }
+
+    ExReleaseResourceLite(&RuleLock);
+    KeLeaveCriticalRegion();
+
+    if (InitiatorPath) ExFreePool(InitiatorPath);
+    if (TargetPath) ExFreePool(TargetPath);
+
     return Blocked;
 }
 

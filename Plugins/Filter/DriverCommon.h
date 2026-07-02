@@ -118,6 +118,7 @@ typedef struct _DRIVER_DATA {
     KSPIN_LOCK PidLock;
     BOOLEAN Initialized;
     EX_RUNDOWN_REF PortRundown;
+    PVOID ObRegistrationHandle;
 } DRIVER_DATA, * PDRIVER_DATA;
 
 typedef struct _RULE_NODE {
@@ -130,15 +131,19 @@ typedef enum _RULE_CATEGORY {
     RuleCategoryFile,
     RuleCategoryRegistry,
     RuleCategoryDevice,
+    RuleCategoryMemory,
+    RuleCategoryThread,
     RuleCategoryUnknown
 } RULE_CATEGORY;
 
-#define OP_WRITE   0x01
-#define OP_DELETE  0x02
-#define OP_CREATE  0x04
-#define OP_EXECUTE 0x08
-#define OP_RENAME  0x10
-#define OP_IOCTL   0x20
+#define OP_WRITE         0x01
+#define OP_DELETE        0x02
+#define OP_CREATE        0x04
+#define OP_EXECUTE       0x08
+#define OP_RENAME        0x10
+#define OP_IOCTL         0x20
+#define OP_VM_READ       0x40
+#define OP_VM_WRITE      0x80
 
 BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode);
 
@@ -172,6 +177,9 @@ FLT_PREOP_CALLBACK_STATUS ProtectBoot_PreDeviceControl(PFLT_CALLBACK_DATA Data, 
 NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject);
 VOID UninitializeRegistryProtection();
 
+NTSTATUS InitializeMemoryProtection(PDRIVER_OBJECT DriverObject);
+VOID UninitializeMemoryProtection();
+
 NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath);
 VOID UnloadRules();
 
@@ -196,6 +204,8 @@ BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes);
 BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNICODE_STRING CommandLine, PULONG OutCode);
 BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Operation, PVOID WriteBuffer, ULONG WriteLength, PULONG OutCode);
 BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG Operation, PULONG OutCode);
+BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode);
+BOOLEAN EvaluateThreadRule(HANDLE SourcePid, HANDLE TargetPid, PVOID StartAddress, PULONG OutCode);
 
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize);
 

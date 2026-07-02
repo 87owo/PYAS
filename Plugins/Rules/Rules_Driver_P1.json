@@ -21,6 +21,132 @@
             "Operations": ["Execute"]
         },
         {
+            "Name": "Memory_Protect_Lsass",
+            "Code": 1002,
+            "Category": "Memory",
+            "Initiator": [
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*",
+                "\\Device\\HarddiskVolume*\\ProgramData\\*\\Temp\\*",
+            ],
+            "InitiatorExclude": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\winlogon.exe",
+                "*\\PYAS.exe",
+            ],
+            "Target": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe"
+            ],
+            "Operations": ["VmRead", "VmWrite"],
+            "Threshold": 3,
+            "TimeWindow": 60,
+        },
+        {
+            "Name": "Thread_Detect_Shellcode_Injection",
+            "Code": 1003,
+            "Category": "Thread",
+            "Initiator": [
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\cmd.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\WindowsPowerShell\\*\\powershell.exe"
+            ],
+            "InitiatorExclude": [
+                "*\\PYAS.exe"
+            ],
+            "Target": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\explorer.exe"
+            ],
+            "Operations": ["Execute"]
+            "Threshold": 2,
+            "TimeWindow": 60,
+        },
+        {
+            "Name": "Process_ShadowCopy_Deletion",
+            "Code": 1004,
+            "Category": "Process",
+            "InitiatorExclude": [
+                "*\\PYAS.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\vssvc.exe"
+            ],
+            "Target": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\vssadmin.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\wbadmin.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\bcdedit.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\wbem\\wmic.exe"
+            ],
+            "CommandLine": [
+                "*delete shadows*", 
+                "*resize shadowstorage*", 
+                "*recoveryenabled no*", 
+                "*shadowcopy delete*"
+            ],
+            "Operations": ["Execute"]
+        },
+        {
+            "Name": "Process_Suspicious_Office_Child",
+            "Code": 1005,
+            "Category": "Process",
+            "Initiator": [
+                "*\\winword.exe",
+                "*\\excel.exe",
+                "*\\powerpnt.exe",
+                "*\\msaccess.exe"
+            ],
+            "InitiatorExclude": [
+                "*\\PYAS.exe"
+            ],
+            "Target": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\cmd.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\WindowsPowerShell\\*\\powershell.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\mshta.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\cscript.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\wscript.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\regsvr32.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\rundll32.exe"
+            ],
+            "Operations": ["Execute"]
+        },
+        {
+            "Name": "Process_LOLBins_Network_Execution",
+            "Code": 1006,
+            "Category": "Process",
+            "InitiatorExclude": [
+                "*\\PYAS.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\msiexec.exe"
+            ],
+            "Target": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\certutil.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\regsvr32.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\rundll32.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\bitsadmin.exe"
+            ],
+            "CommandLine": [
+                "*http://*", 
+                "*https://*", 
+                "*-urlcache*", 
+                "*scrobj.dll*", 
+                "*/transfer*"
+            ],
+            "Operations": ["Execute"]
+        },
+        {
+            "Name": "Process_Protect_Antivirus_Security",
+            "Code": 1007,
+            "Category": "Process",
+            "InitiatorExclude": [
+                "*\\PYAS.exe",
+                "\\RjBhVzl1\\WDFab\\GNtbG1hV\\05oZEdsd\\mJnPT0.exe",
+            ],
+            "Target": [
+                "\\VUZs\\QlUxOVRaV04\\xY21sMGVW\\OUJkW\\FJvYjNKcGVt.dll",
+            ],
+            "Operations": ["Execute"]
+        },
+        {
             "Name": "File_Protect_Antivirus",
             "Code": 2001,
             "Category": "File",
@@ -43,8 +169,10 @@
             "Category": "File",
             "InitiatorExclude": [
                 "*\\PYAS.exe", 
+                "\\Device\\HarddiskVolume*\\Windows\\WinSxS\\*",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\SearchIndexer.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\taskhostw.exe",
             ],
             "Target": [
                 "\\Device\\HarddiskVolume*\\bootmgr",
@@ -57,6 +185,7 @@
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\*",
             ],
             "TargetExclude": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\Microsoft\\Windows\\INetCache\\IE\\*",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\Microsoft\\Windows\\Caches\\*",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\systemprofile\\AppData\\LocalLow\\Microsoft\\CryptnetUrlCache\\MetaData\\*",
             ],

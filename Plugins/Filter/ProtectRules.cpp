@@ -3,7 +3,6 @@
 constexpr auto MAX_TRACKERS = 128;
 constexpr auto TRUST_CACHE_SIZE = 128;
 constexpr auto TRUST_CACHE_TTL_SEC = 300;
-constexpr auto HIGH_ENTROPY_THRESHOLD = 10;
 
 typedef struct _BEHAVIOR_TRACKER {
     PEPROCESS Process;
@@ -151,6 +150,57 @@ static BOOLEAN MatchNodeListAny(PRULE_NODE Node, PCUNICODE_STRING Target) {
         Node = Node->Next;
     }
     return FALSE;
+}
+
+static ULONG GetPatternSpecificity(PCUNICODE_STRING Pattern) {
+    if (!Pattern || !Pattern->Buffer) return 0;
+    ULONG Score = 1;
+    ULONG Length = Pattern->Length / sizeof(WCHAR);
+    for (ULONG i = 0; i < Length; i++) {
+        if (Pattern->Buffer[i] != L'*' && Pattern->Buffer[i] != L'?') {
+            Score++;
+        }
+    }
+    return Score;
+}
+
+static ULONG GetNodeMatchSpecificity(PRULE_NODE Node, PCUNICODE_STRING Target) {
+    if (!Node || !Target || !Target->Buffer) return 0;
+    ULONG MaxScore = 0;
+    while (Node) {
+        if (WildcardMatch(Node->Pattern.Buffer, Target->Buffer, Target->Length)) {
+            ULONG Score = GetPatternSpecificity(&Node->Pattern);
+            if (Score > MaxScore) MaxScore = Score;
+        }
+        Node = Node->Next;
+    }
+    return MaxScore;
+}
+
+static BOOLEAN EvaluateNodeConflict(PRULE_NODE IncludeNode, PRULE_NODE ExcludeNode, PCUNICODE_STRING TargetString) {
+    if (!TargetString) {
+        if (IncludeNode) return FALSE;
+        return TRUE;
+    }
+
+    ULONG IncludeScore = 0;
+    ULONG ExcludeScore = 0;
+    BOOLEAN HasInclude = (IncludeNode != NULL);
+    BOOLEAN HasExclude = (ExcludeNode != NULL);
+
+    if (HasInclude) {
+        IncludeScore = GetNodeMatchSpecificity(IncludeNode, TargetString);
+        if (IncludeScore == 0) return FALSE;
+    }
+
+    if (HasExclude) {
+        ExcludeScore = GetNodeMatchSpecificity(ExcludeNode, TargetString);
+        if (ExcludeScore > 0 && ExcludeScore >= (HasInclude ? IncludeScore : 1)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 static BOOLEAN MatchExtensionList(PRULE_NODE Node, PCUNICODE_STRING Target) {
@@ -744,10 +794,9 @@ BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNI
     while (Rule) {
         if (Rule->Category == RuleCategoryProcess && (Rule->Operations & OP_EXECUTE)) {
             BOOLEAN Match = TRUE;
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
-            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+
+            if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && !EvaluateNodeConflict(Rule->Target, Rule->TargetExclude, TargetPath)) Match = FALSE;
             if (Match && Rule->CommandLine && !MatchNodeListAny(Rule->CommandLine, CommandLine)) Match = FALSE;
 
             if (Match && CheckRuleThreshold(Rule, ProcessId)) {
@@ -781,10 +830,9 @@ BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Op
     while (Rule) {
         if (Rule->Category == RuleCategoryFile && (Rule->Operations & Operation)) {
             BOOLEAN Match = TRUE;
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
-            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+
+            if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && !EvaluateNodeConflict(Rule->Target, Rule->TargetExclude, TargetPath)) Match = FALSE;
             if (Match && Rule->Extensions && !MatchExtensionList(Rule->Extensions, TargetPath)) Match = FALSE;
 
             if (Match && CheckRuleThreshold(Rule, ProcessId)) {
@@ -815,10 +863,9 @@ BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG O
     while (Rule) {
         if (Rule->Category == RuleCategoryRegistry && (Rule->Operations & Operation)) {
             BOOLEAN Match = TRUE;
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, KeyName)) Match = FALSE;
-            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, KeyName)) Match = FALSE;
+
+            if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && !EvaluateNodeConflict(Rule->Target, Rule->TargetExclude, KeyName)) Match = FALSE;
 
             if (Match && CheckRuleThreshold(Rule, ProcessId)) {
                 *OutCode = Rule->Code;
@@ -849,8 +896,7 @@ BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode) {
         if (Rule->Category == RuleCategoryDevice && (Rule->Operations & OP_IOCTL)) {
             BOOLEAN Match = TRUE;
 
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
 
             if (Match && CheckRuleThreshold(Rule, ProcessId)) {
                 *OutCode = Rule->Code;
@@ -884,10 +930,8 @@ BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, 
         if (Rule->Category == RuleCategoryMemory && (Rule->Operations & Operation)) {
             BOOLEAN Match = TRUE;
 
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
-            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+            if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && !EvaluateNodeConflict(Rule->Target, Rule->TargetExclude, TargetPath)) Match = FALSE;
 
             if (Match && CheckRuleThreshold(Rule, SourcePid)) {
                 *OutCode = Rule->Code;
@@ -926,10 +970,8 @@ BOOLEAN EvaluateThreadRule(HANDLE SourcePid, HANDLE TargetPid, PVOID StartAddres
         if (Rule->Category == RuleCategoryThread && (Rule->Operations & OP_EXECUTE)) {
             BOOLEAN Match = TRUE;
 
-            if (Rule->Initiator && !MatchNodeListAny(Rule->Initiator, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->InitiatorExclude && MatchNodeListAny(Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
-            if (Match && Rule->Target && !MatchNodeListAny(Rule->Target, TargetPath)) Match = FALSE;
-            if (Match && Rule->TargetExclude && MatchNodeListAny(Rule->TargetExclude, TargetPath)) Match = FALSE;
+            if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
+            if (Match && !EvaluateNodeConflict(Rule->Target, Rule->TargetExclude, TargetPath)) Match = FALSE;
 
             if (Match && CheckRuleThreshold(Rule, SourcePid)) {
                 *OutCode = Rule->Code;

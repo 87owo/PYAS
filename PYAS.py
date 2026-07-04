@@ -360,6 +360,7 @@ class WindowAPI:
             "first_launch": True,
             "process_switch": False,
             "suspend_switch": True,
+            "load_switch": True,
             "document_switch": False,
             "system_switch": False,
             "driver_switch": False,
@@ -2888,11 +2889,13 @@ class WindowAPI:
                 with self.lock_proc:
                     if not hasattr(self, 'suspended_procs'):
                         self.suspended_procs = set()
+
                     self.suspended_procs.add(h)
         try:
             cmdline = self.get_process_cmdline(h)
             process_file = self.get_process_file(h)
-            if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas): return
+            if "-scan" in cmdline and self.path_equal(process_file, self.file_pyas):
+                return
 
             raw_targets = self.extract_paths_from_cmdline(cmdline)
             if process_file:
@@ -2907,6 +2910,7 @@ class WindowAPI:
             with self.lock_config:
                 ext_filter = self.pyas_config.get("suffix_switch", True)
                 suffix = self.pyas_config.get("suffix", [])
+                load_switch = self.pyas_config.get("load_switch", True)
 
             scan_targets = []
             for file_path in all_targets:
@@ -2934,7 +2938,7 @@ class WindowAPI:
                     virus_found = True
                     break
             
-            if not virus_found:
+            if not virus_found and load_switch:
                 hidden_virus_path = self.scan_process_memory(pid, h)
                 if hidden_virus_path:
                     self.kernel32.TerminateProcess(h, 0)

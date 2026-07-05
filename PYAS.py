@@ -120,6 +120,24 @@ class MEMORY_BASIC_INFORMATION(ctypes.Structure):
         ("Type", ctypes.wintypes.DWORD)
     ]
 
+class LUID(ctypes.Structure):
+    _fields_ = [
+        ("LowPart", ctypes.wintypes.DWORD),
+        ("HighPart", ctypes.wintypes.LONG)
+    ]
+
+class LUID_AND_ATTRIBUTES(ctypes.Structure):
+    _fields_ = [
+        ("Luid", LUID),
+        ("Attributes", ctypes.wintypes.DWORD)
+    ]
+
+class TOKEN_PRIVILEGES(ctypes.Structure):
+    _fields_ = [
+        ("PrivilegeCount", ctypes.wintypes.DWORD),
+        ("Privileges", LUID_AND_ATTRIBUTES * 1)
+    ]
+
 class POINT(ctypes.Structure):
     _fields_ = [
         ("x", ctypes.c_long),
@@ -235,7 +253,7 @@ class WindowAPI:
         self.path_drivers = os.path.join(self.path_protect, "PYAS_Driver.sys")
 
     def init_windll(self):
-        for name in ["ntdll", "Psapi", "user32", "kernel32", "iphlpapi", "shell32", "fltlib"]:
+        for name in ["ntdll", "Psapi", "user32", "kernel32", "iphlpapi", "shell32", "fltlib", "advapi32"]:
             try:
                 setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
             except Exception as e:
@@ -282,7 +300,18 @@ class WindowAPI:
         self.fltlib.FilterGetMessage.restype = ctypes.c_long
         self.fltlib.FilterSendMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD)]
         self.fltlib.FilterSendMessage.restype = ctypes.c_long
+        self.fltlib.FilterUnload.argtypes = [ctypes.wintypes.LPCWSTR]
+        self.fltlib.FilterUnload.restype = ctypes.c_long
 
+        self.advapi32.OpenProcessToken.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.HANDLE)]
+        self.advapi32.OpenProcessToken.restype = ctypes.wintypes.BOOL
+        self.advapi32.LookupPrivilegeValueW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.POINTER(LUID)]
+        self.advapi32.LookupPrivilegeValueW.restype = ctypes.wintypes.BOOL
+        self.advapi32.AdjustTokenPrivileges.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(TOKEN_PRIVILEGES), ctypes.wintypes.DWORD, ctypes.POINTER(TOKEN_PRIVILEGES), ctypes.POINTER(ctypes.wintypes.DWORD)]
+        self.advapi32.AdjustTokenPrivileges.restype = ctypes.wintypes.BOOL
+
+        self.kernel32.GetCurrentProcess.argtypes = []
+        self.kernel32.GetCurrentProcess.restype = ctypes.wintypes.HANDLE
         self.kernel32.CreateToolhelp32Snapshot.restype = ctypes.wintypes.HANDLE
         self.kernel32.CreateToolhelp32Snapshot.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.DWORD]
         self.kernel32.Process32FirstW.restype = ctypes.wintypes.BOOL
@@ -343,6 +372,7 @@ class WindowAPI:
         self.suspended_procs = set()
         
         self.lock_driver = threading.RLock()
+        self.lock_driver_unload = threading.Lock()
         self.lock_update = threading.RLock()
         self.lock_proc = threading.RLock()
         self.lock_net = threading.RLock()
@@ -488,11 +518,14 @@ class WindowAPI:
 
     def update_config(self, key, value):
         with self.lock_update:
+            defer_driver_disable = key == "driver_switch" and not value
+
             with self.lock_config:
                 old_value = self.pyas_config.get(key)
                 if old_value == value:
                     return value
-                self.pyas_config[key] = value
+                if not defer_driver_disable:
+                    self.pyas_config[key] = value
 
             if key in ["extension_switch", "sensitive_switch"]:
                 with self.lock_file_ops:
@@ -550,6 +583,8 @@ class WindowAPI:
 
             if success:
                 with self.lock_config:
+                    if defer_driver_disable:
+                        self.pyas_config[key] = value
                     self.write_log("INFO", "Config Update", detail=f"[{key}] {old_value} -> {value}")
                     self.save_config()
 
@@ -560,13 +595,14 @@ class WindowAPI:
                         pass
 
                 return value
-            else:
-                with self.lock_config:
-                    self.pyas_config[key] = old_value
-                if self._window:
-                    self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
 
-                return old_value
+            with self.lock_config:
+                self.pyas_config[key] = old_value
+
+            if self._window:
+                self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
+
+            return old_value
 
     def get_config(self):
         with self.lock_config:
@@ -1027,6 +1063,18 @@ class WindowAPI:
                 self.user32.SetForegroundWindow(hwnd)
 
     def close(self, *args, **kwargs):
+        with self.lock_config:
+            driver_enabled = self.pyas_config.get("driver_switch", False)
+
+        if driver_enabled and not self.stop_system_driver():
+            self.write_log("WARN", "Driver Protection", detail="Controlled unload failed", success=False)
+            if self._window:
+                try:
+                    self._window.show()
+                except Exception:
+                    pass
+            return False
+
         if self.tray_icon:
             try:
                 self.tray_icon.stop()
@@ -1047,8 +1095,6 @@ class WindowAPI:
             self.pyas_config["driver_switch"] = False
             self.pyas_config["network_switch"] = False
 
-        self.stop_system_driver()
-        
         with self.lock_file_ops:
             if getattr(self, 'h_dir_file', None):
                 try:
@@ -1056,7 +1102,7 @@ class WindowAPI:
                 except Exception:
                     pass
                 self.h_dir_file = None
-                
+
             if hasattr(self, 'virus_lock'):
                 for file_path, (fd, lock_size) in list(self.virus_lock.items()):
                     try:
@@ -1068,7 +1114,7 @@ class WindowAPI:
                     except Exception:
                         pass
                 self.virus_lock.clear()
-        
+
         with self.lock_proc:
             if hasattr(self, 'suspended_procs'):
                 for h in list(self.suspended_procs):
@@ -1096,9 +1142,6 @@ class WindowAPI:
                         json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
                 except Exception:
                     pass
-
-        with self.lock_config:
-            pass
 
         os._exit(0)
 
@@ -3200,12 +3243,7 @@ class WindowAPI:
                         last_hwnd = root_hwnd
                         rect = RECT()
                         self.user32.GetWindowRect(root_hwnd, ctypes.byref(rect))
-                        self.user32.SetWindowPos(
-                            overlay, -1, 
-                            rect.left, rect.top, 
-                            rect.right - rect.left, rect.bottom - rect.top, 
-                            0x0050
-                        )
+                        self.user32.SetWindowPos(overlay, -1, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0050)
                     
                     if self.user32.GetAsyncKeyState(0x01) & 0x8000:
                         target_hwnd = root_hwnd
@@ -3312,45 +3350,220 @@ class WindowAPI:
     def install_system_driver(self):
         try:
             service_name = "PYAS_Driver"
-            subprocess.run(f'sc create {service_name} binPath="{self.path_drivers}" type=kernel start=demand error=normal depend=FltMgr group="FSFilter Activity Monitor"', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            subprocess.run(f'sc create {service_name} binPath="{self.path_drivers}" type=kernel start=demand error=normal depend=FltMgr group="FSFilter Activity Monitor"', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True, creationflags=0x08000000)
 
             self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances", "DefaultInstance", winreg.REG_SZ, "PYAS Instance")
             self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances\PYAS Instance", "Altitude", winreg.REG_SZ, "320000")
             self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances\PYAS Instance", "Flags", winreg.REG_DWORD, 0)
 
-            subprocess.run(["sc", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            subprocess.run(["sc.exe", "start", service_name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
             return self.check_system_driver()
 
-        except Exception:
+        except Exception as e:
+            self.write_log("WARN", "install_system_driver", detail=str(e), success=False)
             return False
 
-    def stop_system_driver(self):
-        try:
+    def _set_driver_unload_authorization(self, enabled):
+        msg = PYAS_USER_MESSAGE()
+        msg.Command = 5 if enabled else 6
+        msg.Path = ""
+        bytes_returned = ctypes.wintypes.DWORD(0)
+
+        for _ in range(3):
             with self.lock_driver:
-                if self.driver_port:
+                if not self.driver_port:
+                    temp_port = ctypes.wintypes.HANDLE()
+                    if self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port)) == 0:
+                        self.driver_port = temp_port
+                    else:
+                        time.sleep(0.1)
+                        continue
+
+                try:
+                    status = self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned))
+                    if status == 0:
+                        return True
+                    
                     try:
                         self.kernel32.CloseHandle(self.driver_port)
                     except Exception:
                         pass
                     self.driver_port = None
+                    
+                except Exception as e:
+                    self.write_log("WARN", "Driver Unload Authorization", detail=str(e), success=False)
+                    try:
+                        self.kernel32.CloseHandle(self.driver_port)
+                    except Exception:
+                        pass
+                    self.driver_port = None
+            
+            time.sleep(0.1)
 
-            subprocess.run(["sc", "stop", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+        return False
 
-            for _ in range(5):
-                res = subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True)
-                if "STOPPED" in res.stdout or "FAILED" in res.stderr or "1060" in res.stdout:
-                    break
+    def _ensure_driver_port(self):
+        with self.lock_driver:
+            if self.driver_port:
+                return True
 
-                time.sleep(0.1)
+            temp_port = ctypes.wintypes.HANDLE()
+            status = self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port))
+            if status != 0:
+                return False
 
-            subprocess.run(["sc", "delete", "PYAS_Driver"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=True)
+            self.driver_port = temp_port
             return True
-        except Exception:
-            return False
+
+    def _enable_token_privilege(self, privilege_name):
+        token = ctypes.wintypes.HANDLE()
+        desired_access = 0x0020 | 0x0008
+
+        if not self.advapi32.OpenProcessToken(self.kernel32.GetCurrentProcess(), desired_access, ctypes.byref(token)):
+            return None, ctypes.get_last_error()
+
+        luid = LUID()
+        if not self.advapi32.LookupPrivilegeValueW(None, privilege_name, ctypes.byref(luid)):
+            error = ctypes.get_last_error()
+            self.kernel32.CloseHandle(token)
+            return None, error
+
+        new_state = TOKEN_PRIVILEGES()
+        new_state.PrivilegeCount = 1
+        new_state.Privileges[0].Luid = luid
+        new_state.Privileges[0].Attributes = 0x00000002
+
+        previous_state = TOKEN_PRIVILEGES()
+        return_length = ctypes.wintypes.DWORD(0)
+        ctypes.set_last_error(0)
+
+        adjusted = self.advapi32.AdjustTokenPrivileges(token, False, ctypes.byref(new_state), ctypes.sizeof(previous_state), ctypes.byref(previous_state), ctypes.byref(return_length))
+        error = ctypes.get_last_error()
+
+        if not adjusted or error == 1300:
+            self.kernel32.CloseHandle(token)
+            return None, error or 1
+
+        return (token, previous_state, return_length.value), 0
+
+    def _restore_token_privilege(self, privilege_state):
+        if not privilege_state:
+            return
+
+        token, previous_state, previous_length = privilege_state
+        try:
+            if previous_length:
+                self.advapi32.AdjustTokenPrivileges(token, False, ctypes.byref(previous_state), 0, None, None)
+        finally:
+            self.kernel32.CloseHandle(token)
+
+    def _filter_unload_with_privilege(self, filter_name):
+        result = {
+            "status": None,
+            "privilege_error": 0,
+            "authorization_failed": False,
+            "exception": None,
+            "attempts": 0
+        }
+
+        def _worker():
+            privilege_state = None
+            unload_authorized = False
+
+            try:
+                privilege_state, privilege_error = self._enable_token_privilege("SeLoadDriverPrivilege")
+                if not privilege_state:
+                    result["privilege_error"] = privilege_error
+                    return
+
+                for delay in (0.0, 0.2, 0.5):
+                    if delay > 0:
+                        time.sleep(delay)
+
+                    if not self._set_driver_unload_authorization(True):
+                        continue
+
+                    unload_authorized = True
+                    result["attempts"] += 1
+                    
+                    unload_status = self.fltlib.FilterUnload(filter_name)
+                    result["status"] = unload_status
+
+                    if unload_status == 0:
+                        unload_authorized = False
+                        return
+
+                    if (unload_status & 0xFFFFFFFF) not in (0x80070522, 0x80070005):
+                        return
+
+                if result["status"] is None:
+                    result["authorization_failed"] = True
+
+            except Exception as e:
+                result["exception"] = str(e)
+            finally:
+                if unload_authorized:
+                    try:
+                        self._set_driver_unload_authorization(False)
+                    except Exception:
+                        pass
+
+                self._restore_token_privilege(privilege_state)
+
+        worker = threading.Thread(target=_worker, daemon=False)
+        worker.start()
+        worker.join()
+        return result
+
+    def stop_system_driver(self):
+        with self.lock_driver_unload:
+            try:
+                if not self._ensure_driver_port():
+                    self.write_log("WARN", "Driver Protection", detail="Control port unavailable", success=False)
+                    return False
+
+                unload_result = self._filter_unload_with_privilege("PYAS_Driver")
+
+                if unload_result["privilege_error"]:
+                    privilege_error = unload_result["privilege_error"]
+                    self.write_log("WARN", "Driver Protection", detail=f"SeLoadDriverPrivilege unavailable: 0x{privilege_error & 0xFFFFFFFF:08X}", success=False)
+                    return False
+
+                if unload_result["authorization_failed"]:
+                    self.write_log("WARN", "Driver Protection", detail="Unload authorization rejected", success=False)
+                    return False
+
+                if unload_result["exception"]:
+                    self.write_log("WARN", "stop_system_driver", detail=unload_result["exception"], success=False)
+                    return False
+
+                unload_status = unload_result["status"]
+                if unload_status != 0:
+                    attempts = unload_result["attempts"]
+                    self.write_log("WARN", "Driver Protection", detail=f"FilterUnload failed after {attempts} attempt(s): 0x{unload_status & 0xFFFFFFFF:08X}", success=False)
+                    return False
+
+                with self.lock_driver:
+                    if self.driver_port:
+                        try:
+                            self.kernel32.CloseHandle(self.driver_port)
+                        except Exception:
+                            pass
+                        self.driver_port = None
+
+                delete_result = subprocess.run(["sc.exe", "delete", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=0x08000000)
+                if delete_result.returncode != 0:
+                    self.write_log("WARN", "Driver Service Cleanup", detail=(delete_result.stderr or delete_result.stdout).strip(), success=False)
+
+                return True
+            except Exception as e:
+                self.write_log("WARN", "stop_system_driver", detail=str(e), success=False)
+                return False
 
     def check_system_driver(self):
         try:
-            return "RUNNING" in subprocess.run(["sc", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, shell=True).stdout
+            result = subprocess.run(["sc.exe", "query", "PYAS_Driver"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=0x08000000)
+            return result.returncode == 0 and "RUNNING" in result.stdout
         except Exception:
             return False
 

@@ -15,9 +15,8 @@
                 "*\\PYAS.exe",
             ],
             "CommandLine": [
-                "*taskkill*",
-                "*PYAS.exe*",
-                "*msedgewebview2.exe*",
+                "*taskkill*PYAS.exe*",
+                "*taskkill*msedgewebview2.exe*",
             ],
             "Operations": [
                 "Execute",
@@ -44,6 +43,7 @@
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\services.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\SystemApps\\*\\SearchHost.exe",
             ],
             "Target": [
                 "*\\PYAS.exe",

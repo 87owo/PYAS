@@ -100,6 +100,15 @@ typedef struct _PYAS_MESSAGE {
     WCHAR Path[MAX_PATH_LEN];
 } PYAS_MESSAGE, * PPYAS_MESSAGE;
 
+typedef enum _PYAS_COMMAND {
+    PyasCommandAddWhitelist = 1,
+    PyasCommandRemoveWhitelist = 2,
+    PyasCommandLoadRuleFile = 3,
+    PyasCommandClearRules = 4,
+    PyasCommandAuthorizeUnload = 5,
+    PyasCommandRevokeUnload = 6
+} PYAS_COMMAND;
+
 typedef struct _PYAS_USER_MESSAGE {
     ULONG Command;
     WCHAR Path[MAX_PATH_LEN];
@@ -117,6 +126,7 @@ typedef struct _DRIVER_DATA {
     KSPIN_LOCK TrackerMutex;
     KSPIN_LOCK PidLock;
     BOOLEAN Initialized;
+    volatile LONG UnloadAuthorized;
     EX_RUNDOWN_REF PortRundown;
     PVOID ObRegistrationHandle;
 } DRIVER_DATA, * PDRIVER_DATA;
@@ -142,8 +152,12 @@ typedef enum _RULE_CATEGORY {
 #define OP_EXECUTE       0x08
 #define OP_RENAME        0x10
 #define OP_IOCTL         0x20
-#define OP_VM_READ       0x40
-#define OP_VM_WRITE      0x80
+#define OP_VM_READ           0x00000040
+#define OP_VM_WRITE          0x00000080
+#define OP_TERMINATE         0x00000100
+#define OP_SUSPEND_RESUME    0x00000200
+#define OP_DUP_HANDLE        0x00000400
+#define OP_SET_INFORMATION   0x00000800
 
 BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode);
 
@@ -205,6 +219,7 @@ BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNI
 BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Operation, PVOID WriteBuffer, ULONG WriteLength, PULONG OutCode);
 BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG Operation, PULONG OutCode);
 BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode);
+BOOLEAN EvaluateProcessHandleRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode);
 BOOLEAN EvaluateThreadRule(HANDLE SourcePid, HANDLE TargetPid, PVOID StartAddress, PULONG OutCode);
 
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize);

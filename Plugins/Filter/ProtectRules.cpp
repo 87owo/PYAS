@@ -311,6 +311,10 @@ static VOID ParseOperationsArray(PCHAR* Ptr, PCHAR End, PULONG Operations) {
         UNICODE_STRING IoctlStr = RTL_CONSTANT_STRING(L"Ioctl");
         UNICODE_STRING VmReadStr = RTL_CONSTANT_STRING(L"VmRead");
         UNICODE_STRING VmWriteStr = RTL_CONSTANT_STRING(L"VmWrite");
+        UNICODE_STRING TerminateStr = RTL_CONSTANT_STRING(L"Terminate");
+        UNICODE_STRING SuspendResumeStr = RTL_CONSTANT_STRING(L"SuspendResume");
+        UNICODE_STRING DuplicateHandleStr = RTL_CONSTANT_STRING(L"DuplicateHandle");
+        UNICODE_STRING SetInformationStr = RTL_CONSTANT_STRING(L"SetInformation");
 
         if (RtlEqualUnicodeString(&Node->Pattern, &WriteStr, TRUE)) *Operations |= OP_WRITE;
         else if (RtlEqualUnicodeString(&Node->Pattern, &DeleteStr, TRUE)) *Operations |= OP_DELETE;
@@ -320,6 +324,10 @@ static VOID ParseOperationsArray(PCHAR* Ptr, PCHAR End, PULONG Operations) {
         else if (RtlEqualUnicodeString(&Node->Pattern, &IoctlStr, TRUE)) *Operations |= OP_IOCTL;
         else if (RtlEqualUnicodeString(&Node->Pattern, &VmReadStr, TRUE)) *Operations |= OP_VM_READ;
         else if (RtlEqualUnicodeString(&Node->Pattern, &VmWriteStr, TRUE)) *Operations |= OP_VM_WRITE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &TerminateStr, TRUE)) *Operations |= OP_TERMINATE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &SuspendResumeStr, TRUE)) *Operations |= OP_SUSPEND_RESUME;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &DuplicateHandleStr, TRUE)) *Operations |= OP_DUP_HANDLE;
+        else if (RtlEqualUnicodeString(&Node->Pattern, &SetInformationStr, TRUE)) *Operations |= OP_SET_INFORMATION;
 
         Node = Node->Next;
     }
@@ -913,7 +921,10 @@ BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode) {
     return Blocked;
 }
 
-BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode) {
+static BOOLEAN EvaluateSourceTargetRule(HANDLE SourcePid, HANDLE TargetPid, RULE_CATEGORY Category, ULONG Operation, PULONG OutCode) {
+    if (!OutCode || Operation == 0) return FALSE;
+    if (IsProcessTrusted(SourcePid)) return FALSE;
+
     PUNICODE_STRING InitiatorPath = NULL;
     PUNICODE_STRING TargetPath = NULL;
 
@@ -927,7 +938,7 @@ BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, 
 
     PDYNAMIC_RULE Rule = g_DynamicRules;
     while (Rule) {
-        if (Rule->Category == RuleCategoryMemory && (Rule->Operations & Operation)) {
+        if (Rule->Category == Category && (Rule->Operations & Operation)) {
             BOOLEAN Match = TRUE;
 
             if (!EvaluateNodeConflict(Rule->Initiator, Rule->InitiatorExclude, InitiatorPath)) Match = FALSE;
@@ -949,6 +960,14 @@ BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, 
     if (TargetPath) ExFreePool(TargetPath);
 
     return Blocked;
+}
+
+BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode) {
+    return EvaluateSourceTargetRule(SourcePid, TargetPid, RuleCategoryMemory, Operation, OutCode);
+}
+
+BOOLEAN EvaluateProcessHandleRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode) {
+    return EvaluateSourceTargetRule(SourcePid, TargetPid, RuleCategoryProcess, Operation, OutCode);
 }
 
 BOOLEAN EvaluateThreadRule(HANDLE SourcePid, HANDLE TargetPid, PVOID StartAddress, PULONG OutCode) {

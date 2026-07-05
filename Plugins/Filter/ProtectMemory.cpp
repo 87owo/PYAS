@@ -102,9 +102,18 @@ static ACCESS_MASK GetThreadControlDeniedAccess(ULONG Operation) {
     return DeniedAccess;
 }
 
-static VOID ReportViolation(ULONG RuleCode, HANDLE SourcePid, PCWSTR Message) {
+static VOID ReportViolation(ULONG RuleCode, HANDLE SourcePid, HANDLE TargetPid, PCWSTR FallbackMessage) {
+    PUNICODE_STRING TargetPath = NULL;
+    if (NT_SUCCESS(GetProcessImageName(TargetPid, &TargetPath)) && TargetPath && TargetPath->Buffer) {
+        SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)SourcePid, TargetPath->Buffer, TargetPath->Length);
+        ExFreePool(TargetPath);
+        return;
+    }
+
+    if (TargetPath) ExFreePool(TargetPath);
+
     UNICODE_STRING MessageString;
-    RtlInitUnicodeString(&MessageString, Message);
+    RtlInitUnicodeString(&MessageString, FallbackMessage);
     SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)SourcePid, MessageString.Buffer, MessageString.Length);
 }
 
@@ -198,7 +207,7 @@ static OB_PREOP_CALLBACK_STATUS ObjectPreCallback(
             ULONG RuleCode = 0;
             if (EvaluateMemoryRule(SourcePid, TargetPid, MemoryOperation, &RuleCode)) {
                 *DesiredAccess &= ~GetProcessMemoryDeniedAccess(MemoryOperation);
-                ReportViolation(RuleCode, SourcePid, L"Memory_Access_Violation");
+                ReportViolation(RuleCode, SourcePid, TargetPid, L"Memory_Access_Violation");
             }
         }
 
@@ -206,7 +215,7 @@ static OB_PREOP_CALLBACK_STATUS ObjectPreCallback(
             ULONG RuleCode = 0;
             if (EvaluateProcessHandleRule(SourcePid, TargetPid, ControlOperation, &RuleCode)) {
                 *DesiredAccess &= ~GetProcessControlDeniedAccess(ControlOperation);
-                ReportViolation(RuleCode, SourcePid, L"Process_Control_Access_Violation");
+                ReportViolation(RuleCode, SourcePid, TargetPid, L"Process_Control_Access_Violation");
             }
         }
 
@@ -243,7 +252,7 @@ static OB_PREOP_CALLBACK_STATUS ObjectPreCallback(
             ULONG RuleCode = 0;
             if (EvaluateMemoryRule(SourcePid, TargetPid, MemoryOperation, &RuleCode)) {
                 *DesiredAccess &= ~GetThreadMemoryDeniedAccess(MemoryOperation);
-                ReportViolation(RuleCode, SourcePid, L"Thread_Context_Manipulation_Shield");
+                ReportViolation(RuleCode, SourcePid, TargetPid, L"Thread_Context_Manipulation_Shield");
             }
         }
 
@@ -251,7 +260,7 @@ static OB_PREOP_CALLBACK_STATUS ObjectPreCallback(
             ULONG RuleCode = 0;
             if (EvaluateProcessHandleRule(SourcePid, TargetPid, ControlOperation, &RuleCode)) {
                 *DesiredAccess &= ~GetThreadControlDeniedAccess(ControlOperation);
-                ReportViolation(RuleCode, SourcePid, L"Thread_Control_Access_Violation");
+                ReportViolation(RuleCode, SourcePid, TargetPid, L"Thread_Control_Access_Violation");
             }
         }
     }
@@ -294,7 +303,7 @@ static VOID ThreadNotifyCallback(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN IsCr
 
     ULONG RuleCode = 0;
     if (EvaluateThreadRule(SourcePid, ProcessId, StartAddress, &RuleCode)) {
-        ReportViolation(RuleCode, SourcePid, L"Shellcode_Load_Detected");
+        ReportViolation(RuleCode, SourcePid, ProcessId, L"Shellcode_Load_Detected");
     }
 }
 

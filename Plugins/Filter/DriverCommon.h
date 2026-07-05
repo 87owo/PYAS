@@ -170,6 +170,7 @@ typedef struct _DYNAMIC_RULE {
     PRULE_NODE InitiatorExclude;
     PRULE_NODE Target;
     PRULE_NODE TargetExclude;
+    PRULE_NODE TargetProcessTree;
     PRULE_NODE CommandLine;
     PRULE_NODE Extensions;
 

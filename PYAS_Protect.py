@@ -4,6 +4,20 @@ import ctypes, ctypes.wintypes
 from PYAS_Tools import FILE_NOTIFY_INFORMATION, LUID, MEMORY_BASIC_INFORMATION, POINT, PYAS_FULL_MESSAGE, PYAS_USER_MESSAGE, RECT, SERVICE_STATUS_PROCESS, TOKEN_PRIVILEGES
 
 FLT_PORT_FLAG_SYNC_HANDLE = 0x00000001
+HRESULT_IO_PENDING = 0x800703E5
+ERROR_OPERATION_ABORTED = 995
+ERROR_NOT_FOUND = 1168
+WAIT_OBJECT_0 = 0
+WAIT_TIMEOUT = 258
+
+class OVERLAPPED(ctypes.Structure):
+    _fields_ = [
+        ("Internal", ctypes.c_size_t),
+        ("InternalHigh", ctypes.c_size_t),
+        ("Offset", ctypes.wintypes.DWORD),
+        ("OffsetHigh", ctypes.wintypes.DWORD),
+        ("hEvent", ctypes.wintypes.HANDLE)
+    ]
 
 ####################################################################################################
 
@@ -1058,7 +1072,10 @@ class ProtectMixin:
                 return False
 
             final_state = None
-            for _ in range(50):
+            last_start_attempt = time.monotonic()
+            deadline = time.monotonic() + 3.0
+
+            while time.monotonic() < deadline:
                 service_state = self._query_driver_service_state()
                 if service_state == 4:
                     final_state = self._query_driver_state()
@@ -1066,9 +1083,17 @@ class ProtectMixin:
                         return True
                     if final_state in (4, 5):
                         break
-                elif service_state in (None, 1):
+                elif service_state == 1:
+                    now = time.monotonic()
+                    if now - last_start_attempt >= 0.1:
+                        started, start_error = self._start_driver_service()
+                        last_start_attempt = now
+                        if not started:
+                            break
+                elif service_state is None:
                     break
-                time.sleep(0.1)
+
+                time.sleep(0.02)
 
             if self.check_system_driver():
                 self.stop_system_driver()
@@ -1094,11 +1119,11 @@ class ProtectMixin:
         except Exception:
             return None
 
-    def _connect_driver_port(self):
+    def _connect_driver_port(self, asynchronous=False):
         temp_port = ctypes.wintypes.HANDLE()
         status = self.fltlib.FilterConnectCommunicationPort(
             "\\PYAS_Output_Pipe",
-            FLT_PORT_FLAG_SYNC_HANDLE,
+            0 if asynchronous else FLT_PORT_FLAG_SYNC_HANDLE,
             None,
             0,
             None,
@@ -1141,49 +1166,70 @@ class ProtectMixin:
         with self.lock_config:
             return bool(self.pyas_config.get("driver_switch", False))
 
-    def start_driver_listener(self):
+    def start_driver_listener(self, wait_ready=True):
         with self.lock_driver:
             current = self.driver_listener_thread
             if current and current.is_alive():
-                self.driver_stop_event.clear()
-                return current
+                return self.driver_listener_ready_event.is_set() and not self.driver_stop_event.is_set()
 
             self.driver_stop_event.clear()
+            self.driver_listener_ready_event.clear()
+            self.driver_listener_failed_event.clear()
             thread = threading.Thread(target=self.pipe_server_thread, daemon=True)
             self.driver_listener_thread = thread
             thread.start()
-            return thread
+
+        if not wait_ready:
+            return True
+
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            if self.driver_listener_ready_event.wait(0.02):
+                return True
+            if self.driver_listener_failed_event.is_set() or not thread.is_alive():
+                break
+
+        self._stop_driver_listener()
+        return False
 
     def _stop_driver_listener(self):
         self.driver_stop_event.set()
-        self._close_driver_port()
 
         with self.lock_driver:
             thread = self.driver_listener_thread
+            port = self.driver_port
+
+        if port:
+            try:
+                self.kernel32.CancelIoEx(port, None)
+            except Exception:
+                pass
 
         if thread and thread is not threading.current_thread():
-            thread.join(timeout=3.0)
+            thread.join(timeout=2.0)
 
         alive = bool(thread and thread.is_alive())
         if not alive:
             with self.lock_driver:
                 if self.driver_listener_thread is thread:
                     self.driver_listener_thread = None
+            self.driver_listener_ready_event.clear()
+            self._close_driver_port()
 
         return not alive
 
     def _resume_driver_listener(self):
         if not self.check_system_driver():
-            return
+            return False
 
         with self.lock_config:
             enabled = bool(self.pyas_config.get("driver_switch", False))
 
         if not enabled:
-            return
+            return False
 
         self._close_driver_port()
-        self.start_driver_listener()
+        return self.start_driver_listener(wait_ready=True)
 
     def _set_driver_unload_authorization(self, enabled):
         msg = PYAS_USER_MESSAGE()
@@ -1348,9 +1394,7 @@ class ProtectMixin:
             "privilege_error": 0,
             "authorization_failed": False,
             "exception": None,
-            "attempts": 0,
-            "timed_out": False,
-            "in_progress": False
+            "attempts": 0
         }
         privilege_state = None
         unload_authorized = False
@@ -1366,8 +1410,8 @@ class ProtectMixin:
 
             retryable_statuses = {0x80070522, 0x80070005, 0x800700AA}
 
-            for delay in (0.0, 0.2, 0.5):
-                if delay > 0:
+            for delay in (0.0, 0.05, 0.15):
+                if delay:
                     time.sleep(delay)
 
                 if not self.check_system_driver():
@@ -1416,74 +1460,69 @@ class ProtectMixin:
 
     def stop_system_driver(self):
         with self.lock_driver_unload:
-            success = False
+            runtime_unloaded = False
+            unload_confirmed = False
             try:
                 if not self._stop_driver_listener():
-                    self.write_log("WARN", "Driver Protection", detail="Driver listener did not stop", success=False)
+                    self.write_log("WARN", "Driver Protection", detail="Driver listener cancellation did not complete", success=False)
                     return False
 
                 if not self.check_system_driver():
-                    self._close_driver_port()
-                    deleted, delete_error = self._delete_driver_service()
-                    if not deleted and delete_error != 1051:
-                        self.write_log("WARN", "Driver Service Cleanup", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
-                    success = deleted or delete_error == 1051
-                    return success
+                    runtime_unloaded = True
+                    unload_confirmed = True
+                else:
+                    if not self._ensure_driver_port():
+                        if not self.check_system_driver():
+                            runtime_unloaded = True
+                            unload_confirmed = True
+                        else:
+                            self.write_log("WARN", "Driver Protection", detail="Control port unavailable", success=False)
+                            return False
 
-                if not self._ensure_driver_port():
-                    if not self.check_system_driver():
-                        success = True
-                        return True
-                    self.write_log("WARN", "Driver Protection", detail="Control port unavailable", success=False)
-                    return False
+                    if not runtime_unloaded:
+                        unload_result = self._filter_unload_with_privilege("PYAS_Driver")
 
-                unload_result = self._filter_unload_with_privilege("PYAS_Driver")
+                        if unload_result["privilege_error"]:
+                            error = unload_result["privilege_error"]
+                            self.write_log("WARN", "Driver Protection", detail=f"SeLoadDriverPrivilege unavailable: 0x{error & 0xFFFFFFFF:08X}", success=False)
+                            return False
 
-                if unload_result["privilege_error"]:
-                    privilege_error = unload_result["privilege_error"]
-                    self.write_log("WARN", "Driver Protection", detail=f"SeLoadDriverPrivilege unavailable: 0x{privilege_error & 0xFFFFFFFF:08X}", success=False)
-                    return False
+                        if unload_result["authorization_failed"]:
+                            self.write_log("WARN", "Driver Protection", detail="Unload authorization rejected", success=False)
+                            return False
 
-                if unload_result["authorization_failed"]:
-                    self.write_log("WARN", "Driver Protection", detail="Unload authorization rejected", success=False)
-                    return False
+                        if unload_result["exception"]:
+                            self.write_log("WARN", "stop_system_driver", detail=unload_result["exception"], success=False)
+                            return False
 
-                if unload_result["exception"]:
-                    self.write_log("WARN", "stop_system_driver", detail=unload_result["exception"], success=False)
-                    return False
-
-                unload_status = unload_result["status"]
-                if unload_status != 0:
-                    if not self.check_system_driver():
-                        unload_status = 0
-                    else:
-                        attempts = unload_result["attempts"]
-                        self.write_log("WARN", "Driver Protection", detail=f"FilterUnload failed after {attempts} attempt(s): 0x{unload_status & 0xFFFFFFFF:08X}", success=False)
-                        return False
+                        unload_status = unload_result["status"]
+                        if unload_status == 0:
+                            runtime_unloaded = True
+                            unload_confirmed = True
+                        elif not self.check_system_driver():
+                            runtime_unloaded = True
+                            unload_confirmed = True
+                        else:
+                            attempts = unload_result["attempts"]
+                            self.write_log("WARN", "Driver Protection", detail=f"FilterUnload failed after {attempts} attempt(s): 0x{unload_status & 0xFFFFFFFF:08X}", success=False)
+                            return False
 
                 self._close_driver_port()
 
-                for _ in range(30):
-                    if not self.check_system_driver():
-                        break
-                    time.sleep(0.1)
+                if unload_confirmed:
+                    deadline = time.monotonic() + 0.5
+                    while time.monotonic() < deadline and self.check_system_driver():
+                        time.sleep(0.01)
 
-                if self.check_system_driver():
-                    self.write_log("WARN", "Driver Protection", detail="Driver still reports RUNNING after unload", success=False)
-                    return False
+                    if self.check_system_driver():
+                        self.write_log("INFO", "Driver Protection", detail="Filter unloaded; SCM state is still settling")
 
-                deleted, delete_error = self._delete_driver_service()
-                if not deleted:
-                    self.write_log("WARN", "Driver Service Cleanup", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
-                    return False
-
-                success = True
-                return True
+                return runtime_unloaded
             except Exception as e:
                 self.write_log("WARN", "stop_system_driver", detail=str(e), success=False)
                 return False
             finally:
-                if not success and self.check_system_driver():
+                if not runtime_unloaded and self.check_system_driver():
                     self._resume_driver_listener()
 
     def check_system_driver(self):
@@ -1540,20 +1579,91 @@ class ProtectMixin:
             except Exception:
                 return False
 
+    def _cancel_driver_receive(self, port, overlapped):
+        try:
+            ctypes.set_last_error(0)
+            cancelled = self.kernel32.CancelIoEx(port, ctypes.byref(overlapped))
+            error = ctypes.get_last_error()
+            if not cancelled and error not in (0, ERROR_NOT_FOUND):
+                return False
+
+            wait_status = self.kernel32.WaitForSingleObject(overlapped.hEvent, 1000)
+            if wait_status != WAIT_OBJECT_0:
+                return False
+
+            transferred = ctypes.wintypes.DWORD(0)
+            self.kernel32.GetOverlappedResult(
+                port,
+                ctypes.byref(overlapped),
+                ctypes.byref(transferred),
+                False
+            )
+            return True
+        except Exception:
+            return False
+
+    def _receive_driver_message(self, port):
+        message = PYAS_FULL_MESSAGE()
+        overlapped = OVERLAPPED()
+        event_handle = self.kernel32.CreateEventW(None, True, False, None)
+        if not event_handle:
+            return "error", None
+
+        overlapped.hEvent = event_handle
+        try:
+            status = self.fltlib.FilterGetMessage(
+                port,
+                ctypes.byref(message),
+                ctypes.sizeof(PYAS_FULL_MESSAGE),
+                ctypes.byref(overlapped)
+            )
+
+            if status == 0:
+                return "message", message
+
+            if (status & 0xFFFFFFFF) != HRESULT_IO_PENDING:
+                return "disconnect", None
+
+            while True:
+                if self.driver_stop_event.is_set():
+                    self._cancel_driver_receive(port, overlapped)
+                    return "stop", None
+
+                wait_status = self.kernel32.WaitForSingleObject(event_handle, 20)
+                if wait_status == WAIT_TIMEOUT:
+                    continue
+                if wait_status != WAIT_OBJECT_0:
+                    self._cancel_driver_receive(port, overlapped)
+                    return "error", None
+
+                transferred = ctypes.wintypes.DWORD(0)
+                if self.kernel32.GetOverlappedResult(
+                    port,
+                    ctypes.byref(overlapped),
+                    ctypes.byref(transferred),
+                    False
+                ):
+                    return "message", message
+
+                error = ctypes.get_last_error()
+                if error == ERROR_OPERATION_ABORTED and self.driver_stop_event.is_set():
+                    return "stop", None
+                return "disconnect", None
+        finally:
+            self.kernel32.CloseHandle(event_handle)
+
     def pipe_server_thread(self):
         owned_port = None
+        ready = False
         try:
             while self._driver_listener_should_run():
-                temp_port = self._connect_driver_port()
+                temp_port = self._connect_driver_port(asynchronous=True)
                 if not temp_port:
-                    self.driver_stop_event.wait(0.1)
+                    self.driver_stop_event.wait(0.02)
                     continue
 
                 if not self._driver_listener_should_run():
-                    try:
-                        self.kernel32.CloseHandle(temp_port)
-                    except Exception:
-                        pass
+                    self.kernel32.CloseHandle(temp_port)
                     break
 
                 with self.lock_driver:
@@ -1565,26 +1675,42 @@ class ProtectMixin:
                         accepted = True
 
                 if not accepted:
-                    try:
-                        self.kernel32.CloseHandle(temp_port)
-                    except Exception:
-                        pass
-                    self.driver_stop_event.wait(0.1)
+                    self.kernel32.CloseHandle(temp_port)
+                    self.driver_stop_event.wait(0.02)
                     continue
 
-                self.clear_driver_rules()
-
+                rule_files = []
                 if os.path.exists(self.path_rules):
-                    for file in os.listdir(self.path_rules):
-                        if file.endswith(".json"):
-                            self.load_driver_rule_file(os.path.join(self.path_rules, file))
+                    rule_files = sorted(
+                        os.path.join(self.path_rules, name)
+                        for name in os.listdir(self.path_rules)
+                        if name.lower().endswith(".json") and name.lower() != "rules_driver_p1.json"
+                    )
+
+                load_failed = False
+                for rule_file in rule_files:
+                    if self.driver_stop_event.is_set() or not self.load_driver_rule_file(rule_file):
+                        load_failed = True
+                        break
+
+                if load_failed:
+                    self.driver_listener_failed_event.set()
+                    break
 
                 with self.lock_config:
                     whitelist = list(self.pyas_config.get("white_list", []))
 
                 for item in whitelist:
+                    if self.driver_stop_event.is_set():
+                        break
                     if isinstance(item, dict) and item.get("file"):
                         self.sync_driver_whitelist(item["file"], True)
+
+                if self.driver_stop_event.is_set():
+                    break
+
+                ready = True
+                self.driver_listener_ready_event.set()
 
                 while self._driver_listener_should_run():
                     with self.lock_driver:
@@ -1594,18 +1720,8 @@ class ProtectMixin:
                     if not owns_current:
                         break
 
-                    message = PYAS_FULL_MESSAGE()
-                    try:
-                        status = self.fltlib.FilterGetMessage(
-                            owned_port,
-                            ctypes.byref(message),
-                            ctypes.sizeof(PYAS_FULL_MESSAGE),
-                            None
-                        )
-                    except Exception:
-                        break
-
-                    if status != 0:
+                    receive_state, message = self._receive_driver_message(owned_port)
+                    if receive_state != "message":
                         break
 
                     code = message.Data.MessageCode
@@ -1630,14 +1746,29 @@ class ProtectMixin:
 
                 self._close_driver_port(owned_port)
                 owned_port = None
-                self.driver_stop_event.wait(0.1)
+                ready = False
+                self.driver_listener_ready_event.clear()
+
+                if self.driver_stop_event.is_set():
+                    break
+                self.driver_stop_event.wait(0.02)
         except Exception as e:
+            self.driver_listener_failed_event.set()
             if not self.driver_stop_event.is_set():
                 self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
         finally:
             if owned_port:
+                try:
+                    self.kernel32.CancelIoEx(owned_port, None)
+                except Exception:
+                    pass
                 self._close_driver_port(owned_port)
 
+            if not ready and not self.driver_stop_event.is_set():
+                self.driver_listener_failed_event.set()
+
+            self.driver_listener_ready_event.clear()
             with self.lock_driver:
                 if self.driver_listener_thread is threading.current_thread():
                     self.driver_listener_thread = None
+

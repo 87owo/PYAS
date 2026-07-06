@@ -208,6 +208,14 @@ class _MainMixin:
         self.kernel32.OpenProcess.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.BOOL, ctypes.wintypes.DWORD]
         self.kernel32.CloseHandle.restype = ctypes.wintypes.BOOL
         self.kernel32.CloseHandle.argtypes = [ctypes.wintypes.HANDLE]
+        self.kernel32.CreateEventW.argtypes = [ctypes.c_void_p, ctypes.wintypes.BOOL, ctypes.wintypes.BOOL, ctypes.wintypes.LPCWSTR]
+        self.kernel32.CreateEventW.restype = ctypes.wintypes.HANDLE
+        self.kernel32.WaitForSingleObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD]
+        self.kernel32.WaitForSingleObject.restype = ctypes.wintypes.DWORD
+        self.kernel32.CancelIoEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
+        self.kernel32.CancelIoEx.restype = ctypes.wintypes.BOOL
+        self.kernel32.GetOverlappedResult.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.BOOL]
+        self.kernel32.GetOverlappedResult.restype = ctypes.wintypes.BOOL
         self.kernel32.TerminateProcess.restype = ctypes.wintypes.BOOL
         self.kernel32.TerminateProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_uint]
         self.kernel32.CreateMutexW.restype = ctypes.wintypes.HANDLE
@@ -241,6 +249,8 @@ class _MainMixin:
 
         self.driver_port = None
         self.driver_stop_event = threading.Event()
+        self.driver_listener_ready_event = threading.Event()
+        self.driver_listener_failed_event = threading.Event()
         self.driver_listener_thread = None
         self.engine_initialized = False
         self.scan_running = False
@@ -404,9 +414,10 @@ class _MainMixin:
                     elif key == "network_switch":
                         self.start_daemon_thread(self.protect_net_thread)
                     elif key == "driver_switch":
-                        if self.install_system_driver():
-                            self.start_driver_listener()
+                        if self.install_system_driver() and self.start_driver_listener(wait_ready=True):
+                            success = True
                         else:
+                            self.stop_system_driver()
                             success = False
 
                     elif key == "context_switch":

@@ -100,8 +100,10 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 
             HANDLE Pid = PsGetCurrentProcessId();
             ULONG RuleCode = 0;
-            if (EvaluateRegistryRule(Pid, &FullPath, OP_CREATE | OP_WRITE, &RuleCode)) {
+            BOOLEAN Kill = FALSE;
+            if (EvaluateRegistryRule(Pid, &FullPath, OP_CREATE | OP_WRITE, &RuleCode, &Kill)) {
                 SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
+                QueueRuleProcessTermination(Pid, Kill);
                 status = STATUS_ACCESS_DENIED;
             }
             PyasFree(FullPathBuffer);
@@ -117,8 +119,10 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
             if (KeyName) {
                 HANDLE Pid = PsGetCurrentProcessId();
                 ULONG RuleCode = 0;
-                if (EvaluateRegistryRule(Pid, KeyName, OP_DELETE, &RuleCode)) {
+                BOOLEAN Kill = FALSE;
+                if (EvaluateRegistryRule(Pid, KeyName, OP_DELETE, &RuleCode, &Kill)) {
                     SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, KeyName->Buffer, KeyName->Length);
+                    QueueRuleProcessTermination(Pid, Kill);
                     status = STATUS_ACCESS_DENIED;
                 }
                 CmCallbackReleaseKeyObjectIDEx(KeyName);
@@ -156,8 +160,10 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 
                         HANDLE Pid = PsGetCurrentProcessId();
                         ULONG RuleCode = 0;
-                        if (EvaluateRegistryRule(Pid, &FullPath, OP_WRITE, &RuleCode)) {
+                        BOOLEAN Kill = FALSE;
+                        if (EvaluateRegistryRule(Pid, &FullPath, OP_WRITE, &RuleCode, &Kill)) {
                             SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
+                            QueueRuleProcessTermination(Pid, Kill);
                             status = STATUS_ACCESS_DENIED;
                         }
                         PyasFree(Buffer);
@@ -198,8 +204,10 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 
                         HANDLE Pid = PsGetCurrentProcessId();
                         ULONG RuleCode = 0;
-                        if (EvaluateRegistryRule(Pid, &FullPath, OP_DELETE, &RuleCode)) {
+                        BOOLEAN Kill = FALSE;
+                        if (EvaluateRegistryRule(Pid, &FullPath, OP_DELETE, &RuleCode, &Kill)) {
                             SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, FullPath.Buffer, FullPath.Length);
+                            QueueRuleProcessTermination(Pid, Kill);
                             status = STATUS_ACCESS_DENIED;
                         }
                         PyasFree(Buffer);
@@ -215,20 +223,20 @@ static NTSTATUS RegistryCallback(PVOID CallbackContext, PVOID Argument1, PVOID A
 }
 
 NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject) {
-    static UNICODE_STRING Altitude = RTL_CONSTANT_STRING(L"320000.PYAS.Cm");
-    NTSTATUS status = CmRegisterCallbackEx(RegistryCallback, &Altitude, DriverObject, NULL, &Cookie, NULL);
+    if (Cookie.QuadPart != 0) return STATUS_SUCCESS;
 
-    if (!NT_SUCCESS(status)) {
-        static UNICODE_STRING FallbackAltitude = RTL_CONSTANT_STRING(L"320000.PYAS.Cm.Fallback");
-        status = CmRegisterCallbackEx(RegistryCallback, &FallbackAltitude, DriverObject, NULL, &Cookie, NULL);
-    }
-
-    return status;
+    UNICODE_STRING Altitude;
+    RtlInitUnicodeString(&Altitude, L"320000.4201");
+    return CmRegisterCallbackEx(RegistryCallback, &Altitude, DriverObject, NULL, &Cookie, NULL);
 }
 
-VOID UninitializeRegistryProtection() {
-    if (Cookie.QuadPart != 0) {
-        CmUnRegisterCallback(Cookie);
+NTSTATUS UninitializeRegistryProtection() {
+    if (Cookie.QuadPart == 0) return STATUS_SUCCESS;
+
+    NTSTATUS Status = CmUnRegisterCallback(Cookie);
+    if (NT_SUCCESS(Status)) {
         Cookie.QuadPart = 0;
     }
+
+    return Status;
 }

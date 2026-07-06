@@ -31,8 +31,10 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreCreate(PFLT_CALLBACK_DATA Data, PCFLT_R
 
     if (Operation != 0) {
         ULONG RuleCode = 0;
-        if (EvaluateFileRule(Pid, &nameInfo->Name, Operation, NULL, 0, &RuleCode)) {
+        BOOLEAN Kill = FALSE;
+        if (EvaluateFileRule(Pid, &nameInfo->Name, Operation, NULL, 0, &RuleCode, &Kill)) {
             SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
+            QueueRuleProcessTermination(Pid, Kill);
             Data->IoStatus.Status = STATUS_ACCESS_DENIED;
             callbackStatus = FLT_PREOP_COMPLETE;
         }
@@ -73,8 +75,10 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreSetInfo(PFLT_CALLBACK_DATA Data, PCFLT_
     }
 
     ULONG RuleCode = 0;
-    if (EvaluateFileRule(Pid, &nameInfo->Name, Operation, NULL, 0, &RuleCode)) {
+    BOOLEAN Kill = FALSE;
+    if (EvaluateFileRule(Pid, &nameInfo->Name, Operation, NULL, 0, &RuleCode, &Kill)) {
         SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
+        QueueRuleProcessTermination(Pid, Kill);
         Data->IoStatus.Status = STATUS_ACCESS_DENIED;
         callbackStatus = FLT_PREOP_COMPLETE;
     }
@@ -112,8 +116,10 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_PreWrite(PFLT_CALLBACK_DATA Data, PCFLT_RE
     if (Mdl) SystemBuffer = MmGetSystemAddressForMdlSafe(Mdl, NormalPagePriority | MdlMappingNoExecute);
 
     ULONG RuleCode = 0;
-    if (EvaluateFileRule(Pid, &nameInfo->Name, OP_WRITE, SystemBuffer, WriteLength, &RuleCode)) {
+    BOOLEAN Kill = FALSE;
+    if (EvaluateFileRule(Pid, &nameInfo->Name, OP_WRITE, SystemBuffer, WriteLength, &RuleCode, &Kill)) {
         SendMessageToUser(RuleCode, (ULONG)(ULONG_PTR)Pid, nameInfo->Name.Buffer, nameInfo->Name.Length);
+        QueueRuleProcessTermination(Pid, Kill);
         Data->IoStatus.Status = STATUS_ACCESS_DENIED;
         callbackStatus = FLT_PREOP_COMPLETE;
     }

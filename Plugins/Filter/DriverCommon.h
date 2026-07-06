@@ -8,6 +8,7 @@
 constexpr auto PYAS_PORT_NAME = L"\\PYAS_Output_Pipe";
 constexpr auto MAX_PATH_LEN = 1024;
 constexpr auto PYAS_POOL_TAG = 'SAYP';
+constexpr auto PYAS_OB_ALTITUDE = L"320000.4101";
 
 #ifndef PROCESS_TERMINATE
 #define PROCESS_TERMINATE                  (0x0001)
@@ -60,6 +61,12 @@ constexpr auto PYAS_POOL_TAG = 'SAYP';
 #ifndef THREAD_SET_THREAD_TOKEN
 #define THREAD_SET_THREAD_TOKEN            (0x0080)
 #endif
+#ifndef THREAD_IMPERSONATE
+#define THREAD_IMPERSONATE                 (0x0100)
+#endif
+#ifndef THREAD_DIRECT_IMPERSONATION
+#define THREAD_DIRECT_IMPERSONATION        (0x0200)
+#endif
 #ifndef POOL_FLAG_NON_PAGED
 #define POOL_FLAG_NON_PAGED                0x0000000000000040UI64
 #endif
@@ -94,6 +101,16 @@ typedef struct _FS_BPIO_OUTPUT {
 } FS_BPIO_OUTPUT, * PFS_BPIO_OUTPUT;
 #endif
 
+
+typedef enum _PYAS_DRIVER_STATE {
+    PyasDriverStateCold = 0,
+    PyasDriverStateStarting = 1,
+    PyasDriverStateRunning = 2,
+    PyasDriverStateStopping = 3,
+    PyasDriverStateStopRetry = 4,
+    PyasDriverStateStopped = 5
+} PYAS_DRIVER_STATE;
+
 typedef struct _PYAS_MESSAGE {
     ULONG MessageCode;
     ULONG ProcessId;
@@ -106,7 +123,8 @@ typedef enum _PYAS_COMMAND {
     PyasCommandLoadRuleFile = 3,
     PyasCommandClearRules = 4,
     PyasCommandAuthorizeUnload = 5,
-    PyasCommandRevokeUnload = 6
+    PyasCommandRevokeUnload = 6,
+    PyasCommandQueryState = 7
 } PYAS_COMMAND;
 
 typedef struct _PYAS_USER_MESSAGE {
@@ -126,8 +144,12 @@ typedef struct _DRIVER_DATA {
     KSPIN_LOCK TrackerMutex;
     KSPIN_LOCK PidLock;
     BOOLEAN Initialized;
+    volatile LONG DriverState;
     volatile LONG UnloadAuthorized;
+    volatile LONG PortStopping;
+    volatile LONG ClientCloseActive;
     EX_RUNDOWN_REF PortRundown;
+    KEVENT CleanupCompleteEvent;
     PVOID ObRegistrationHandle;
 } DRIVER_DATA, * PDRIVER_DATA;
 
@@ -146,39 +168,96 @@ typedef enum _RULE_CATEGORY {
     RuleCategoryUnknown
 } RULE_CATEGORY;
 
-#define OP_WRITE         0x01
-#define OP_DELETE        0x02
-#define OP_CREATE        0x04
-#define OP_EXECUTE       0x08
-#define OP_RENAME        0x10
-#define OP_IOCTL         0x20
-#define OP_VM_READ           0x00000040
-#define OP_VM_WRITE          0x00000080
-#define OP_TERMINATE         0x00000100
-#define OP_SUSPEND_RESUME    0x00000200
-#define OP_DUP_HANDLE        0x00000400
-#define OP_SET_INFORMATION   0x00000800
+#define OP_WRITE                   0x00000001
+#define OP_DELETE                  0x00000002
+#define OP_CREATE                  0x00000004
+#define OP_EXECUTE                 0x00000008
+#define OP_RENAME                  0x00000010
+#define OP_IOCTL                   0x00000020
+#define OP_VM_READ                 0x00000040
+#define OP_VM_WRITE                0x00000080
+#define OP_TERMINATE               0x00000100
+#define OP_SUSPEND_RESUME          0x00000200
+#define OP_DUP_HANDLE              0x00000400
+#define OP_SET_INFORMATION         0x00000800
+#define OP_VM_OPERATION            0x00001000
+#define OP_CREATE_THREAD           0x00002000
+#define OP_THREAD_SET_CONTEXT      0x00004000
+#define OP_THREAD_SET_TOKEN        0x00008000
+#define OP_CREATE_PROCESS          0x00010000
+#define OP_IMAGE_LOAD              0x00020000
+#define OP_IMPERSONATE             0x00040000
 
-BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode);
+#define PYAS_HANDLE_CREATE         0x00000001
+#define PYAS_HANDLE_DUPLICATE      0x00000002
+
+#define PYAS_OBJECT_PROCESS        0x00000001
+#define PYAS_OBJECT_THREAD         0x00000002
+
+#define PYAS_MEMORY_PRIVATE        0x00000001
+#define PYAS_MEMORY_MAPPED         0x00000002
+#define PYAS_MEMORY_IMAGE          0x00000004
+
+#define PYAS_PROTECT_EXECUTE       0x00000001
+#define PYAS_PROTECT_EXECUTE_WRITE 0x00000002
+
+typedef enum _RULE_TRI_STATE {
+    RuleTriAny = 0,
+    RuleTriTrue = 1,
+    RuleTriFalse = 2
+} RULE_TRI_STATE;
+
+typedef enum _RULE_OPERATION_MATCH {
+    RuleOperationAny = 0,
+    RuleOperationAll = 1
+} RULE_OPERATION_MATCH;
 
 typedef struct _DYNAMIC_RULE {
     ULONG Code;
+    BOOLEAN Kill;
+    ULONG Priority;
     RULE_CATEGORY Category;
     ULONG Operations;
+    RULE_OPERATION_MATCH OperationMatch;
+    BOOLEAN Invalid;
 
     PRULE_NODE Initiator;
     PRULE_NODE InitiatorExclude;
+    PRULE_NODE InitiatorParent;
+    PRULE_NODE InitiatorParentExclude;
+    PRULE_NODE InitiatorProcessTree;
+    PRULE_NODE InitiatorProcessTreeExclude;
     PRULE_NODE Target;
     PRULE_NODE TargetExclude;
     PRULE_NODE TargetProcessTree;
+    PRULE_NODE TargetProcessTreeExclude;
+    PRULE_NODE Creator;
+    PRULE_NODE CreatorExclude;
+    PRULE_NODE Parent;
+    PRULE_NODE ParentExclude;
     PRULE_NODE CommandLine;
+    PRULE_NODE CommandLineExclude;
     PRULE_NODE Extensions;
+
+    ULONG HandleTypes;
+    ULONG ObjectTypes;
+    ULONG MinimumRiskScore;
+    ULONG MaximumRiskScore;
+    ULONG ThreadMemoryTypes;
+    ULONG ThreadMemoryProtections;
+    ULONGLONG MinimumRegionSize;
+    ULONGLONG MaximumRegionSize;
+    RULE_TRI_STATE ParentMismatch;
+    RULE_TRI_STATE FileOpenNameAvailable;
+    RULE_TRI_STATE SubsystemProcess;
 
     ULONG Threshold;
     ULONG TimeWindow;
 
     struct _DYNAMIC_RULE* Next;
 } DYNAMIC_RULE, * PDYNAMIC_RULE;
+
+BOOLEAN EvaluateDeviceRule(HANDLE ProcessId, PULONG OutCode, PBOOLEAN OutKill);
 
 extern DRIVER_DATA GlobalData;
 
@@ -190,15 +269,19 @@ FLT_PREOP_CALLBACK_STATUS ProtectFile_SetSecurity(PFLT_CALLBACK_DATA Data, PCFLT
 FLT_PREOP_CALLBACK_STATUS ProtectBoot_PreDeviceControl(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext);
 
 NTSTATUS InitializeRegistryProtection(PDRIVER_OBJECT DriverObject);
-VOID UninitializeRegistryProtection();
+NTSTATUS UninitializeRegistryProtection();
+
+NTSTATUS InitializeProcessProtection();
+NTSTATUS UninitializeProcessProtection();
+BOOLEAN GetProcessRelation(HANDLE ProcessId, PHANDLE ParentProcessId, PHANDLE CreatorProcessId);
 
 NTSTATUS InitializeMemoryProtection(PDRIVER_OBJECT DriverObject);
-VOID UninitializeMemoryProtection();
+NTSTATUS UninitializeMemoryProtection(BOOLEAN WaitWithoutTimeout);
 
 NTSTATUS LoadRulesFromDisk(PUNICODE_STRING RegistryPath);
 VOID UnloadRules();
 
-VOID InitializeRulesEngine();
+NTSTATUS InitializeRulesEngine();
 VOID UninitializeRulesEngine();
 
 VOID AddDynamicWhitelist(PUNICODE_STRING RuleStr);
@@ -216,13 +299,45 @@ VOID SafeSetPyasPid(ULONG Pid);
 BOOLEAN IsProcessTrusted(HANDLE ProcessId);
 BOOLEAN WildcardMatch(PCWSTR Pattern, PCWSTR String, USHORT StringLengthBytes);
 
-BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNICODE_STRING CommandLine, PULONG OutCode);
-BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Operation, PVOID WriteBuffer, ULONG WriteLength, PULONG OutCode);
-BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG Operation, PULONG OutCode);
-BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode);
-BOOLEAN EvaluateProcessHandleRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode);
-BOOLEAN EvaluateThreadRule(HANDLE SourcePid, HANDLE TargetPid, PVOID StartAddress, PULONG OutCode);
+BOOLEAN EvaluateProcessCreateRule(
+    HANDLE CreatorPid,
+    HANDLE ParentPid,
+    HANDLE ProcessId,
+    PCUNICODE_STRING TargetPath,
+    PCUNICODE_STRING CommandLine,
+    BOOLEAN FileOpenNameAvailable,
+    BOOLEAN IsSubsystemProcess,
+    PULONG OutCode,
+    PBOOLEAN OutKill
+);
+BOOLEAN EvaluateProcessAccessRule(
+    HANDLE SourcePid,
+    HANDLE TargetPid,
+    ULONG RequestedOperations,
+    ULONG HandleType,
+    ULONG ObjectType,
+    PULONG DeniedOperations,
+    PULONG OutCode,
+    PBOOLEAN OutKill
+);
+BOOLEAN EvaluateThreadRule(
+    HANDLE SourcePid,
+    HANDLE TargetPid,
+    PVOID StartAddress,
+    ULONG MemoryType,
+    ULONG MemoryProtection,
+    SIZE_T RegionSize,
+    PULONG OutCode,
+    PBOOLEAN OutKill
+);
+BOOLEAN EvaluateImageLoadRule(HANDLE ProcessId, PCUNICODE_STRING ImagePath, PIMAGE_INFO ImageInfo, PULONG OutCode, PBOOLEAN OutKill);
+BOOLEAN EvaluateProcessRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, PCUNICODE_STRING CommandLine, PULONG OutCode, PBOOLEAN OutKill);
+BOOLEAN EvaluateFileRule(HANDLE ProcessId, PCUNICODE_STRING TargetPath, ULONG Operation, PVOID WriteBuffer, ULONG WriteLength, PULONG OutCode, PBOOLEAN OutKill);
+BOOLEAN EvaluateRegistryRule(HANDLE ProcessId, PCUNICODE_STRING KeyName, ULONG Operation, PULONG OutCode, PBOOLEAN OutKill);
+BOOLEAN EvaluateMemoryRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode, PBOOLEAN OutKill);
+BOOLEAN EvaluateProcessHandleRule(HANDLE SourcePid, HANDLE TargetPid, ULONG Operation, PULONG OutCode, PBOOLEAN OutKill);
 
+VOID QueueRuleProcessTermination(HANDLE ProcessId, BOOLEAN Kill);
 NTSTATUS SendMessageToUser(ULONG Code, ULONG Pid, PWCHAR Path, USHORT PathSize);
 
 FORCEINLINE PVOID PyasAllocate(SIZE_T Size) {

@@ -1,5 +1,6 @@
-import os, re, yara, time, math, json, zlib, mmap, numpy, datetime, requests
-import ctypes, ctypes.wintypes, pefile, threading, onnxruntime
+import os, re, yara, time, math, json, zlib, mmap, numpy
+import pefile, threading, onnxruntime, datetime, requests
+import ctypes, ctypes.wintypes
 
 ####################################################################################################
 
@@ -237,7 +238,6 @@ class pe_scanner:
                     self.feature_order = json.load(f)
 
             self._parse_hash_dims()
-
         except Exception:
             pass
 

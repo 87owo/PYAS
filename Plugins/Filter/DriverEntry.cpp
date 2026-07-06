@@ -105,15 +105,23 @@ static NTSTATUS UnregisterRuntimeCallbacks(BOOLEAN WaitWithoutTimeout) {
     }
 }
 
-static VOID ReleaseConnectedProcessReference() {
+static PEPROCESS DetachConnectedProcessReference(PEPROCESS ExpectedProcess) {
     PEPROCESS Process = NULL;
 
     KIRQL OldIrql;
     KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
-    Process = GlobalData.PyasProcess;
-    GlobalData.PyasProcess = NULL;
-    GlobalData.ClientPort = NULL;
+
+    if (!ExpectedProcess || GlobalData.PyasProcess == ExpectedProcess) {
+        Process = GlobalData.PyasProcess;
+        GlobalData.PyasProcess = NULL;
+    }
+
     KeReleaseSpinLock(&GlobalData.PortMutex, OldIrql);
+    return Process;
+}
+
+static VOID ReleaseConnectedProcessReference() {
+    PEPROCESS Process = DetachConnectedProcessReference(NULL);
 
     SafeSetPyasPid(0);
     InterlockedExchange(&GlobalData.UnloadAuthorized, 0);
@@ -126,11 +134,30 @@ static VOID ReleaseConnectedProcessReference() {
 static VOID CloseCurrentClientPort() {
     if (InterlockedCompareExchange(&GlobalData.ClientCloseActive, 1, 0) != 0) return;
 
-    if (GlobalData.FilterHandle && GlobalData.ClientPort) {
-        FltCloseClientPort(GlobalData.FilterHandle, &GlobalData.ClientPort);
+    PFLT_FILTER FilterHandle = NULL;
+    PFLT_PORT ClientPort = NULL;
+
+    KIRQL OldIrql;
+    KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
+    FilterHandle = GlobalData.FilterHandle;
+    ClientPort = GlobalData.ClientPort;
+    GlobalData.ClientPort = NULL;
+    KeReleaseSpinLock(&GlobalData.PortMutex, OldIrql);
+
+    if (FilterHandle && ClientPort) {
+        FltCloseClientPort(FilterHandle, &ClientPort);
     }
 
     InterlockedExchange(&GlobalData.ClientCloseActive, 0);
+}
+
+static VOID WaitForClientPortClose() {
+    LARGE_INTEGER Delay;
+    Delay.QuadPart = -(10LL * 1000);
+
+    while (InterlockedCompareExchange(&GlobalData.ClientCloseActive, 0, 0) != 0) {
+        KeDelayExecutionThread(KernelMode, FALSE, &Delay);
+    }
 }
 
 static VOID ReleaseFilterResources() {
@@ -143,6 +170,7 @@ static VOID ReleaseFilterResources() {
     }
 
     CloseCurrentClientPort();
+    WaitForClientPortClose();
     ExWaitForRundownProtectionRelease(&GlobalData.PortRundown);
 
     if (GlobalData.FilterHandle) {
@@ -473,28 +501,15 @@ static NTSTATUS PortConnect(
 }
 
 static VOID PortDisconnect(PVOID ConnectionCookie) {
+    if (!ConnectionCookie) return;
+
+    PEPROCESS Process = DetachConnectedProcessReference((PEPROCESS)ConnectionCookie);
+    if (!Process) return;
+
     CloseCurrentClientPort();
-
-    BOOLEAN DisconnectedCurrentClient = FALSE;
-
-    KIRQL OldIrql;
-    KeAcquireSpinLock(&GlobalData.PortMutex, &OldIrql);
-
-    if (ConnectionCookie && GlobalData.PyasProcess == (PEPROCESS)ConnectionCookie) {
-        GlobalData.PyasProcess = NULL;
-        DisconnectedCurrentClient = TRUE;
-    }
-
-    KeReleaseSpinLock(&GlobalData.PortMutex, OldIrql);
-
-    if (DisconnectedCurrentClient) {
-        InterlockedExchange(&GlobalData.UnloadAuthorized, 0);
-        SafeSetPyasPid(0);
-    }
-
-    if (ConnectionCookie) {
-        ObDereferenceObject((PEPROCESS)ConnectionCookie);
-    }
+    InterlockedExchange(&GlobalData.UnloadAuthorized, 0);
+    SafeSetPyasPid(0);
+    ObDereferenceObject(Process);
 }
 
 CONST FLT_OPERATION_REGISTRATION Callbacks[] = {

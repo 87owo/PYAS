@@ -49,7 +49,7 @@ class ScannerMixin:
 
                 if driver_enabled:
                     if self.install_system_driver():
-                        self.start_daemon_thread(self.pipe_server_thread)
+                        self.start_driver_listener()
                     else:
                         with self.lock_config:
                             self.pyas_config["driver_switch"] = False

@@ -3,6 +3,8 @@ import ctypes, ctypes.wintypes
 
 from PYAS_Tools import FILE_NOTIFY_INFORMATION, LUID, MEMORY_BASIC_INFORMATION, POINT, PYAS_FULL_MESSAGE, PYAS_USER_MESSAGE, RECT, SERVICE_STATUS_PROCESS, TOKEN_PRIVILEGES
 
+FLT_PORT_FLAG_SYNC_HANDLE = 0x00000001
+
 ####################################################################################################
 
 class ProtectMixin:
@@ -1079,57 +1081,169 @@ class ProtectMixin:
             self.write_log("WARN", "install_system_driver", detail=str(e), success=False)
             return False
 
+    def _driver_handle_value(self, handle):
+        if handle is None:
+            return None
+
+        value = getattr(handle, "value", handle)
+        if value is None:
+            return None
+
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    def _connect_driver_port(self):
+        temp_port = ctypes.wintypes.HANDLE()
+        status = self.fltlib.FilterConnectCommunicationPort(
+            "\\PYAS_Output_Pipe",
+            FLT_PORT_FLAG_SYNC_HANDLE,
+            None,
+            0,
+            None,
+            ctypes.byref(temp_port)
+        )
+        if status != 0:
+            return None
+        return temp_port
+
+    def _detach_driver_port(self, expected_port=None):
+        expected_value = self._driver_handle_value(expected_port)
+
+        with self.lock_driver:
+            current_port = self.driver_port
+            current_value = self._driver_handle_value(current_port)
+            if current_value is None:
+                return None
+
+            if expected_port is not None and current_value != expected_value:
+                return None
+
+            self.driver_port = None
+            return current_port
+
+    def _close_driver_port(self, expected_port=None):
+        port = self._detach_driver_port(expected_port)
+        if not port:
+            return False
+
+        try:
+            self.kernel32.CloseHandle(port)
+        except Exception:
+            pass
+        return True
+
+    def _driver_listener_should_run(self):
+        if self.driver_stop_event.is_set():
+            return False
+
+        with self.lock_config:
+            return bool(self.pyas_config.get("driver_switch", False))
+
+    def start_driver_listener(self):
+        with self.lock_driver:
+            current = self.driver_listener_thread
+            if current and current.is_alive():
+                self.driver_stop_event.clear()
+                return current
+
+            self.driver_stop_event.clear()
+            thread = threading.Thread(target=self.pipe_server_thread, daemon=True)
+            self.driver_listener_thread = thread
+            thread.start()
+            return thread
+
+    def _stop_driver_listener(self):
+        self.driver_stop_event.set()
+        self._close_driver_port()
+
+        with self.lock_driver:
+            thread = self.driver_listener_thread
+
+        if thread and thread is not threading.current_thread():
+            thread.join(timeout=3.0)
+
+        alive = bool(thread and thread.is_alive())
+        if not alive:
+            with self.lock_driver:
+                if self.driver_listener_thread is thread:
+                    self.driver_listener_thread = None
+
+        return not alive
+
+    def _resume_driver_listener(self):
+        if not self.check_system_driver():
+            return
+
+        with self.lock_config:
+            enabled = bool(self.pyas_config.get("driver_switch", False))
+
+        if not enabled:
+            return
+
+        self._close_driver_port()
+        self.start_driver_listener()
+
     def _set_driver_unload_authorization(self, enabled):
         msg = PYAS_USER_MESSAGE()
         msg.Command = 5 if enabled else 6
         msg.Path = ""
-        bytes_returned = ctypes.wintypes.DWORD(0)
 
         for _ in range(3):
+            if not self._ensure_driver_port():
+                time.sleep(0.1)
+                continue
+
             with self.lock_driver:
-                if not self.driver_port:
-                    temp_port = ctypes.wintypes.HANDLE()
-                    if self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port)) == 0:
-                        self.driver_port = temp_port
-                    else:
-                        time.sleep(0.1)
-                        continue
+                current_port = self.driver_port
+                if not current_port:
+                    continue
 
+                bytes_returned = ctypes.wintypes.DWORD(0)
                 try:
-                    status = self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned))
-                    if status == 0:
-                        return True
-
-                    try:
-                        self.kernel32.CloseHandle(self.driver_port)
-                    except Exception:
-                        pass
-                    self.driver_port = None
-
+                    status = self.fltlib.FilterSendMessage(
+                        current_port,
+                        ctypes.byref(msg),
+                        ctypes.sizeof(msg),
+                        None,
+                        0,
+                        ctypes.byref(bytes_returned)
+                    )
                 except Exception as e:
                     self.write_log("WARN", "Driver Unload Authorization", detail=str(e), success=False)
-                    try:
-                        self.kernel32.CloseHandle(self.driver_port)
-                    except Exception:
-                        pass
-                    self.driver_port = None
+                    status = -1
 
+            if status == 0:
+                return True
+
+            self._close_driver_port(current_port)
             time.sleep(0.1)
 
         return False
 
     def _ensure_driver_port(self):
-        with self.lock_driver:
-            if self.driver_port:
+        for _ in range(20):
+            with self.lock_driver:
+                if self.driver_port:
+                    return True
+
+            temp_port = self._connect_driver_port()
+            if temp_port:
+                with self.lock_driver:
+                    if not self.driver_port:
+                        self.driver_port = temp_port
+                        return True
+
+                try:
+                    self.kernel32.CloseHandle(temp_port)
+                except Exception:
+                    pass
                 return True
 
-            temp_port = ctypes.wintypes.HANDLE()
-            status = self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port))
-            if status != 0:
-                return False
+            time.sleep(0.05)
 
-            self.driver_port = temp_port
-            return True
+        return False
 
     def _query_driver_state(self):
         for use_existing in (True, False):
@@ -1143,12 +1257,10 @@ class ProtectMixin:
                 if not port:
                     continue
             else:
-                temp_port = ctypes.wintypes.HANDLE()
-                status = self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port))
-                if status != 0:
+                local_port = self._connect_driver_port()
+                if not local_port:
                     return None
-                local_port = temp_port
-                port = temp_port
+                port = local_port
 
             msg = PYAS_USER_MESSAGE()
             msg.Command = 7
@@ -1157,10 +1269,16 @@ class ProtectMixin:
             bytes_returned = ctypes.wintypes.DWORD(0)
 
             try:
-                status = self.fltlib.FilterSendMessage(port, ctypes.byref(msg), ctypes.sizeof(msg), ctypes.byref(state), ctypes.sizeof(state), ctypes.byref(bytes_returned))
+                status = self.fltlib.FilterSendMessage(
+                    port,
+                    ctypes.byref(msg),
+                    ctypes.sizeof(msg),
+                    ctypes.byref(state),
+                    ctypes.sizeof(state),
+                    ctypes.byref(bytes_returned)
+                )
                 if status == 0 and bytes_returned.value == ctypes.sizeof(state):
                     return int(state.value)
-
             except Exception:
                 pass
             finally:
@@ -1171,13 +1289,7 @@ class ProtectMixin:
                         pass
 
             if use_existing:
-                with self.lock_driver:
-                    if self.driver_port == port:
-                        try:
-                            self.kernel32.CloseHandle(self.driver_port)
-                        except Exception:
-                            pass
-                        self.driver_port = None
+                self._close_driver_port(port)
 
         return None
 
@@ -1203,7 +1315,14 @@ class ProtectMixin:
         return_length = ctypes.wintypes.DWORD(0)
         ctypes.set_last_error(0)
 
-        adjusted = self.advapi32.AdjustTokenPrivileges(token, False, ctypes.byref(new_state), ctypes.sizeof(previous_state), ctypes.byref(previous_state), ctypes.byref(return_length))
+        adjusted = self.advapi32.AdjustTokenPrivileges(
+            token,
+            False,
+            ctypes.byref(new_state),
+            ctypes.sizeof(previous_state),
+            ctypes.byref(previous_state),
+            ctypes.byref(return_length)
+        )
         error = ctypes.get_last_error()
 
         if not adjusted or error == 1300:
@@ -1224,17 +1343,6 @@ class ProtectMixin:
             self.kernel32.CloseHandle(token)
 
     def _filter_unload_with_privilege(self, filter_name):
-        if self.driver_unload_worker and self.driver_unload_worker.is_alive():
-            return {
-                "status": None,
-                "privilege_error": 0,
-                "authorization_failed": False,
-                "exception": None,
-                "attempts": 0,
-                "timed_out": True,
-                "in_progress": True
-            }
-
         result = {
             "status": None,
             "privilege_error": 0,
@@ -1244,108 +1352,92 @@ class ProtectMixin:
             "timed_out": False,
             "in_progress": False
         }
-
-        def _worker():
-            privilege_state = None
-            unload_authorized = False
-
-            try:
-                privilege_state, privilege_error = self._enable_token_privilege("SeLoadDriverPrivilege")
-                if not privilege_state:
-                    result["privilege_error"] = privilege_error
-                    return
-
-                retryable_statuses = {0x80070522, 0x80070005, 0x800700AA}
-
-                for delay in (0.0, 0.2):
-                    if delay > 0:
-                        time.sleep(delay)
-
-                    if not self.check_system_driver():
-                        result["status"] = 0
-                        unload_authorized = False
-                        return
-
-                    if not self._set_driver_unload_authorization(True):
-                        continue
-
-                    unload_authorized = True
-                    result["attempts"] += 1
-                    unload_status = self.fltlib.FilterUnload(filter_name)
-                    result["status"] = unload_status
-
-                    if unload_status == 0:
-                        unload_authorized = False
-                        return
-
-                    revoked = False
-                    if self.check_system_driver():
-                        try:
-                            revoked = self._set_driver_unload_authorization(False)
-                        except Exception:
-                            revoked = False
-                    unload_authorized = not revoked
-
-                    if (unload_status & 0xFFFFFFFF) not in retryable_statuses:
-                        return
-
-                if result["status"] is None:
-                    result["authorization_failed"] = True
-
-            except Exception as e:
-                result["exception"] = str(e)
-            finally:
-                if unload_authorized and self.check_system_driver():
-                    try:
-                        self._set_driver_unload_authorization(False)
-                    except Exception:
-                        pass
-
-                self._restore_token_privilege(privilege_state)
-
-        worker = threading.Thread(target=_worker, daemon=True)
-        self.driver_unload_result = result
-        self.driver_unload_worker = worker
-        worker.start()
-        worker.join(timeout=5.0)
-
-        if worker.is_alive():
-            result["timed_out"] = True
-            result["in_progress"] = True
-            return result
+        privilege_state = None
+        unload_authorized = False
 
         self.driver_unload_worker = None
+        self.driver_unload_result = result
+
+        try:
+            privilege_state, privilege_error = self._enable_token_privilege("SeLoadDriverPrivilege")
+            if not privilege_state:
+                result["privilege_error"] = privilege_error
+                return result
+
+            retryable_statuses = {0x80070522, 0x80070005, 0x800700AA}
+
+            for delay in (0.0, 0.2, 0.5):
+                if delay > 0:
+                    time.sleep(delay)
+
+                if not self.check_system_driver():
+                    result["status"] = 0
+                    unload_authorized = False
+                    return result
+
+                if not self._set_driver_unload_authorization(True):
+                    continue
+
+                unload_authorized = True
+                result["attempts"] += 1
+                unload_status = self.fltlib.FilterUnload(filter_name)
+                result["status"] = unload_status
+
+                if unload_status == 0:
+                    unload_authorized = False
+                    return result
+
+                revoked = False
+                if self.check_system_driver():
+                    try:
+                        revoked = self._set_driver_unload_authorization(False)
+                    except Exception:
+                        revoked = False
+                unload_authorized = not revoked
+
+                if (unload_status & 0xFFFFFFFF) not in retryable_statuses:
+                    return result
+
+            if result["status"] is None:
+                result["authorization_failed"] = True
+
+        except Exception as e:
+            result["exception"] = str(e)
+        finally:
+            if unload_authorized and self.check_system_driver():
+                try:
+                    self._set_driver_unload_authorization(False)
+                except Exception:
+                    pass
+
+            self._restore_token_privilege(privilege_state)
+
         return result
 
     def stop_system_driver(self):
         with self.lock_driver_unload:
+            success = False
             try:
-                if not self.check_system_driver():
-                    with self.lock_driver:
-                        if self.driver_port:
-                            try:
-                                self.kernel32.CloseHandle(self.driver_port)
-                            except Exception:
-                                pass
-                            self.driver_port = None
+                if not self._stop_driver_listener():
+                    self.write_log("WARN", "Driver Protection", detail="Driver listener did not stop", success=False)
+                    return False
 
+                if not self.check_system_driver():
+                    self._close_driver_port()
                     deleted, delete_error = self._delete_driver_service()
                     if not deleted and delete_error != 1051:
                         self.write_log("WARN", "Driver Service Cleanup", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
-                    return deleted or delete_error == 1051
+                    success = deleted or delete_error == 1051
+                    return success
 
                 if not self._ensure_driver_port():
                     if not self.check_system_driver():
+                        success = True
                         return True
                     self.write_log("WARN", "Driver Protection", detail="Control port unavailable", success=False)
                     return False
 
                 unload_result = self._filter_unload_with_privilege("PYAS_Driver")
-
-                if unload_result.get("timed_out"):
-                    detail = "Driver unload is still completing" if unload_result.get("in_progress") else "Driver unload exceeded the wait limit"
-                    self.write_log("WARN", "Driver Protection", detail=detail, success=False)
-                    return False
 
                 if unload_result["privilege_error"]:
                     privilege_error = unload_result["privilege_error"]
@@ -1369,15 +1461,9 @@ class ProtectMixin:
                         self.write_log("WARN", "Driver Protection", detail=f"FilterUnload failed after {attempts} attempt(s): 0x{unload_status & 0xFFFFFFFF:08X}", success=False)
                         return False
 
-                with self.lock_driver:
-                    if self.driver_port:
-                        try:
-                            self.kernel32.CloseHandle(self.driver_port)
-                        except Exception:
-                            pass
-                        self.driver_port = None
+                self._close_driver_port()
 
-                for _ in range(20):
+                for _ in range(30):
                     if not self.check_system_driver():
                         break
                     time.sleep(0.1)
@@ -1391,10 +1477,14 @@ class ProtectMixin:
                     self.write_log("WARN", "Driver Service Cleanup", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
                     return False
 
+                success = True
                 return True
             except Exception as e:
                 self.write_log("WARN", "stop_system_driver", detail=str(e), success=False)
                 return False
+            finally:
+                if not success and self.check_system_driver():
+                    self._resume_driver_listener()
 
     def check_system_driver(self):
         state = self._query_driver_service_state()
@@ -1411,7 +1501,14 @@ class ProtectMixin:
             bytes_returned = ctypes.wintypes.DWORD(0)
 
             try:
-                return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
+                return self.fltlib.FilterSendMessage(
+                    self.driver_port,
+                    ctypes.byref(msg),
+                    ctypes.sizeof(msg),
+                    None,
+                    0,
+                    ctypes.byref(bytes_returned)
+                ) == 0
             except Exception:
                 return False
 
@@ -1432,70 +1529,115 @@ class ProtectMixin:
             bytes_returned = ctypes.wintypes.DWORD(0)
 
             try:
-                return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
+                return self.fltlib.FilterSendMessage(
+                    self.driver_port,
+                    ctypes.byref(msg),
+                    ctypes.sizeof(msg),
+                    None,
+                    0,
+                    ctypes.byref(bytes_returned)
+                ) == 0
             except Exception:
                 return False
 
     def pipe_server_thread(self):
+        owned_port = None
         try:
-            while True:
+            while self._driver_listener_should_run():
+                temp_port = self._connect_driver_port()
+                if not temp_port:
+                    self.driver_stop_event.wait(0.1)
+                    continue
+
+                if not self._driver_listener_should_run():
+                    try:
+                        self.kernel32.CloseHandle(temp_port)
+                    except Exception:
+                        pass
+                    break
+
+                with self.lock_driver:
+                    if self.driver_port:
+                        accepted = False
+                    else:
+                        self.driver_port = temp_port
+                        owned_port = temp_port
+                        accepted = True
+
+                if not accepted:
+                    try:
+                        self.kernel32.CloseHandle(temp_port)
+                    except Exception:
+                        pass
+                    self.driver_stop_event.wait(0.1)
+                    continue
+
+                self.clear_driver_rules()
+
+                if os.path.exists(self.path_rules):
+                    for file in os.listdir(self.path_rules):
+                        if file.endswith(".json"):
+                            self.load_driver_rule_file(os.path.join(self.path_rules, file))
+
                 with self.lock_config:
-                    if not self.pyas_config.get("driver_switch", False):
+                    whitelist = list(self.pyas_config.get("white_list", []))
+
+                for item in whitelist:
+                    if isinstance(item, dict) and item.get("file"):
+                        self.sync_driver_whitelist(item["file"], True)
+
+                while self._driver_listener_should_run():
+                    with self.lock_driver:
+                        current_port = self.driver_port
+                        owns_current = self._driver_handle_value(current_port) == self._driver_handle_value(owned_port)
+
+                    if not owns_current:
                         break
 
-                temp_port = ctypes.wintypes.HANDLE()
-                if self.fltlib.FilterConnectCommunicationPort("\\PYAS_Output_Pipe", 0, None, 0, None, ctypes.byref(temp_port)) == 0:
-                    with self.lock_driver:
-                        self.driver_port = temp_port
-
-                    self.clear_driver_rules()
-
-                    if os.path.exists(self.path_rules):
-                        for file in os.listdir(self.path_rules):
-                            if file.endswith(".json"):
-                                full_path = os.path.join(self.path_rules, file)
-                                self.load_driver_rule_file(full_path)
-
-                    with self.lock_config:
-                        whitelist = self.pyas_config.get("white_list", [])
-
-                    for item in whitelist:
-                        if isinstance(item, dict) and item.get("file"): 
-                            self.sync_driver_whitelist(item["file"], True)
-
                     message = PYAS_FULL_MESSAGE()
-                    while True:
-                        with self.lock_config:
-                            if not self.pyas_config.get("driver_switch", False):
-                                break
+                    try:
+                        status = self.fltlib.FilterGetMessage(
+                            owned_port,
+                            ctypes.byref(message),
+                            ctypes.sizeof(PYAS_FULL_MESSAGE),
+                            None
+                        )
+                    except Exception:
+                        break
 
-                        with self.lock_driver:
-                            current_port = self.driver_port
-                        if not current_port:
-                            break
+                    if status != 0:
+                        break
 
-                        try:
-                            if self.fltlib.FilterGetMessage(current_port, ctypes.byref(message), ctypes.sizeof(PYAS_FULL_MESSAGE), None) == 0:
-                                code, pid, target = message.Data.MessageCode, message.Data.ProcessId, message.Data.Path
-                                exe_info = self.get_exe_info(pid)
-                                safe_source = exe_info[1] if exe_info and exe_info[1] else "Unknown"
+                    code = message.Data.MessageCode
+                    pid = message.Data.ProcessId
+                    target = message.Data.Path
+                    exe_info = self.get_exe_info(pid)
+                    safe_source = exe_info[1] if exe_info and exe_info[1] else "Unknown"
 
-                                if not self.is_in_whitelist(safe_source):
-                                    self.write_log(
-                                        "BLOCK", "Driver Block", detail="Driver protection event",
-                                        pid=pid, source=safe_source, target=target, code=code,
-                                        file_hash=self.calc_file_hash(safe_source), operate=None, success=True
-                                    )
-                            else:
-                                break
-                        except OSError:
-                            break
+                    if not self.is_in_whitelist(safe_source):
+                        self.write_log(
+                            "BLOCK",
+                            "Driver Block",
+                            detail="Driver protection event",
+                            pid=pid,
+                            source=safe_source,
+                            target=target,
+                            code=code,
+                            file_hash=self.calc_file_hash(safe_source),
+                            operate=None,
+                            success=True
+                        )
 
-                    with self.lock_driver:
-                        if self.driver_port:
-                            self.kernel32.CloseHandle(self.driver_port)
-                            self.driver_port = None
-
-                time.sleep(0.1)
+                self._close_driver_port(owned_port)
+                owned_port = None
+                self.driver_stop_event.wait(0.1)
         except Exception as e:
-            self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
+            if not self.driver_stop_event.is_set():
+                self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
+        finally:
+            if owned_port:
+                self._close_driver_port(owned_port)
+
+            with self.lock_driver:
+                if self.driver_listener_thread is threading.current_thread():
+                    self.driver_listener_thread = None

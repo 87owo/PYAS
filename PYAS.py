@@ -240,6 +240,8 @@ class _MainMixin:
         self.start_daemon_thread(self.ui_dispatcher_thread)
 
         self.driver_port = None
+        self.driver_stop_event = threading.Event()
+        self.driver_listener_thread = None
         self.engine_initialized = False
         self.scan_running = False
         self.scan_finished = False
@@ -403,7 +405,7 @@ class _MainMixin:
                         self.start_daemon_thread(self.protect_net_thread)
                     elif key == "driver_switch":
                         if self.install_system_driver():
-                            self.start_daemon_thread(self.pipe_server_thread)
+                            self.start_driver_listener()
                         else:
                             success = False
 

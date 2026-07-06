@@ -3,6 +3,7 @@
         {
             "Name": "Process_Protect_Antivirus_Command",
             "Code": 1001,
+            "Kill": false,
             "Category": "Process",
             "Initiator": [
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\cmd.exe",
@@ -29,15 +30,18 @@
                 "*\\wmic.exe",
                 "*\\net.exe",
                 "*\\net1.exe",
-            ]
+            ],
+            "Priority": 110,
+            "FileOpenNameAvailable": true,
+            "SubsystemProcess": false,
         },
         {
-            "Name": "Process_Protect_Antivirus_Handle",
+            "Name": "Process_Protect_PYAS_Handle",
             "Code": 1002,
+            "Kill": false,
             "Category": "Process",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
-                "*\\msedgewebview2.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
@@ -55,40 +59,159 @@
             "Operations": [
                 "Terminate",
                 "SuspendResume",
+                "DuplicateHandle",
+                "SetInformation",
+                "CreateProcess",
+                "SetThreadToken",
+                "Impersonate",
+            ],
+            "Priority": 130,
+            "InitiatorProcessTreeExclude": [
+                "*\\PYAS.exe",
+            ],
+            "HandleTypes": [
+                "Create",
+                "Duplicate",
+            ],
+            "OperationMatch": "Any",
+            "MinimumRiskScore": 20,
+            "ObjectTypes": [
+                "Process",
+                "Thread",
             ]
         },
         {
-            "Name": "Memory_Protect_Write",
+            "Name": "Memory_Protect_PYAS_Injection",
             "Code": 1003,
+            "Kill": false,
+            "Priority": 140,
+            "Category": "Memory",
+            "InitiatorExclude": [
+                "*\\PYAS.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
+            ],
+            "InitiatorProcessTreeExclude": [
+                "*\\PYAS.exe",
+            ],
+            "Target": [
+                "*\\PYAS.exe",
+                "*\\msedgewebview2.exe",
+            ],
+            "TargetProcessTree": [
+                "*\\PYAS.exe",
+            ],
+            "Operations": [
+                "WriteMemory",
+                "VmOperation",
+                "CreateThread",
+                "SetThreadContext",
+            ],
+            "HandleTypes": [
+                "Create",
+                "Duplicate",
+            ],
+            "OperationMatch": "Any",
+            "MinimumRiskScore": 35,
+            "ObjectTypes": [
+                "Process",
+                "Thread",
+            ]
+        },
+        {
+            "Name": "Thread_Protect_PYAS_Private_Executable",
+            "Code": 1004,
+            "Kill": false,
+            "Priority": 150,
+            "Category": "Thread",
+            "InitiatorExclude": [
+                "*\\PYAS.exe",
+            ],
+            "InitiatorProcessTreeExclude": [
+                "*\\PYAS.exe",
+            ],
+            "Target": [
+                "*\\PYAS.exe",
+                "*\\msedgewebview2.exe",
+            ],
+            "TargetProcessTree": [
+                "*\\PYAS.exe",
+            ],
+            "ThreadMemoryTypes": [
+                "Private",
+            ],
+            "ThreadMemoryProtections": [
+                "Execute",
+            ],
+            "MinimumRiskScore": 70,
+            "MaximumRegionSize": 67108864,
+            "Operations": [
+                "Execute",
+            ]
+        },
+        {
+            "Name": "Memory_Protect_System_Credential_Injection",
+            "Code": 1005,
+            "Kill": false,
+            "Priority": 120,
             "Category": "Memory",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
                 "*\\Huorong\\Sysdiag\\bin\\HipsDaemon.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
-                "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\services.exe",
             ],
             "Target": [
-                "*\\PYAS.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\winlogon.exe",
             ],
             "Operations": [
-                "VmWrite",
+                "WriteMemory",
+                "VmOperation",
+                "CreateThread",
+                "SetThreadContext",
+            ],
+            "HandleTypes": [
+                "Create",
+                "Duplicate",
+            ],
+            "OperationMatch": "Any",
+            "MinimumRiskScore": 35,
+            "ObjectTypes": [
+                "Process",
+                "Thread",
             ]
         },
         {
-            "Name": "Thread_Protect_Shellcode",
-            "Code": 1004,
+            "Name": "Thread_Protect_Explorer_High_Confidence",
+            "Code": 1006,
+            "Kill": false,
+            "Priority": 100,
             "Category": "Thread",
-            "InitiatorExclude": [
-                "*\\PYAS.exe",
+            "Initiator": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\cmd.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\WindowsPowerShell\\*\\powershell.exe",
+                "\\Device\\HarddiskVolume*\\Program Files\\PowerShell\\*\\pwsh.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\wscript.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\cscript.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\mshta.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\rundll32.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\regsvr32.exe",
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*.exe",
+                "\\Device\\HarddiskVolume*\\Users\\*\\Downloads\\*.exe",
             ],
             "Target": [
-                "*\\PYAS.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
             ],
+            "ThreadMemoryTypes": [
+                "Private",
+            ],
+            "ThreadMemoryProtections": [
+                "ExecuteWrite",
+            ],
+            "MinimumRiskScore": 90,
+            "MaximumRegionSize": 16777216,
             "Operations": [
                 "Execute",
             ]
@@ -96,6 +219,7 @@
         {
             "Name": "File_Protect_Antivirus",
             "Code": 2001,
+            "Kill": false,
             "Category": "File",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
@@ -108,8 +232,19 @@
             "Target": [
                 "*\\PYAS.exe",
                 "*\\ProgramData\\PYAS\\*.json",
+                "*\\Engine\\Heuristic\\*.yar",
+                "*\\Engine\\Heuristic\\*.yara",
+                "*\\Engine\\Heuristic\\*.yc",
+                "*\\Engine\\Heuristic\\*.yrc",
+                "*\\Engine\\Heuristic\\*.ip",
+                "*\\Engine\\Heuristic\\*.txt",
                 "*\\Engine\\Pattern\\*.onnx",
+                "*\\Engine\\Properties\\*.json",
                 "*\\Engine\\Properties\\*.onnx",
+                "*\\Interface\\static\\css\\*.css",
+                "*\\Interface\\static\\img\\*.ico",
+                "*\\Interface\\static\\js\\*.js",
+                "*\\Interface\\templates\\*.html",
                 "*\\Plugins\\Filter\\PYAS_Driver.sys",
                 "*\\Plugins\\Rules\\*.json",
             ],
@@ -121,6 +256,7 @@
         {
             "Name": "File_Protect_System",
             "Code": 2002,
+            "Kill": false,
             "Category": "File",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
@@ -157,6 +293,7 @@
         {
             "Name": "File_Protect_System_Exploit",
             "Code": 2003,
+            "Kill": true,
             "Category": "File",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
@@ -188,6 +325,7 @@
         {
             "Name": "File_Protect_System_Ransom",
             "Code": 2004,
+            "Kill": true,
             "Category": "File",
             "Initiator": [
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\cmd.exe",
@@ -213,11 +351,12 @@
                 "Rename",
             ],
             "Threshold": 50,
-            "TimeWindow": 5000,
+            "TimeWindow": 3000,
         },
         {
             "Name": "File_Protect_Ransom",
             "Code": 2005,
+            "Kill": true,
             "Category": "File",
             "InitiatorExclude": [
                 "\\Device\\HarddiskVolume*\\Windows\\*",
@@ -322,6 +461,7 @@
         {
             "Name": "Device_Protect_Disk_Wiper",
             "Code": 2006,
+            "Kill": false,
             "Category": "Device",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
@@ -340,6 +480,7 @@
         {
             "Name": "Registry_Protect_System",
             "Code": 3001,
+            "Kill": true,
             "Category": "Registry",
             "InitiatorExclude": [
                 "\\Device\\HarddiskVolume*\\Windows\\*",

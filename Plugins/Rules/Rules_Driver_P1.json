@@ -42,6 +42,7 @@
             "Category": "Process",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\PYAS_Setup.tmp",
                 "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
@@ -60,7 +61,6 @@
                 "Terminate",
                 "SuspendResume",
                 "DuplicateHandle",
-                "SetInformation",
                 "CreateProcess",
                 "SetThreadToken",
                 "Impersonate",
@@ -88,6 +88,7 @@
             "Category": "Memory",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\PYAS_Setup.tmp",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
             ],

@@ -120,7 +120,7 @@
         {
             "Name": "File_Protect_System",
             "Code": 2002,
-            "Kill": false,
+            "Kill": true,
             "Category": "File",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
@@ -140,14 +140,6 @@
                 "\\Device\\HarddiskVolume*\\EFI\\*",
                 "\\Device\\HarddiskVolume*\\Boot\\*",
                 "\\Device\\HarddiskVolume*\\Recovery\\*",
-                "\\Device\\HarddiskVolume*\\System Volume Information\\*",
-                "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\*",
-            ],
-            "TargetExclude": [
-                "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\systemprofile\\AppData\\LocalLow\\*",
-                "\\Device\\HarddiskVolume*\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\*",
-                "\\Device\\HarddiskVolume*\\System Volume Information\\SystemRestore\\FRStaging",
-                "\\Device\\HarddiskVolume*\\System Volume Information\\IndexerVolumeGuid",
             ],
             "Operations": [
                 "Write",

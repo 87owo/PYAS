@@ -13,6 +13,12 @@ from PYAS_Protect import ProtectMixin
 from PYAS_Scanner import ScannerMixin
 from PYAS_Tools import COPYDATASTRUCT, FILE_NOTIFY_INFORMATION, FILTER_MESSAGE_HEADER, IO_COUNTERS, LUID, LUID_AND_ATTRIBUTES, MEMORY_BASIC_INFORMATION, MIB_TCPROW_OWNER_PID, POINT, PROCESSENTRY32W, PROCESS_BASIC_INFORMATION, PYAS_FULL_MESSAGE, PYAS_MESSAGE, PYAS_USER_MESSAGE, RECT, SERVICE_STATUS_PROCESS, SHQUERYRBINFO, TOKEN_PRIVILEGES, ToolsMixin, UNICODE_STRING
 
+PYAS_WINDOW_TITLE = "PYAS Security"
+WM_COPYDATA = 0x004A
+SMTO_ABORTIFHUNG = 0x0002
+SMTO_ERRORONEXIT = 0x0020
+PYAS_SEND_MESSAGE_FLAGS = SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT
+
 ####################################################################################################
 
 class _MainMixin:
@@ -31,48 +37,12 @@ class _MainMixin:
         self.init_windll()
 
         if not self.check_singleton("PYAS_Security_Mutex"):
-            hwnd = self.user32.FindWindowW(None, "PYAS Security")
-            if hwnd:
-                if "-quit" in self.args_pyas:
-                    try:
-                        cds = COPYDATASTRUCT()
-                        cds.dwData = 3
-                        cds.cbData = 0
-                        cds.lpData = None
-                        self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
+            if self.forward_to_existing_instance():
+                os._exit(0)
 
-                        time.sleep(0.5)
-                    except Exception:
-                        pass
-
-                elif "-scan" in self.args_pyas:
-                    try:
-                        idx = self.args_pyas.index("-scan")
-                        target = self.args_pyas[idx+1]
-                        cds = COPYDATASTRUCT()
-                        cds.dwData = 1
-                        encoded = target.encode('utf-8')
-                        cds.cbData = len(encoded) + 1
-
-                        buffer = ctypes.create_string_buffer(encoded)
-                        cds.lpData = ctypes.cast(buffer, ctypes.c_void_p)
-                        self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
-                        self.user32.SetForegroundWindow(hwnd)
-
-                    except Exception:
-                        pass
-                else:
-                    try:
-                        cds = COPYDATASTRUCT()
-                        cds.dwData = 2
-                        cds.cbData = 0
-                        cds.lpData = None
-                        self.user32.SendMessageTimeoutW(hwnd, 0x004A, 0, ctypes.byref(cds), 0x0002, 3000, None)
-                        self.user32.SetForegroundWindow(hwnd)
-
-                    except Exception:
-                        pass
-            os._exit(0)
+            self.h_recovery_mutex = self.kernel32.CreateMutexW(None, False, "PYAS_Security_Recovery_Mutex")
+            if ctypes.get_last_error() == 183:
+                os._exit(0)
 
         if "-quit" in self.args_pyas:
             os._exit(0)
@@ -80,6 +50,68 @@ class _MainMixin:
         self.init_variables()
         self.load_config()
         self.load_logs()
+
+    def find_existing_window(self, timeout=2.0):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            hwnd = self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
+            if hwnd:
+                return hwnd
+            time.sleep(0.05)
+        return None
+
+    def send_existing_window_message(self, hwnd, message_id, payload=None, timeout=1000):
+        if not hwnd:
+            return False
+
+        cds = COPYDATASTRUCT()
+        cds.dwData = message_id
+        buffer = None
+
+        if payload is not None:
+            encoded = str(payload).encode('utf-8')
+            buffer = ctypes.create_string_buffer(encoded + b'\x00')
+            cds.cbData = len(encoded) + 1
+            cds.lpData = ctypes.cast(buffer, ctypes.c_void_p)
+        else:
+            cds.cbData = 0
+            cds.lpData = None
+
+        try:
+            return bool(self.user32.SendMessageTimeoutW(hwnd, WM_COPYDATA, 0, ctypes.byref(cds), PYAS_SEND_MESSAGE_FLAGS, timeout, None))
+        except Exception:
+            return False
+
+    def forward_to_existing_instance(self):
+        hwnd = self.find_existing_window()
+        if not hwnd:
+            return False
+
+        if "-quit" in self.args_pyas or "-driver-unload" in self.args_pyas:
+            return self.send_existing_window_message(hwnd, 3, timeout=1200)
+
+        if "-scan" in self.args_pyas:
+            try:
+                idx = self.args_pyas.index("-scan")
+                target = self.args_pyas[idx + 1]
+            except Exception:
+                return False
+
+            if self.send_existing_window_message(hwnd, 1, target, timeout=1200):
+                try:
+                    self.user32.SetForegroundWindow(hwnd)
+                except Exception:
+                    pass
+                return True
+            return False
+
+        if self.send_existing_window_message(hwnd, 2, timeout=1200):
+            try:
+                self.user32.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+            return True
+        return False
 
     def check_singleton(self, name):
         try:
@@ -225,7 +257,9 @@ class _MainMixin:
         self.kernel32.ReadProcessMemory.restype = ctypes.wintypes.BOOL
         self.kernel32.ReadProcessMemory.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
         self.kernel32.QueryFullProcessImageNameW.restype = ctypes.wintypes.BOOL
-        self.kernel32.QueryFullProcessImageNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_wchar_p, ctypes.POINTER(ctypes.wintypes.DWORD)]
+        self.kernel32.QueryFullProcessImageNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR, ctypes.POINTER(ctypes.wintypes.DWORD)]
+        self.kernel32.QueryDosDeviceW.restype = ctypes.wintypes.DWORD
+        self.kernel32.QueryDosDeviceW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
         self.kernel32.GetProcessIoCounters.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(IO_COUNTERS)]
         self.kernel32.GetProcessIoCounters.restype = ctypes.wintypes.BOOL
         self.kernel32.VirtualQueryEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(MEMORY_BASIC_INFORMATION), ctypes.c_size_t]
@@ -270,6 +304,7 @@ class _MainMixin:
         self.lock_driver_unload = threading.Lock()
         self.driver_unload_worker = None
         self.driver_unload_result = None
+        self.closing = False
         self.lock_update = threading.RLock()
         self.lock_proc = threading.RLock()
         self.lock_net = threading.RLock()
@@ -709,7 +744,7 @@ class _MainMixin:
             self._window.restore()
             self._window.show()
 
-            hwnd = self.user32.FindWindowW(None, "PYAS Security")
+            hwnd = self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
             if hwnd:
                 self.user32.SetForegroundWindow(hwnd)
 
@@ -722,7 +757,7 @@ class _MainMixin:
         if self._window:
             self._window.minimize()
         else:
-            hwnd = self.user32.FindWindowW(None, "PYAS Security")
+            hwnd = self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
             if hwnd:
                 self.user32.ShowWindow(hwnd, 6)
 
@@ -730,11 +765,48 @@ class _MainMixin:
         if self._window:
             self._window.hide()
 
+    def destroy_window_with_timeout(self, window, timeout=1.0):
+        if not window:
+            return
+
+        done = threading.Event()
+
+        def destroy_window():
+            try:
+                window.destroy()
+            except Exception:
+                pass
+            finally:
+                done.set()
+
+        threading.Thread(target=destroy_window, daemon=True).start()
+        done.wait(timeout)
+
+    def flush_logs_now(self):
+        with self.lock_logs:
+            if not getattr(self, 'logs_dirty', False):
+                return
+
+            try:
+                os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
+                with open(self.file_log, "w", encoding="utf-8") as f:
+                    json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
+                self.logs_dirty = False
+            except Exception:
+                pass
+
     def close(self, *args, **kwargs):
+        if getattr(self, 'closing', False):
+            return True
+
+        self.closing = True
+
         with self.lock_config:
             driver_enabled = self.pyas_config.get("driver_switch", False)
 
-        if driver_enabled and not self.stop_system_driver():
+        driver_loaded = driver_enabled or self.check_system_driver()
+        if driver_loaded and not self.stop_system_driver():
+            self.closing = False
             self.write_log("WARN", "Driver Protection", detail="Controlled unload failed", success=False)
             if self._window:
                 try:
@@ -750,9 +822,11 @@ class _MainMixin:
                 pass
             self.tray_icon = None
 
-        if self._window:
+        window = self._window
+        self._window = None
+        if window:
             try:
-                self._window.hide()
+                window.hide()
             except Exception:
                 pass
 
@@ -793,24 +867,17 @@ class _MainMixin:
                         pass
                 self.suspended_procs.clear()
 
-        if hasattr(self, 'h_mutex') and self.h_mutex:
-            try:
-                self.kernel32.CloseHandle(self.h_mutex)
-            except Exception:
-                pass
-
-        if self._window:
-            self._window.destroy()
-
-        with self.lock_logs:
-            if getattr(self, 'logs_dirty', False):
+        for mutex_name in ('h_mutex', 'h_recovery_mutex'):
+            handle = getattr(self, mutex_name, None)
+            if handle:
                 try:
-                    os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
-                    with open(self.file_log, "w", encoding="utf-8") as f:
-                        json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
-
+                    self.kernel32.CloseHandle(handle)
                 except Exception:
                     pass
+                setattr(self, mutex_name, None)
+
+        self.flush_logs_now()
+        self.destroy_window_with_timeout(window)
         os._exit(0)
 
     def init_ui_ready(self):
@@ -1041,7 +1108,14 @@ class WindowHook:
     def __init__(self, title, api_ref=None):
         self.title, self.api_ref = title, api_ref
         self.old_wndproc = None
-        self.WM_DPICHANGED, self.WM_NCHITTEST, self.WM_COPYDATA, self.HTCAPTION, self.GWLP_WNDPROC = 0x02E0, 0x0084, 0x004A, 2, -4
+        self.WM_DPICHANGED = 0x02E0
+        self.WM_NCHITTEST = 0x0084
+        self.WM_CLOSE = 0x0010
+        self.WM_COPYDATA = WM_COPYDATA
+        self.WM_SYSCOMMAND = 0x0112
+        self.SC_CLOSE = 0xF060
+        self.HTCAPTION = 2
+        self.GWLP_WNDPROC = -4
 
         class RECT(ctypes.Structure):
             _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
@@ -1052,6 +1126,7 @@ class WindowHook:
         self.user32 = ctypes.windll.user32
         self.user32.FindWindowW.argtypes, self.user32.FindWindowW.restype = [ctypes.c_wchar_p, ctypes.c_wchar_p], ctypes.wintypes.HWND
         self.user32.CallWindowProcW.argtypes, self.user32.CallWindowProcW.restype = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p
+        self.user32.DefWindowProcW.argtypes, self.user32.DefWindowProcW.restype = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p
 
         if ctypes.sizeof(ctypes.c_void_p) == 8:
             self.SetWindowLong, self.GetWindowLong = self.user32.SetWindowLongPtrW, self.user32.GetWindowLongPtrW
@@ -1063,6 +1138,9 @@ class WindowHook:
         self.new_wndproc_cb = self.WNDPROC(self.wndproc)
 
     def hook(self):
+        if self.old_wndproc:
+            return
+
         hwnd = self.user32.FindWindowW(None, self.title)
         if hwnd:
             self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
@@ -1071,37 +1149,39 @@ class WindowHook:
             try:
                 self.user32.ChangeWindowMessageFilterEx.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p]
                 self.user32.ChangeWindowMessageFilterEx(hwnd, self.WM_COPYDATA, 1, None)
-
             except Exception:
                 pass
 
-    def wndproc(self, hwnd, msg, wparam, lparam):
-        if msg in [0x0010, 0x0002, 0x0012, 0x0212] or (msg == 0x0112 and (wparam & 0xFFF0) == 0xF060):
-            return 0
+    def call_default(self, hwnd, msg, wparam, lparam):
+        if self.old_wndproc:
+            return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam)
+        return self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
+    def wndproc(self, hwnd, msg, wparam, lparam):
         if msg == self.WM_COPYDATA:
             try:
                 cds = COPYDATASTRUCT.from_address(lparam)
                 if cds.dwData == 1:
                     path = ctypes.string_at(cds.lpData, cds.cbData).decode('utf-8').strip('\x00')
-
                     if self.api_ref:
-                        if self.api_ref._window:
-                            self.api_ref._window.restore();
-                            self.api_ref._window.show()
-
+                        threading.Thread(target=self.api_ref.restore_from_tray, daemon=True).start()
                         threading.Thread(target=self.api_ref.trigger_context_scan, args=(path,), daemon=True).start()
 
-                elif cds.dwData == 2 and self.api_ref and self.api_ref._window:
-                    self.api_ref._window.restore();
-                    self.api_ref._window.show()
+                elif cds.dwData == 2 and self.api_ref:
+                    threading.Thread(target=self.api_ref.restore_from_tray, daemon=True).start()
 
                 elif cds.dwData == 3 and self.api_ref:
-                    self.api_ref.close()
+                    threading.Thread(target=self.api_ref.close, daemon=True).start()
 
             except Exception:
                 pass
             return 1
+
+        if msg == self.WM_CLOSE or (msg == self.WM_SYSCOMMAND and (wparam & 0xFFF0) == self.SC_CLOSE):
+            if self.api_ref and not getattr(self.api_ref, 'closing', False):
+                threading.Thread(target=self.api_ref.hide_window, daemon=True).start()
+                return 0
+            return self.call_default(hwnd, msg, wparam, lparam)
 
         if msg == self.WM_NCHITTEST:
             x, y = lparam & 0xFFFF, (lparam >> 16) & 0xFFFF
@@ -1119,11 +1199,10 @@ class WindowHook:
             try:
                 rect = self.RECT.from_address(lparam)
                 self.user32.SetWindowPos(hwnd, None, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0004 | 0x0010 | 0x0020)
-
             except Exception:
                 pass
 
-        return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam) if self.old_wndproc else self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
+        return self.call_default(hwnd, msg, wparam, lparam)
 
 ####################################################################################################
 
@@ -1139,6 +1218,11 @@ def start_api(port_container, ready_event):
         ready_event.set()
 
 if __name__ == "__main__":
+    if "-driver-unload" in sys.argv:
+        controller = WindowAPI()
+        success = controller.stop_system_driver()
+        os._exit(0 if success or not controller.check_system_driver() else 2)
+
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
     init_width, init_height = 980, 670
 
@@ -1158,21 +1242,36 @@ if __name__ == "__main__":
     pos_x, pos_y = (user32.GetSystemMetrics(0) - init_width) // 2, (user32.GetSystemMetrics(1) - init_height) // 2
 
     window = webview.create_window(
-        title="PYAS Security", url=f"http://127.0.0.1:{port_container[0]}/", width=init_width, height=init_height, x=pos_x, y=pos_y,
+        title=PYAS_WINDOW_TITLE, url=f"http://127.0.0.1:{port_container[0]}/", width=init_width, height=init_height, x=pos_x, y=pos_y,
         frameless=True, easy_drag=False, js_api=js_api, background_color='#e0e0e0', hidden=hide_on_start)
 
     if platform.system() == "Windows":
-        window_hook = WindowHook("PYAS Security", js_api)
+        window_hook = WindowHook(PYAS_WINDOW_TITLE, js_api)
         window.events.shown += window_hook.hook
 
     js_api.set_window(window)
     js_api.show_tray()
 
+    webview_ready_event = threading.Event()
+
+    def mark_webview_ready():
+        webview_ready_event.set()
+
     def bind_dnd():
+        mark_webview_ready()
         try:
             window.dom.document.events.drop += DOMEventHandler(js_api.on_drop, True, True)
         except Exception:
             pass
 
+    def webview_startup_watchdog():
+        if not hide_on_start and not webview_ready_event.wait(60.0):
+            try:
+                js_api.flush_logs_now()
+            except Exception:
+                pass
+            os._exit(3)
+
     window.events.loaded += bind_dnd
+    threading.Thread(target=webview_startup_watchdog, daemon=True).start()
     webview.start()

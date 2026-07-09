@@ -9,6 +9,23 @@ ERROR_OPERATION_ABORTED = 995
 ERROR_NOT_FOUND = 1168
 WAIT_OBJECT_0 = 0
 WAIT_TIMEOUT = 258
+PYAS_CONNECTION_MAGIC = 0x53415950
+PYAS_CONNECTION_VERSION = 1
+PROCESS_TERMINATE = 0x0001
+PROCESS_VM_READ = 0x0010
+PROCESS_QUERY_INFORMATION = 0x0400
+PROCESS_SUSPEND_RESUME = 0x0800
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+PYAS_PROCESS_SCAN_ACCESS = PROCESS_TERMINATE | PROCESS_VM_READ | PROCESS_QUERY_INFORMATION | PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION
+PYAS_PROCESS_NETWORK_ACCESS = PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION
+
+class PYAS_CONNECTION_CONTEXT(ctypes.Structure):
+    _fields_ = [
+        ("Size", ctypes.wintypes.ULONG),
+        ("Version", ctypes.wintypes.ULONG),
+        ("Magic", ctypes.wintypes.ULONG),
+        ("ProcessId", ctypes.wintypes.ULONG)
+    ]
 
 class OVERLAPPED(ctypes.Structure):
     _fields_ = [
@@ -448,7 +465,7 @@ class ProtectMixin:
                     self.exist_process = cur
 
                 for pid in new_pids:
-                    h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+                    h = self.kernel32.OpenProcess(PYAS_PROCESS_SCAN_ACCESS, False, pid)
                     if h:
                         with self.lock_config:
                             should_suspend = self.pyas_config.get("suspend_switch", True)
@@ -476,7 +493,7 @@ class ProtectMixin:
                 suspended = self.pyas_config.get("suspend_switch", True)
 
         if not h:
-            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            h = self.kernel32.OpenProcess(PYAS_PROCESS_SCAN_ACCESS, False, pid)
             if not h:
                 return
 
@@ -726,7 +743,7 @@ class ProtectMixin:
     def handle_new_connection(self, key):
         pid, remote_addr, remote_port = key
         try:
-            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            h = self.kernel32.OpenProcess(PYAS_PROCESS_NETWORK_ACCESS, False, pid)
             if not h:
                 return
 
@@ -940,6 +957,46 @@ class ProtectMixin:
                 self.advapi32.CloseServiceHandle(service)
             self.advapi32.CloseServiceHandle(scm)
 
+    def _get_driver_client_image_path(self):
+        buffer = ctypes.create_unicode_buffer(32768)
+        size = ctypes.wintypes.DWORD(len(buffer))
+        if not self.kernel32.QueryFullProcessImageNameW(
+            self.kernel32.GetCurrentProcess(),
+            0,
+            buffer,
+            ctypes.byref(size)
+        ):
+            return None
+
+        image_path = os.path.abspath(buffer.value)
+        drive, tail = os.path.splitdrive(image_path)
+        if not drive or not tail:
+            return None
+
+        device_buffer = ctypes.create_unicode_buffer(32768)
+        if not self.kernel32.QueryDosDeviceW(drive, device_buffer, len(device_buffer)):
+            return None
+
+        return device_buffer.value.rstrip("\\") + tail
+
+    def _configure_driver_identity(self):
+        image_path = self._get_driver_client_image_path()
+        if not image_path:
+            return False, ctypes.get_last_error() or 1
+
+        try:
+            access = winreg.KEY_SET_VALUE | getattr(winreg, "KEY_WOW64_64KEY", 0)
+            with winreg.CreateKeyEx(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SYSTEM\CurrentControlSet\Services\PYAS_Driver",
+                0,
+                access
+            ) as key:
+                winreg.SetValueEx(key, "ClientImagePath", 0, winreg.REG_SZ, image_path)
+            return True, 0
+        except OSError as e:
+            return False, int(getattr(e, "winerror", 0) or 1)
+
     def _ensure_driver_service(self):
         desired_service_access = 0x0002 | 0x0004 | 0x0010 | 0x00010000
         dependencies = ctypes.create_unicode_buffer("FltMgr\0\0")
@@ -1062,6 +1119,11 @@ class ProtectMixin:
                 self.write_log("WARN", "Driver Service", detail=f"CreateServiceW/ChangeServiceConfigW failed: 0x{service_error & 0xFFFFFFFF:08X}", success=False)
                 return False
 
+            configured, identity_error = self._configure_driver_identity()
+            if not configured:
+                self.write_log("WARN", "Driver Identity", detail=f"ClientImagePath configuration failed: 0x{identity_error & 0xFFFFFFFF:08X}", success=False)
+                return False
+
             self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances", "DefaultInstance", winreg.REG_SZ, "PYAS Instance")
             self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances\PYAS Instance", "Altitude", winreg.REG_SZ, "320000")
             self._reg_write(winreg.HKEY_LOCAL_MACHINE, r"SYSTEM\CurrentControlSet\Services\PYAS_Driver\Instances\PYAS Instance", "Flags", winreg.REG_DWORD, 0)
@@ -1120,12 +1182,18 @@ class ProtectMixin:
             return None
 
     def _connect_driver_port(self, asynchronous=False):
+        context = PYAS_CONNECTION_CONTEXT()
+        context.Size = ctypes.sizeof(context)
+        context.Version = PYAS_CONNECTION_VERSION
+        context.Magic = PYAS_CONNECTION_MAGIC
+        context.ProcessId = os.getpid()
+
         temp_port = ctypes.wintypes.HANDLE()
         status = self.fltlib.FilterConnectCommunicationPort(
             "\\PYAS_Output_Pipe",
             0 if asynchronous else FLT_PORT_FLAG_SYNC_HANDLE,
-            None,
-            0,
+            ctypes.byref(context),
+            ctypes.sizeof(context),
             None,
             ctypes.byref(temp_port)
         )
@@ -1526,8 +1594,12 @@ class ProtectMixin:
                     self._resume_driver_listener()
 
     def check_system_driver(self):
-        state = self._query_driver_service_state()
-        return state in (2, 3, 4)
+        runtime_state = self._query_driver_state()
+        if runtime_state in (1, 2, 3, 4):
+            return True
+
+        service_state = self._query_driver_service_state()
+        return service_state in (2, 3, 4)
 
     def clear_driver_rules(self):
         with self.lock_driver:

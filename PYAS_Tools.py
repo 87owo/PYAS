@@ -4,6 +4,11 @@ import ctypes, ctypes.wintypes
 
 from concurrent.futures import ThreadPoolExecutor
 
+PROCESS_TERMINATE = 0x0001
+PROCESS_QUERY_INFORMATION = 0x0400
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+PYAS_PROCESS_TERMINATE_ACCESS = PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION
+
 ####################################################################################################
 
 class PROCESSENTRY32W(ctypes.Structure):
@@ -657,7 +662,7 @@ class ToolsMixin:
 
     def kill_process(self, pid, expected_path=None):
         try:
-            h = self.kernel32.OpenProcess(0x1F0FFF, False, pid)
+            h = self.kernel32.OpenProcess(PYAS_PROCESS_TERMINATE_ACCESS, False, pid)
             if h:
                 try:
                     file_path = self.norm_path(self.get_process_file(h))

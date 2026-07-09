@@ -49,6 +49,99 @@ static NTSTATUS SelectFailure(NTSTATUS CurrentStatus, NTSTATUS CandidateStatus) 
     return CandidateStatus;
 }
 
+static NTSTATUS LoadClientIdentityFromRegistry(PUNICODE_STRING RegistryPath) {
+    if (!RegistryPath || !RegistryPath->Buffer || !GlobalData.ClientImagePath.Buffer) return STATUS_INVALID_PARAMETER;
+
+    UNICODE_STRING ValueName = RTL_CONSTANT_STRING(L"ClientImagePath");
+    OBJECT_ATTRIBUTES ObjectAttributes;
+    InitializeObjectAttributes(&ObjectAttributes, RegistryPath, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+
+    HANDLE KeyHandle = NULL;
+    NTSTATUS Status = ZwOpenKey(&KeyHandle, KEY_READ, &ObjectAttributes);
+    if (!NT_SUCCESS(Status)) return Status;
+
+    ULONG ResultLength = 0;
+    Status = ZwQueryValueKey(KeyHandle, &ValueName, KeyValuePartialInformation, NULL, 0, &ResultLength);
+    if (Status != STATUS_BUFFER_TOO_SMALL && Status != STATUS_BUFFER_OVERFLOW) {
+        ZwClose(KeyHandle);
+        return Status;
+    }
+
+    if (ResultLength == 0 || ResultLength > FIELD_OFFSET(KEY_VALUE_PARTIAL_INFORMATION, Data) + GlobalData.ClientImagePath.MaximumLength) {
+        ZwClose(KeyHandle);
+        return STATUS_NAME_TOO_LONG;
+    }
+
+    PKEY_VALUE_PARTIAL_INFORMATION Information = (PKEY_VALUE_PARTIAL_INFORMATION)PyasAllocate(ResultLength);
+    if (!Information) {
+        ZwClose(KeyHandle);
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    Status = ZwQueryValueKey(KeyHandle, &ValueName, KeyValuePartialInformation, Information, ResultLength, &ResultLength);
+    ZwClose(KeyHandle);
+
+    if (NT_SUCCESS(Status)) {
+        if ((Information->Type != REG_SZ && Information->Type != REG_EXPAND_SZ) ||
+            Information->DataLength < sizeof(WCHAR) ||
+            (Information->DataLength % sizeof(WCHAR)) != 0 ||
+            Information->DataLength > GlobalData.ClientImagePath.MaximumLength - sizeof(WCHAR)) {
+            Status = STATUS_INVALID_PARAMETER;
+        }
+        else {
+            RtlZeroMemory(GlobalData.ClientImagePath.Buffer, GlobalData.ClientImagePath.MaximumLength);
+            RtlCopyMemory(GlobalData.ClientImagePath.Buffer, Information->Data, Information->DataLength);
+
+            USHORT CharacterCount = (USHORT)(Information->DataLength / sizeof(WCHAR));
+            while (CharacterCount > 0 && GlobalData.ClientImagePath.Buffer[CharacterCount - 1] == L'\0') {
+                CharacterCount--;
+            }
+
+            if (CharacterCount == 0) {
+                Status = STATUS_INVALID_PARAMETER;
+            }
+            else {
+                GlobalData.ClientImagePath.Buffer[CharacterCount] = L'\0';
+                GlobalData.ClientImagePath.Length = CharacterCount * sizeof(WCHAR);
+                Status = STATUS_SUCCESS;
+            }
+        }
+    }
+
+    PyasFree(Information);
+    return Status;
+}
+
+static BOOLEAN IsAuthorizedClientConnection(PVOID ConnectionContext, ULONG SizeOfContext) {
+    if (!ConnectionContext || SizeOfContext < sizeof(PYAS_CONNECTION_CONTEXT)) return FALSE;
+    if (!GlobalData.ClientImagePath.Buffer || GlobalData.ClientImagePath.Length == 0) return FALSE;
+    if (KeGetCurrentIrql() != PASSIVE_LEVEL) return FALSE;
+
+    PYAS_CONNECTION_CONTEXT Context = { 0 };
+    __try {
+        RtlCopyMemory(&Context, ConnectionContext, sizeof(Context));
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return FALSE;
+    }
+
+    if (Context.Size < sizeof(PYAS_CONNECTION_CONTEXT)) return FALSE;
+    if (Context.Version != PYAS_CONNECTION_VERSION) return FALSE;
+    if (Context.Magic != PYAS_CONNECTION_MAGIC) return FALSE;
+    if (Context.ProcessId != (ULONG)(ULONG_PTR)PsGetCurrentProcessId()) return FALSE;
+
+    PUNICODE_STRING ImagePath = NULL;
+    NTSTATUS Status = SeLocateProcessImageName(PsGetCurrentProcess(), &ImagePath);
+    if (!NT_SUCCESS(Status) || !ImagePath || !ImagePath->Buffer) {
+        if (ImagePath) ExFreePool(ImagePath);
+        return FALSE;
+    }
+
+    BOOLEAN Authorized = RtlEqualUnicodeString(ImagePath, &GlobalData.ClientImagePath, TRUE);
+    ExFreePool(ImagePath);
+    return Authorized;
+}
+
 static NTSTATUS UnregisterRuntimeCallbacksPass(BOOLEAN WaitWithoutTimeout) {
     NTSTATUS Status = STATUS_SUCCESS;
 
@@ -434,10 +527,9 @@ static NTSTATUS PortConnect(
     PVOID* ConnectionPortCookie
 ) {
     UNREFERENCED_PARAMETER(ServerPortCookie);
-    UNREFERENCED_PARAMETER(ConnectionContext);
-    UNREFERENCED_PARAMETER(SizeOfContext);
 
     if (!ConnectionPortCookie) return STATUS_INVALID_PARAMETER;
+    if (!IsAuthorizedClientConnection(ConnectionContext, SizeOfContext)) return STATUS_ACCESS_DENIED;
     *ConnectionPortCookie = NULL;
 
     if (InterlockedCompareExchange(&GlobalData.PortStopping, 0, 0) != 0) {
@@ -544,6 +636,8 @@ extern "C" NTSTATUS DriverEntry(
 ) {
     RtlZeroMemory(&GlobalData, sizeof(GlobalData));
     GlobalData.DriverObject = DriverObject;
+    GlobalData.ClientImagePath.Buffer = GlobalData.ClientImagePathBuffer;
+    GlobalData.ClientImagePath.MaximumLength = sizeof(GlobalData.ClientImagePathBuffer);
     KeInitializeSpinLock(&GlobalData.PortMutex);
     KeInitializeSpinLock(&GlobalData.TrackerMutex);
     KeInitializeSpinLock(&GlobalData.PidLock);
@@ -565,6 +659,9 @@ extern "C" NTSTATUS DriverEntry(
     g_RulesEngineInitialized = TRUE;
 
     Status = LoadRulesFromDisk(RegistryPath);
+    if (!NT_SUCCESS(Status)) goto Failure;
+
+    Status = LoadClientIdentityFromRegistry(RegistryPath);
     if (!NT_SUCCESS(Status)) goto Failure;
 
     Status = FltRegisterFilter(DriverObject, &FilterRegistration, &GlobalData.FilterHandle);

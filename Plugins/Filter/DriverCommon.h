@@ -9,6 +9,8 @@ constexpr auto PYAS_PORT_NAME = L"\\PYAS_Output_Pipe";
 constexpr auto MAX_PATH_LEN = 1024;
 constexpr auto PYAS_POOL_TAG = 'SAYP';
 constexpr auto PYAS_OB_ALTITUDE = L"320000.4101";
+constexpr auto PYAS_CONNECTION_MAGIC = 0x53415950;
+constexpr auto PYAS_CONNECTION_VERSION = 1;
 
 #ifndef PROCESS_TERMINATE
 #define PROCESS_TERMINATE                  (0x0001)
@@ -132,6 +134,13 @@ typedef struct _PYAS_USER_MESSAGE {
     WCHAR Path[MAX_PATH_LEN];
 } PYAS_USER_MESSAGE, * PPYAS_USER_MESSAGE;
 
+typedef struct _PYAS_CONNECTION_CONTEXT {
+    ULONG Size;
+    ULONG Version;
+    ULONG Magic;
+    ULONG ProcessId;
+} PYAS_CONNECTION_CONTEXT, * PPYAS_CONNECTION_CONTEXT;
+
 typedef struct _DRIVER_DATA {
     PDRIVER_OBJECT DriverObject;
     PFLT_FILTER FilterHandle;
@@ -151,6 +160,8 @@ typedef struct _DRIVER_DATA {
     EX_RUNDOWN_REF PortRundown;
     KEVENT CleanupCompleteEvent;
     PVOID ObRegistrationHandle;
+    UNICODE_STRING ClientImagePath;
+    WCHAR ClientImagePathBuffer[MAX_PATH_LEN];
 } DRIVER_DATA, * PDRIVER_DATA;
 
 typedef struct _RULE_NODE {

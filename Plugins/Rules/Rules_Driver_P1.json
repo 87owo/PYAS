@@ -49,6 +49,7 @@
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\services.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\SystemApps\\*\\SearchHost.exe",
+                "\\Device\\HarddiskVolume*\\Program Files\\WindowsApps\\*\\gamingservices.exe",
             ],
             "Target": [
                 "*\\PYAS.exe",
@@ -132,6 +133,7 @@
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\taskhostw.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\TrustedInstaller.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\WinSxS\\*\\TiWorker.exe",
+                "\\Device\\HarddiskVolume*\\$WinREAgent\\Scratch\\*\\DismHost.exe",
             ],
             "Target": [
                 "\\Device\\HarddiskVolume*\\bootmgr",

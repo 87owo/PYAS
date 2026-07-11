@@ -51,6 +51,7 @@
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\SystemApps\\*\\SearchHost.exe",
                 "\\Device\\HarddiskVolume*\\Program Files\\WindowsApps\\*\\gamingservices.exe",
+                "\\Device\\HarddiskVolume*\\Program Files (x86)\\Lenovo\\SmartEngine\\*\\SmartEngineHost64.exe",
             ],
             "Target": [
                 "*\\PYAS.exe",
@@ -252,6 +253,7 @@
                 "*\\resources\\bin\\SDK\\DownloadSDKServer.exe",
                 "*\\bin\\*\\codex.exe",
                 "*\\bin\\codex.exe",
+                "*\\Weixin\\Weixin.exe",
             ],
             "Target": [
                 "\\Device\\HarddiskVolume*\\Users\\*",

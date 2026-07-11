@@ -43,6 +43,7 @@
             "InitiatorExclude": [
                 "*\\PYAS.exe",
                 "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\PYAS_Setup.tmp",
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\_unins.tmp",
                 "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\csrss.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",

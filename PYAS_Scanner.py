@@ -159,25 +159,80 @@ class ScannerMixin:
 
 ####################################################################################################
 
-    def start_scan(self, targets):
-        with self.lock_virus:
-            if getattr(self, 'scan_running', False):
-                return
+    def _scan_cancel_messages(self):
+        return {
+            "traditional_switch": "已取消掃描",
+            "simplified_switch": "已取消扫描",
+            "english_switch": "Scan cancelled",
+            "japanese_switch": "スキャンがキャンセルされました",
+            "korean_switch": "스캔이 취소되었습니다",
+            "french_switch": "Analyse annulée",
+            "spanish_switch": "Escaneo cancelado",
+            "hindi_switch": "स्कैन रद्द कर दिया गया",
+            "arabic_switch": "تم إلغاء الفحص",
+            "russian_switch": "Сканирование отменено",
+            "slovenian_switch": "Skeniranje preklicano"
+        }
 
+    def _is_scan_cancel_requested(self):
+        with self.lock_virus:
+            return getattr(self, 'scan_stop_requested', False)
+
+    def _finish_scan_cancelled(self, messages=None):
+        messages = messages or self._scan_cancel_messages()
+        with self.lock_virus:
+            self.scan_running = False
+            self.scan_preparing = False
+            self.scan_finished = True
+            self.scan_stop_requested = False
+
+        if self._window:
+            js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);"
+            self.ui_queue.put(js_cmd)
+
+        return False
+
+    def _begin_scan_preparation(self):
+        with self.lock_virus:
+            if getattr(self, 'scan_running', False) or getattr(self, 'scan_preparing', False):
+                return False
+
+            self.scan_preparing = True
+            self.scan_stop_requested = False
+            self.scan_finished = False
+            self.virus_results = []
+            self.scan_count = 0
+            self.scan_start = time.time()
+            return True
+
+    def start_scan(self, targets, from_preparing=False):
+        with self.lock_virus:
+            if getattr(self, 'scan_running', False) or (getattr(self, 'scan_preparing', False) and not from_preparing):
+                return False
+
+            if getattr(self, 'scan_stop_requested', False):
+                self.scan_running = False
+                self.scan_preparing = False
+                self.scan_finished = True
+                return False
+
+            self.scan_preparing = False
             self.scan_running = True
             self.scan_finished = False
+            self.scan_stop_requested = False
             self.virus_results = []
             self.scan_count = 0
             self.scan_start = time.time()
 
         self.scan_pool.submit(self.scan_worker, targets)
+        return True
 
     def scan_worker(self, targets):
         last_update = 0.0
         try:
             for file_path, is_explicit in self.yield_files(targets):
                 with self.lock_virus:
-                    if not self.scan_running:
+                    if not self.scan_running or getattr(self, 'scan_stop_requested', False):
                         break
 
                 norm_path = self.norm_path(file_path)
@@ -203,6 +258,8 @@ class ScannerMixin:
                         continue
 
                     with self.lock_virus:
+                        if not self.scan_running or getattr(self, 'scan_stop_requested', False):
+                            break
                         self.scan_count += 1
 
                     with self.lock_config:
@@ -213,6 +270,10 @@ class ScannerMixin:
                         continue
 
                     result = self.safe_scan_engine(norm_path)
+                    with self.lock_virus:
+                        if not self.scan_running or getattr(self, 'scan_stop_requested', False):
+                            break
+
                     if result:
                         with self.lock_virus:
                             self.virus_results.append(norm_path)
@@ -233,113 +294,151 @@ class ScannerMixin:
 
         finally:
             with self.lock_virus:
+                cancelled = getattr(self, 'scan_stop_requested', False)
                 self.scan_running = False
+                self.scan_preparing = False
                 self.scan_finished = True
+                self.scan_stop_requested = False
                 count, scanned, elapsed = len(self.virus_results), self.scan_count, int(time.time() - self.scan_start)
 
-            messages = {
-                "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
-                "simplified_switch": f"发现 {count} 个病毒，扫描 {scanned} 个文件，耗时 {elapsed} 秒",
-                "english_switch": f"Found {count} viruses, scanned {scanned} files, time {elapsed}s",
-                "japanese_switch": f"{count} 個のウイルスを発見し、{scanned} 個のファイルをスキャンしました（所要時間 {elapsed} 秒）",
-                "korean_switch": f"바이러스 {count}개 발견, 파일 {scanned}개 검사, 소요 시간 {elapsed}초",
-                "french_switch": f"{count} virus trouvés, {scanned} fichiers analysés, temps {elapsed}s",
-                "spanish_switch": f"Se encontraron {count} virus, {scanned} archivos escaneados, tiempo {elapsed}s",
-                "hindi_switch": f"{count} वायरस मिले, {scanned} फ़ाइलें स्कैन की गईं, समय {elapsed}s",
-                "arabic_switch": f"تم العثور على {count} فيروسات، تم فحص {scanned} ملفات، الوقت {elapsed} ثانية",
-                "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
-                "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
-            }
+            if cancelled:
+                messages = self._scan_cancel_messages()
+                log_detail = f"Scan cancelled, found {count} viruses, scanned {scanned} files, time {elapsed}s"
+            else:
+                messages = {
+                    "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
+                    "simplified_switch": f"发现 {count} 个病毒，扫描 {scanned} 个文件，耗时 {elapsed} 秒",
+                    "english_switch": f"Found {count} viruses, scanned {scanned} files, time {elapsed}s",
+                    "japanese_switch": f"{count} 個のウイルスを発見し、{scanned} 個のファイルをスキャンしました（所要時間 {elapsed} 秒）",
+                    "korean_switch": f"바이러스 {count}개 발견, 파일 {scanned}개 검사, 소요 시간 {elapsed}초",
+                    "french_switch": f"{count} virus trouvés, {scanned} fichiers analysés, temps {elapsed}s",
+                    "spanish_switch": f"Se encontraron {count} virus, {scanned} archivos escaneados, tiempo {elapsed}s",
+                    "hindi_switch": f"{count} वायरस मिले, {scanned} फ़ाइलें स्कैन की गईं, समय {elapsed}s",
+                    "arabic_switch": f"تم العثور على {count} فيروسات، تم فحص {scanned} ملفات، الوقت {elapsed} ثانية",
+                    "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
+                    "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
+                }
+                log_detail = f"Found {count} viruses, scanned {scanned} files, time {elapsed}s"
+
             if self._window:
                 js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});"
                 self.ui_queue.put(js_cmd)
 
-            self.write_log("INFO", "Scan Completed", detail=f"Found {count} viruses, scanned {scanned} files, time {elapsed}s")
+            self.write_log("INFO", "Scan Completed", detail=log_detail)
 
 ####################################################################################################
 
     def stop_scan(self):
-        with self.lock_virus: self.scan_running = False
+        with self.lock_virus:
+            active = getattr(self, 'scan_running', False) or getattr(self, 'scan_preparing', False)
+            if active:
+                self.scan_stop_requested = True
+                self.scan_running = False
+            return active
 
     def trigger_scan(self, method):
-        messages = {
-            "traditional_switch": "已取消掃描",
-            "simplified_switch": "已取消扫描", "english_switch":
-            "Scan cancelled", "japanese_switch": "スキャンがキャンセルされました",
-            "korean_switch": "스캔이 취소되었습니다",
-            "french_switch": "Analyse annulée",
-            "spanish_switch": "Escaneo cancelado",
-            "hindi_switch": "स्कैन रद्द कर दिया गया",
-            "arabic_switch": "تم إلغاء الفحص",
-            "russian_switch": "Сканирование отменено",
-            "slovenian_switch": "Skeniranje preklicano"
-        }
+        messages = self._scan_cancel_messages()
         targets = []
 
-        if method == "smart":
-            for folder in ["Desktop", "Downloads", "AppData"]:
-                fp = os.path.join(self.path_user, folder)
-                if os.path.exists(fp):
-                    targets.append(fp)
+        if not self._begin_scan_preparation():
+            return False
 
-            if os.path.exists(self.path_config):
-                targets.append(self.path_config)
+        try:
+            if method == "smart":
+                for folder in ["Desktop", "Downloads", "AppData"]:
+                    if self._is_scan_cancel_requested():
+                        return self._finish_scan_cancelled(messages)
 
-            buf = ctypes.create_unicode_buffer(1024)
-            max_address = 0x7FFFFFFFFFFF if ctypes.sizeof(ctypes.c_void_p) == 8 else 0x7FFFFFFF
-            system_dir = self.path_system.lower()
+                    fp = os.path.join(self.path_user, folder)
+                    if os.path.exists(fp):
+                        targets.append(fp)
 
-            for proc in self.get_process_list():
-                if proc["path"] and proc["path"] != "None": 
-                    targets.append(proc["path"])
+                if self._is_scan_cancel_requested():
+                    return self._finish_scan_cancelled(messages)
 
-                pid = proc["pid"]
-                if pid <= 4:
-                    continue
+                if os.path.exists(self.path_config):
+                    targets.append(self.path_config)
 
-                h_process = self.kernel32.OpenProcess(0x1000, False, pid)
-                if h_process:
-                    try:
-                        address = 0
-                        mbi = MEMORY_BASIC_INFORMATION()
-                        while address < max_address and self.kernel32.VirtualQueryEx(h_process, ctypes.c_void_p(address), ctypes.byref(mbi), ctypes.sizeof(mbi)):
-                            if mbi.State == 0x1000 and mbi.Type == 0x1000000:
-                                if self.psapi.GetMappedFileNameW(h_process, ctypes.c_void_p(address), buf, 1024):
-                                    raw_path = buf.value
-                                    if raw_path.startswith("\\"):
-                                        raw_path = self.device_path_to_drive(raw_path)
+                buf = ctypes.create_unicode_buffer(1024)
+                max_address = 0x7FFFFFFFFFFF if ctypes.sizeof(ctypes.c_void_p) == 8 else 0x7FFFFFFF
+                system_dir = self.path_system.lower()
 
-                                    file_path = self.norm_path(raw_path)
-                                    if file_path and not file_path.lower().startswith(system_dir):
-                                        targets.append(file_path)
+                for proc in self.get_process_list():
+                    if self._is_scan_cancel_requested():
+                        return self._finish_scan_cancelled(messages)
 
-                            if mbi.RegionSize == 0:
-                                break
-                            address += mbi.RegionSize
-                    finally:
-                        self.kernel32.CloseHandle(h_process)
+                    if proc["path"] and proc["path"] != "None": 
+                        targets.append(proc["path"])
 
-            self.start_scan(list(set(targets)))
+                    pid = proc["pid"]
+                    if pid <= 4:
+                        continue
 
-        elif method == "file":
-            targets = self.select_files()
-            if targets:
-                self.start_scan(targets)
+                    h_process = self.kernel32.OpenProcess(0x1000, False, pid)
+                    if h_process:
+                        try:
+                            address = 0
+                            mbi = MEMORY_BASIC_INFORMATION()
+                            while address < max_address and not self._is_scan_cancel_requested() and self.kernel32.VirtualQueryEx(h_process, ctypes.c_void_p(address), ctypes.byref(mbi), ctypes.sizeof(mbi)):
+                                if mbi.State == 0x1000 and mbi.Type == 0x1000000:
+                                    if self.psapi.GetMappedFileNameW(h_process, ctypes.c_void_p(address), buf, 1024):
+                                        raw_path = buf.value
+                                        if raw_path.startswith("\\"):
+                                            raw_path = self.device_path_to_drive(raw_path)
 
-            elif self._window:
-                self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
+                                        file_path = self.norm_path(raw_path)
+                                        if file_path and not file_path.lower().startswith(system_dir):
+                                            targets.append(file_path)
 
-        elif method == "path":
-            targets = self.select_folder()
-            if targets:
-                self.start_scan(targets)
+                                if mbi.RegionSize == 0:
+                                    break
+                                address += mbi.RegionSize
+                        finally:
+                            self.kernel32.CloseHandle(h_process)
 
-            elif self._window:
-                self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);")
+                    if self._is_scan_cancel_requested():
+                        return self._finish_scan_cancelled(messages)
 
-        elif method == "full":
-            targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
-            self.start_scan(targets)
+                if not self.start_scan(list(set(targets)), from_preparing=True):
+                    return self._finish_scan_cancelled(messages)
+
+                return True
+
+            elif method == "file":
+                targets = self.select_files()
+                if self._is_scan_cancel_requested():
+                    return self._finish_scan_cancelled(messages)
+
+                if targets:
+                    if not self.start_scan(targets, from_preparing=True):
+                        return self._finish_scan_cancelled(messages)
+                    return True
+
+                return self._finish_scan_cancelled(messages)
+
+            elif method == "path":
+                targets = self.select_folder()
+                if self._is_scan_cancel_requested():
+                    return self._finish_scan_cancelled(messages)
+
+                if targets:
+                    if not self.start_scan(targets, from_preparing=True):
+                        return self._finish_scan_cancelled(messages)
+                    return True
+
+                return self._finish_scan_cancelled(messages)
+
+            elif method == "full":
+                targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
+                if self._is_scan_cancel_requested() or not self.start_scan(targets, from_preparing=True):
+                    return self._finish_scan_cancelled(messages)
+                return True
+
+            return self._finish_scan_cancelled(messages)
+
+        except Exception as e:
+            self.write_log("WARN", "trigger_scan", detail=str(e), success=False)
+            return self._finish_scan_cancelled(messages)
 
 ####################################################################################################
 

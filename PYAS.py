@@ -288,6 +288,8 @@ class _MainMixin:
         self.driver_listener_thread = None
         self.engine_initialized = False
         self.scan_running = False
+        self.scan_preparing = False
+        self.scan_stop_requested = False
         self.scan_finished = False
         self.virus_lock = {}
         self.virus_results = []

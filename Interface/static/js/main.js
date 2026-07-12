@@ -472,11 +472,14 @@ document.addEventListener('DOMContentLoaded', () => {
         appState.virusResults = [];
         renderDataGrid('#scan_window', appState.virusResults, cols.virus, 'path', true);
         changeScanSelectMode('scan');
-        document.getElementById('scan_method_select').classList.add('hidden');
+        document.getElementById('scan_method_select')?.classList.add('hidden');
         const stopBtn = document.getElementById('stop_btn');
-        stopBtn.classList.remove('hidden');
-        stopBtn.disabled = false;
-        
+        if (stopBtn) {
+            stopBtn.classList.remove('hidden');
+            stopBtn.disabled = false;
+            delete stopBtn.dataset.stopping;
+        }
+
         const title = document.querySelector('#scan_window .section-title');
         const text = document.getElementById('progress_text');
         if (title) { title.setAttribute('data-i18n', 'status_scanning'); title.textContent = getMsg('status_scanning'); }
@@ -694,7 +697,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 text.textContent = getMsg(msgData);
             }
         }
-        document.getElementById('stop_btn')?.classList.add('hidden');
+        const stopBtn = document.getElementById('stop_btn');
+        if (stopBtn) {
+            stopBtn.classList.add('hidden');
+            stopBtn.disabled = false;
+            delete stopBtn.dataset.stopping;
+        }
         document.getElementById('scan_method_select')?.classList.remove('hidden');
         changeScanSelectMode(count > 0 ? 'action' : 'scan');
         updateCustomSelectUI('scan_method_select', 'none');
@@ -751,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDataGrid('#scan_window', appState.virusResults, cols.virus, 'path', true);
             document.getElementById('scan_method_select')?.classList.add('hidden');
             const stopBtn = document.getElementById('stop_btn');
-            if (stopBtn) { stopBtn.classList.remove('hidden'); stopBtn.disabled = false; }
+            if (stopBtn) { stopBtn.classList.remove('hidden'); stopBtn.disabled = false; delete stopBtn.dataset.stopping; }
             changeScanSelectMode('scan');
             
             const title = document.querySelector('#scan_window .section-title');
@@ -768,7 +776,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('[data-target]').forEach(btn => btn.addEventListener('click', (e) => switchPage(e.currentTarget.getAttribute('data-target'))));
     document.getElementById('quick_scan_btn')?.addEventListener('click', () => { if (!appState.scanning) { switchPage('scan_window'); triggerScan('smart'); }});
-    document.getElementById('stop_btn')?.addEventListener('click', (e) => { if (window.pywebview) window.pywebview.api.stop_scan(); e.target.disabled = true; });
+    document.getElementById('stop_btn')?.addEventListener('click', async (e) => {
+        const stopBtn = e.currentTarget;
+        if (!window.pywebview || stopBtn.dataset.stopping === '1') return;
+        stopBtn.dataset.stopping = '1';
+        try {
+            await window.pywebview.api.stop_scan();
+        } finally {
+            delete stopBtn.dataset.stopping;
+        }
+    });
     document.getElementById('theme_select')?.addEventListener('change', (e) => { applyTheme(e.target.value); window.pywebview?.api.update_config('theme', e.target.value); });
     document.getElementById('lang_select')?.addEventListener('change', (e) => { translateText(e.target.value); window.pywebview?.api.update_config('language', e.target.value); });
     

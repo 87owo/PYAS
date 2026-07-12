@@ -159,19 +159,26 @@ class ScannerMixin:
 
 ####################################################################################################
 
-    def _scan_cancel_messages(self):
+    def _scan_result_messages(self, count=None, scanned=None, elapsed=None):
+        if count is None or scanned is None or elapsed is None:
+            with self.lock_virus:
+                count = len(getattr(self, 'virus_results', [])) if count is None else count
+                scanned = getattr(self, 'scan_count', 0) if scanned is None else scanned
+                scan_start = getattr(self, 'scan_start', time.time())
+                elapsed = int(time.time() - scan_start) if elapsed is None else elapsed
+
         return {
-            "traditional_switch": "已取消掃描",
-            "simplified_switch": "已取消扫描",
-            "english_switch": "Scan cancelled",
-            "japanese_switch": "スキャンがキャンセルされました",
-            "korean_switch": "스캔이 취소되었습니다",
-            "french_switch": "Analyse annulée",
-            "spanish_switch": "Escaneo cancelado",
-            "hindi_switch": "स्कैन रद्द कर दिया गया",
-            "arabic_switch": "تم إلغاء الفحص",
-            "russian_switch": "Сканирование отменено",
-            "slovenian_switch": "Skeniranje preklicano"
+            "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
+            "simplified_switch": f"发现 {count} 个病毒，扫描 {scanned} 个文件，耗时 {elapsed} 秒",
+            "english_switch": f"Found {count} viruses, scanned {scanned} files, time {elapsed}s",
+            "japanese_switch": f"{count} 個のウイルスを発見し、{scanned} 個のファイルをスキャンしました（所要時間 {elapsed} 秒）",
+            "korean_switch": f"바이러스 {count}개 발견, 파일 {scanned}개 검사, 소요 시간 {elapsed}초",
+            "french_switch": f"{count} virus trouvés, {scanned} fichiers analysés, temps {elapsed}s",
+            "spanish_switch": f"Se encontraron {count} virus, {scanned} archivos escaneados, tiempo {elapsed}s",
+            "hindi_switch": f"{count} वायरस मिले, {scanned} फ़ाइलें स्कैन की गईं, समय {elapsed}s",
+            "arabic_switch": f"تم العثور على {count} فيروسات، تم فحص {scanned} ملفات، الوقت {elapsed} ثانية",
+            "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
+            "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
         }
 
     def _is_scan_cancel_requested(self):
@@ -179,15 +186,20 @@ class ScannerMixin:
             return getattr(self, 'scan_stop_requested', False)
 
     def _finish_scan_cancelled(self, messages=None):
-        messages = messages or self._scan_cancel_messages()
         with self.lock_virus:
+            count = len(getattr(self, 'virus_results', []))
+            scanned = getattr(self, 'scan_count', 0)
+            scan_start = getattr(self, 'scan_start', time.time())
+            elapsed = int(time.time() - scan_start)
             self.scan_running = False
             self.scan_preparing = False
             self.scan_finished = True
             self.scan_stop_requested = False
 
+        messages = messages or self._scan_result_messages(count, scanned, elapsed)
+
         if self._window:
-            js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, 0);"
+            js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});"
             self.ui_queue.put(js_cmd)
 
         return False
@@ -301,24 +313,8 @@ class ScannerMixin:
                 self.scan_stop_requested = False
                 count, scanned, elapsed = len(self.virus_results), self.scan_count, int(time.time() - self.scan_start)
 
-            if cancelled:
-                messages = self._scan_cancel_messages()
-                log_detail = f"Scan cancelled, found {count} viruses, scanned {scanned} files, time {elapsed}s"
-            else:
-                messages = {
-                    "traditional_switch": f"發現 {count} 個病毒，掃描 {scanned} 個檔案，耗時 {elapsed} 秒",
-                    "simplified_switch": f"发现 {count} 个病毒，扫描 {scanned} 个文件，耗时 {elapsed} 秒",
-                    "english_switch": f"Found {count} viruses, scanned {scanned} files, time {elapsed}s",
-                    "japanese_switch": f"{count} 個のウイルスを発見し、{scanned} 個のファイルをスキャンしました（所要時間 {elapsed} 秒）",
-                    "korean_switch": f"바이러스 {count}개 발견, 파일 {scanned}개 검사, 소요 시간 {elapsed}초",
-                    "french_switch": f"{count} virus trouvés, {scanned} fichiers analysés, temps {elapsed}s",
-                    "spanish_switch": f"Se encontraron {count} virus, {scanned} archivos escaneados, tiempo {elapsed}s",
-                    "hindi_switch": f"{count} वायरस मिले, {scanned} फ़ाइलें स्कैन की गईं, समय {elapsed}s",
-                    "arabic_switch": f"تم العثور على {count} فيروسات، تم فحص {scanned} ملفات، الوقت {elapsed} ثانية",
-                    "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
-                    "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
-                }
-                log_detail = f"Found {count} viruses, scanned {scanned} files, time {elapsed}s"
+            messages = self._scan_result_messages(count, scanned, elapsed)
+            log_detail = f"Found {count} viruses, scanned {scanned} files, time {elapsed}s"
 
             if self._window:
                 js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});"
@@ -337,7 +333,6 @@ class ScannerMixin:
             return active
 
     def trigger_scan(self, method):
-        messages = self._scan_cancel_messages()
         targets = []
 
         if not self._begin_scan_preparation():
@@ -347,14 +342,14 @@ class ScannerMixin:
             if method == "smart":
                 for folder in ["Desktop", "Downloads", "AppData"]:
                     if self._is_scan_cancel_requested():
-                        return self._finish_scan_cancelled(messages)
+                        return self._finish_scan_cancelled()
 
                     fp = os.path.join(self.path_user, folder)
                     if os.path.exists(fp):
                         targets.append(fp)
 
                 if self._is_scan_cancel_requested():
-                    return self._finish_scan_cancelled(messages)
+                    return self._finish_scan_cancelled()
 
                 if os.path.exists(self.path_config):
                     targets.append(self.path_config)
@@ -365,7 +360,7 @@ class ScannerMixin:
 
                 for proc in self.get_process_list():
                     if self._is_scan_cancel_requested():
-                        return self._finish_scan_cancelled(messages)
+                        return self._finish_scan_cancelled()
 
                     if proc["path"] and proc["path"] != "None": 
                         targets.append(proc["path"])
@@ -397,48 +392,48 @@ class ScannerMixin:
                             self.kernel32.CloseHandle(h_process)
 
                     if self._is_scan_cancel_requested():
-                        return self._finish_scan_cancelled(messages)
+                        return self._finish_scan_cancelled()
 
                 if not self.start_scan(list(set(targets)), from_preparing=True):
-                    return self._finish_scan_cancelled(messages)
+                    return self._finish_scan_cancelled()
 
                 return True
 
             elif method == "file":
                 targets = self.select_files()
                 if self._is_scan_cancel_requested():
-                    return self._finish_scan_cancelled(messages)
+                    return self._finish_scan_cancelled()
 
                 if targets:
                     if not self.start_scan(targets, from_preparing=True):
-                        return self._finish_scan_cancelled(messages)
+                        return self._finish_scan_cancelled()
                     return True
 
-                return self._finish_scan_cancelled(messages)
+                return self._finish_scan_cancelled()
 
             elif method == "path":
                 targets = self.select_folder()
                 if self._is_scan_cancel_requested():
-                    return self._finish_scan_cancelled(messages)
+                    return self._finish_scan_cancelled()
 
                 if targets:
                     if not self.start_scan(targets, from_preparing=True):
-                        return self._finish_scan_cancelled(messages)
+                        return self._finish_scan_cancelled()
                     return True
 
-                return self._finish_scan_cancelled(messages)
+                return self._finish_scan_cancelled()
 
             elif method == "full":
                 targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
                 if self._is_scan_cancel_requested() or not self.start_scan(targets, from_preparing=True):
-                    return self._finish_scan_cancelled(messages)
+                    return self._finish_scan_cancelled()
                 return True
 
-            return self._finish_scan_cancelled(messages)
+            return self._finish_scan_cancelled()
 
         except Exception as e:
             self.write_log("WARN", "trigger_scan", detail=str(e), success=False)
-            return self._finish_scan_cancelled(messages)
+            return self._finish_scan_cancelled()
 
 ####################################################################################################
 

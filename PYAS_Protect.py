@@ -595,7 +595,7 @@ class ProtectMixin:
                             raw_path = self.device_path_to_drive(raw_path)
 
                         file_path = self.norm_path(raw_path)
-                        if file_path and file_path not in scanned_paths:
+                        if file_path and file_path not in scanned_paths and self.path_system not in file_path:
 
                             scanned_paths.add(file_path)
                             file_path_lower = file_path.lower()

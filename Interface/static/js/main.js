@@ -59,6 +59,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const getMsg = (key) => (dict[appState.lang] || dict["english_switch"])[key] || key;
 
+    let startupOverlayClosed = false;
+    const closeStartupOverlay = () => {
+        if (startupOverlayClosed) return;
+        startupOverlayClosed = true;
+
+        const overlay = document.getElementById('loading_overlay');
+        if (overlay && !overlay.classList.contains('fade-out')) {
+            overlay.classList.add('fade-out');
+        }
+
+        setTimeout(() => {
+            document.querySelector('.app-container')?.classList.add('fade-in');
+        }, 400);
+    };
+
+    const showStartupError = (message) => {
+        const overlay = document.getElementById('loading_overlay');
+        if (!overlay || startupOverlayClosed) return;
+
+        overlay.classList.add('startup-error');
+        overlay.innerHTML = `
+            <div class="startup-error-box">
+                <h1>PYAS failed to open</h1>
+                <p>${escapeHtml(message)}</p>
+            </div>`;
+    };
+
+    setTimeout(() => {
+        if (!startupOverlayClosed) {
+            closeStartupOverlay();
+        }
+    }, 12000);
+
     const formatMsg = (key, ...args) => {
         let msg = getMsg(key);
         args.forEach((arg, i) => msg = msg.split(`{${i}}`).join(arg));
@@ -738,14 +771,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if ((entry.action === 'System' && entry.detail === 'Engine Initialization Complete') || (entry.level === 'WARN' && entry.action === 'init_engine_thread')) {
-            const overlay = document.getElementById('loading_overlay');
-            if (overlay && !overlay.classList.contains('fade-out')) {
-                overlay.classList.add('fade-out');
-                setTimeout(() => {
-                    document.querySelector('.app-container')?.classList.add('fade-in');
-                    if (window.onEngineReady) window.onEngineReady();
-                }, 400);
-            }
+            closeStartupOverlay();
+            if (window.onEngineReady) window.onEngineReady();
         }
     };
 
@@ -1113,10 +1140,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             
+            closeStartupOverlay();
             window.pywebview.api.init_ui_ready();
         }).catch(err => {
             console.error("Config load failed:", err);
-            window.pywebview.api.init_ui_ready();
+            showStartupError(`Configuration failed to load: ${err?.message || err}`);
+            try {
+                window.pywebview.api.init_ui_ready();
+            } catch (e) {}
         });
     });
 

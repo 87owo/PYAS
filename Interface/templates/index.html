@@ -7,6 +7,16 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <script defer src="/static/js/i18n.js"></script>
     <script defer src="/static/js/main.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            window.setTimeout(function () {
+                var app = document.querySelector('.app-container');
+                var overlay = document.getElementById('loading_overlay');
+                if (app) app.classList.add('fade-in');
+                if (overlay && !overlay.classList.contains('fade-out')) overlay.classList.add('fade-out');
+            }, 15000);
+        });
+    </script>
 </head>
 <body>
     <div id="loading_overlay">

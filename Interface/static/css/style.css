@@ -653,6 +653,35 @@ select.hidden + .custom-select-wrapper {
     visibility: hidden;
 }
 
+#loading_overlay.startup-error {
+    padding: 28px;
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+}
+
+.startup-error-box {
+    max-width: 520px;
+    padding: 24px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+}
+
+.startup-error-box h1 {
+    margin: 0 0 10px;
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.startup-error-box p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #515154;
+    word-break: break-word;
+}
+
 .spinner {
     animation: rotate 2s linear infinite;
     width: 50px;

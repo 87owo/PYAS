@@ -87,7 +87,7 @@ class _MainMixin:
         if not hwnd:
             return False
 
-        if "-quit" in self.args_pyas or "-driver-unload" in self.args_pyas:
+        if "-quit" in self.args_pyas or "-driver-unload" in self.args_pyas or "-driver-uninstall" in self.args_pyas:
             return self.send_existing_window_message(hwnd, 3, timeout=1200)
 
         if "-scan" in self.args_pyas:
@@ -1087,6 +1087,33 @@ def get_base_path():
 
     return os.path.dirname(os.path.abspath(__file__))
 
+
+def get_frontend_asset_errors():
+    base_path = get_base_path()
+    required_files = [
+        os.path.join("Interface", "templates", "index.html"),
+        os.path.join("Interface", "static", "css", "style.css"),
+        os.path.join("Interface", "static", "js", "i18n.js"),
+        os.path.join("Interface", "static", "js", "main.js"),
+    ]
+    errors = []
+
+    for rel_path in required_files:
+        abs_path = os.path.join(base_path, rel_path)
+        if not os.path.isfile(abs_path):
+            errors.append(f"Missing UI asset: {rel_path}")
+        elif os.path.getsize(abs_path) <= 0:
+            errors.append(f"Empty UI asset: {rel_path}")
+
+    return errors
+
+
+def show_startup_error(message):
+    try:
+        ctypes.windll.user32.MessageBoxW(None, message, PYAS_WINDOW_TITLE, 0x00000010)
+    except Exception:
+        pass
+
 ####################################################################################################
 
 class NoCacheRequestHandler(SimpleHTTPRequestHandler):
@@ -1220,15 +1247,33 @@ def start_api(port_container, ready_event):
         ready_event.set()
 
 if __name__ == "__main__":
-    if "-driver-unload" in sys.argv:
+    if "-driver-unload" in sys.argv or "-driver-uninstall" in sys.argv:
         controller = WindowAPI()
         success = controller.stop_system_driver()
+        if "-driver-uninstall" in sys.argv:
+            deleted, delete_error = False, 0
+            for _ in range(20):
+                deleted, delete_error = controller._delete_driver_service()
+                if deleted:
+                    break
+                if delete_error not in (1051, 1072):
+                    break
+                time.sleep(0.25)
+            if not deleted:
+                controller.write_log("WARN", "Driver Service", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
+            success = (success or not controller.check_system_driver()) and deleted
+        controller.flush_logs_now()
         os._exit(0 if success or not controller.check_system_driver() else 2)
 
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
     init_width, init_height = 980, 670
 
     os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--proxy-bypass-list=127.0.0.1,localhost"
+
+    frontend_errors = get_frontend_asset_errors()
+    if frontend_errors:
+        show_startup_error("PYAS UI files are incomplete.\n\n" + "\n".join(frontend_errors))
+        os._exit(4)
 
     port_container = []
     server_ready = threading.Event()
@@ -1243,8 +1288,9 @@ if __name__ == "__main__":
     user32 = ctypes.windll.user32
     pos_x, pos_y = (user32.GetSystemMetrics(0) - init_width) // 2, (user32.GetSystemMetrics(1) - init_height) // 2
 
+    startup_url = f"http://127.0.0.1:{port_container[0]}/"
     window = webview.create_window(
-        title=PYAS_WINDOW_TITLE, url=f"http://127.0.0.1:{port_container[0]}/", width=init_width, height=init_height, x=pos_x, y=pos_y,
+        title=PYAS_WINDOW_TITLE, url=startup_url, width=init_width, height=init_height, x=pos_x, y=pos_y,
         frameless=True, easy_drag=False, js_api=js_api, background_color='#e0e0e0', hidden=hide_on_start)
 
     if platform.system() == "Windows":
@@ -1268,6 +1314,11 @@ if __name__ == "__main__":
 
     def webview_startup_watchdog():
         if not hide_on_start and not webview_ready_event.wait(60.0):
+            try:
+                webbrowser.open(startup_url)
+            except Exception:
+                pass
+            show_startup_error("PYAS WebView did not finish loading. The app was opened in your default browser as a fallback.")
             try:
                 js_api.flush_logs_now()
             except Exception:

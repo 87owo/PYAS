@@ -853,6 +853,7 @@
                 "*\\Work\\*\\DismHost.exe",
                 "*\\Windows\\System32\\Sysprep\\sysprep.exe",
                 "*\\Windows\\System32\\oobe\\*",
+                "*\\Windows\\UUS\\amd64\\MoUsoCoreWorker.exe",
                 "*\\PYAS.exe",
             ],
             "Target": [

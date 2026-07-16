@@ -843,9 +843,11 @@
             "InitiatorExclude": [
                 "*\\Sources\\SetupHost.exe",
                 "*\\Work\\*\\DismHost.exe",
+                "*\\Windows\\UUS\\amd64\\MoUsoCoreWorker.exe",
                 "*\\Windows\\System32\\Sysprep\\sysprep.exe",
                 "*\\Windows\\System32\\oobe\\*",
-                "*\\Windows\\UUS\\amd64\\MoUsoCoreWorker.exe",
+                "*\\Windows\\System32\\svchost.exe",
+                "*\\Windows\\explorer.exe",
                 "*\\PYAS.exe",
             ],
             "Target": [
@@ -861,6 +863,9 @@
                 "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\State\\ImageState",
                 "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Setup\\OOBE\\*",
                 "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OOBE\\*",
+            ],
+            "TargetExclude": [
+                "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\OOBE\\TelemetryCorrelation",
             ],
             "Operations": [
                 "Write",

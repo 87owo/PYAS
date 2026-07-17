@@ -281,6 +281,7 @@
                 "\\Device\\HarddiskVolume*\\Program Files (x86)\\*",
                 "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender\\*",
                 "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender Advanced Threat Protection\\*",
+                "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\*",
                 "*\\Huorong\\Sysdiag\\bin\\HipsDaemon.exe",
                 "*\\360Safe.exe",
                 "*\\PYAS.exe",

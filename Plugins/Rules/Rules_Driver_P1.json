@@ -844,6 +844,7 @@
                 "*\\Sources\\SetupHost.exe",
                 "*\\Work\\*\\DismHost.exe",
                 "*\\Windows\\UUS\\amd64\\MoUsoCoreWorker.exe",
+                "*\\Windows\\System32\\MoUsoCoreWorker.exe",
                 "*\\Windows\\System32\\Sysprep\\sysprep.exe",
                 "*\\Windows\\System32\\oobe\\*",
                 "*\\Windows\\System32\\svchost.exe",

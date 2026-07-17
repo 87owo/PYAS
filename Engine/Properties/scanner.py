@@ -1,4 +1,4 @@
-import os, re, sys, math, json, zlib, pefile, datetime
+import os, re, sys, math, json, zlib, mmap, pefile, datetime
 import ctypes, ctypes.wintypes
 import numpy as np
 import onnxruntime as ort
@@ -99,6 +99,9 @@ class WinTrust:
 
 class FeatureExtractor:
     _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
+    _STRING_FAST_PATH_BYTES = 4194304
+    _STRING_BATCH_BYTES = 4194304
+    _HISTOGRAM_BATCH_WINDOWS = 1024
     
     _BYTE_HIST_KEYS = [f'ByteHist_{i:02X}' for i in range(256)]
     _BYTE_ENT_KEYS = [f'ByteEnt_{i:02X}' for i in range(256)]
@@ -111,6 +114,49 @@ class FeatureExtractor:
     _C_LOG_C_TABLE = np.zeros(2049, dtype=np.float64)
     _C_LOG_C_TABLE[1:] = np.arange(1, 2049) * np.log2(np.arange(1, 2049))
 
+    _OPTIONAL_HEADER_FIELDS = [
+        'Magic', 'MajorLinkerVersion', 'MinorLinkerVersion', 'SizeOfCode',
+        'SizeOfInitializedData', 'SizeOfUninitializedData', 'AddressOfEntryPoint',
+        'BaseOfCode', 'ImageBase', 'SectionAlignment', 'FileAlignment',
+        'MajorOperatingSystemVersion', 'MinorOperatingSystemVersion',
+        'MajorImageVersion', 'MinorImageVersion', 'MajorSubsystemVersion',
+        'MinorSubsystemVersion', 'SizeOfImage', 'SizeOfHeaders', 'CheckSum',
+        'Subsystem', 'DllCharacteristics', 'SizeOfStackReserve', 'SizeOfStackCommit',
+        'SizeOfHeapReserve', 'SizeOfHeapCommit', 'LoaderFlags', 'NumberOfRvaAndSizes'
+    ]
+
+    _SECTION_DEFAULTS = {
+        'SectionCount': 0.0,
+        'SectionMaxEntropy': 0.0,
+        'SectionMinEntropy': 0.0,
+        'SectionMeanEntropy': 0.0,
+        'SectionMaxRawSize': 0.0,
+        'SectionMinRawSize': 0.0,
+        'SectionMeanRawSize': 0.0,
+        'SectionMaxVSize': 0.0,
+        'SectionMinVSize': 0.0,
+        'SectionMeanVSize': 0.0,
+        'ExecutableSections': 0.0,
+        'WritableSections': 0.0,
+        'ReadableSections': 0.0,
+        'SectionException': 0.0
+    }
+
+    _CONDITIONAL_DEFAULTS = {
+        'IsDriver': 0.0,
+        'HasTlsCallbacks': 0.0,
+        'IsDebug': 0.0,
+        'IsPreRelease': 0.0,
+        'IsPatched': 0.0,
+        'IsPrivateBuild': 0.0,
+        'IsSpecialBuild': 0.0,
+        'ImportCount': 0.0,
+        'ImportFunctionCount': 0.0,
+        'ExportCount': 0.0,
+        'IconCount': 0.0,
+        'DebugCount': 0.0
+    }
+
     @staticmethod
     def _safe_float(val):
         try:
@@ -119,6 +165,18 @@ class FeatureExtractor:
 
         except Exception: 
             return 0.0
+
+    @classmethod
+    def _base_defaults(cls):
+        base = dict.fromkeys(cls._OPTIONAL_HEADER_FIELDS, 0.0)
+        base.update(cls._SECTION_DEFAULTS)
+        base.update(cls._CONDITIONAL_DEFAULTS)
+
+        for i in range(16):
+            base[f'DataDirectory_{i}_Size'] = 0.0
+            base[f'DataDirectory_{i}_VA'] = 0.0
+
+        return base
 
     @staticmethod
     def _calc_entropy(data):
@@ -137,24 +195,83 @@ class FeatureExtractor:
         res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
         res.update(dict.fromkeys(cls._STRING_KEYS, 0.0))
 
-        matches = cls._STRING_PATTERN.findall(file_bytes)
-        if not matches:
-            return res
+        if len(file_bytes) <= cls._STRING_FAST_PATH_BYTES:
+            matches = cls._STRING_PATTERN.findall(file_bytes)
+            if not matches:
+                return res
 
-        combined_data = b''.join(matches)
-        count = len(matches)
-        total_len = len(combined_data)
+            combined_data = b''.join(matches)
+            count = len(matches)
+            total_len = len(combined_data)
+            global_counts = np.bincount(np.frombuffer(combined_data, dtype=np.uint8), minlength=256)
+        else:
+            count = 0
+            total_len = 0
+            global_counts = np.zeros(256, dtype=np.int64)
+            mv = memoryview(file_bytes)
+            pos = 0
+            size = len(file_bytes)
+
+            while pos < size:
+                chunk_end = min(pos + cls._STRING_BATCH_BYTES, size)
+                chunk_arr = np.frombuffer(mv[pos:chunk_end], dtype=np.uint8)
+                separators = (chunk_arr < 0x20) | (chunk_arr > 0x7E)
+
+                if separators.any():
+                    last_separator = len(separators) - 1 - int(np.argmax(separators[::-1]))
+                    segment_end = pos + last_separator + 1
+                    matches = cls._STRING_PATTERN.findall(mv[pos:segment_end])
+
+                    if matches:
+                        combined_data = b''.join(matches)
+                        count += len(matches)
+                        total_len += len(combined_data)
+                        global_counts += np.bincount(np.frombuffer(combined_data, dtype=np.uint8), minlength=256)
+
+                    pos = segment_end
+                    continue
+
+                pending_len = 0
+                pending_counts = np.zeros(256, dtype=np.int64)
+
+                while pos < size:
+                    chunk_end = min(pos + cls._STRING_BATCH_BYTES, size)
+                    chunk_arr = np.frombuffer(mv[pos:chunk_end], dtype=np.uint8)
+                    separators = (chunk_arr < 0x20) | (chunk_arr > 0x7E)
+
+                    if separators.any():
+                        first_separator = int(np.argmax(separators))
+                        if first_separator:
+                            pending_counts += np.bincount(chunk_arr[:first_separator], minlength=256)
+                            pending_len += first_separator
+                        pos += first_separator + 1
+                        break
+
+                    pending_counts += np.bincount(chunk_arr, minlength=256)
+                    pending_len += len(chunk_arr)
+                    pos = chunk_end
+
+                if pending_len >= 5:
+                    count += 1
+                    total_len += pending_len
+                    global_counts += pending_counts
+
+            if count == 0 or total_len == 0:
+                return res
 
         res["StringCount"] = float(count)
         res["StringMeanLength"] = float(total_len) / count
-        res["StringEntropy"] = cls._calc_entropy(combined_data)
 
-        arr = np.frombuffer(combined_data, dtype=np.uint8)
-        counts = np.bincount(arr, minlength=127)
-        char_counts = counts[0x20:0x7F]
+        counts_nonzero = global_counts[global_counts > 0]
+        if len(counts_nonzero) > 0:
+            res["StringEntropy"] = float(np.log2(total_len) - np.sum(counts_nonzero * np.log2(counts_nonzero)) / total_len)
 
-        res.update(dict(zip(cls._STRING_KEYS, char_counts.astype(np.float64) / total_len)))
+        valid_chars = global_counts[0x20:0x7F]
+        res.update(dict(zip(cls._STRING_KEYS, valid_chars.astype(np.float64) / total_len)))
+
         return res
+
+
 
     @classmethod
     def _extract_histograms(cls, file_bytes):
@@ -163,54 +280,63 @@ class FeatureExtractor:
         res = {}
 
         if sz == 0:
+            res['FileEntropy'] = 0.0
             res.update(dict.fromkeys(cls._BYTE_HIST_KEYS, 0.0))
             res.update(dict.fromkeys(cls._BYTE_ENT_KEYS, 0.0))
             return res
 
-        byte_counts = np.bincount(arr, minlength=256)
-        byte_hist = byte_counts.astype(np.float64) / sz
-        res.update(dict(zip(cls._BYTE_HIST_KEYS, byte_hist)))
-
+        byte_counts = np.zeros(256, dtype=np.int64)
         ent_hist = np.zeros(256, dtype=np.float64)
         window = 2048
         step = 1024
 
         if sz < window:
-            w_counts = byte_counts
-            p = w_counts[w_counts > 0] / float(sz)
+            byte_counts += np.bincount(arr, minlength=256)
+            p = byte_counts[byte_counts > 0] / float(sz)
             entropy = float(-np.sum(p * np.log2(p)))
             ent_bin = min(int(entropy * 2.0), 15)
-            byte_bins = w_counts.reshape(16, 16).sum(axis=1)
+            byte_bins = byte_counts.reshape(16, 16).sum(axis=1)
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
         else:
             num_windows = (sz - window) // step + 1
-            batch_windows = 10000 
-            
-            for w_start in range(0, num_windows, batch_windows):
-                w_end = min(w_start + batch_windows, num_windows)
+
+            for w_start in range(0, num_windows, cls._HISTOGRAM_BATCH_WINDOWS):
+                w_end = min(w_start + cls._HISTOGRAM_BATCH_WINDOWS, num_windows)
                 b_num = w_end - w_start
-                
+
                 start_byte = w_start * step
                 end_byte = start_byte + b_num * step + step
-                b_arr = arr[start_byte:end_byte]
-                
-                arr_2d = b_arr.reshape(b_num + 1, step)
-                offsets = (np.arange(b_num + 1, dtype=np.int32)[:, None] * 256)
-                flat_idx = (arr_2d.astype(np.int32) + offsets).ravel()
-                
-                chunk_counts = np.bincount(flat_idx, minlength=(b_num + 1) * 256).reshape(b_num + 1, 256)
+                encoded = arr[start_byte:end_byte].astype(np.int32).reshape(b_num + 1, step)
+                encoded += np.arange(b_num + 1, dtype=np.int32)[:, None] * 256
+
+                chunk_counts = np.bincount(encoded.ravel(), minlength=(b_num + 1) * 256).reshape(b_num + 1, 256)
+                del encoded
+
+                byte_counts += np.sum(chunk_counts[:-1], axis=0)
+                if w_end == num_windows:
+                    byte_counts += chunk_counts[-1]
+
                 window_counts = chunk_counts[:-1] + chunk_counts[1:]
-                
                 sum_c_log_c = np.sum(cls._C_LOG_C_TABLE[window_counts], axis=1)
                 entropies = 11.0 - sum_c_log_c / 2048.0
-                
+
                 ent_bins = (entropies * 2.0).astype(np.int32)
                 np.clip(ent_bins, 0, 15, out=ent_bins)
-                
+
                 byte_bins = window_counts.reshape(b_num, 16, 16).sum(axis=2)
                 flat_ent_bins = (ent_bins[:, None] * 16 + np.arange(16)).ravel()
                 np.add.at(ent_hist, flat_ent_bins, byte_bins.ravel())
+
+            covered_size = (num_windows + 1) * step
+            if covered_size < sz:
+                byte_counts += np.bincount(arr[covered_size:], minlength=256)
+
+        counts_nonzero = byte_counts[byte_counts > 0]
+        res['FileEntropy'] = float(np.log2(sz) - np.sum(counts_nonzero * np.log2(counts_nonzero)) / sz)
+
+        byte_hist = byte_counts.astype(np.float64) / sz
+        res.update(dict(zip(cls._BYTE_HIST_KEYS, byte_hist)))
 
         ent_sum = np.sum(ent_hist)
         if ent_sum > 0:
@@ -218,6 +344,7 @@ class FeatureExtractor:
 
         res.update(dict(zip(cls._BYTE_ENT_KEYS, ent_hist)))
         return res
+
 
     @classmethod
     def _extract_overlay_features(cls, pe, fsize):
@@ -372,15 +499,19 @@ class FeatureExtractor:
     @classmethod
     def extract(cls, file_path):
         pe = None
+        mm = None
+        source_file = None
+
         try:
             fsize = os.path.getsize(file_path)
             if fsize == 0 or fsize > MAX_FILE_SIZE: 
                 return None
 
-            with open(file_path, "rb") as f:
-                file_bytes = f.read()
+            source_file = open(file_path, "rb")
+            mm = mmap.mmap(source_file.fileno(), 0, access=mmap.ACCESS_READ)
+            file_bytes = mm
 
-            base, dlls, apis = {}, set(), set()
+            base, dlls, apis = cls._base_defaults(), set(), set()
             pe = pefile.PE(data=file_bytes, fast_load=True)
 
             try:
@@ -397,7 +528,6 @@ class FeatureExtractor:
                 pass
             
             base['TrustSigned'] = float(WinTrust.verify(file_path))
-            base['FileEntropy'] = cls._calc_entropy(file_bytes)
             base['FileSize'] = float(fsize)
             
             fh = pe.FILE_HEADER
@@ -420,7 +550,8 @@ class FeatureExtractor:
             if hasattr(pe, 'OPTIONAL_HEADER'):
                 op = pe.OPTIONAL_HEADER
                 fields = ['Magic', 'MajorLinkerVersion', 'MinorLinkerVersion', 'SizeOfCode', 'SizeOfInitializedData', 'SizeOfUninitializedData', 'AddressOfEntryPoint', 'BaseOfCode', 'ImageBase', 'SectionAlignment', 'FileAlignment', 'MajorOperatingSystemVersion', 'MinorOperatingSystemVersion', 'MajorImageVersion', 'MinorImageVersion', 'MajorSubsystemVersion', 'MinorSubsystemVersion', 'SizeOfImage', 'SizeOfHeaders', 'CheckSum', 'Subsystem', 'DllCharacteristics', 'SizeOfStackReserve', 'SizeOfStackCommit', 'SizeOfHeapReserve', 'SizeOfHeapCommit', 'LoaderFlags', 'NumberOfRvaAndSizes']
-                for f in fields: base[f] = getattr(op, f, 0)
+                for field_name in fields:
+                    base[field_name] = getattr(op, field_name, 0)
                 base['IsDriver'] = 1.0 if base.get('Subsystem') == 1 else 0.0
 
                 if hasattr(op, 'DATA_DIRECTORY'):
@@ -571,11 +702,24 @@ class FeatureExtractor:
 
             return {"Base": base, "DLLs": list(dlls), "APIs": list(apis)}
 
-        except Exception:
+        except pefile.PEFormatError:
             return None
         finally:
-            if pe:
-                pe.close()
+            if pe is not None:
+                try:
+                    pe.close()
+                except Exception:
+                    pass
+            if mm is not None:
+                try:
+                    mm.close()
+                except Exception:
+                    pass
+            if source_file is not None:
+                try:
+                    source_file.close()
+                except Exception:
+                    pass
 
 ####################################################################################################
 

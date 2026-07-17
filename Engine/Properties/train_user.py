@@ -58,15 +58,14 @@ def analyze_schema(jsonl_path):
         for line in f:
             num_lines += 1
 
-            if not base_keys:
-                try:
-                    data = JSON_LOADS(line)
-                    base_data = data.get('Base')
-                    if base_data:
-                        base_keys.update(base_data.keys())
+            try:
+                data = JSON_LOADS(line)
+                base_data = data.get('Base')
+                if base_data:
+                    base_keys.update(base_data.keys())
 
-                except Exception:
-                    pass
+            except Exception:
+                pass
 
     base_schema = sorted([k for k in base_keys if k.lower().strip() not in EXCLUDE_FEATURES])
     dll_schema = [f"DllHash_{i:03d}" for i in range(DLL_HASH_DIM)]

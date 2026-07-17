@@ -189,6 +189,9 @@ class rule_scanner:
 
 class pe_scanner:
     _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
+    _STRING_FAST_PATH_BYTES = 4194304
+    _STRING_BATCH_BYTES = 4194304
+    _HISTOGRAM_BATCH_WINDOWS = 1024
 
     _BYTE_HIST_KEYS = [f'ByteHist_{i:02X}' for i in range(256)]
     _BYTE_ENT_KEYS = [f'ByteEnt_{i:02X}' for i in range(256)]
@@ -201,6 +204,49 @@ class pe_scanner:
 
     _C_LOG_C_TABLE = numpy.zeros(2049, dtype=numpy.float64)
     _C_LOG_C_TABLE[1:] = numpy.arange(1, 2049) * numpy.log2(numpy.arange(1, 2049))
+
+    _OPTIONAL_HEADER_FIELDS = [
+        'Magic', 'MajorLinkerVersion', 'MinorLinkerVersion', 'SizeOfCode',
+        'SizeOfInitializedData', 'SizeOfUninitializedData', 'AddressOfEntryPoint',
+        'BaseOfCode', 'ImageBase', 'SectionAlignment', 'FileAlignment',
+        'MajorOperatingSystemVersion', 'MinorOperatingSystemVersion',
+        'MajorImageVersion', 'MinorImageVersion', 'MajorSubsystemVersion',
+        'MinorSubsystemVersion', 'SizeOfImage', 'SizeOfHeaders', 'CheckSum',
+        'Subsystem', 'DllCharacteristics', 'SizeOfStackReserve', 'SizeOfStackCommit',
+        'SizeOfHeapReserve', 'SizeOfHeapCommit', 'LoaderFlags', 'NumberOfRvaAndSizes'
+    ]
+
+    _SECTION_DEFAULTS = {
+        'SectionCount': 0.0,
+        'SectionMaxEntropy': 0.0,
+        'SectionMinEntropy': 0.0,
+        'SectionMeanEntropy': 0.0,
+        'SectionMaxRawSize': 0.0,
+        'SectionMinRawSize': 0.0,
+        'SectionMeanRawSize': 0.0,
+        'SectionMaxVSize': 0.0,
+        'SectionMinVSize': 0.0,
+        'SectionMeanVSize': 0.0,
+        'ExecutableSections': 0.0,
+        'WritableSections': 0.0,
+        'ReadableSections': 0.0,
+        'SectionException': 0.0
+    }
+
+    _CONDITIONAL_DEFAULTS = {
+        'IsDriver': 0.0,
+        'HasTlsCallbacks': 0.0,
+        'IsDebug': 0.0,
+        'IsPreRelease': 0.0,
+        'IsPatched': 0.0,
+        'IsPrivateBuild': 0.0,
+        'IsSpecialBuild': 0.0,
+        'ImportCount': 0.0,
+        'ImportFunctionCount': 0.0,
+        'ExportCount': 0.0,
+        'IconCount': 0.0,
+        'DebugCount': 0.0
+    }
 
     def __init__(self):
         self.model = None
@@ -276,6 +322,17 @@ class pe_scanner:
         except Exception:
             return 0.0
 
+    def _base_defaults(self):
+        base = dict.fromkeys(self._OPTIONAL_HEADER_FIELDS, 0.0)
+        base.update(self._SECTION_DEFAULTS)
+        base.update(self._CONDITIONAL_DEFAULTS)
+
+        for i in range(16):
+            base[f'DataDirectory_{i}_Size'] = 0.0
+            base[f'DataDirectory_{i}_VA'] = 0.0
+
+        return base
+
     def _calc_entropy(self, data):
         if not data: 
             return 0.0
@@ -291,20 +348,69 @@ class pe_scanner:
         res = {"StringCount": 0.0, "StringMeanLength": 0.0, "StringEntropy": 0.0}
         res.update(dict.fromkeys(self._STRING_KEYS, 0.0))
 
-        total_len = 0
-        count = 0
-        global_counts = numpy.zeros(256, dtype=numpy.int64)
-        mv = memoryview(file_bytes)
+        if len(file_bytes) <= self._STRING_FAST_PATH_BYTES:
+            matches = self._STRING_PATTERN.findall(file_bytes)
+            if not matches:
+                return res
 
-        for m in self._STRING_PATTERN.finditer(file_bytes):
-            count += 1
-            start, end = m.span()
-            total_len += (end - start)
-            arr = numpy.frombuffer(mv[start:end], dtype=numpy.uint8)
-            global_counts += numpy.bincount(arr, minlength=256)
+            combined_data = b''.join(matches)
+            count = len(matches)
+            total_len = len(combined_data)
+            global_counts = numpy.bincount(numpy.frombuffer(combined_data, dtype=numpy.uint8), minlength=256)
+        else:
+            count = 0
+            total_len = 0
+            global_counts = numpy.zeros(256, dtype=numpy.int64)
+            mv = memoryview(file_bytes)
+            pos = 0
+            size = len(file_bytes)
 
-        if count == 0 or total_len == 0:
-            return res
+            while pos < size:
+                chunk_end = min(pos + self._STRING_BATCH_BYTES, size)
+                chunk_arr = numpy.frombuffer(mv[pos:chunk_end], dtype=numpy.uint8)
+                separators = (chunk_arr < 0x20) | (chunk_arr > 0x7E)
+
+                if separators.any():
+                    last_separator = len(separators) - 1 - int(numpy.argmax(separators[::-1]))
+                    segment_end = pos + last_separator + 1
+                    matches = self._STRING_PATTERN.findall(mv[pos:segment_end])
+
+                    if matches:
+                        combined_data = b''.join(matches)
+                        count += len(matches)
+                        total_len += len(combined_data)
+                        global_counts += numpy.bincount(numpy.frombuffer(combined_data, dtype=numpy.uint8), minlength=256)
+
+                    pos = segment_end
+                    continue
+
+                pending_len = 0
+                pending_counts = numpy.zeros(256, dtype=numpy.int64)
+
+                while pos < size:
+                    chunk_end = min(pos + self._STRING_BATCH_BYTES, size)
+                    chunk_arr = numpy.frombuffer(mv[pos:chunk_end], dtype=numpy.uint8)
+                    separators = (chunk_arr < 0x20) | (chunk_arr > 0x7E)
+
+                    if separators.any():
+                        first_separator = int(numpy.argmax(separators))
+                        if first_separator:
+                            pending_counts += numpy.bincount(chunk_arr[:first_separator], minlength=256)
+                            pending_len += first_separator
+                        pos += first_separator + 1
+                        break
+
+                    pending_counts += numpy.bincount(chunk_arr, minlength=256)
+                    pending_len += len(chunk_arr)
+                    pos = chunk_end
+
+                if pending_len >= 5:
+                    count += 1
+                    total_len += pending_len
+                    global_counts += pending_counts
+
+            if count == 0 or total_len == 0:
+                return res
 
         res["StringCount"] = float(count)
         res["StringMeanLength"] = float(total_len) / count
@@ -318,61 +424,71 @@ class pe_scanner:
 
         return res
 
+
+
     def _extract_histograms(self, file_bytes):
         arr = numpy.frombuffer(file_bytes, dtype=numpy.uint8)
         sz = len(arr)
         res = {}
 
         if sz == 0:
+            res['FileEntropy'] = 0.0
             res.update(dict.fromkeys(self._BYTE_HIST_KEYS, 0.0))
             res.update(dict.fromkeys(self._BYTE_ENT_KEYS, 0.0))
             return res
 
-        byte_counts = numpy.bincount(arr, minlength=256)
-        byte_hist = byte_counts.astype(numpy.float64) / sz
-        res.update(dict(zip(self._BYTE_HIST_KEYS, byte_hist)))
-
+        byte_counts = numpy.zeros(256, dtype=numpy.int64)
         ent_hist = numpy.zeros(256, dtype=numpy.float64)
         window = 2048
         step = 1024
 
         if sz < window:
-            w_counts = byte_counts
-            p = w_counts[w_counts > 0] / float(sz)
+            byte_counts += numpy.bincount(arr, minlength=256)
+            p = byte_counts[byte_counts > 0] / float(sz)
             entropy = float(-numpy.sum(p * numpy.log2(p)))
             ent_bin = min(int(entropy * 2.0), 15)
-            byte_bins = w_counts.reshape(16, 16).sum(axis=1)
+            byte_bins = byte_counts.reshape(16, 16).sum(axis=1)
             idx_start = ent_bin * 16
             ent_hist[idx_start : idx_start+16] += byte_bins
-
         else:
             num_windows = (sz - window) // step + 1
-            batch_windows = 10000 
-            
-            for w_start in range(0, num_windows, batch_windows):
-                w_end = min(w_start + batch_windows, num_windows)
+
+            for w_start in range(0, num_windows, self._HISTOGRAM_BATCH_WINDOWS):
+                w_end = min(w_start + self._HISTOGRAM_BATCH_WINDOWS, num_windows)
                 b_num = w_end - w_start
-                
+
                 start_byte = w_start * step
                 end_byte = start_byte + b_num * step + step
-                b_arr = arr[start_byte:end_byte]
-                
-                arr_2d = b_arr.reshape(b_num + 1, step)
-                offsets = (numpy.arange(b_num + 1, dtype=numpy.int32)[:, None] * 256)
-                flat_idx = (arr_2d.astype(numpy.int32) + offsets).ravel()
-                
-                chunk_counts = numpy.bincount(flat_idx, minlength=(b_num + 1) * 256).reshape(b_num + 1, 256)
+                encoded = arr[start_byte:end_byte].astype(numpy.int32).reshape(b_num + 1, step)
+                encoded += numpy.arange(b_num + 1, dtype=numpy.int32)[:, None] * 256
+
+                chunk_counts = numpy.bincount(encoded.ravel(), minlength=(b_num + 1) * 256).reshape(b_num + 1, 256)
+                del encoded
+
+                byte_counts += numpy.sum(chunk_counts[:-1], axis=0)
+                if w_end == num_windows:
+                    byte_counts += chunk_counts[-1]
+
                 window_counts = chunk_counts[:-1] + chunk_counts[1:]
-                
                 sum_c_log_c = numpy.sum(self._C_LOG_C_TABLE[window_counts], axis=1)
                 entropies = 11.0 - sum_c_log_c / 2048.0
-                
+
                 ent_bins = (entropies * 2.0).astype(numpy.int32)
                 numpy.clip(ent_bins, 0, 15, out=ent_bins)
-                
+
                 byte_bins = window_counts.reshape(b_num, 16, 16).sum(axis=2)
                 flat_ent_bins = (ent_bins[:, None] * 16 + numpy.arange(16)).ravel()
                 numpy.add.at(ent_hist, flat_ent_bins, byte_bins.ravel())
+
+            covered_size = (num_windows + 1) * step
+            if covered_size < sz:
+                byte_counts += numpy.bincount(arr[covered_size:], minlength=256)
+
+        counts_nonzero = byte_counts[byte_counts > 0]
+        res['FileEntropy'] = float(numpy.log2(sz) - numpy.sum(counts_nonzero * numpy.log2(counts_nonzero)) / sz)
+
+        byte_hist = byte_counts.astype(numpy.float64) / sz
+        res.update(dict(zip(self._BYTE_HIST_KEYS, byte_hist)))
 
         ent_sum = numpy.sum(ent_hist)
         if ent_sum > 0:
@@ -380,6 +496,7 @@ class pe_scanner:
 
         res.update(dict(zip(self._BYTE_ENT_KEYS, ent_hist)))
         return res
+
 
     def _extract_overlay_features(self, pe, fsize):
         overlay_offset = pe.get_overlay_data_start_offset()
@@ -539,7 +656,7 @@ class pe_scanner:
             f = open(file_path, "rb")
             mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
-            base = {}
+            base = self._base_defaults()
             dlls = set()
             apis = set()
             pe = pefile.PE(data=mm, fast_load=True)
@@ -558,7 +675,6 @@ class pe_scanner:
                 pass
             
             base['TrustSigned'] = 1.0 if self.signer.sign_verify(file_path) else 0.0
-            base['FileEntropy'] = self._calc_entropy(mm)
             base['FileSize'] = float(fsize)
             
             fh = pe.FILE_HEADER

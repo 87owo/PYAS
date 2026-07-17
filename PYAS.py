@@ -296,6 +296,8 @@ class _MainMixin:
         self.scan_count = 0
         self.scan_events = {}
         self.hash_cache = {}
+        self.file_task_timers = {}
+        self.file_task_generations = {}
         self.mbr_backup = {}
         self.cloud_pending = set()
         self.last_io_counters = {}
@@ -313,7 +315,7 @@ class _MainMixin:
         self.lock_io = threading.RLock()
 
         self.pyas_default = {
-            "version": "3.6.3",
+            "version": "3.6.4",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd"],
@@ -475,6 +477,7 @@ class _MainMixin:
                     self.manage_autostart(False)
 
                 elif key == "document_switch":
+                    self._cancel_pending_file_scans()
                     with self.lock_file_ops:
                         if getattr(self, 'h_dir_file', None):
                             try:
@@ -838,6 +841,8 @@ class _MainMixin:
             self.pyas_config["system_switch"] = False
             self.pyas_config["driver_switch"] = False
             self.pyas_config["network_switch"] = False
+
+        self._cancel_pending_file_tasks()
 
         with self.lock_file_ops:
             if getattr(self, 'h_dir_file', None):
@@ -1249,21 +1254,14 @@ def start_api(port_container, ready_event):
 if __name__ == "__main__":
     if "-driver-unload" in sys.argv or "-driver-uninstall" in sys.argv:
         controller = WindowAPI()
-        success = controller.stop_system_driver()
         if "-driver-uninstall" in sys.argv:
-            deleted, delete_error = False, 0
-            for _ in range(20):
-                deleted, delete_error = controller._delete_driver_service()
-                if deleted:
-                    break
-                if delete_error not in (1051, 1072):
-                    break
-                time.sleep(0.25)
-            if not deleted:
+            success, delete_error = controller.uninstall_system_driver()
+            if not success:
                 controller.write_log("WARN", "Driver Service", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
-            success = (success or not controller.check_system_driver()) and deleted
+        else:
+            success = controller.stop_system_driver()
         controller.flush_logs_now()
-        os._exit(0 if success or not controller.check_system_driver() else 2)
+        os._exit(0 if success else 2)
 
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
     init_width, init_height = 980, 670

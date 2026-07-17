@@ -437,6 +437,47 @@ class ScannerMixin:
 
 ####################################################################################################
 
+    def _queue_virus_delete(self, file_path):
+        self._schedule_file_task("delete", file_path, self._retry_virus_delete, 0.5)
+
+    def _retry_virus_delete(self, file_path):
+        file_hash = self.calc_file_hash(file_path)
+        try:
+            with self.lock_file_ops:
+                if file_path in self.virus_lock:
+                    self.lock_file(file_path, False)
+
+            target_key = os.path.normcase(self.norm_path(file_path, must_exist=False) or file_path)
+            for proc in self.get_process_list():
+                proc_path = proc.get("path")
+                if not proc_path or proc_path == "None":
+                    continue
+                proc_key = os.path.normcase(self.norm_path(proc_path, must_exist=False) or proc_path)
+                if proc_key == target_key:
+                    self.kill_process(proc["pid"])
+
+            try:
+                os.chmod(file_path, stat.S_IWRITE)
+            except Exception:
+                pass
+            os.remove(file_path)
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            self.lock_file(file_path, True, quiet=True)
+            self._queue_virus_delete(file_path)
+            self.write_log("INFO", "Virus Delete Deferred", source=file_path, detail=str(e))
+            return
+
+        self.remove_list_items("quarantine", [file_path])
+        with self.lock_virus:
+            target_key = os.path.normcase(self.norm_path(file_path, must_exist=False) or file_path)
+            self.virus_results = [
+                result for result in self.virus_results
+                if os.path.normcase(self.norm_path(result, must_exist=False) or result) != target_key
+            ]
+        self.write_log("INFO", "Virus Delete", source=file_path, file_hash=file_hash, operate=True, success=True)
+
     def solve_scan(self, file_paths):
         deleted_paths = []
         proc_map = {}
@@ -477,23 +518,19 @@ class ScannerMixin:
                     except Exception:
                         pass
 
-                    delete_success = False
-                    for _ in range(5):
-                        try:
-                            os.remove(path)
-                            delete_success = True
-                            break
-
-                        except Exception:
-                            time.sleep(0.1)
-
-                    if not delete_success:
+                    file_hash = self.calc_file_hash(path)
+                    try:
                         os.remove(path)
+                    except Exception as e:
+                        self.lock_file(path, True, quiet=True)
+                        self._queue_virus_delete(path)
+                        self.write_log("INFO", "Virus Delete Deferred", source=path, detail=str(e))
+                        continue
 
                     self.remove_list_items("quarantine", [path])
-                    deleted_paths.append(raw_path) 
+                    deleted_paths.append(raw_path)
                     deleted_set.add(path)
-                    self.write_log("INFO", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), operate=True, success=True)
+                    self.write_log("INFO", "Virus Delete", source=path, file_hash=file_hash, operate=True, success=True)
 
                 except Exception as e:
                     self.lock_file(path, True)

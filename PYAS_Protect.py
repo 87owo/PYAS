@@ -7,8 +7,18 @@ FLT_PORT_FLAG_SYNC_HANDLE = 0x00000001
 HRESULT_IO_PENDING = 0x800703E5
 ERROR_OPERATION_ABORTED = 995
 ERROR_NOT_FOUND = 1168
+ERROR_SHARING_VIOLATION = 32
+ERROR_LOCK_VIOLATION = 33
 WAIT_OBJECT_0 = 0
 WAIT_TIMEOUT = 258
+INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+GENERIC_READ = 0x80000000
+FILE_SHARE_READ = 0x00000001
+OPEN_EXISTING = 3
+FILE_ATTRIBUTE_NORMAL = 0x00000080
+FILE_SCAN_DEBOUNCE_SECONDS = 0.35
+FILE_SCAN_RETRY_SECONDS = 0.25
+FILE_LOCK_RETRY_SECONDS = 0.5
 PYAS_CONNECTION_MAGIC = 0x53415950
 PYAS_CONNECTION_VERSION = 1
 PROCESS_TERMINATE = 0x0001
@@ -94,75 +104,98 @@ class ProtectMixin:
 
 ####################################################################################################
 
-    def lock_file(self, target_path, lock, quiet=False):
+    def _try_lock_file(self, file_path):
+        fd = None
+        try:
+            fd = os.open(file_path, os.O_RDWR | os.O_BINARY)
+            try:
+                size = os.path.getsize(file_path)
+            except Exception:
+                size = 1
+
+            lock_size = size if size > 0 else 1
+            msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
+            self.virus_lock[file_path] = (fd, lock_size)
+            return True, None
+        except Exception as e:
+            if fd is not None:
+                try:
+                    os.close(fd)
+                except Exception:
+                    pass
+            return False, e
+
+    def _queue_file_lock(self, file_path):
+        self._schedule_file_task("lock", file_path, self._retry_file_lock, FILE_LOCK_RETRY_SECONDS)
+
+    def _retry_file_lock(self, file_path):
+        if not os.path.isfile(file_path):
+            return
+
         with self.lock_file_ops:
-            if lock:
-                if not os.path.exists(target_path):
-                    return
+            if file_path in self.virus_lock:
+                return
+            success, _ = self._try_lock_file(file_path)
 
-                paths_to_lock = []
-                if os.path.isdir(target_path):
-                    for root, _, files in os.walk(target_path):
-                        for f in files:
-                            paths_to_lock.append(os.path.join(root, f))
-                else:
-                    paths_to_lock.append(target_path)
+        if not success:
+            self._queue_file_lock(file_path)
 
+    def lock_file(self, target_path, lock, quiet=False):
+        if lock:
+            if not os.path.exists(target_path):
+                return False
+
+            paths_to_lock = []
+            if os.path.isdir(target_path):
+                for root, _, files in os.walk(target_path):
+                    for file_name in files:
+                        paths_to_lock.append(os.path.join(root, file_name))
+            else:
+                paths_to_lock.append(target_path)
+
+            failed_locks = []
+            with self.lock_file_ops:
                 for file_path in paths_to_lock:
                     if file_path in self.virus_lock:
                         continue
 
-                    success = False
-                    last_error = None
-                    for _ in range(5):
-                        try:
-                            fd = os.open(file_path, os.O_RDWR | os.O_BINARY)
-                            try:
-                                try:
-                                    size = os.path.getsize(file_path)
-                                except Exception:
-                                    size = 1
+                    success, error = self._try_lock_file(file_path)
+                    if not success:
+                        failed_locks.append((file_path, error))
 
-                                lock_size = size if size > 0 else 1
-                                msvcrt.locking(fd, msvcrt.LK_NBRLCK, lock_size)
-                                self.virus_lock[file_path] = (fd, lock_size)
-                                success = True
-                                break
+            for file_path, error in failed_locks:
+                self._queue_file_lock(file_path)
+                if not quiet:
+                    self.write_log("INFO", "File Lock Deferred", source=file_path, detail=str(error))
 
-                            except Exception as e:
-                                os.close(fd)
-                                raise e
+            return not failed_locks
 
-                        except Exception as e:
-                            last_error = e
-                            time.sleep(0.1)
+        self._cancel_pending_file_tasks("lock", target_path)
+        with self.lock_file_ops:
+            target_norm = os.path.normcase(target_path)
+            target_dir = target_norm + os.sep
+            keys_to_unlock = []
 
-                    if not success and not quiet:
-                        self.write_log("WARN", "lock_file", source=file_path, detail=str(last_error), success=False)
-            else:
-                target_norm = os.path.normcase(target_path)
-                target_dir = target_norm + os.sep
-                keys_to_unlock = []
+            for locked_path in self.virus_lock:
+                locked_norm = os.path.normcase(locked_path)
+                if locked_norm == target_norm or locked_norm.startswith(target_dir):
+                    keys_to_unlock.append(locked_path)
 
-                for locked_path in self.virus_lock:
-                    locked_norm = os.path.normcase(locked_path)
-                    if locked_norm == target_norm or locked_norm.startswith(target_dir):
-                        keys_to_unlock.append(locked_path)
-
-                for file_path in keys_to_unlock:
-                    fd, lock_size = self.virus_lock[file_path]
+            for file_path in keys_to_unlock:
+                fd, lock_size = self.virus_lock[file_path]
+                try:
+                    msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
+                except Exception as e:
+                    if not quiet:
+                        self.write_log("WARN", "unlock_file", source=file_path, detail=str(e), success=False)
+                finally:
                     try:
-                        msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
-                    except Exception as e:
-                        if not quiet:
-                            self.write_log("WARN", "unlock_file", source=file_path, detail=str(e), success=False)
+                        os.close(fd)
+                    except Exception:
+                        pass
+                    del self.virus_lock[file_path]
 
-                    finally:
-                        try:
-                            os.close(fd)
-                        except Exception:
-                            pass
-                        del self.virus_lock[file_path]
+        return True
 
     def relock_file(self):
         while True:
@@ -665,7 +698,7 @@ class ProtectMixin:
                                         suffix = self.pyas_config.get("suffix", [])
 
                                     if not ext_filter or os.path.splitext(file_path)[-1].lower() in suffix:
-                                        self.protect_pool.submit(self.handle_new_file, file_path)
+                                        self._queue_file_scan(file_path)
 
                         if notify.NextEntryOffset == 0:
                             break
@@ -683,33 +716,106 @@ class ProtectMixin:
                         pass
                     self.h_dir_file = None
 
+    def _cancel_pending_file_tasks(self, task_name=None, target_path=None):
+        target_norm = os.path.normcase(target_path) if target_path else None
+        target_dir = target_norm + os.sep if target_norm else None
+
+        with self.lock_file_ops:
+            task_keys = []
+            for task_key in self.file_task_timers:
+                name, path_key = task_key
+                if task_name and name != task_name:
+                    continue
+                if target_norm and path_key != target_norm and not path_key.startswith(target_dir):
+                    continue
+                task_keys.append(task_key)
+
+            timers = [self.file_task_timers.pop(task_key) for task_key in task_keys]
+            for task_key in task_keys:
+                self.file_task_generations.pop(task_key, None)
+
+        for timer in timers:
+            timer.cancel()
+
+    def _cancel_pending_file_scans(self):
+        self._cancel_pending_file_tasks("scan")
+
+    def _schedule_file_task(self, task_name, file_path, callback, delay):
+        task_key = (task_name, os.path.normcase(file_path))
+
+        with self.lock_file_ops:
+            previous_timer = self.file_task_timers.get(task_key)
+            if previous_timer:
+                previous_timer.cancel()
+
+            generation = self.file_task_generations.get(task_key, 0) + 1
+            timer = threading.Timer(delay, self._run_file_task, args=(task_key, file_path, generation, callback))
+            timer.daemon = True
+            self.file_task_timers[task_key] = timer
+            self.file_task_generations[task_key] = generation
+
+        timer.start()
+
+    def _run_file_task(self, task_key, file_path, generation, callback):
+        with self.lock_file_ops:
+            if self.file_task_generations.get(task_key) != generation:
+                return
+            if self.file_task_timers.get(task_key) is threading.current_thread():
+                self.file_task_timers.pop(task_key, None)
+
+        try:
+            callback(file_path)
+        finally:
+            with self.lock_file_ops:
+                if self.file_task_generations.get(task_key) == generation:
+                    self.file_task_timers.pop(task_key, None)
+                    self.file_task_generations.pop(task_key, None)
+
+    def _queue_file_scan(self, file_path, delay=FILE_SCAN_DEBOUNCE_SECONDS):
+        self._schedule_file_task("scan", file_path, self.handle_new_file, delay)
+
+    def _acquire_file_scan_gate(self, file_path):
+        ctypes.set_last_error(0)
+        handle = self.kernel32.CreateFileW(
+            file_path,
+            GENERIC_READ,
+            FILE_SHARE_READ,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            None
+        )
+
+        if handle == INVALID_HANDLE_VALUE:
+            return None, ctypes.get_last_error()
+
+        return handle, 0
+
     def handle_new_file(self, file_path):
         try:
-            for _ in range(5):
-                try:
-                    fd = os.open(file_path, os.O_RDONLY | os.O_BINARY)
-                    os.close(fd)
+            with self.lock_config:
+                if not self.pyas_config.get("document_switch", False):
+                    return
 
-                    size = os.path.getsize(file_path)
-                    if size > 0:
-                        break
-
-                except Exception:
-                    pass
-                time.sleep(0.1)
-            else:
+            gate_handle, error = self._acquire_file_scan_gate(file_path)
+            if not gate_handle:
+                if error in (ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION):
+                    self._queue_file_scan(file_path, FILE_SCAN_RETRY_SECONDS)
                 return
 
-            with self.lock_file_ops:
-                if file_path in self.virus_lock: return
+            try:
+                with self.lock_file_ops:
+                    if file_path in self.virus_lock:
+                        return
 
-            result = self.safe_scan_engine(file_path)
-            self.cloud_check(file_path)
+                result = self.safe_scan_engine(file_path)
+                self.cloud_check(file_path)
 
-            if result:
-                if self.manage_named_list("quarantine", [file_path], action="add", lock_func=self.lock_file) > 0:
-                    self.write_log("BLOCK", "File Block", source=file_path, file_hash=self.calc_file_hash(file_path))
-
+                if result:
+                    if self.manage_named_list("quarantine", [file_path], action="add", lock_func=self.lock_file) > 0:
+                        self.write_log("BLOCK", "File Block", source=file_path, file_hash=self.calc_file_hash(file_path))
+            finally:
+                self.kernel32.CloseHandle(gate_handle)
         except Exception:
             pass
 
@@ -1080,6 +1186,11 @@ class ProtectMixin:
             if service:
                 self.advapi32.CloseServiceHandle(service)
             self.advapi32.CloseServiceHandle(scm)
+
+    def uninstall_system_driver(self):
+        if not self.stop_system_driver():
+            return False, 1051
+        return self._delete_driver_service()
 
     def _delete_driver_service(self):
         scm = self.advapi32.OpenSCManagerW(None, None, 0x0001)

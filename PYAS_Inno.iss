@@ -59,7 +59,11 @@ Name: "install_webview2"; Description: "{cm:InstallWebView2}"; GroupDescription:
 Name: "install_vcredist"; Description: "{cm:InstallVCRedist}"; GroupDescription: "{cm:Dependencies}"
 
 [Files]
-Source: "Payload\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "Payload\Engine\*"; DestDir: "{app}\Engine"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "Payload\Interface\*"; DestDir: "{app}\Interface"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "Payload\License\*"; DestDir: "{app}\License"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "Payload\PYAS.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Payload\Plugins\*"; DestDir: "{app}\Plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Redist\VC_redist.x64.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion
 Source: "Redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion
 

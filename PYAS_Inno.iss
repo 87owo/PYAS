@@ -1,6 +1,6 @@
 #define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
 #define AppName "PYAS"
-#define AppVersion "3.6.4.0"
+#define AppVersion "3.6.5.0"
 #define AppPublisher "PYAS Security"
 #define AppURL "https://github.com/87owo/PYAS"
 #define AppExeName "PYAS.exe"
@@ -55,17 +55,15 @@ Name: "slovenian"; MessagesFile: "SetupResources\Slovenian.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 Name: "autostart"; Description: "{cm:AutoStartTask}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "install_webview2"; Description: "{cm:InstallWebView2}"; GroupDescription: "{cm:Dependencies}"
-Name: "install_vcredist"; Description: "{cm:InstallVCRedist}"; GroupDescription: "{cm:Dependencies}"
 
 [Files]
+Source: "Redist\VC_redist.x64.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion; AfterInstall: EnsureVCRedist
+Source: "Redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion; AfterInstall: EnsureWebView2
 Source: "Payload\Engine\*"; DestDir: "{app}\Engine"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\Interface\*"; DestDir: "{app}\Interface"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\License\*"; DestDir: "{app}\License"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "Payload\PYAS.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Payload\PYAS.exe"; DestDir: "{app}"; Flags: ignoreversion; AfterInstall: FinalizeDriverRemoval
 Source: "Payload\Plugins\*"; DestDir: "{app}\Plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "Redist\VC_redist.x64.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion
-Source: "Redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion
 
 [Registry]
 Root: HKCU; Subkey: "Software\Classes\*\shell\PYAS_Scan"; Flags: uninsdeletekey dontcreatekey
@@ -80,9 +78,7 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{tmp}\PYAS_Redist\VC_redist.x64.exe"; Parameters: "/quiet /norestart"; Flags: waituntilterminated runhidden; StatusMsg: "{cm:InstallingVCRuntime}"; Tasks: install_vcredist
-Filename: "{tmp}\PYAS_Redist\MicrosoftEdgeWebview2Setup.exe"; Parameters: "/silent /install"; Flags: waituntilterminated runhidden; StatusMsg: "{cm:InstallingWebView2Runtime}"; Tasks: install_webview2
-Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser; Check: CanLaunchApp
 
 [CustomMessages]
 english.InstallingVCRuntime=Installing Microsoft Visual C++ Runtime...
@@ -104,68 +100,136 @@ english.InstallVCRedist=Install Microsoft Visual C++ Runtime
 chinesesimplified.InstallVCRedist=安装 Microsoft Visual C++ 运行库
 chinesetraditional.InstallVCRedist=安裝 Microsoft Visual C++ 執行庫
 english.LegacyVersionDetected=An older version of PYAS was detected. Please uninstall it manually before installing.
+english.QuitFailed=PYAS or its driver could not be stopped safely. Restart Windows and run Setup again.
+english.DependencyInstallFailed=Required Microsoft runtime installation failed. Setup cannot continue.
 chinesesimplified.LegacyVersionDetected=检测到存在旧版 PYAS。请先手动卸载旧版后，再运行本安装程序。
 chinesetraditional.LegacyVersionDetected=檢測到存在舊版 PYAS。請先手動卸載舊版後，再執行本安裝程式。
 
 [Code]
 var
-  TasksInitialized: Boolean;
+  DependencyRestartRequired: Boolean;
+  DependenciesReady: Boolean;
+
+function FindWindow(lpClassName: LongWord; lpWindowName: string): HWND;
+  external 'FindWindowW@user32.dll stdcall';
+
+function GetTickCount: Cardinal;
+  external 'GetTickCount@kernel32.dll stdcall';
+
+function IsValidRuntimeVersion(Version: string): Boolean;
+begin
+  Result := (Length(Trim(Version)) > 0) and (Trim(Version) <> '0.0.0.0');
+end;
 
 function IsWebView2Installed: Boolean;
 var
-  RegKeyPath: string;
   Version: string;
 begin
-  RegKeyPath := 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
   Result := False;
   if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
-    if Length(Version) > 0 then Result := True;
-  if not Result and RegQueryStringValue(HKCU, RegKeyPath, 'pv', Version) then
-    if Length(Version) > 0 then Result := True;
-  if not Result and RegQueryStringValue(HKLM, RegKeyPath, 'pv', Version) then
-    if Length(Version) > 0 then Result := True;
+    Result := IsValidRuntimeVersion(Version);
+  if not Result and RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
+    Result := IsValidRuntimeVersion(Version);
+  if not Result and RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
+    Result := IsValidRuntimeVersion(Version);
 end;
 
 function IsVCRedistInstalled: Boolean;
 var
-  Bld: Cardinal;
+  Installed: Cardinal;
+  Version: string;
 begin
   Result := False;
-  if RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Bld', Bld) then
-    if Bld > 0 then Result := True;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-var
-  I: Integer;
-  ItemText: string;
-begin
-  if (CurPageID = wpSelectTasks) and not TasksInitialized then
+  if RegQueryDWordValue(HKLM64, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Installed', Installed) and (Installed = 1) then
   begin
-    TasksInitialized := True;
-    for I := 0 to WizardForm.TasksList.Items.Count - 1 do
-    begin
-      ItemText := WizardForm.TasksList.Items[I];
-      if Pos('Visual C++', ItemText) > 0 then
-        WizardForm.TasksList.Checked[I] := not IsVCRedistInstalled
-      else if Pos('WebView2', ItemText) > 0 then
-        WizardForm.TasksList.Checked[I] := not IsWebView2Installed;
-    end;
+    if RegQueryStringValue(HKLM64, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Version', Version) then
+      Result := IsValidRuntimeVersion(Version)
+    else
+      Result := True;
   end;
 end;
 
-procedure QuitOldInstance(InstallPath: string);
+function DependencyExitCodeSucceeded(ResultCode: Integer): Boolean;
+begin
+  Result := (ResultCode = 0) or (ResultCode = 1641) or (ResultCode = 3010);
+  if (ResultCode = 1641) or (ResultCode = 3010) then
+    DependencyRestartRequired := True;
+end;
+
+procedure EnsureVCRedist;
+var
+  ResultCode: Integer;
+  InstallerPath: string;
+begin
+  if IsVCRedistInstalled then Exit;
+  InstallerPath := ExpandConstant('{tmp}\PYAS_Redist\VC_redist.x64.exe');
+  WizardForm.StatusLabel.Caption := CustomMessage('InstallingVCRuntime');
+  if not Exec(InstallerPath, '/quiet /norestart', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
+     not DependencyExitCodeSucceeded(ResultCode) or not IsVCRedistInstalled then
+  begin
+    DependenciesReady := False;
+    RaiseException(CustomMessage('DependencyInstallFailed'));
+  end;
+end;
+
+procedure EnsureWebView2;
+var
+  ResultCode: Integer;
+  InstallerPath: string;
+begin
+  if IsWebView2Installed then Exit;
+  InstallerPath := ExpandConstant('{tmp}\PYAS_Redist\MicrosoftEdgeWebview2Setup.exe');
+  WizardForm.StatusLabel.Caption := CustomMessage('InstallingWebView2Runtime');
+  if not Exec(InstallerPath, '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
+     not DependencyExitCodeSucceeded(ResultCode) or not IsWebView2Installed then
+  begin
+    DependenciesReady := False;
+    RaiseException(CustomMessage('DependencyInstallFailed'));
+  end;
+end;
+
+function WaitForMainWindowToClose(TimeoutMs: Cardinal): Boolean;
+var
+  Deadline: Cardinal;
+begin
+  Deadline := GetTickCount + TimeoutMs;
+  repeat
+    if FindWindow(0, 'PYAS Security') = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+    Sleep(100);
+  until GetTickCount >= Deadline;
+  Result := False;
+end;
+
+function QuitOldInstance(InstallPath: string): Boolean;
 var
   ResultCode: Integer;
   ExePath: string;
 begin
+  Result := True;
   ExePath := InstallPath + '\{#AppExeName}';
-  if FileExists(ExePath) then
+  if not FileExists(ExePath) then Exit;
+
+  if not Exec(ExePath, '-quit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
-    Exec(ExePath, '-quit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Sleep(500);
-    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#AppExeName} /T', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Result := False;
+    Exit;
   end;
+
+  Result := (ResultCode = 0) and WaitForMainWindowToClose(30000);
+end;
+
+procedure FinalizeDriverRemoval;
+var
+  ResultCode: Integer;
+  ExePath: string;
+begin
+  ExePath := ExpandConstant('{app}\{#AppExeName}');
+  if not Exec(ExePath, '-quit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
+    RaiseException(CustomMessage('QuitFailed'));
 end;
 
 function InitializeSetup(): Boolean;
@@ -173,6 +237,8 @@ var
   OldInstallPath: string;
   LegacyPath: string;
 begin
+  DependencyRestartRequired := False;
+  DependenciesReady := True;
   LegacyPath := ExpandConstant('{pf32}\{#AppName}');
   if DirExists(LegacyPath) and FileExists(LegacyPath + '\{#AppExeName}') then
   begin
@@ -180,21 +246,37 @@ begin
     Result := False;
     Exit;
   end;
+
   if RegQueryStringValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + ExpandConstant('{#AppId}') + '_is1', 'InstallLocation', OldInstallPath) or
      RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + ExpandConstant('{#AppId}') + '_is1', 'InstallLocation', OldInstallPath) then
   begin
-    QuitOldInstance(OldInstallPath);
+    if not QuitOldInstance(OldInstallPath) then
+    begin
+      MsgBox(CustomMessage('QuitFailed'), mbCriticalError, MB_OK);
+      Result := False;
+      Exit;
+    end;
   end;
-  
+
   Result := True;
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  QuitOldInstance(ExpandConstant('{app}'));
-  Result := True;
+  Result := QuitOldInstance(ExpandConstant('{app}'));
+  if not Result then
+    MsgBox(CustomMessage('QuitFailed'), mbCriticalError, MB_OK);
 end;
 
+function CanLaunchApp: Boolean;
+begin
+  Result := DependenciesReady and not DependencyRestartRequired;
+end;
+
+function NeedRestart: Boolean;
+begin
+  Result := DependencyRestartRequired;
+end;
 procedure TryCreateStartupTask;
 var
   ResultCode: Integer;

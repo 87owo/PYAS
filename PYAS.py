@@ -1,11 +1,11 @@
-import os, sys, time, copy, json, uuid, queue, platform, threading
-import msvcrt, winreg, pystray, subprocess, webview, webbrowser
+import os, sys, time, copy, json, uuid, queue, platform, threading, logging
+import msvcrt, winreg, pystray, subprocess, webview
 import ctypes, ctypes.wintypes
 
 from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler
 from PIL import Image
-from socketserver import TCPServer
+from socketserver import ThreadingTCPServer
 from webview.dom import DOMEventHandler
 
 from PYAS_Engine import sign_scanner, rule_scanner, pe_scanner, cloud_scanner
@@ -18,6 +18,12 @@ WM_COPYDATA = 0x004A
 SMTO_ABORTIFHUNG = 0x0002
 SMTO_ERRORONEXIT = 0x0020
 PYAS_SEND_MESSAGE_FLAGS = SMTO_ABORTIFHUNG | SMTO_ERRORONEXIT
+PYAS_MESSAGE_SCAN = 1
+PYAS_MESSAGE_SHOW = 2
+PYAS_MESSAGE_CLOSE = 3
+PYAS_MESSAGE_QUIT = 4
+PYAS_MESSAGE_DRIVER_UNLOAD = 5
+PYAS_MESSAGE_DRIVER_UNINSTALL = 6
 
 ####################################################################################################
 
@@ -37,15 +43,13 @@ class _MainMixin:
         self.init_windll()
 
         if not self.check_singleton("PYAS_Security_Mutex"):
-            if self.forward_to_existing_instance():
-                os._exit(0)
+            forwarded_exit_code = self.forward_to_existing_instance()
+            if forwarded_exit_code is not None:
+                os._exit(forwarded_exit_code)
 
             self.h_recovery_mutex = self.kernel32.CreateMutexW(None, False, "PYAS_Security_Recovery_Mutex")
             if ctypes.get_last_error() == 183:
-                os._exit(0)
-
-        if "-quit" in self.args_pyas:
-            os._exit(0)
+                os._exit(2)
 
         self.init_variables()
         self.load_config()
@@ -82,36 +86,79 @@ class _MainMixin:
         except Exception:
             return False
 
-    def forward_to_existing_instance(self):
-        hwnd = self.find_existing_window()
-        if not hwnd:
+    def _is_driver_service_absent(self):
+        scm = self.advapi32.OpenSCManagerW(None, None, 0x0001)
+        if not scm:
             return False
 
-        if "-quit" in self.args_pyas or "-driver-unload" in self.args_pyas or "-driver-uninstall" in self.args_pyas:
-            return self.send_existing_window_message(hwnd, 3, timeout=1200)
+        service = None
+        try:
+            ctypes.set_last_error(0)
+            service = self.advapi32.OpenServiceW(scm, "PYAS_Driver", 0x0004)
+            if service:
+                return False
+            return ctypes.get_last_error() == 1060
+        finally:
+            if service:
+                self.advapi32.CloseServiceHandle(service)
+            self.advapi32.CloseServiceHandle(scm)
+
+    def wait_for_existing_shutdown(self, timeout=30.0, require_service_removal=True):
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            window_closed = not self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
+            service_removed = not require_service_removal or self._is_driver_service_absent()
+            if window_closed and service_removed:
+                return True
+            time.sleep(0.1)
+        return False
+
+    def forward_to_existing_instance(self):
+        maintenance_request = any(
+            arg in self.args_pyas
+            for arg in ("-quit", "-driver-uninstall", "-driver-unload")
+        )
+        hwnd = self.find_existing_window(timeout=10.0 if maintenance_request else 2.0)
+        if not hwnd:
+            return 2 if maintenance_request else None
+
+        if "-quit" in self.args_pyas:
+            if not self.send_existing_window_message(hwnd, PYAS_MESSAGE_QUIT, timeout=5000):
+                return 2
+            return 0 if self.wait_for_existing_shutdown() else 2
+
+        if "-driver-uninstall" in self.args_pyas:
+            if not self.send_existing_window_message(hwnd, PYAS_MESSAGE_DRIVER_UNINSTALL, timeout=5000):
+                return 2
+            return 0 if self.wait_for_existing_shutdown() else 2
+
+        if "-driver-unload" in self.args_pyas:
+            if not self.send_existing_window_message(hwnd, PYAS_MESSAGE_DRIVER_UNLOAD, timeout=5000):
+                return 2
+            return 0 if self.wait_for_existing_shutdown(require_service_removal=False) else 2
 
         if "-scan" in self.args_pyas:
             try:
                 idx = self.args_pyas.index("-scan")
                 target = self.args_pyas[idx + 1]
             except Exception:
-                return False
+                return 2
 
-            if self.send_existing_window_message(hwnd, 1, target, timeout=1200):
+            if self.send_existing_window_message(hwnd, PYAS_MESSAGE_SCAN, target, timeout=1200):
                 try:
                     self.user32.SetForegroundWindow(hwnd)
                 except Exception:
                     pass
-                return True
-            return False
+                return 0
+            return 2
 
-        if self.send_existing_window_message(hwnd, 2, timeout=1200):
+        if self.send_existing_window_message(hwnd, PYAS_MESSAGE_SHOW, timeout=1200):
             try:
                 self.user32.SetForegroundWindow(hwnd)
             except Exception:
                 pass
-            return True
-        return False
+            return 0
+        return 2
 
     def check_singleton(self, name):
         try:
@@ -137,6 +184,7 @@ class _MainMixin:
         self.pid_pyas = int(os.getpid())
 
         self.path_appdata = os.environ.get("APPDATA")
+        self.path_localappdata = os.environ.get("LOCALAPPDATA") or self.path_appdata
         self.path_name = os.environ.get("USERNAME")
         self.path_temp = os.environ.get("TEMP", f"C:\\Users\\{self.path_name}\\AppData\\Local\\Temp")
         self.path_config = os.environ.get("ALLUSERSPROFILE", "C:\\ProgramData")
@@ -146,6 +194,8 @@ class _MainMixin:
         self.path_systemp = os.path.join(self.path_system, "Temp")
         self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
         self.file_log = os.path.join(self.path_config, "PYAS", "Report.json")
+        self.path_webview = os.path.join(self.path_localappdata or self.path_temp, "PYAS", "WebView2")
+        self.file_webview_log = os.path.join(self.path_localappdata or self.path_temp, "PYAS", "WebView2.log")
         self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
         self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
         self.path_protect = os.path.join(self.path_pyas, "Plugins", "Filter")
@@ -286,6 +336,7 @@ class _MainMixin:
         self.driver_listener_ready_event = threading.Event()
         self.driver_listener_failed_event = threading.Event()
         self.driver_listener_thread = None
+        self.ui_ready_event = threading.Event()
         self.engine_initialized = False
         self.scan_running = False
         self.scan_preparing = False
@@ -315,7 +366,7 @@ class _MainMixin:
         self.lock_io = threading.RLock()
 
         self.pyas_default = {
-            "version": "3.6.4",
+            "version": "3.6.5",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd"],
@@ -800,7 +851,7 @@ class _MainMixin:
             except Exception:
                 pass
 
-    def close(self, *args, **kwargs):
+    def close(self, *args, uninstall_driver=False, **kwargs):
         if getattr(self, 'closing', False):
             return True
 
@@ -810,9 +861,18 @@ class _MainMixin:
             driver_enabled = self.pyas_config.get("driver_switch", False)
 
         driver_loaded = driver_enabled or self.check_system_driver()
-        if driver_loaded and not self.stop_system_driver():
+        if uninstall_driver:
+            driver_stopped, driver_error = self.uninstall_system_driver()
+        elif driver_loaded:
+            driver_stopped = self.stop_system_driver()
+            driver_error = 0 if driver_stopped else 1051
+        else:
+            driver_stopped, driver_error = True, 0
+
+        if not driver_stopped:
             self.closing = False
-            self.write_log("WARN", "Driver Protection", detail="Controlled unload failed", success=False)
+            action = "uninstall" if uninstall_driver else "unload"
+            self.write_log("WARN", "Driver Protection", detail=f"Controlled {action} failed: 0x{driver_error & 0xFFFFFFFF:08X}", success=False)
             if self._window:
                 try:
                     self._window.show()
@@ -888,6 +948,7 @@ class _MainMixin:
         os._exit(0)
 
     def init_ui_ready(self):
+        self.ui_ready_event.set()
         with self.lock_config:
             if self.engine_initialized:
                 return
@@ -1195,16 +1256,22 @@ class WindowHook:
         if msg == self.WM_COPYDATA:
             try:
                 cds = COPYDATASTRUCT.from_address(lparam)
-                if cds.dwData == 1:
+                if cds.dwData == PYAS_MESSAGE_SCAN:
                     path = ctypes.string_at(cds.lpData, cds.cbData).decode('utf-8').strip('\x00')
                     if self.api_ref:
                         threading.Thread(target=self.api_ref.restore_from_tray, daemon=True).start()
                         threading.Thread(target=self.api_ref.trigger_context_scan, args=(path,), daemon=True).start()
 
-                elif cds.dwData == 2 and self.api_ref:
+                elif cds.dwData == PYAS_MESSAGE_SHOW and self.api_ref:
                     threading.Thread(target=self.api_ref.restore_from_tray, daemon=True).start()
 
-                elif cds.dwData == 3 and self.api_ref:
+                elif cds.dwData == PYAS_MESSAGE_CLOSE and self.api_ref:
+                    threading.Thread(target=self.api_ref.close, daemon=True).start()
+
+                elif cds.dwData in (PYAS_MESSAGE_QUIT, PYAS_MESSAGE_DRIVER_UNINSTALL) and self.api_ref:
+                    threading.Thread(target=self.api_ref.close, kwargs={"uninstall_driver": True}, daemon=True).start()
+
+                elif cds.dwData == PYAS_MESSAGE_DRIVER_UNLOAD and self.api_ref:
                     threading.Thread(target=self.api_ref.close, daemon=True).start()
 
             except Exception:
@@ -1240,21 +1307,39 @@ class WindowHook:
 
 ####################################################################################################
 
-def start_api(port_container, ready_event):
-    TCPServer.allow_reuse_address = True
+def configure_webview_logging(log_path):
     try:
-        with TCPServer(("127.0.0.1", 0), NoCacheRequestHandler) as httpd:
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        logger = logging.getLogger("pywebview")
+        logger.setLevel(logging.DEBUG)
+        normalized = os.path.normcase(os.path.abspath(log_path))
+        for handler in logger.handlers:
+            if isinstance(handler, logging.FileHandler) and os.path.normcase(os.path.abspath(handler.baseFilename)) == normalized:
+                return
+        handler = logging.FileHandler(log_path, encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        logger.addHandler(handler)
+    except Exception:
+        pass
+
+
+def start_api(port_container, error_container, ready_event):
+    ThreadingTCPServer.allow_reuse_address = True
+    ThreadingTCPServer.daemon_threads = True
+    try:
+        with ThreadingTCPServer(("127.0.0.1", 0), NoCacheRequestHandler) as httpd:
             port_container.append(httpd.server_address[1])
             ready_event.set()
             httpd.serve_forever()
 
-    except Exception:
+    except Exception as e:
+        error_container.append(str(e))
         ready_event.set()
 
 if __name__ == "__main__":
-    if "-driver-unload" in sys.argv or "-driver-uninstall" in sys.argv:
+    if "-quit" in sys.argv or "-driver-unload" in sys.argv or "-driver-uninstall" in sys.argv:
         controller = WindowAPI()
-        if "-driver-uninstall" in sys.argv:
+        if "-quit" in sys.argv or "-driver-uninstall" in sys.argv:
             success, delete_error = controller.uninstall_system_driver()
             if not success:
                 controller.write_log("WARN", "Driver Service", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
@@ -1266,7 +1351,7 @@ if __name__ == "__main__":
     hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
     init_width, init_height = 980, 670
 
-    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--proxy-bypass-list=127.0.0.1,localhost"
+    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--proxy-bypass-list=<-loopback>;localhost;127.0.0.1"
 
     frontend_errors = get_frontend_asset_errors()
     if frontend_errors:
@@ -1274,21 +1359,29 @@ if __name__ == "__main__":
         os._exit(4)
 
     port_container = []
+    server_errors = []
     server_ready = threading.Event()
-    api_thread = threading.Thread(target=start_api, args=(port_container, server_ready), daemon=True)
+    api_thread = threading.Thread(target=start_api, args=(port_container, server_errors, server_ready), daemon=True)
     api_thread.start()
     server_ready.wait(timeout=5.0)
 
     if not port_container:
+        show_startup_error("PYAS could not start its local UI server.\n\n" + (server_errors[0] if server_errors else "Unknown error"))
         os._exit(1)
 
     js_api = WindowAPI()
+    configure_webview_logging(js_api.file_webview_log)
+    try:
+        os.makedirs(js_api.path_webview, exist_ok=True)
+    except Exception as e:
+        js_api.write_log("WARN", "WebView2", detail=f"User data folder creation failed: {e}", success=False)
+
     user32 = ctypes.windll.user32
     pos_x, pos_y = (user32.GetSystemMetrics(0) - init_width) // 2, (user32.GetSystemMetrics(1) - init_height) // 2
 
     startup_url = f"http://127.0.0.1:{port_container[0]}/"
     window = webview.create_window(
-        title=PYAS_WINDOW_TITLE, url=startup_url, width=init_width, height=init_height, x=pos_x, y=pos_y,
+        title=PYAS_WINDOW_TITLE, url=startup_url, width=init_width, height=init_height,
         frameless=True, easy_drag=False, js_api=js_api, background_color='#e0e0e0', hidden=hide_on_start)
 
     if platform.system() == "Windows":
@@ -1298,31 +1391,50 @@ if __name__ == "__main__":
     js_api.set_window(window)
     js_api.show_tray()
 
-    webview_ready_event = threading.Event()
-
-    def mark_webview_ready():
-        webview_ready_event.set()
+    webview_loaded_event = threading.Event()
+    dnd_state = {"bound": False}
 
     def bind_dnd():
-        mark_webview_ready()
+        webview_loaded_event.set()
+        if dnd_state["bound"]:
+            return
         try:
             window.dom.document.events.drop += DOMEventHandler(js_api.on_drop, True, True)
+            dnd_state["bound"] = True
         except Exception:
             pass
 
     def webview_startup_watchdog():
-        if not hide_on_start and not webview_ready_event.wait(60.0):
+        if js_api.ui_ready_event.wait(30.0):
+            return
+
+        if webview_loaded_event.is_set():
             try:
-                webbrowser.open(startup_url)
-            except Exception:
-                pass
-            show_startup_error("PYAS WebView did not finish loading. The app was opened in your default browser as a fallback.")
-            try:
-                js_api.flush_logs_now()
-            except Exception:
-                pass
-            os._exit(3)
+                js_api.write_log("WARN", "WebView2", detail="UI bridge was not ready after 30 seconds; reloading once", success=False)
+                window.reload()
+            except Exception as e:
+                js_api.write_log("WARN", "WebView2", detail=f"Reload failed: {e}", success=False)
+
+        if js_api.ui_ready_event.wait(30.0):
+            return
+
+        js_api.write_log("WARN", "WebView2", detail="UI initialization timed out after recovery attempt", success=False)
+        js_api.flush_logs_now()
+        if not hide_on_start:
+            show_startup_error(
+                "PYAS WebView2 failed to initialize.\n\n"
+                "Please repair or update Microsoft Edge WebView2 Runtime, then start PYAS again.\n\n"
+                f"Diagnostic log: {js_api.file_webview_log}"
+            )
+        os._exit(3)
 
     window.events.loaded += bind_dnd
     threading.Thread(target=webview_startup_watchdog, daemon=True).start()
-    webview.start()
+    try:
+        webview.start(gui="edgechromium", private_mode=False, storage_path=js_api.path_webview)
+    except Exception as e:
+        js_api.write_log("WARN", "WebView2", detail=f"Startup failed: {e}", success=False)
+        js_api.flush_logs_now()
+        if not hide_on_start:
+            show_startup_error(f"PYAS WebView2 failed to start.\n\n{e}\n\nDiagnostic log: {js_api.file_webview_log}")
+        os._exit(3)

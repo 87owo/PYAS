@@ -10,11 +10,12 @@
     <script>
         window.addEventListener('DOMContentLoaded', function () {
             window.setTimeout(function () {
-                var app = document.querySelector('.app-container');
                 var overlay = document.getElementById('loading_overlay');
-                if (app) app.classList.add('fade-in');
-                if (overlay && !overlay.classList.contains('fade-out')) overlay.classList.add('fade-out');
-            }, 15000);
+                if (overlay && !overlay.classList.contains('fade-out') && !overlay.classList.contains('startup-error')) {
+                    overlay.classList.add('startup-error');
+                    overlay.innerHTML = '<div class="startup-error-box"><h1>PYAS failed to open</h1><p>WebView2 initialization timed out. PYAS will retry automatically.</p></div>';
+                }
+            }, 20000);
         });
     </script>
 </head>

@@ -1192,36 +1192,54 @@ class ProtectMixin:
             return False, 1051
         return self._delete_driver_service()
 
-    def _delete_driver_service(self):
-        scm = self.advapi32.OpenSCManagerW(None, None, 0x0001)
-        if not scm:
-            return False, ctypes.get_last_error()
+    def _delete_driver_service(self, timeout=15.0):
+        deadline = time.monotonic() + timeout
+        last_error = 0
+        delete_requested = False
 
-        service = None
-        try:
-            service = self.advapi32.OpenServiceW(scm, "PYAS_Driver", 0x0004 | 0x00010000)
-            if not service:
-                error = ctypes.get_last_error()
-                return (True, 0) if error in (1060, 1072) else (False, error)
+        while time.monotonic() < deadline:
+            scm = self.advapi32.OpenSCManagerW(None, None, 0x0001)
+            if not scm:
+                return False, ctypes.get_last_error()
 
-            state, error = self._query_service_state_handle(service)
-            if error:
-                return False, error
-            if state in (2, 3, 4):
-                return False, 1051
+            service = None
+            try:
+                ctypes.set_last_error(0)
+                service = self.advapi32.OpenServiceW(scm, "PYAS_Driver", 0x0004 | 0x00010000)
+                if not service:
+                    last_error = ctypes.get_last_error()
+                    if last_error == 1060:
+                        return True, 0
+                    if last_error != 1072:
+                        return False, last_error
+                else:
+                    state, status_error = self._query_service_state_handle(service)
+                    if status_error:
+                        return False, status_error
 
-            ctypes.set_last_error(0)
-            if self.advapi32.DeleteService(service):
-                return True, 0
+                    if state not in (2, 3, 4) and not delete_requested:
+                        ctypes.set_last_error(0)
+                        if self.advapi32.DeleteService(service):
+                            delete_requested = True
+                            last_error = 1072
+                        else:
+                            last_error = ctypes.get_last_error()
+                            if last_error == 1060:
+                                return True, 0
+                            if last_error == 1072:
+                                delete_requested = True
+                            else:
+                                return False, last_error
+                    elif state in (2, 3, 4):
+                        last_error = 1051
+            finally:
+                if service:
+                    self.advapi32.CloseServiceHandle(service)
+                self.advapi32.CloseServiceHandle(scm)
 
-            error = ctypes.get_last_error()
-            if error in (1060, 1072):
-                return True, 0
-            return False, error
-        finally:
-            if service:
-                self.advapi32.CloseServiceHandle(service)
-            self.advapi32.CloseServiceHandle(scm)
+            time.sleep(0.1)
+
+        return False, last_error or 1072
 
     def install_system_driver(self):
         try:

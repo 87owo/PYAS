@@ -88,9 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setTimeout(() => {
         if (!startupOverlayClosed) {
-            closeStartupOverlay();
+            showStartupError("PYAS WebView2 initialization is taking too long. The application will retry automatically.");
         }
-    }, 12000);
+    }, 20000);
 
     const formatMsg = (key, ...args) => {
         let msg = getMsg(key);
@@ -1120,8 +1120,17 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDataGrid('#log_export_window', [], cols.log, 'id', true);
     renderDataGrid('#netmon_window', [], cols.netmon, 'pid', false);
 
-    window.addEventListener('pywebviewready', () => {
-        window.pywebview.api.get_config().then(cfg => {
+    let pywebviewInitStarted = false;
+
+    const initializePywebview = () => {
+        if (pywebviewInitStarted || !window.pywebview?.api) return;
+        pywebviewInitStarted = true;
+
+        const configTimeout = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error("Configuration request timed out")), 10000);
+        });
+
+        Promise.race([window.pywebview.api.get_config(), configTimeout]).then(cfg => {
             const theme = cfg.theme || "white_switch";
             const lang = cfg.language || "english_switch";
             appState.firstLaunch = cfg.first_launch;
@@ -1132,24 +1141,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const switchMap = ["process_switch", "suspend_switch", "load_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
             document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
-                if (appState.firstLaunch) { 
-                    toggle.checked = false; 
-                    toggle.disabled = true; 
+                if (appState.firstLaunch) {
+                    toggle.checked = false;
+                    toggle.disabled = true;
                 } else if (switchMap[index]) {
                     toggle.checked = !!cfg[switchMap[index]];
                 }
             });
-            
+
             closeStartupOverlay();
             window.pywebview.api.init_ui_ready();
         }).catch(err => {
+            pywebviewInitStarted = false;
             console.error("Config load failed:", err);
             showStartupError(`Configuration failed to load: ${err?.message || err}`);
-            try {
-                window.pywebview.api.init_ui_ready();
-            } catch (e) {}
         });
-    });
+    };
+
+    window.addEventListener('pywebviewready', initializePywebview);
+    initializePywebview();
 
     window.onEngineReady = async () => {
         if (!appState.firstLaunch) return;

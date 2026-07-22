@@ -61,8 +61,6 @@
             "Category": "Process",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
-                "*\\PYAS_Setup.exe",
-                "*\\unins000.exe",
                 "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\PYAS_Setup.tmp",
                 "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\_unins.tmp",
                 "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
@@ -352,8 +350,6 @@
             "Category": "File",
             "InitiatorExclude": [
                 "*\\PYAS.exe",
-                "*\\PYAS_Setup.exe",
-                "*\\unins000.exe",
                 "*\\notepad*.exe",
                 "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\PYAS_Setup.tmp",
                 "\\Device\\HarddiskVolume*\\Users\\*\\AppData\\Local\\Temp\\*\\_unins.tmp",

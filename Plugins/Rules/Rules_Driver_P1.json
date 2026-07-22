@@ -728,7 +728,6 @@
                 "*\\SystemStartOptions",
                 "*\\Userinit",
                 "*\\UIHost",
-                "*\\Debugger",
                 "*\\NoControlPanel",
                 "*\\NoDrives",
                 "*\\NoFileMenu",

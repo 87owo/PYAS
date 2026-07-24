@@ -712,6 +712,7 @@
             ],
             "Target": [
                 "\\REGISTRY\\MACHINE\\*",
+                "\\REGISTRY\\USER\\*",
             ],
             "Threshold": 20,
             "TimeWindow": 3000,

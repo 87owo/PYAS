@@ -710,9 +710,23 @@
             "Operations": [
                 "Delete",
             ],
+            "InitiatorExclude": [
+                "*\\Windows\\servicing\\TrustedInstaller.exe",
+                "*\\Windows\\System32\\taskhostw.exe",
+                "*\\Windows\\System32\\svchost.exe",
+                "*\\Windows\\System32\\SearchIndexer.exe",
+                "*\\Windows\\System32\\spoolsv.exe",
+                "*\\Windows\\System32\\wbem\\WmiPrvSE.exe",
+                "*\\Windows\\WinSxS\\*\\TiWorker.exe",
+                "*\\Windows\\Microsoft.NET\\Framework64\\*\\ngen.exe",
+                "*\\PYAS.exe",
+            ],
             "Target": [
                 "\\REGISTRY\\MACHINE\\*",
                 "\\REGISTRY\\USER\\*",
+            ],
+            "TargetExclude": [
+                "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\*"
             ],
             "Threshold": 20,
             "TimeWindow": 3000,

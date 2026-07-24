@@ -439,7 +439,7 @@
                 "Delete",
                 "Rename",
             ],
-            "Threshold": 10,
+            "Threshold": 5,
             "TimeWindow": 3000,
         },
         {
@@ -701,6 +701,20 @@
                 "Create",
             ],
             "Priority": 175,
+        },
+        {
+            "Name": "Registry_Ransom_Protect_System",
+            "Code": 3007,
+            "Kill": true,
+            "Category": "Registry",
+            "Operations": [
+                "Delete",
+            ],
+            "Target": [
+                "\\REGISTRY\\MACHINE\\*",
+            ],
+            "Threshold": 20,
+            "TimeWindow": 3000,
         },
     ]
 }

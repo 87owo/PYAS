@@ -1381,7 +1381,7 @@ if __name__ == "__main__":
 
     startup_url = f"http://127.0.0.1:{port_container[0]}/"
     window = webview.create_window(
-        title=PYAS_WINDOW_TITLE, url=startup_url, width=init_width, height=init_height,
+        title=PYAS_WINDOW_TITLE, url=startup_url, width=init_width, height=init_height, x=pos_x, y=pos_y,
         frameless=True, easy_drag=False, js_api=js_api, background_color='#e0e0e0', hidden=hide_on_start)
 
     if platform.system() == "Windows":

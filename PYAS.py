@@ -1,5 +1,5 @@
 import os, sys, time, copy, json, uuid, queue, platform, threading, logging
-import msvcrt, winreg, pystray, subprocess, webview
+import msvcrt, winreg, pystray, subprocess, webview, webbrowser
 import ctypes, ctypes.wintypes
 
 from concurrent.futures import ThreadPoolExecutor

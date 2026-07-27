@@ -1,4 +1,4 @@
-* {
+﻿* {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -14,6 +14,7 @@
     --bg-hover: rgba(0, 0, 0, 0.05);
     --text-primary: rgb(29, 29, 31);
     --text-secondary: rgb(134, 134, 139);
+    --text-on-accent: rgb(255, 255, 255);
     --border-color: rgb(210, 210, 215);
     --accent-color: rgb(0, 122, 255);
     --accent-alpha: rgba(0, 122, 255, 0.1);
@@ -82,7 +83,7 @@ body {
 }
 
 .ctrl-btn:hover { background-color: var(--bg-hover); color: var(--text-primary); }
-#close_button:hover { background-color: #ff3b30; color: white; }
+#close_button:hover { background-color: #ff3b30; color: var(--text-on-accent); }
 
 .theme-svg {
     width: 16px;
@@ -258,7 +259,7 @@ body {
 
 .primary-btn {
     background-color: var(--accent-color);
-    color: white;
+    color: var(--text-on-accent);
     border: none;
     box-shadow: 0 2px 4px var(--accent-shadow);
 }

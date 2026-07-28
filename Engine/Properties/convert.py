@@ -1,4 +1,4 @@
-import re, os, sys, math, time, zlib, mmap, datetime, hashlib
+import re, os, sys, math, time, zlib, datetime, hashlib
 import ctypes, ctypes.wintypes, pefile, multiprocessing
 import numpy as np
 
@@ -111,6 +111,221 @@ def verify_signature(file_path):
 
 ####################################################################################################
 
+def _entropy_from_counts(counts, size):
+    if size <= 0:
+        return 0.0
+    nonzero = counts[counts > 0]
+    return float(np.log2(size) - np.sum(nonzero * np.log2(nonzero)) / size)
+
+
+def _bounded_entropy(data, batch_size=1048576):
+    size = len(data)
+    if size == 0:
+        return 0.0
+    counts = np.zeros(256, dtype=np.int64)
+    view = memoryview(data)
+    try:
+        for start in range(0, size, batch_size):
+            chunk = np.frombuffer(
+                view[start:min(start + batch_size, size)], dtype=np.uint8
+            )
+            counts += np.bincount(chunk, minlength=256)
+    finally:
+        view.release()
+    return _entropy_from_counts(counts, size)
+
+
+def _accumulate_string_chunk(chunk, array, state, pattern):
+    separators = (array < 0x20) | (array > 0x7E)
+    if not separators.any():
+        state["pending_counts"] += np.bincount(array, minlength=256)
+        state["pending_length"] += len(array)
+        return
+
+    first_separator = int(np.argmax(separators))
+    last_separator = len(separators) - 1 - int(np.argmax(separators[::-1]))
+    if first_separator:
+        state["pending_counts"] += np.bincount(
+            array[:first_separator], minlength=256
+        )
+        state["pending_length"] += first_separator
+    if state["pending_length"] >= 5:
+        state["count"] += 1
+        state["total_length"] += state["pending_length"]
+        state["counts"] += state["pending_counts"]
+    state["pending_length"] = 0
+    state["pending_counts"].fill(0)
+
+    middle_start = first_separator + 1
+    middle_end = last_separator
+    if middle_end > middle_start:
+        matches = pattern.findall(chunk[middle_start:middle_end])
+        if matches:
+            combined = b"".join(matches)
+            state["count"] += len(matches)
+            state["total_length"] += len(combined)
+            state["counts"] += np.bincount(
+                np.frombuffer(combined, dtype=np.uint8), minlength=256
+            )
+
+    trailing_start = last_separator + 1
+    if trailing_start < len(array):
+        trailing = array[trailing_start:]
+        state["pending_counts"] += np.bincount(trailing, minlength=256)
+        state["pending_length"] = len(trailing)
+
+
+def _accumulate_entropy_windows(data, entropy_histogram, c_log_c_table):
+    block_count = len(data) // 1024
+    if block_count < 2:
+        return data
+
+    complete_size = block_count * 1024
+    blocks = np.frombuffer(
+        data, dtype=np.uint8, count=complete_size
+    ).reshape(block_count, 1024)
+    encoded = blocks.astype(np.int32)
+    encoded += np.arange(block_count, dtype=np.int32)[:, None] * 256
+    block_counts = np.bincount(
+        encoded.ravel(), minlength=block_count * 256
+    ).reshape(block_count, 256)
+    window_counts = block_counts[:-1] + block_counts[1:]
+    sum_c_log_c = np.sum(c_log_c_table[window_counts], axis=1)
+    entropies = 11.0 - sum_c_log_c / 2048.0
+    entropy_bins = (entropies * 2.0).astype(np.int32)
+    np.clip(entropy_bins, 0, 15, out=entropy_bins)
+    byte_bins = window_counts.reshape(block_count - 1, 16, 16).sum(axis=2)
+    flat_indices = (entropy_bins[:, None] * 16 + np.arange(16)).ravel()
+    np.add.at(entropy_histogram, flat_indices, byte_bins.ravel())
+    return data[(block_count - 1) * 1024:]
+
+
+def _collect_resource_ranges(pe, file_size):
+    ranges = []
+    if not hasattr(pe, "DIRECTORY_ENTRY_RESOURCE"):
+        return ranges
+    for entry_type in pe.DIRECTORY_ENTRY_RESOURCE.entries:
+        for entry_id in getattr(
+            getattr(entry_type, "directory", None), "entries", []
+        ):
+            for entry_lang in getattr(
+                getattr(entry_id, "directory", None), "entries", []
+            ):
+                if not hasattr(entry_lang, "data"):
+                    continue
+                try:
+                    struct = entry_lang.data.struct
+                    offset = int(pe.get_offset_from_rva(int(struct.OffsetToData)))
+                    size = int(struct.Size)
+                    start = max(0, offset)
+                    end = min(file_size, start + max(0, size))
+                    ranges.append((start, max(start, end)))
+                except Exception:
+                    ranges.append((0, 0))
+    return ranges
+
+
+def _extract_stream_features(file_path, file_size, ranges, extractor):
+    normalized = []
+    for start, end in ranges:
+        start = max(0, min(file_size, int(start)))
+        end = max(start, min(file_size, int(end)))
+        normalized.append((start, end))
+
+    byte_counts = np.zeros(256, dtype=np.int64)
+    range_counts = [np.zeros(256, dtype=np.int64) for _ in normalized]
+    entropy_histogram = np.zeros(256, dtype=np.float64)
+    string_state = {
+        "count": 0,
+        "total_length": 0,
+        "counts": np.zeros(256, dtype=np.int64),
+        "pending_length": 0,
+        "pending_counts": np.zeros(256, dtype=np.int64),
+    }
+    histogram_tail = b""
+    position = 0
+
+    with open(file_path, "rb") as source:
+        while True:
+            chunk = source.read(4194304)
+            if not chunk:
+                break
+            array = np.frombuffer(chunk, dtype=np.uint8)
+            _accumulate_string_chunk(
+                chunk, array, string_state, extractor._STRING_PATTERN
+            )
+            histogram_tail = _accumulate_entropy_windows(
+                histogram_tail + chunk,
+                entropy_histogram,
+                extractor._C_LOG_C_TABLE,
+            )
+
+            chunk_end = position + len(chunk)
+            boundaries = {0, len(chunk)}
+            for start, end in normalized:
+                if position < start < chunk_end:
+                    boundaries.add(start - position)
+                if position < end < chunk_end:
+                    boundaries.add(end - position)
+
+            ordered = sorted(boundaries)
+            for index in range(len(ordered) - 1):
+                local_start = ordered[index]
+                local_end = ordered[index + 1]
+                if local_end <= local_start:
+                    continue
+                counts = np.bincount(
+                    array[local_start:local_end], minlength=256
+                )
+                byte_counts += counts
+                absolute_start = position + local_start
+                absolute_end = position + local_end
+                for range_index, (start, end) in enumerate(normalized):
+                    if start <= absolute_start and absolute_end <= end:
+                        range_counts[range_index] += counts
+            position = chunk_end
+
+    if string_state["pending_length"] >= 5:
+        string_state["count"] += 1
+        string_state["total_length"] += string_state["pending_length"]
+        string_state["counts"] += string_state["pending_counts"]
+
+    string_count = string_state["count"]
+    total_string_length = string_state["total_length"]
+    result = {
+        "StringCount": float(string_count),
+        "StringMeanLength": (
+            float(total_string_length) / string_count if string_count else 0.0
+        ),
+        "StringEntropy": _entropy_from_counts(
+            string_state["counts"], total_string_length
+        ),
+    }
+    result.update(dict.fromkeys(extractor._STRING_KEYS, 0.0))
+    if total_string_length:
+        valid_counts = string_state["counts"][0x20:0x7F]
+        result.update(dict(zip(
+            extractor._STRING_KEYS,
+            valid_counts.astype(np.float64) / total_string_length,
+        )))
+
+    result["FileEntropy"] = _entropy_from_counts(byte_counts, file_size)
+    result.update(dict(zip(
+        extractor._BYTE_HIST_KEYS,
+        byte_counts.astype(np.float64) / file_size,
+    )))
+    entropy_sum = np.sum(entropy_histogram)
+    if entropy_sum:
+        entropy_histogram /= entropy_sum
+    result.update(dict(zip(extractor._BYTE_ENT_KEYS, entropy_histogram)))
+
+    range_entropies = [
+        _entropy_from_counts(counts, end - start)
+        for counts, (start, end) in zip(range_counts, normalized)
+    ]
+    return result, range_entropies
+
+
 class FeatureExtractor:
     _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
     _STRING_FAST_PATH_BYTES = 4194304
@@ -194,15 +409,7 @@ class FeatureExtractor:
 
     @staticmethod
     def _calc_entropy(data):
-        if not data:
-            return 0.0
-
-        arr = np.frombuffer(data, dtype=np.uint8)
-        sz = len(arr)
-        counts = np.bincount(arr, minlength=256)
-        counts = counts[counts > 0]
-
-        return float(np.log2(sz) - np.sum(counts * np.log2(counts)) / sz)
+        return _bounded_entropy(data)
 
     @classmethod
     def _extract_strings(cls, file_bytes):
@@ -411,7 +618,7 @@ class FeatureExtractor:
         }
 
     @classmethod
-    def _extract_advanced_resources(cls, pe):
+    def _extract_advanced_resources(cls, pe, range_entropies=None):
         res_data = {
             "ResourceMaxEntropy": 0.0,
             "ResourceMinEntropy": 0.0,
@@ -424,6 +631,7 @@ class FeatureExtractor:
             return res_data
             
         entropies = []
+        entropy_iter = iter(range_entropies or ())
         langs = set()
         rcdata_count = 0
         
@@ -444,10 +652,9 @@ class FeatureExtractor:
 
                     if hasattr(entry_lang, 'data'):
                         try:
-                            data = pe.get_data(entry_lang.data.struct.OffsetToData, entry_lang.data.struct.Size)
-                            entropies.append(cls._calc_entropy(data))
-                        except Exception:
-                            continue
+                            entropies.append(float(next(entropy_iter)))
+                        except (StopIteration, TypeError, ValueError):
+                            entropies.append(0.0)
                             
         res_data["ResourceLangCount"] = float(len(langs))
         res_data["ResourceRCDataCount"] = float(rcdata_count)
@@ -475,39 +682,34 @@ class FeatureExtractor:
         return cfg
 
     @classmethod
-    def _extract_security_directory(cls, pe, file_bytes, fsize):
+    def _extract_security_directory(cls, pe, file_path, fsize):
         res = {"HasSignature": 0.0, "SignatureCount": 0.0}
         if not hasattr(pe, 'OPTIONAL_HEADER') or not hasattr(pe.OPTIONAL_HEADER, 'DATA_DIRECTORY'):
             return res
-
-        sec_idx = 4
         directories = pe.OPTIONAL_HEADER.DATA_DIRECTORY
-        if len(directories) <= sec_idx:
+        if len(directories) <= 4:
             return res
-
-        sec_dir = directories[sec_idx]
-        if sec_dir.Size == 0 or sec_dir.VirtualAddress == 0:
+        sec_dir = directories[4]
+        offset = int(sec_dir.VirtualAddress)
+        size = int(sec_dir.Size)
+        if offset <= 0 or size <= 0 or offset + size > fsize:
             return res
 
         res["HasSignature"] = 1.0
-        offset = sec_dir.VirtualAddress
-        size = sec_dir.Size
-
-        if offset + size > fsize or offset < 0 or size < 0:
-            return res
-
         count = 0
         curr = offset
         end = offset + size
-
-        while curr + 8 <= end:
-            dw_length = int.from_bytes(file_bytes[curr:curr+4], 'little')
-            if dw_length < 8:
-                break
-
-            count += 1
-            curr += (dw_length + 7) & ~7
-
+        with open(file_path, "rb") as source:
+            while curr + 8 <= end:
+                source.seek(curr)
+                header = source.read(4)
+                if len(header) != 4:
+                    break
+                length = int.from_bytes(header, 'little')
+                if length < 8 or curr + length > end:
+                    break
+                count += 1
+                curr += (length + 7) & ~7
         res["SignatureCount"] = float(count)
         return res
 
@@ -518,7 +720,7 @@ class FeatureExtractor:
 
         base, dlls, apis, pe = cls._base_defaults(), set(), set(), None
         try:
-            pe = pefile.PE(data=file_bytes, fast_load=True)
+            pe = pefile.PE(name=file_path, fast_load=True)
             
             try:
                 pe.parse_rich_header()
@@ -532,7 +734,30 @@ class FeatureExtractor:
                 ])
             except Exception: 
                 pass
-            
+
+            sections = list(getattr(pe, 'sections', []))
+            section_ranges = []
+            for section in sections:
+                start = max(0, int(section.get_PointerToRawData_adj()))
+                end = min(fsize, start + max(0, int(section.SizeOfRawData)))
+                section_ranges.append((start, max(start, end)))
+            resource_ranges = _collect_resource_ranges(pe, fsize)
+            overlay_offset = pe.get_overlay_data_start_offset()
+            if not overlay_offset or overlay_offset >= fsize:
+                overlay_offset = fsize
+            all_ranges = section_ranges + resource_ranges + [
+                (int(overlay_offset), fsize)
+            ]
+            stream_features, range_entropies = _extract_stream_features(
+                file_path, fsize, all_ranges, cls
+            )
+            section_entropies = range_entropies[:len(section_ranges)]
+            resource_start = len(section_ranges)
+            resource_entropies = range_entropies[
+                resource_start:resource_start + len(resource_ranges)
+            ]
+            overlay_entropy = range_entropies[-1]
+
             base['TrustSigned'] = float(verify_signature(file_path))
             base['FileSize'] = float(fsize)
             
@@ -577,16 +802,15 @@ class FeatureExtractor:
                 entropies, raw_sizes, v_sizes = [], [], []
                 exec_sec, write_sec, read_sec, sec_exc = 0, 0, 0, 0
                 
-                for section in pe.sections:
+                for section_index, section in enumerate(pe.sections):
                     sec_name = section.Name.rstrip(b'\x00')
                     hash_val = zlib.crc32(sec_name) % 50
                     res_sec_hash[cls._SECTION_HASH_KEYS[hash_val]] += 1.0
 
-                    try:
-                        s_data = section.get_data()
-                        s_entropy = cls._calc_entropy(s_data)
-                    except Exception: 
-                        s_entropy = 0.0
+                    s_entropy = (
+                        section_entropies[section_index]
+                        if section_index < len(section_entropies) else 0.0
+                    )
 
                     entropies.append(s_entropy)
                     raw_sizes.append(section.SizeOfRawData)
@@ -693,14 +917,19 @@ class FeatureExtractor:
 
             base['DebugCount'] = float(len(pe.DIRECTORY_ENTRY_DEBUG)) if hasattr(pe, 'DIRECTORY_ENTRY_DEBUG') else 0.0
 
-            base.update(cls._extract_strings(file_bytes))
-            base.update(cls._extract_histograms(file_bytes))
-            base.update(cls._extract_overlay_features(pe, fsize))
+            base.update(stream_features)
+            overlay_size = fsize - int(overlay_offset)
+            base.update({
+                "HasOverlay": 1.0 if overlay_size else 0.0,
+                "OverlaySize": float(overlay_size),
+                "OverlayRatio": float(overlay_size) / float(fsize) if overlay_size else 0.0,
+                "OverlayEntropy": overlay_entropy if overlay_size else 0.0
+            })
             base.update(cls._extract_rich_header(pe))
             base.update(cls._extract_ep_anomalies(pe))
-            base.update(cls._extract_advanced_resources(pe))
+            base.update(cls._extract_advanced_resources(pe, resource_entropies))
             base.update(cls._extract_load_config(pe))
-            base.update(cls._extract_security_directory(pe, file_bytes, fsize))
+            base.update(cls._extract_security_directory(pe, file_path, fsize))
 
             for k in base:
                 base[k] = cls._safe_float(base[k])
@@ -738,34 +967,30 @@ def _extract_worker_wrapper(args):
     return _extract_worker(*args)
 
 def _extract_worker(file_path, label):
-    mm = None
-    f = None
-
     try:
         fsize = os.path.getsize(file_path)
         if fsize == 0 or fsize > MAX_FILE_SIZE:
             return 'error', None
 
-        f = open(file_path, "rb")
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        sha256 = hashlib.sha256(mm).hexdigest()
-        
+        digest = hashlib.sha256()
+        with open(file_path, "rb") as source:
+            while True:
+                chunk = source.read(4194304)
+                if not chunk:
+                    break
+                digest.update(chunk)
+        sha256 = digest.hexdigest()
+
         if sha256 in GLOBAL_HASHES:
             return 'skipped', None
 
-        res = FeatureExtractor.extract(mm, file_path, fsize)
+        res = FeatureExtractor.extract(None, file_path, fsize)
         if res:
             final_res = {"Label": label, "FileHash": sha256, **res}
             return 'success', (sha256, JSON_DUMPS(final_res) + "\n")
-            
         return 'error', None
     except Exception:
         return 'error', None
-    finally:
-        if mm:
-            mm.close()
-        if f:
-            f.close()
 
 ####################################################################################################
 

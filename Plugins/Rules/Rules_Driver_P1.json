@@ -400,7 +400,8 @@
                 "*\\ventoy\\Boot\\*",
                 "*\\AdminRegionConfig.*",
                 "*\\nt_qq\\nt_*\\*",
-                "\\Device\\HarddiskVolume*\\Users\\*\\Documents\\Tencent Files\\*\\nt_qq\\nt_*\\*",
+                "*\\nt_qq\\global\\nt_*\\*",
+                "\\Device\\HarddiskVolume*\\Users\\*\\Documents\\Tencent Files\\*",
             ],
             "Extensions": [
                 ".zip",
@@ -439,7 +440,7 @@
                 "Delete",
                 "Rename",
             ],
-            "Threshold": 5,
+            "Threshold": 10,
             "TimeWindow": 3000,
         },
         {
@@ -701,35 +702,6 @@
                 "Create",
             ],
             "Priority": 175,
-        },
-        {
-            "Name": "Registry_Ransom_Protect_System",
-            "Code": 3007,
-            "Kill": true,
-            "Category": "Registry",
-            "Operations": [
-                "Delete",
-            ],
-            "InitiatorExclude": [
-                "*\\Windows\\servicing\\TrustedInstaller.exe",
-                "*\\Windows\\System32\\taskhostw.exe",
-                "*\\Windows\\System32\\svchost.exe",
-                "*\\Windows\\System32\\SearchIndexer.exe",
-                "*\\Windows\\System32\\spoolsv.exe",
-                "*\\Windows\\System32\\wbem\\WmiPrvSE.exe",
-                "*\\Windows\\WinSxS\\*\\TiWorker.exe",
-                "*\\Windows\\Microsoft.NET\\Framework64\\*\\ngen.exe",
-                "*\\PYAS.exe",
-            ],
-            "Target": [
-                "\\REGISTRY\\MACHINE\\*",
-                "\\REGISTRY\\USER\\*",
-            ],
-            "TargetExclude": [
-                "\\REGISTRY\\MACHINE\\SOFTWARE\\Microsoft\\*"
-            ],
-            "Threshold": 20,
-            "TimeWindow": 3000,
         },
     ]
 }

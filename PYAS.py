@@ -366,7 +366,7 @@ class _MainMixin:
         self.lock_io = threading.RLock()
 
         self.pyas_default = {
-            "version": "3.6.7",
+            "version": "3.6.8",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
             "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd"],
@@ -461,6 +461,18 @@ class _MainMixin:
                         self.pyas_config.update(data)
 
                     self.pyas_config["version"] = self.pyas_default["version"]
+                    whitelist_metadata_updated = False
+                    for item in self.pyas_config.get("white_list", []):
+                        if not isinstance(item, dict) or not item.get("file") or "is_dir" in item:
+                            continue
+
+                        item_path = self.norm_path(item["file"], must_exist=False)
+                        if item_path and os.path.exists(item_path):
+                            item["is_dir"] = os.path.isdir(item_path)
+                            whitelist_metadata_updated = True
+
+                    if whitelist_metadata_updated:
+                        self.save_config()
                 except Exception as e:
                     self.pyas_config = copy.deepcopy(self.pyas_default)
                     self.write_log("WARN", "load_config", detail=str(e), success=False)
@@ -513,7 +525,7 @@ class _MainMixin:
                     elif key == "context_switch":
                         self.register_context_menu(True)
                     elif key == "autostart_switch":
-                        self.manage_autostart(True)
+                        success = self.manage_autostart(True)
 
                 except Exception as e:
                     self.write_log("WARN", "Feature Start", detail=str(e), success=False)
@@ -525,7 +537,7 @@ class _MainMixin:
                 elif key == "context_switch":
                     self.register_context_menu(False)
                 elif key == "autostart_switch":
-                    self.manage_autostart(False)
+                    success = self.manage_autostart(False)
 
                 elif key == "document_switch":
                     self._cancel_pending_file_scans()
@@ -1110,9 +1122,17 @@ class _MainMixin:
                 elif full_path.startswith("HKCC"):
                     full_path = full_path.replace("HKCC", "HKEY_CURRENT_CONFIG", 1)
 
-                subprocess.run(["taskkill", "/F", "/IM", "regedit.exe"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000)
+                self._run_windows_tool(
+                    ("taskkill.exe",),
+                    ["/F", "/IM", "regedit.exe"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
                 self._reg_write(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit", "LastKey", winreg.REG_SZ, full_path)
-                subprocess.Popen("regedit.exe")
+                regedit = self._find_windows_tool("regedit.exe")
+                if not regedit:
+                    return False
+                subprocess.Popen([regedit])
 
                 return True
             except Exception:
@@ -1122,7 +1142,10 @@ class _MainMixin:
         if os.path.exists(expanded_path):
             try:
                 clean_path = os.path.normpath(expanded_path)
-                subprocess.Popen(f'explorer /select,"{clean_path}"')
+                explorer = self._find_windows_tool("explorer.exe")
+                if not explorer:
+                    return False
+                subprocess.Popen([explorer, "/select,", clean_path])
                 return True
 
             except Exception:

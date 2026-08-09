@@ -1,4 +1,4 @@
-import os, re, io, csv, time, shutil, threading
+import os, re, io, csv, json, time, shutil, threading
 import pefile, hashlib, winreg, requests, subprocess
 import ctypes, ctypes.wintypes
 
@@ -167,6 +167,186 @@ class RECT(ctypes.Structure):
 ####################################################################################################
 
 class ToolsMixin:
+    def _find_windows_tool(self, *names):
+        windows_dir = os.environ.get("SystemRoot") or os.environ.get("WINDIR") or r"C:\Windows"
+        search_dirs = [
+            os.path.join(windows_dir, "Sysnative"),
+            os.path.join(windows_dir, "System32"),
+            windows_dir
+        ]
+
+        for name in names:
+            executable_name = name if name.lower().endswith(".exe") else name + ".exe"
+            for directory in search_dirs:
+                candidate = os.path.join(directory, executable_name)
+                if os.path.isfile(candidate):
+                    return candidate
+
+            candidate = shutil.which(name)
+            if candidate:
+                return candidate
+
+        return None
+
+    def _run_windows_tool(self, tool_names, arguments, **kwargs):
+        executable = self._find_windows_tool(*tool_names)
+        if not executable:
+            return None
+
+        options = {"creationflags": 0x08000000}
+        options.update(kwargs)
+        try:
+            return subprocess.run([executable, *arguments], **options)
+        except (FileNotFoundError, OSError):
+            return None
+
+    def _run_powershell(self, command, **kwargs):
+        return self._run_windows_tool(
+            ("powershell.exe", "pwsh.exe"),
+            ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", command],
+            **kwargs
+        )
+
+    def _set_registry_autostart(self, enable):
+        run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        value_name = "PYAS_Security"
+        if enable:
+            command = f'"{self.file_pyas}" -hide'
+            return self._reg_write(winreg.HKEY_CURRENT_USER, run_key, value_name, winreg.REG_SZ, command)
+
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key, 0, winreg.KEY_SET_VALUE) as reg:
+                try:
+                    winreg.DeleteValue(reg, value_name)
+                except FileNotFoundError:
+                    pass
+            return True
+        except FileNotFoundError:
+            return True
+        except Exception:
+            return False
+
+    def _clear_event_log(self, log_name):
+        result = self._run_windows_tool(
+            ("wevtutil.exe",),
+            ["cl", log_name],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        if result is not None and result.returncode == 0:
+            return True
+
+        try:
+            wevtapi = ctypes.WinDLL("wevtapi", use_last_error=True)
+            wevtapi.EvtClearLog.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
+            wevtapi.EvtClearLog.restype = ctypes.wintypes.BOOL
+            return bool(wevtapi.EvtClearLog(None, log_name, None, 0))
+        except Exception:
+            return False
+
+    def _manage_service_native(self, service_name, action):
+        SC_MANAGER_CONNECT = 0x0001
+        SERVICE_CHANGE_CONFIG = 0x0002
+        DELETE = 0x00010000
+        SERVICE_NO_CHANGE = 0xFFFFFFFF
+        SERVICE_AUTO_START = 0x00000002
+        SERVICE_DISABLED = 0x00000004
+
+        try:
+            advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+            advapi32.OpenSCManagerW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
+            advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
+            advapi32.OpenServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
+            advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
+            advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
+            advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
+
+            manager = advapi32.OpenSCManagerW(None, None, SC_MANAGER_CONNECT)
+            if not manager:
+                return False
+
+            service = None
+            try:
+                desired_access = DELETE if action == "delete" else SERVICE_CHANGE_CONFIG
+                service = advapi32.OpenServiceW(manager, service_name, desired_access)
+                if not service:
+                    return False
+
+                if action == "delete":
+                    advapi32.DeleteService.argtypes = [ctypes.wintypes.HANDLE]
+                    advapi32.DeleteService.restype = ctypes.wintypes.BOOL
+                    return bool(advapi32.DeleteService(service))
+
+                start_type = SERVICE_AUTO_START if action == "enable" else SERVICE_DISABLED
+                advapi32.ChangeServiceConfigW.argtypes = [
+                    ctypes.wintypes.HANDLE,
+                    ctypes.wintypes.DWORD,
+                    ctypes.wintypes.DWORD,
+                    ctypes.wintypes.DWORD,
+                    ctypes.wintypes.LPCWSTR,
+                    ctypes.wintypes.LPCWSTR,
+                    ctypes.POINTER(ctypes.wintypes.DWORD),
+                    ctypes.wintypes.LPCWSTR,
+                    ctypes.wintypes.LPCWSTR,
+                    ctypes.wintypes.LPCWSTR,
+                    ctypes.wintypes.LPCWSTR
+                ]
+                advapi32.ChangeServiceConfigW.restype = ctypes.wintypes.BOOL
+                return bool(advapi32.ChangeServiceConfigW(
+                    service,
+                    SERVICE_NO_CHANGE,
+                    start_type,
+                    SERVICE_NO_CHANGE,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None
+                ))
+            finally:
+                if service:
+                    advapi32.CloseServiceHandle(service)
+                advapi32.CloseServiceHandle(manager)
+        except Exception:
+            return False
+
+    def _manage_scheduled_task(self, task_path, action):
+        schtasks_action = "/delete" if action == "delete" else "/change"
+        arguments = [schtasks_action, "/tn", task_path]
+        if action == "delete":
+            arguments.append("/f")
+        else:
+            arguments.append("/enable" if action == "enable" else "/disable")
+
+        result = self._run_windows_tool(
+            ("schtasks.exe",),
+            arguments,
+            capture_output=True,
+            text=True
+        )
+        if result is not None and result.returncode == 0:
+            return True
+
+        escaped_path = task_path.replace("'", "''")
+        operation = {
+            "delete": "Unregister-ScheduledTask -InputObject $Task -Confirm:$false",
+            "enable": "Enable-ScheduledTask -InputObject $Task | Out-Null",
+            "disable": "Disable-ScheduledTask -InputObject $Task | Out-Null"
+        }.get(action)
+        if not operation:
+            return False
+
+        command = (
+            f"$FullName = '{escaped_path}'; "
+            "$Task = Get-ScheduledTask -ErrorAction SilentlyContinue | "
+            "Where-Object { ($_.TaskPath + $_.TaskName) -eq $FullName } | Select-Object -First 1; "
+            f"if ($Task) {{ {operation} }} else {{ exit 1 }}"
+        )
+        result = self._run_powershell(command, capture_output=True, text=True)
+        return bool(result and result.returncode == 0)
+
     def _reg_read(self, root, path, value_name):
         try:
             with winreg.OpenKey(root, path, 0, winreg.KEY_READ) as reg:
@@ -203,18 +383,81 @@ class ToolsMixin:
 ####################################################################################################
 
     def manage_autostart(self, enable):
-        try:
-            task_name = "PYAS_Security_ATS"
-            if enable:
-                cmd = f"$Action = New-ScheduledTaskAction -Execute '{self.file_pyas}' -Argument '-hide'; $Trigger = New-ScheduledTaskTrigger -AtLogOn; $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; Register-ScheduledTask -TaskName '{task_name}' -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -Force"
-                subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-Command", cmd], creationflags=0x08000000)
-            else:
-                subprocess.run(["schtasks", "/Delete", "/TN", task_name, "/F"], creationflags=0x08000000)
+        task_name = "PYAS_Security_ATS"
+        executable = os.path.normpath(self.file_pyas)
+        escaped_executable = executable.replace("'", "''")
+        errors = []
 
-            return True
-        except Exception as e:
-            self.write_log("WARN", "manage_autostart", detail=str(e), success=False)
-            return False
+        if enable:
+            task_command = f'"{executable}" -hide'
+            result = self._run_windows_tool(
+                ("schtasks.exe",),
+                ["/Create", "/TN", task_name, "/TR", task_command, "/SC", "ONLOGON", "/RL", "HIGHEST", "/F"],
+                capture_output=True,
+                text=True
+            )
+            if result and result.returncode == 0:
+                self._set_registry_autostart(False)
+                return True
+            if result:
+                errors.append((result.stderr or result.stdout or f"schtasks exit {result.returncode}").strip())
+
+            command = (
+                f"$Action = New-ScheduledTaskAction -Execute '{escaped_executable}' -Argument '-hide'; "
+                "$Trigger = New-ScheduledTaskTrigger -AtLogOn; "
+                "$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; "
+                f"Register-ScheduledTask -TaskName '{task_name}' -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -Force | Out-Null"
+            )
+            result = self._run_powershell(command, capture_output=True, text=True)
+            if result and result.returncode == 0:
+                self._set_registry_autostart(False)
+                return True
+            if result:
+                errors.append((result.stderr or result.stdout or f"PowerShell exit {result.returncode}").strip())
+
+            if self._set_registry_autostart(True):
+                self.write_log("INFO", "manage_autostart", detail="Scheduled Task unavailable; using HKCU Run fallback", success=True)
+                return True
+        else:
+            task_removed = False
+            query_result = self._run_windows_tool(
+                ("schtasks.exe",),
+                ["/Query", "/TN", task_name],
+                capture_output=True,
+                text=True
+            )
+            result = None
+            if query_result is not None and query_result.returncode != 0:
+                task_removed = True
+            elif query_result is not None:
+                result = self._run_windows_tool(
+                    ("schtasks.exe",),
+                    ["/Delete", "/TN", task_name, "/F"],
+                    capture_output=True,
+                    text=True
+                )
+                task_removed = bool(result and result.returncode == 0)
+
+            if query_result is None or not task_removed:
+                command = (
+                    f"$Task = Get-ScheduledTask -TaskName '{task_name}' -ErrorAction SilentlyContinue; "
+                    "if ($Task) { $Task | Unregister-ScheduledTask -Confirm:$false }"
+                )
+                powershell_result = self._run_powershell(command, capture_output=True, text=True)
+                if powershell_result is not None:
+                    task_removed = powershell_result.returncode == 0
+                    result = powershell_result
+
+            if result and result.returncode != 0:
+                errors.append((result.stderr or result.stdout or f"task removal exit {result.returncode}").strip())
+
+            registry_removed = self._set_registry_autostart(False)
+            if registry_removed and (task_removed or query_result is None and result is None):
+                return True
+
+        detail = "; ".join(error for error in errors if error) or "No supported autostart method was available"
+        self.write_log("WARN", "manage_autostart", detail=detail, success=False)
+        return False
 
 ####################################################################################################
 
@@ -292,10 +535,16 @@ class ToolsMixin:
                         if lock_func:
                             lock_func(path, True)
 
-                        target_list.append({"file": path, "time": time.time()})
+                        new_item = {"file": path, "time": time.time()}
+                        is_directory = None
+                        if list_key == "white_list":
+                            is_directory = os.path.isdir(path)
+                            new_item["is_dir"] = is_directory
+
+                        target_list.append(new_item)
                         acted_items.append(path)
                         if list_key == "white_list":
-                            self.sync_driver_whitelist(path, True)
+                            self.sync_driver_whitelist(path, True, is_directory)
 
             elif action == "remove":
                 norm_paths_case = {os.path.normcase(p) for p in norm_paths}
@@ -311,7 +560,8 @@ class ToolsMixin:
 
                             acted_items.append(val)
                             if list_key == "white_list":
-                                self.sync_driver_whitelist(val, False)
+                                is_directory = item.get("is_dir") if isinstance(item, dict) else None
+                                self.sync_driver_whitelist(val, False, is_directory)
 
                             continue
                     new_list.append(item)
@@ -356,7 +606,8 @@ class ToolsMixin:
                     if np and os.path.normcase(np) in norm_paths_to_remove:
                         removed_items.append(val)
                         if list_key == "white_list":
-                            self.sync_driver_whitelist(val, False)
+                            is_directory = item.get("is_dir") if isinstance(item, dict) else None
+                            self.sync_driver_whitelist(val, False, is_directory)
 
                         continue
                 new_list.append(item)
@@ -888,7 +1139,7 @@ class ToolsMixin:
                         log_path = os.path.join(self.path_system, "System32", "winevt", "Logs", f"{log_type}.evtx")
 
                         size = os.path.getsize(log_path) if os.path.exists(log_path) else 0
-                        if subprocess.run(["wevtutil", "cl", log_type], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000).returncode == 0:
+                        if self._clear_event_log(log_type):
                             total_deleted += size
 
                 except Exception:
@@ -1035,20 +1286,57 @@ class ToolsMixin:
         def get_tasks():
             res = []
             try:
-                proc = subprocess.run(["schtasks", "/query", "/fo", "csv", "/v"], capture_output=True, text=True, creationflags=0x08000000)
-                reader = csv.reader(io.StringIO(proc.stdout))
-                next(reader, None)
+                proc = self._run_windows_tool(
+                    ("schtasks.exe",),
+                    ["/query", "/fo", "csv", "/v"],
+                    capture_output=True,
+                    text=True
+                )
+                if proc is not None and proc.returncode == 0:
+                    reader = csv.reader(io.StringIO(proc.stdout))
+                    next(reader, None)
 
-                for row in reader:
-                    if len(row) > 8 and row[1].strip() and row[8].strip() and row[8] != "N/A":
-                        name = row[1].split('\\')[-1]
-                        path = row[8]
-                        status = row[3]
+                    for row in reader:
+                        if len(row) > 8 and row[1].strip() and row[8].strip() and row[8] != "N/A":
+                            name = row[1].split('\\')[-1]
+                            path = row[8]
+                            status = row[3]
 
-                        if path and "windows" not in path.lower():
-                            fp = self.extract_paths_from_cmdline(path)
-                            fpp = fp[0] if fp else path
-                            res.append({"id": f"tsk|{row[1]}", "type": "type_tsk", "name": name, "status": "disabled" if status == "Disabled" else "enabled", "path": fpp})
+                            if path and "windows" not in path.lower():
+                                fp = self.extract_paths_from_cmdline(path)
+                                fpp = fp[0] if fp else path
+                                res.append({"id": f"tsk|{row[1]}", "type": "type_tsk", "name": name, "status": "disabled" if status.lower() == "disabled" else "enabled", "path": fpp})
+                    return res
+
+                command = (
+                    "[Console]::OutputEncoding = [Text.UTF8Encoding]::new(); "
+                    "Get-ScheduledTask -ErrorAction SilentlyContinue | ForEach-Object { "
+                    "$Action = @($_.Actions)[0]; "
+                    "[pscustomobject]@{Name=$_.TaskName; FullName=($_.TaskPath + $_.TaskName); "
+                    "State=[string]$_.State; Execute=$Action.Execute; Arguments=$Action.Arguments} "
+                    "} | ConvertTo-Json -Compress"
+                )
+                proc = self._run_powershell(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                if not proc or proc.returncode != 0 or not proc.stdout.strip():
+                    return res
+
+                task_data = json.loads(proc.stdout)
+                if isinstance(task_data, dict):
+                    task_data = [task_data]
+
+                for task in task_data:
+                    name = str(task.get("Name") or "").strip()
+                    full_name = str(task.get("FullName") or name).strip()
+                    execute = str(task.get("Execute") or "").strip()
+                    arguments = str(task.get("Arguments") or "").strip()
+                    command_line = " ".join(part for part in (execute, arguments) if part)
+                    if not name or not command_line or "windows" in command_line.lower():
+                        continue
+
+                    paths = self.extract_paths_from_cmdline(command_line)
+                    path = paths[0] if paths else execute or command_line
+                    status = "disabled" if str(task.get("State") or "").lower() == "disabled" else "enabled"
+                    res.append({"id": f"tsk|{full_name}", "type": "type_tsk", "name": name, "status": status, "path": path})
 
             except Exception:
                 pass
@@ -1068,44 +1356,49 @@ class ToolsMixin:
     def manage_startup(self, items, action):
         def process_item(item_id):
             try:
-                parts = item_id.split('|')
+                parts = item_id.split('|', 3)
                 stype = parts[0]
 
                 if stype == "reg":
                     root, old_path, name = int(parts[1]), parts[2], parts[3]
                     if action == "delete":
-                        self._reg_delete(root, old_path, name)
+                        return self._reg_delete(root, old_path, name)
 
                     else:
                         new_path = old_path.replace("_Disabled", "") if action == "enable" else (old_path if "_Disabled" in old_path else old_path + "_Disabled")
                         if old_path != new_path:
                             val = self._reg_read(root, old_path, name)
                             if val:
-                                self._reg_write(root, new_path, name, winreg.REG_SZ, val)
-                                self._reg_delete(root, old_path, name)
+                                return self._reg_write(root, new_path, name, winreg.REG_SZ, val) and self._reg_delete(root, old_path, name)
+                        return True
 
                 elif stype == "srv":
                     name = parts[1]
                     if action == "delete":
-                        subprocess.run(["sc", "delete", name], capture_output=True, creationflags=0x08000000)
+                        result = self._run_windows_tool(("sc.exe",), ["delete", name], capture_output=True)
 
                     else:
                         mode = "auto" if action == "enable" else "disabled"
-                        subprocess.run(["sc", "config", name, f"start=", mode], capture_output=True, creationflags=0x08000000)
+                        result = self._run_windows_tool(("sc.exe",), ["config", name, "start=", mode], capture_output=True)
+
+                    if result is not None and result.returncode == 0:
+                        return True
+                    return self._manage_service_native(name, action)
 
                 elif stype == "tsk":
-                    name = parts[1]
-                    if action == "delete":
-                        subprocess.run(["schtasks", "/delete", "/tn", name, "/f"], capture_output=True, creationflags=0x08000000)
+                    name = item_id.partition('|')[2]
+                    return self._manage_scheduled_task(name, action)
 
-                    else:
-                        cmd = "/enable" if action == "enable" else "/disable"
-                        subprocess.run(["schtasks", "/change", "/tn", name, cmd], capture_output=True, creationflags=0x08000000)
+                return False
 
             except Exception as e:
                 self.write_log("WARN", "manage_startup", detail=str(e), success=False)
+                return False
 
         with ThreadPoolExecutor(max_workers=5) as executor:
-            list(executor.map(process_item, items))
+            results = list(executor.map(process_item, items))
 
-        return True
+        success = all(results) if results else True
+        if not success:
+            self.write_log("WARN", "manage_startup", detail="One or more startup items could not be updated", success=False)
+        return success

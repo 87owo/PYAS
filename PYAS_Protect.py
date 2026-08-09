@@ -82,25 +82,48 @@ class ProtectMixin:
     def init_whitelist(self):
         self.manage_named_list("white_list", [self.file_pyas], action="add")
 
-    def sync_driver_whitelist(self, file_path, is_add=True):
+    def _driver_whitelist_patterns(self, file_path, is_directory=None):
+        normalized_path = self.norm_path(file_path, must_exist=False)
+        if not normalized_path:
+            return []
+
+        if is_directory is None:
+            is_directory = os.path.isdir(normalized_path)
+
+        drive_letter = os.path.splitdrive(normalized_path)[0]
+        driver_path = "*" + normalized_path[len(drive_letter):] if drive_letter else normalized_path
+        patterns = [driver_path]
+
+        if is_directory:
+            descendant_pattern = driver_path.rstrip("\\/") + "\\*"
+            if descendant_pattern not in patterns:
+                patterns.append(descendant_pattern)
+
+        return patterns
+
+    def sync_driver_whitelist(self, file_path, is_add=True, is_directory=None):
         with self.lock_driver:
             if not self.driver_port:
                 return False
 
-            driver_path = str(file_path)
-            drive_letter = os.path.splitdrive(driver_path)[0]
-            if drive_letter:
-                driver_path = "*" + driver_path[len(drive_letter):]
-
-            msg = PYAS_USER_MESSAGE()
-            msg.Command = 1 if is_add else 2
-            msg.Path = driver_path
-            bytes_returned = ctypes.wintypes.DWORD(0)
-
-            try:
-                return self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) == 0
-            except Exception:
+            patterns = self._driver_whitelist_patterns(file_path, is_directory)
+            if not patterns:
                 return False
+
+            success = True
+            for driver_path in patterns:
+                msg = PYAS_USER_MESSAGE()
+                msg.Command = 1 if is_add else 2
+                bytes_returned = ctypes.wintypes.DWORD(0)
+
+                try:
+                    msg.Path = driver_path
+                    if self.fltlib.FilterSendMessage(self.driver_port, ctypes.byref(msg), ctypes.sizeof(msg), None, 0, ctypes.byref(bytes_returned)) != 0:
+                        success = False
+                except Exception:
+                    success = False
+
+            return success
 
 ####################################################################################################
 
@@ -891,7 +914,10 @@ class ProtectMixin:
             running = any(exe_name.lower() == "explorer.exe" for _, exe_name in self._enum_processes())
 
             if not running:
-                subprocess.Popen("explorer.exe", shell=True)
+                explorer = self._find_windows_tool("explorer.exe")
+                if not explorer:
+                    return
+                subprocess.Popen([explorer])
                 self.write_log("INFO", "System Restart", source="explorer.exe")
 
         except Exception:
@@ -1905,7 +1931,7 @@ class ProtectMixin:
                     if self.driver_stop_event.is_set():
                         break
                     if isinstance(item, dict) and item.get("file"):
-                        self.sync_driver_whitelist(item["file"], True)
+                        self.sync_driver_whitelist(item["file"], True, item.get("is_dir"))
 
                 if self.driver_stop_event.is_set():
                     break
@@ -1972,4 +1998,3 @@ class ProtectMixin:
             with self.lock_driver:
                 if self.driver_listener_thread is threading.current_thread():
                     self.driver_listener_thread = None
-

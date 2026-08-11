@@ -54,7 +54,6 @@ Name: "slovenian"; MessagesFile: "SetupResources\Slovenian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
-Name: "autostart"; Description: "{cm:AutoStartTask}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 Source: "Redist\VC_redist.x64.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion; AfterInstall: EnsureVCRedist
@@ -68,6 +67,7 @@ Source: "Payload\Plugins\*"; DestDir: "{app}\Plugins"; Flags: ignoreversion recu
 [Registry]
 Root: HKCU; Subkey: "Software\Classes\*\shell\PYAS_Scan"; Flags: uninsdeletekey dontcreatekey
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\PYAS_Scan"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: "PYAS_Security"; Flags: uninsdeletevalue dontcreatekey
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\PYAS"
@@ -87,9 +87,6 @@ chinesetraditional.InstallingVCRuntime=正在安裝 Microsoft Visual C++ 執行�
 english.InstallingWebView2Runtime=Installing Microsoft Edge WebView2 Runtime...
 chinesesimplified.InstallingWebView2Runtime=正在安装 Microsoft Edge WebView2 Runtime...
 chinesetraditional.InstallingWebView2Runtime=正在安裝 Microsoft Edge WebView2 Runtime...
-english.AutoStartTask=Run PYAS automatically at system startup
-chinesesimplified.AutoStartTask=开机时自动运行 PYAS
-chinesetraditional.AutoStartTask=開機時自動執行 PYAS
 english.Dependencies=Dependencies:
 chinesesimplified.Dependencies=运行环境:
 chinesetraditional.Dependencies=執行環境:
@@ -277,41 +274,23 @@ function NeedRestart: Boolean;
 begin
   Result := DependencyRestartRequired;
 end;
-procedure TryCreateStartupTask;
+procedure RemoveLegacyStartupTask;
 var
-  ResultCode: Integer;
-  PSExe: string;
-  PSCommand: string;
-  AppPath: string;
+  TaskService: Variant;
+  RootFolder: Variant;
 begin
-  AppPath := ExpandConstant('{app}\{#AppExeName}');
-  PSExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
-  PSCommand := '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -Command ' +
-               '$Action = New-ScheduledTaskAction -Execute ''' + AppPath + ''' -Argument ''-hide''; ' +
-               '$Trigger = New-ScheduledTaskTrigger -AtLogOn; ' +
-               '$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries; ' +
-               'Register-ScheduledTask -TaskName ''PYAS_Security_ATS'' -Action $Action -Trigger $Trigger -Settings $Settings -RunLevel Highest -Force';
-  if not Exec(PSExe, PSCommand, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-  begin
-    Log(Format('Failed to create scheduled task, Exec error code: %d', [ResultCode]));
-  end
-  else if ResultCode <> 0 then
-  begin
-    Log(Format('powershell returned exit code %d while creating the scheduled task', [ResultCode]));
-  end;
-end;
-
-procedure TryDeleteStartupTask;
-var
-  ResultCode: Integer;
-begin
-  if not Exec(ExpandConstant('{sys}\schtasks.exe'), '/Delete /TN "PYAS_Security_ATS" /F', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-  begin
-    Log(Format('Failed to delete scheduled task, Exec error code: %d', [ResultCode]));
-  end
-  else if ResultCode <> 0 then
-  begin
-    Log(Format('schtasks returned exit code %d while deleting the scheduled task', [ResultCode]));
+  try
+    TaskService := CreateOleObject('Schedule.Service');
+    TaskService.Connect();
+    RootFolder := TaskService.GetFolder('\');
+    try
+      RootFolder.DeleteTask('PYAS_Security_ATS', 0);
+      Log('Removed legacy PYAS scheduled startup task');
+    except
+      Log('Legacy PYAS scheduled startup task was not present or could not be removed');
+    end;
+  except
+    Log('Task Scheduler COM was unavailable while cleaning the legacy startup task');
   end;
 end;
 
@@ -319,10 +298,7 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
-    if WizardIsTaskSelected('autostart') then
-    begin
-      TryCreateStartupTask;
-    end;
+    RemoveLegacyStartupTask;
   end;
 end;
 
@@ -330,7 +306,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
-    TryDeleteStartupTask;
+    RemoveLegacyStartupTask;
   end
   else if CurUninstallStep = usPostUninstall then
   begin

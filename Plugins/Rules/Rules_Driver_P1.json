@@ -78,6 +78,7 @@
                 "*\\games\\Arknights Game\\Arknights.exe",
                 "*\\games\\EndField Game\\EndField.exe",
                 "*\\cm\\FeverGames\\*\\FeverGamesInstaller.exe",
+                "*\\Davinci\\Resolve.exe",
             ],
             "Target": [
                 "*\\PYAS.exe",

@@ -246,6 +246,7 @@
             "InitiatorExclude": [
                 "*\\PYAS.exe",
                 "*\\Huorong\\Sysdiag\\bin\\sysclean.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\SearchIndexer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\svchost.exe",

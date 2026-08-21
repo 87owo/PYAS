@@ -134,6 +134,12 @@ The machine learning-based virus scanning engine training achieved extremely hig
 
 <img width="895" height="1097" alt="train" src="https://github.com/user-attachments/assets/fa7cf0e2-01a1-4234-9358-718c2b8a2c9a" />
 
+## Rule Editor
+
+PYAS antivirus software driver protection rule editor, developed using Blockly. Included in the Releases.
+
+<img width="2559" height="1271" alt="image" src="https://github.com/user-attachments/assets/29a816a8-3bf9-4e1c-b881-7336676ad7f9" />
+
 ## Support System
 
 Please ensure your computer supports Microsoft Visual C++ 2015-2022 Redistributable and Edge Webview2.

@@ -246,6 +246,7 @@
             "InitiatorExclude": [
                 "*\\PYAS.exe",
                 "*\\Huorong\\Sysdiag\\bin\\sysclean.exe",
+                "*\\Dell\\SARemediation\\agent\\DellSupportAssistRemedationService.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\explorer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\SearchIndexer.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\lsass.exe",
@@ -253,6 +254,7 @@
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\services.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\taskhostw.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\System32\\TrustedInstaller.exe",
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\ReAgentc.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\WinSxS\\*\\TiWorker.exe",
                 "\\Device\\HarddiskVolume*\\Windows\\UUS\\amd64\\wuaucltcore.exe",
                 "\\Device\\HarddiskVolume*\\$WinREAgent\\Scratch\\*\\DismHost.exe",
@@ -264,6 +266,10 @@
                 "\\Device\\HarddiskVolume*\\EFI\\*",
                 "\\Device\\HarddiskVolume*\\Boot\\*",
                 "\\Device\\HarddiskVolume*\\Recovery\\*",
+            ],
+            "TargetExclude": [
+                "\\Device\\HarddiskVolume*\\Windows\\System32\\Recovery\\ReAgent.xml",
+                "\\Device\\HarddiskVolume*\\Recovery\\OEM\\Logs\\Versions.ini",
             ],
             "Operations": [
                 "Write",

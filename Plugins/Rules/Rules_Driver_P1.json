@@ -658,6 +658,7 @@
                 "*\\Sources\\SetupHost.exe",
                 "*\\Work\\*\\DismHost.exe",
                 "*\\Huorong\\Sysdiag\\bin\\HipsDaemon.exe",
+                "*\\Huorong\\Sysdiag\\bin\\HRUpdate.exe",
                 "*\\360Safe.exe",
                 "*\\PYAS.exe",
             ],
@@ -668,6 +669,9 @@
                 "\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Control\\SafeBoot\\AlternateShell\\*",
                 "\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Control\\SafeBoot\\Option",
                 "\\REGISTRY\\MACHINE\\SYSTEM\\*ControlSet*\\Control\\SafeBoot\\Option\\*",
+            ],
+            "TargetExclude": [
+                "\\REGISTRY\\MACHINE\\SYSTEM\\ControlSet001\\Control\\SafeBoot\\Network\\HipsDaemon",
             ],
             "Operations": [
                 "Write",

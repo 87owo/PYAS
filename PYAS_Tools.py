@@ -4,6 +4,8 @@ import ctypes, ctypes.wintypes
 
 from concurrent.futures import ThreadPoolExecutor
 
+####################################################################################################
+
 PROCESS_TERMINATE = 0x0001
 PROCESS_QUERY_INFORMATION = 0x0400
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
@@ -241,6 +243,7 @@ class ToolsMixin:
             wevtapi.EvtClearLog.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
             wevtapi.EvtClearLog.restype = ctypes.wintypes.BOOL
             return bool(wevtapi.EvtClearLog(None, log_name, None, 0))
+
         except Exception:
             return False
 

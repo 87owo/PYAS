@@ -3,6 +3,8 @@ import ctypes, ctypes.wintypes
 
 from PYAS_Tools import FILE_NOTIFY_INFORMATION, LUID, MEMORY_BASIC_INFORMATION, POINT, PYAS_FULL_MESSAGE, PYAS_USER_MESSAGE, RECT, SERVICE_STATUS_PROCESS, TOKEN_PRIVILEGES
 
+####################################################################################################
+
 FLT_PORT_FLAG_SYNC_HANDLE = 0x00000001
 HRESULT_IO_PENDING = 0x800703E5
 ERROR_OPERATION_ABORTED = 995
@@ -14,8 +16,14 @@ WAIT_TIMEOUT = 258
 INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 GENERIC_READ = 0x80000000
 FILE_SHARE_READ = 0x00000001
+FILE_SHARE_WRITE = 0x00000002
 OPEN_EXISTING = 3
 FILE_ATTRIBUTE_NORMAL = 0x00000080
+IOCTL_STORAGE_QUERY_PROPERTY = 0x002D1400
+IOCTL_STORAGE_GET_HOTPLUG_INFO = 0x002D0C14
+STORAGE_DEVICE_PROPERTY = 0
+PROPERTY_STANDARD_QUERY = 0
+INTERNAL_STORAGE_BUS_TYPES = frozenset({1, 3, 8, 10, 11, 17, 18, 19})
 FILE_SCAN_DEBOUNCE_SECONDS = 0.35
 FILE_SCAN_RETRY_SECONDS = 0.25
 FILE_LOCK_RETRY_SECONDS = 0.5
@@ -28,6 +36,8 @@ PROCESS_SUSPEND_RESUME = 0x0800
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 PYAS_PROCESS_SCAN_ACCESS = PROCESS_TERMINATE | PROCESS_VM_READ | PROCESS_QUERY_INFORMATION | PROCESS_SUSPEND_RESUME | PROCESS_QUERY_LIMITED_INFORMATION
 PYAS_PROCESS_NETWORK_ACCESS = PROCESS_TERMINATE | PROCESS_QUERY_INFORMATION | PROCESS_QUERY_LIMITED_INFORMATION
+
+####################################################################################################
 
 class PYAS_CONNECTION_CONTEXT(ctypes.Structure):
     _fields_ = [
@@ -44,6 +54,44 @@ class OVERLAPPED(ctypes.Structure):
         ("Offset", ctypes.wintypes.DWORD),
         ("OffsetHigh", ctypes.wintypes.DWORD),
         ("hEvent", ctypes.wintypes.HANDLE)
+    ]
+
+class STORAGE_PROPERTY_QUERY(ctypes.Structure):
+    _fields_ = [
+        ("PropertyId", ctypes.c_int),
+        ("QueryType", ctypes.c_int),
+        ("AdditionalParameters", ctypes.c_ubyte * 1)
+    ]
+
+class STORAGE_DESCRIPTOR_HEADER(ctypes.Structure):
+    _fields_ = [
+        ("Version", ctypes.wintypes.DWORD),
+        ("Size", ctypes.wintypes.DWORD)
+    ]
+
+class STORAGE_DEVICE_DESCRIPTOR(ctypes.Structure):
+    _fields_ = [
+        ("Version", ctypes.wintypes.DWORD),
+        ("Size", ctypes.wintypes.DWORD),
+        ("DeviceType", ctypes.c_ubyte),
+        ("DeviceTypeModifier", ctypes.c_ubyte),
+        ("RemovableMedia", ctypes.c_ubyte),
+        ("CommandQueueing", ctypes.c_ubyte),
+        ("VendorIdOffset", ctypes.wintypes.DWORD),
+        ("ProductIdOffset", ctypes.wintypes.DWORD),
+        ("ProductRevisionOffset", ctypes.wintypes.DWORD),
+        ("SerialNumberOffset", ctypes.wintypes.DWORD),
+        ("BusType", ctypes.c_int),
+        ("RawPropertiesLength", ctypes.wintypes.DWORD)
+    ]
+
+class STORAGE_HOTPLUG_INFO(ctypes.Structure):
+    _fields_ = [
+        ("Size", ctypes.wintypes.DWORD),
+        ("MediaRemovable", ctypes.c_ubyte),
+        ("MediaHotplug", ctypes.c_ubyte),
+        ("DeviceHotplug", ctypes.c_ubyte),
+        ("WriteCacheEnableOverride", ctypes.c_ubyte)
     ]
 
 ####################################################################################################
@@ -245,9 +293,88 @@ class ProtectMixin:
 
 ####################################################################################################
 
+    def _is_internal_physical_drive(self, drive):
+        drive_path = rf"\\.\PhysicalDrive{drive}"
+        handle = self.kernel32.CreateFileW(
+            drive_path,
+            0,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            None
+        )
+        if handle in (None, INVALID_HANDLE_VALUE):
+            return False
+
+        try:
+            query = STORAGE_PROPERTY_QUERY(STORAGE_DEVICE_PROPERTY, PROPERTY_STANDARD_QUERY)
+            header = STORAGE_DESCRIPTOR_HEADER()
+            bytes_returned = ctypes.wintypes.DWORD(0)
+            if not self.kernel32.DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                ctypes.byref(query),
+                ctypes.sizeof(query),
+                ctypes.byref(header),
+                ctypes.sizeof(header),
+                ctypes.byref(bytes_returned),
+                None
+            ):
+                return False
+
+            minimum_size = STORAGE_DEVICE_DESCRIPTOR.BusType.offset + ctypes.sizeof(ctypes.c_int)
+            if bytes_returned.value < ctypes.sizeof(header) or header.Size < minimum_size or header.Size > 65536:
+                return False
+
+            descriptor_buffer = ctypes.create_string_buffer(header.Size)
+            bytes_returned.value = 0
+            if not self.kernel32.DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_QUERY_PROPERTY,
+                ctypes.byref(query),
+                ctypes.sizeof(query),
+                descriptor_buffer,
+                ctypes.sizeof(descriptor_buffer),
+                ctypes.byref(bytes_returned),
+                None
+            ):
+                return False
+
+            descriptor = ctypes.cast(descriptor_buffer, ctypes.POINTER(STORAGE_DEVICE_DESCRIPTOR)).contents
+            if bytes_returned.value < minimum_size or descriptor.RemovableMedia or descriptor.BusType not in INTERNAL_STORAGE_BUS_TYPES:
+                return False
+
+            hotplug = STORAGE_HOTPLUG_INFO()
+            hotplug.Size = ctypes.sizeof(hotplug)
+            bytes_returned.value = 0
+            if not self.kernel32.DeviceIoControl(
+                handle,
+                IOCTL_STORAGE_GET_HOTPLUG_INFO,
+                None,
+                0,
+                ctypes.byref(hotplug),
+                ctypes.sizeof(hotplug),
+                ctypes.byref(bytes_returned),
+                None
+            ):
+                return False
+
+            if bytes_returned.value < ctypes.sizeof(hotplug):
+                return False
+
+            return not (hotplug.MediaRemovable or hotplug.MediaHotplug or hotplug.DeviceHotplug)
+        except Exception:
+            return False
+        finally:
+            self.kernel32.CloseHandle(handle)
+
     def backup_mbr(self, max_drives=26):
         self.mbr_backup = {}
         for drive in range(max_drives):
+            if not self._is_internal_physical_drive(drive):
+                continue
+
             try:
                 with open(rf"\\.\PhysicalDrive{drive}", "rb") as f:
                     mbr = f.read(512)
@@ -1979,10 +2106,12 @@ class ProtectMixin:
                 if self.driver_stop_event.is_set():
                     break
                 self.driver_stop_event.wait(0.02)
+
         except Exception as e:
             self.driver_listener_failed_event.set()
             if not self.driver_stop_event.is_set():
                 self.write_log("WARN", "pipe_server_thread", detail=str(e), success=False)
+
         finally:
             if owned_port:
                 try:

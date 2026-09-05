@@ -375,6 +375,7 @@ class ScannerMixin:
                             address = 0
                             mbi = MEMORY_BASIC_INFORMATION()
                             while address < max_address and not self._is_scan_cancel_requested() and self.kernel32.VirtualQueryEx(h_process, ctypes.c_void_p(address), ctypes.byref(mbi), ctypes.sizeof(mbi)):
+
                                 if mbi.State == 0x1000 and mbi.Type == 0x1000000:
                                     if self.psapi.GetMappedFileNameW(h_process, ctypes.c_void_p(address), buf, 1024):
                                         raw_path = buf.value
@@ -461,6 +462,7 @@ class ScannerMixin:
             except Exception:
                 pass
             os.remove(file_path)
+
         except FileNotFoundError:
             pass
         except Exception as e:

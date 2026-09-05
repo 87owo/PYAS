@@ -13,6 +13,8 @@ from PYAS_Protect import ProtectMixin
 from PYAS_Scanner import ScannerMixin
 from PYAS_Tools import COPYDATASTRUCT, FILE_NOTIFY_INFORMATION, FILTER_MESSAGE_HEADER, IO_COUNTERS, LUID, LUID_AND_ATTRIBUTES, MEMORY_BASIC_INFORMATION, MIB_TCPROW_OWNER_PID, POINT, PROCESSENTRY32W, PROCESS_BASIC_INFORMATION, PYAS_FULL_MESSAGE, PYAS_MESSAGE, PYAS_USER_MESSAGE, RECT, SERVICE_STATUS_PROCESS, SHQUERYRBINFO, TOKEN_PRIVILEGES, ToolsMixin, UNICODE_STRING
 
+####################################################################################################
+
 PYAS_WINDOW_TITLE = "PYAS Security"
 WM_COPYDATA = 0x004A
 SMTO_ABORTIFHUNG = 0x0002
@@ -98,6 +100,7 @@ class _MainMixin:
             if service:
                 return False
             return ctypes.get_last_error() == 1060
+
         finally:
             if service:
                 self.advapi32.CloseServiceHandle(service)
@@ -304,6 +307,8 @@ class _MainMixin:
         self.kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.wintypes.BOOL, ctypes.c_wchar_p]
         self.kernel32.CreateFileW.restype = ctypes.wintypes.HANDLE
         self.kernel32.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.HANDLE]
+        self.kernel32.DeviceIoControl.restype = ctypes.wintypes.BOOL
+        self.kernel32.DeviceIoControl.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_void_p]
         self.kernel32.ReadProcessMemory.restype = ctypes.wintypes.BOOL
         self.kernel32.ReadProcessMemory.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
         self.kernel32.QueryFullProcessImageNameW.restype = ctypes.wintypes.BOOL

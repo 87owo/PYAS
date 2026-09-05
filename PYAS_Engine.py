@@ -401,6 +401,7 @@ def _extract_stream_features(file_path, file_size, ranges, extractor):
     ]
     return result, range_entropies
 
+####################################################################################################
 
 class pe_scanner:
     _STRING_PATTERN = re.compile(b'[\x20-\x7E]{5,}')
@@ -463,6 +464,8 @@ class pe_scanner:
         'DebugCount': 0.0
     }
 
+####################################################################################################
+
     def __init__(self):
         self.model = None
         self.input_name = None
@@ -501,6 +504,8 @@ class pe_scanner:
             self._parse_hash_dims()
         except Exception:
             pass
+
+####################################################################################################
 
     def _parse_hash_dims(self):
         max_dll = -1
@@ -631,7 +636,7 @@ class pe_scanner:
 
         return res
 
-
+####################################################################################################
 
     def _extract_histograms(self, file_bytes):
         arr = numpy.frombuffer(file_bytes, dtype=numpy.uint8)
@@ -703,7 +708,6 @@ class pe_scanner:
 
         res.update(dict(zip(self._BYTE_ENT_KEYS, ent_hist)))
         return res
-
 
     def _extract_overlay_features(self, pe, fsize):
         overlay_offset = pe.get_overlay_data_start_offset()
@@ -1103,6 +1107,8 @@ class pe_scanner:
         finally:
             if pe:
                 pe.close()
+
+####################################################################################################
 
     def pe_scan(self, file_path, enhanced_mode=False):
         if not self.model or not self.feature_order:

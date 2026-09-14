@@ -161,9 +161,14 @@ class rule_scanner:
             matches = self.rules.match(filepath=file_path)
             if matches:
                 rule_name = str(matches[0])
-                label = rule_name.split("_")[0]
-                level = rule_name.split("_")[-1]
-                return f"{label}:WinPE/Unknown.{level}!yr", level
+                try:
+                    label = rule_name.split("_")[0]
+                    platform = rule_name.split("_")[1]
+                    family = rule_name.split("_")[2]
+                    
+                    return f"{label}:{platform}/{family}.{len(matches)}!yr", 100
+                except Exception:
+                    return rule_name, 100
 
             return False, False
         except Exception:
@@ -177,9 +182,14 @@ class rule_scanner:
             matches = self.rules.match(pid=pid)
             if matches:
                 rule_name = str(matches[0])
-                label = rule_name.split("_")[0]
-                level = rule_name.split("_")[-1]
-                return f"{label}:WinPE/Unknown.{level}!ym", level
+                try:
+                    label = rule_name.split("_")[0]
+                    platform = rule_name.split("_")[1]
+                    family = rule_name.split("_")[2]
+                    
+                    return f"{label}:{platform}/{family}.{len(matches)}!ym", 100
+                except Exception:
+                    return rule_name, 100
 
             return False, False
         except Exception:
@@ -1166,9 +1176,9 @@ class pe_scanner:
 
             score = int(prob * 100)
             if score >= 80:
-                return f"General:WinPE/Malware.{score}!ml", score
+                return f"Malware:WinPE/General.{score}!ml", score
             elif enhanced_mode and score >= 50:
-                return f"General:WinPE/Suspicious.{score}!ml", score
+                return f"Suspicious:WinPE/General.{score}!ml", score
 
             return False, False
         except Exception:
@@ -1305,7 +1315,7 @@ class cloud_scanner:
                             sim_malicious_count += 1
 
                 if is_malicious and (valid_sim_count == 0 or sim_malicious_count == valid_sim_count):
-                    return f"General:WinPE/Malware.{score}!cl"
+                    return f"Malware:WinPE/General.{score}!cl"
 
         except Exception:
             pass

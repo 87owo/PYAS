@@ -386,6 +386,7 @@
                 "*\\bin\\*\\codex.exe",
                 "*\\bin\\codex.exe",
                 "*\\Weixin\\Weixin.exe",
+                "*\\Audacity\\Audacity.exe",
             ],
             "Target": [
                 "\\Device\\HarddiskVolume*\\Users\\*",

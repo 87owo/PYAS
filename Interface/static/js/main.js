@@ -53,9 +53,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+    let openCustomSelect = null;
+
+    const closeCustomSelect = () => {
+        if (!openCustomSelect) return;
+        const { wrapper, menu } = openCustomSelect;
+        wrapper.classList.remove('open');
+        menu.classList.remove('open');
+        menu.removeAttribute('style');
+        if (wrapper.isConnected) wrapper.appendChild(menu);
+        else menu.remove();
+        openCustomSelect = null;
+    };
+
+    const positionCustomSelect = () => {
+        if (!openCustomSelect) return;
+        const { wrapper, trigger, menu } = openCustomSelect;
+        const rect = trigger.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const leftEdge = (viewport?.offsetLeft || 0) + 8;
+        const topEdge = (viewport?.offsetTop || 0) + 8;
+        const rightEdge = leftEdge + (viewport?.width || document.documentElement.clientWidth) - 16;
+        const bottomEdge = topEdge + (viewport?.height || document.documentElement.clientHeight) - 16;
+        if (!wrapper.isConnected || !trigger.getClientRects().length ||
+            getComputedStyle(trigger).visibility === 'hidden' ||
+            rect.bottom <= topEdge || rect.top >= bottomEdge ||
+            rect.right <= leftEdge || rect.left >= rightEdge) {
+            closeCustomSelect();
+            return;
+        }
+        const above = Math.max(0, rect.top - topEdge - 8);
+        const below = Math.max(0, bottomEdge - rect.bottom - 8);
+        const opensUp = above > below;
+        const available = opensUp ? above : below;
+        if (available < 32) {
+            closeCustomSelect();
+            return;
+        }
+        menu.style.maxHeight = `${Math.min(260, available)}px`;
+        menu.style.maxWidth = `${rightEdge - leftEdge}px`;
+        menu.style.minWidth = `${Math.min(rect.width, rightEdge - leftEdge)}px`;
+        menu.style.setProperty('--select-enter-offset', opensUp ? '4px' : '-4px');
+        menu.style.left = `${Math.max(leftEdge, Math.min(rect.left, rightEdge - menu.offsetWidth))}px`;
+        menu.style.top = `${opensUp ? rect.top - 8 - menu.offsetHeight : rect.bottom + 8}px`;
+    };
+
+    document.addEventListener('click', closeCustomSelect);
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeCustomSelect();
     });
+    document.addEventListener('scroll', (event) => {
+        if (openCustomSelect && !openCustomSelect.menu.contains(event.target)) closeCustomSelect();
+    }, true);
+    window.addEventListener('resize', positionCustomSelect);
+    window.visualViewport?.addEventListener('resize', positionCustomSelect);
+    window.visualViewport?.addEventListener('scroll', positionCustomSelect);
 
     const getMsg = (key) => (dict[appState.lang] || dict["english_switch"])[key] || key;
 
@@ -166,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 triggerText.textContent = li.textContent;
                 if (optKey) triggerText.setAttribute('data-i18n', optKey);
                 
-                wrapper.classList.remove('open');
+                closeCustomSelect();
                 optionsContainer.querySelectorAll('.custom-select-option').forEach(el => el.classList.remove('selected'));
                 li.classList.add('selected');
                 select.dispatchEvent(new Event('change'));
@@ -187,8 +239,14 @@ document.addEventListener('DOMContentLoaded', () => {
         trigger.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = wrapper.classList.contains('open');
-            document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
-            if (!isOpen) wrapper.classList.add('open');
+            closeCustomSelect();
+            if (!isOpen && !select.disabled) {
+                wrapper.classList.add('open');
+                document.body.appendChild(optionsContainer);
+                optionsContainer.classList.add('open');
+                openCustomSelect = { wrapper, trigger, menu: optionsContainer };
+                positionCustomSelect();
+            }
         });
     };
 
@@ -197,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!select) return;
         select.value = val;
         const wrapper = select.nextElementSibling;
+        if (openCustomSelect?.wrapper === wrapper) closeCustomSelect();
         if (wrapper && wrapper.classList.contains('custom-select-wrapper')) {
             const triggerText = wrapper.querySelector('.custom-select-text');
             const selectedOpt = select.options[select.selectedIndex];
@@ -450,6 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rebuildCustomSelect = (selectId) => {
         const select = document.getElementById(selectId);
         if (!select) return;
+        if (openCustomSelect?.wrapper === select.nextElementSibling) closeCustomSelect();
         let sibling = select.nextElementSibling;
         while (sibling && sibling.classList.contains('custom-select-wrapper')) {
             const toRemove = sibling;
@@ -662,6 +722,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        closeCustomSelect();
         document.querySelectorAll('.page, .nav-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(targetId)?.classList.add('active');
         document.querySelector(`aside .nav-btn[data-target="${targetId}"]`)?.classList.add('active');
@@ -1070,6 +1131,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (item) {
             const btn = item.querySelector('button');
+            const isAboutItem = item.closest('#about_window') !== null;
+
+            if (isAboutItem) {
+                item.style.cursor = 'pointer';
+                item.dataset.action = key;
+                item.addEventListener('click', action);
+                return;
+            }
             
             if (btn) {
                 btn.addEventListener('click', action);

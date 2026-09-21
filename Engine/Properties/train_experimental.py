@@ -19,8 +19,8 @@ except ImportError:
 ####################################################################################################
 
 JSONL_PATH = "pe_features.jsonl"
-MODEL_FILE = "Pefile_General_S1.txt"
-ONNX_FILE = "Pefile_General_S1.onnx"
+MODEL_FILE = "Pefile_General_E1.txt"
+ONNX_FILE = "Pefile_General_E1.onnx"
 FEATURE_FILE = "features.json"
 
 TEST_SIZE = 0.0001
@@ -191,7 +191,7 @@ def train_process(X, y, feature_names):
     n_neg = (y_train == 0).sum()
     
     base_weight = n_neg / n_pos if n_pos > 0 else 1.0
-    weight_ratio_target = 0.01
+    weight_ratio_target = 1
     final_pos_weight = base_weight * weight_ratio_target
     
     print(f"[*] Sample distribution: Safe={n_neg}, Malware={n_pos}")
@@ -210,7 +210,7 @@ def train_process(X, y, feature_names):
         params,
         train_data,
         valid_sets=[valid_data],
-        num_boost_round=350,
+        num_boost_round=500,
         callbacks=[
             lgb.log_evaluation(period=50),
             lgb.reset_parameter(learning_rate=_calculate_dynamic_lr)

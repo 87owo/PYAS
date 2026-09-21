@@ -1090,19 +1090,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const contextMenu = document.createElement('div');
     contextMenu.className = 'custom-context-menu';
-    contextMenu.innerHTML = `<div class="custom-context-menu-item" id="ctx_open_location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg><span data-i18n="ctx_open_loc"></span></div>`;
+    contextMenu.innerHTML = `
+        <div class="custom-context-menu-item" id="ctx_open_location"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg><span data-i18n="ctx_open_loc"></span></div>
+        <div class="custom-context-menu-item" id="ctx_copy_cell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg><span data-i18n="ctx_copy_cell"></span></div>`;
     document.body.appendChild(contextMenu);
     let ctxTarget = null;
+    let ctxCellText = null;
+
+    const copyTextToClipboard = async (text) => {
+        if (navigator.clipboard?.writeText) {
+            try {
+                await navigator.clipboard.writeText(text);
+                return;
+            } catch (e) {}
+        }
+
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        textarea.remove();
+    };
 
     document.addEventListener('contextmenu', (e) => {
         const li = e.target.closest('.manage-list-item');
-        if (li) {
+        const rowCol = e.target.closest('.row-col');
+        if (li && rowCol) {
             const cb = li.querySelector('input[type="checkbox"]');
             if (cb && cb.dataset.path && cb.dataset.path !== "path_unknown") {
                 e.preventDefault();
                 ctxTarget = cb.dataset.path;
-                const span = contextMenu.querySelector('span');
-                span.textContent = getMsg('ctx_open_loc');
+                ctxCellText = rowCol.textContent;
+                contextMenu.querySelector('#ctx_open_location span').textContent = getMsg('ctx_open_loc');
+                contextMenu.querySelector('#ctx_copy_cell span').textContent = getMsg('ctx_copy_cell');
                 contextMenu.style.left = `${e.clientX}px`;
                 contextMenu.style.top = `${e.clientY}px`;
                 contextMenu.classList.add('show');
@@ -1119,6 +1144,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ctx_open_location').addEventListener('click', () => {
         if (window.pywebview && ctxTarget) window.pywebview.api.open_file_location(ctxTarget);
         contextMenu.classList.remove('show');
+    });
+    document.getElementById('ctx_copy_cell').addEventListener('click', async () => {
+        const text = ctxCellText;
+        contextMenu.classList.remove('show');
+        if (text !== null) await copyTextToClipboard(text);
     });
 
     initI18nKeys();

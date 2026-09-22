@@ -829,13 +829,14 @@ rule Backdoor_Win64_Winnti
 rule Backdoor_WinPE_Crysan
 {
     meta:
-        description = "Static family string cluster for Backdoor_WinPE_Crysan"
+        description = "Static Crysan string cluster excluding DcRat-specific managed clients"
         author = "PYAS Security"
-        date = "2026-09-08"
+        date = "2026-09-21"
         scope = "Windows PE samples; may also match bundled or embedded payloads"
         evidence = "rule-local signature conjunction with PE structure/import constraints; corpus provenance not embedded"
         attribution = "family label follows rule taxonomy; not independently verified by embedded provenance"
         confidence = "high"
+        refinement = "excludes samples satisfying the higher-specificity Backdoor_MSIL_DcRat conjunction"
     strings:
         $family_1 = "/c schtasks /create /f /sc onlogon /rl highest /tn \"" ascii wide
         $family_2 = "\\nuR\\noisreVtnerruC\\swodniW\\tfosorciM\\erawtfoS" ascii wide
@@ -845,7 +846,9 @@ rule Backdoor_WinPE_Crysan
         $family_6 = "input can not be null." ascii wide
         $family_7 = "(never used) type $c1" ascii wide
     condition:
-        General_WinPE_ValidPE and 3 of ($family_*)
+        General_WinPE_ValidPE and
+        not Backdoor_MSIL_DcRat and
+        3 of ($family_*)
 }
 
 rule Backdoor_WinPE_Dalatar

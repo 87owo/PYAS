@@ -1,8 +1,8 @@
 # PYAS Security
 
-**A hybrid Windows endpoint security platform powered by machine learning, YARA rules, cloud analysis, and kernel-level behavioral protection.**
-
 <div align="center">
+
+**A hybrid Windows endpoint security platform powered by machine learning, YARA rules, cloud analysis, and kernel-level behavioral protection.**
 
 [![Latest Release](https://img.shields.io/github/v/release/87owo/PYAS?display_name=tag&style=flat-square)](https://github.com/87owo/PYAS/releases/latest)
 [![GitHub Stars](https://img.shields.io/github/stars/87owo/PYAS?style=flat-square)](https://github.com/87owo/PYAS/stargazers)

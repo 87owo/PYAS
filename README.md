@@ -220,7 +220,7 @@ Actual resource usage depends on the selected scan scope, file sizes, enabled mo
 The application supports Windows shell and maintenance workflows through command-line arguments:
 
 ```text
-PYAS.exe -scan <path>          Scan a file or directory, forwarding to an existing instance
+PYAS.exe -scan <path>         Scan a file or directory, forwarding to an existing instance
 PYAS.exe -hide                Start with the main window hidden
 PYAS.exe -quit                Request the running instance to exit
 PYAS.exe -driver-unload       Unload the active filter driver

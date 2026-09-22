@@ -737,7 +737,7 @@ rule Trojan_JS_ObfuscatedLoader
         $decode_3 = "decodeURIComponent" ascii wide nocase
         $decode_4 = "unescape(" ascii wide nocase
         $dynamic_1 = "eval(" ascii wide nocase
-        $dynamic_2 = "Function(" ascii wide nocase
+        $dynamic_2 = "Function(" ascii wide
         $dynamic_3 = "constructor(" ascii wide nocase
         $anchor_1 = "ActiveXObject" ascii wide nocase
         $anchor_2 = "WScript" ascii wide nocase
@@ -747,7 +747,8 @@ rule Trojan_JS_ObfuscatedLoader
         $anchor_6 = "https://" ascii wide nocase
     condition:
         Script_Text_Reasonable and (#hex_id >= 12 or #indexed >= 40) and
-        2 of ($decode_*) and 1 of ($dynamic_*) and 2 of ($anchor_*)
+        2 of ($decode_*) and 1 of ($dynamic_*) and
+        1 of ($anchor_1, $anchor_2, $anchor_4) and 1 of ($anchor_3, $anchor_5, $anchor_6)
 }
 
 rule Trojan_VBS_ObfuscatedLoader
@@ -1143,6 +1144,10 @@ rule TrojanDownloader_PS_StagedExecution
         $exec_1 = "Start-Process" ascii wide nocase
         $exec_2 = "Invoke-Expression" ascii wide nocase
         $exec_3 = "IEX(" ascii wide nocase
+        $evasion_1 = "-ExecutionPolicy Bypass" ascii wide nocase
+        $evasion_2 = "-EncodedCommand" ascii wide nocase
+        $evasion_3 = "-enc " ascii wide nocase
+        $evasion_4 = "FromBase64String" ascii wide nocase
         $context_1 = "Start-Sleep" ascii wide nocase
         $context_2 = "WindowStyle" ascii wide nocase
         $context_3 = "$env:APPDATA" ascii wide nocase
@@ -1150,7 +1155,8 @@ rule TrojanDownloader_PS_StagedExecution
         $context_5 = "ExecutionPolicy" ascii wide nocase
     condition:
         Script_Text_Reasonable and 1 of ($client_*) and 1 of ($download_*) and
-        1 of ($remote_*) and 1 of ($exec_*) and 1 of ($context_*)
+        1 of ($remote_*) and 1 of ($context_*) and
+        (($exec_2 or $exec_3) or ($exec_1 and 1 of ($evasion_*)))
 }
 
 rule TrojanDownloader_JS_MalBehav
@@ -1194,18 +1200,17 @@ rule Trojan_JS_WSHDynamicEval
         attribution = "generic obfuscated-loader capability; not a verified malware-family attribution"
     strings:
         $host_1 = "WScript" ascii wide nocase
-        $host_2 = "WScrip" ascii wide nocase
+        $hex_id = /_0x[0-9a-fA-F]{4,}/
         $dynamic_1 = "eval(" ascii wide nocase
         $dynamic_2 = "Function(" ascii wide nocase
         $decode_1 = "fromCharCode" ascii wide nocase
         $decode_2 = "charCodeAt" ascii wide nocase
         $decode_3 = "decodeURIComponent" ascii wide nocase
-        $behavior_1 = "WScript.Shell" ascii wide nocase
+        $com = "ActiveXObject" ascii wide nocase
         $behavior_2 = "XMLHTTP" ascii wide nocase
-        $behavior_3 = "ADODB.Stream" ascii wide nocase
     condition:
-        Script_Text_Reasonable and 1 of ($host_*) and 1 of ($dynamic_*) and
-        2 of ($decode_*) and 1 of ($behavior_*)
+        Script_Text_Reasonable and $host_1 and 1 of ($dynamic_*) and
+        #hex_id >= 12 and 2 of ($decode_*) and $com and $behavior_2
 }
 
 rule Trojan_JS_TypedValue
@@ -1270,21 +1275,19 @@ rule Trojan_JS_WSHEvalLoader
         attribution = "generic WSH loader capability; not a verified malware-family attribution"
     strings:
         $host = "WScript" ascii wide nocase
+        $hex_id = /_0x[0-9a-fA-F]{4,}/
         $dynamic_1 = "eval(" ascii wide nocase
         $dynamic_2 = "Function(" ascii wide nocase
         $com_1 = "CreateObject" ascii wide nocase
         $com_2 = "ActiveXObject" ascii wide nocase
-        $behavior_1 = "WScript.Shell" ascii wide nocase
         $behavior_2 = "XMLHTTP" ascii wide nocase
-        $behavior_3 = "ADODB.Stream" ascii wide nocase
-        $behavior_4 = ".Run(" ascii wide nocase
         $obf_1 = "fromCharCode" ascii wide nocase
         $obf_2 = "charCodeAt" ascii wide nocase
         $obf_3 = "String.prototype" ascii wide nocase
         $obf_4 = "\\u00" ascii nocase
     condition:
         Script_Text_Reasonable and $host and 1 of ($dynamic_*) and 1 of ($com_*) and
-        2 of ($behavior_*) and 1 of ($obf_*)
+        #hex_id >= 12 and $behavior_2 and 1 of ($obf_*)
 }
 
 rule Trojan_JS_DOMDecoder

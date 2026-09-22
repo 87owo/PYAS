@@ -9,7 +9,7 @@
 [![GitHub Forks](https://img.shields.io/github/forks/87owo/PYAS?style=flat-square)](https://github.com/87owo/PYAS/network/members)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/87owo/PYAS)
 [![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![C++](https://img.shields.io/badge/kernel-C%2B%2B-00599C?style=flat-square&logo=cplusplus)](https://github.com/87owo/PYAS/tree/main/Plugins/Filter/PYAS_Driver)
+[![C++](https://img.shields.io/badge/kernel-C%2B%2B-00599C?style=flat-square&logo=cplusplus)](https://github.com/87owo/PYAS/tree/main/Plugins/Filter)
 
 [Website](https://pyas-security.com/antivirus) · [Online Analysis](https://pyas-security.com/analyze) · [Download](https://github.com/87owo/PYAS/releases) · [Report an Issue](https://github.com/87owo/PYAS/issues)
 
@@ -258,10 +258,10 @@ The service can be containerized with Docker Compose, but the checked-in deploym
 
 ## Python API example
 
-`Analyze/PYAS_Analyze_API.py` provides a client for the online analysis API:
+`PYAS_Cloud.py` provides a client for the online analysis API:
 
 ```python
-from Analyze.PYAS_Analyze_API import PYAS_Client
+from PYAS_Cloud import PYAS_Client
 
 client = PYAS_Client(
     api_key="YOUR_API_KEY",
@@ -278,7 +278,7 @@ Only submit files that you are authorized to upload. Samples may contain confide
 
 ## Building the driver
 
-The driver source is located in `Plugins/Filter/PYAS_Driver/` and includes a Visual Studio solution and project.
+The driver source is located in `Plugins/Filter/` and includes a Visual Studio solution and project.
 
 Typical prerequisites:
 

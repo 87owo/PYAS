@@ -374,7 +374,10 @@ class _MainMixin:
             "version": "3.7.0",
             "api_host": "https://pyas-security.com/",
             "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
-            "suffix": [".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd"],
+            "suffix": [
+                ".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd",
+                ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".wsf", ".reg", ".html", ".js", ".jse", ".jsp", ".php", ".hta", ".lnk", ".py", ".sh", ".url", ".rtf", ".ini",
+                ],
             "size": 256 * 1024 * 1024,
             "language": "english_switch",
             "theme": "system_switch",

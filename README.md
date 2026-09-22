@@ -15,7 +15,7 @@
 
 </div>
 
-![PYAS Security interface](https://github.com/user-attachments/assets/1991aad3-64cc-4266-ac67-dab70c891ce7)
+![PYAS Security interface](https://github.com/user-attachments/assets/4a7e6b52-7001-4726-96fe-a2d6ccc8e6a4)
 
 ## Overview
 

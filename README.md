@@ -305,23 +305,6 @@ The local PE engine extracts structural and statistical characteristics from Win
 
 Model performance shown by training output should not be interpreted as a universal real-world detection rate. Reproducible evaluation requires a documented dataset split, class balance, deduplication strategy, temporal holdout, false-positive analysis, and testing against previously unseen malware families.
 
-## Development and verification
-
-Run the Windows-focused unit tests with:
-
-```powershell
-python -m unittest discover -s tests -v
-```
-
-Before submitting a change:
-
-1. Keep modifications scoped to the affected protection layer.
-2. Test both successful and denied Windows API paths.
-3. Verify cleanup of handles, services, threads, temporary files, and driver ports.
-4. Exercise the UI flow in both English and Traditional Chinese.
-5. Test driver changes in a disposable VM, including unload and recovery behavior.
-6. Record the Windows build, Python version, driver-signing mode, and enabled switches.
-
 ## Security and privacy
 
 - Cloud scanning is optional; review the active configuration before analyzing confidential files.

@@ -387,6 +387,7 @@
                 "*\\bin\\codex.exe",
                 "*\\Weixin\\Weixin.exe",
                 "*\\Audacity\\Audacity.exe",
+                "*\\Blender\\blender.exe",
             ],
             "Target": [
                 "\\Device\\HarddiskVolume*\\Users\\*",
@@ -416,6 +417,7 @@
                 "*\\nt_qq\\nt_*\\*",
                 "*\\nt_qq\\global\\nt_*\\*",
                 "\\Device\\HarddiskVolume*\\Users\\*\\Documents\\Tencent Files\\*",
+                "\\Device\\HarddiskVolume*\\Users\\*\\.thumbnails\\large\\*.png",
             ],
             "Extensions": [
                 ".zip",

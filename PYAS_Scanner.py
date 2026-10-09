@@ -1,11 +1,18 @@
-import os, gc, json, time, stat, threading
-import ctypes, ctypes.wintypes
-
+from PYAS_Diagnostics import log_exception
+from PYAS_Diagnostics import observe_future, exception_sequence
+import os
+import json
+import time
+import stat
+import threading
+from itertools import islice
+import ctypes
+import ctypes.wintypes
 from PYAS_Tools import MEMORY_BASIC_INFORMATION
+from PYAS_Cloud import CloudQueueMixin
 
-####################################################################################################
 
-class ScannerMixin:
+class ScannerMixin(CloudQueueMixin):
     def init_engine_thread(self):
         try:
             self.start_daemon_thread(self.backup_mbr)
@@ -23,8 +30,9 @@ class ScannerMixin:
             if "-scan" in self.args_pyas:
                 try:
                     idx = self.args_pyas.index("-scan")
-                    self.trigger_context_scan(self.args_pyas[idx+1])
+                    self.trigger_context_scan(self.args_pyas[idx + 1])
                 except Exception:
+                    log_exception("PYAS_Scanner.ScannerMixin.init_engine_thread:31")
                     pass
 
             with self.lock_config:
@@ -34,40 +42,61 @@ class ScannerMixin:
                 autostart_enabled = self.pyas_config.get("autostart_switch", True)
 
             self.register_context_menu(context_enabled)
-            self.manage_autostart(autostart_enabled)
+
+            with self.lock_update:
+                with self.lock_config:
+                    autostart_enabled = self.pyas_config.get("autostart_switch", True)
+
+                if not self.manage_autostart(autostart_enabled) and autostart_enabled:
+                    with self.lock_config:
+                        self.pyas_config["autostart_switch"] = False
+                        self.save_config()
+
+                    self.ui_queue.put(
+                        "(()=>{const ats=document.querySelector('[data-config-key=autostart_switch]');if(ats)ats.checked=false;})();"
+                    )
 
             if not first_launch:
                 with self.lock_config:
                     if self.pyas_config.get("process_switch"):
-                        self.start_daemon_thread(self.protect_proc_thread)
+                        self.start_feature_thread(self.protect_proc_thread, "process_switch")
+
                     if self.pyas_config.get("document_switch"):
-                        self.start_daemon_thread(self.protect_file_thread)
+                        self.start_feature_thread(self.protect_file_thread, "document_switch")
+
                     if self.pyas_config.get("system_switch"):
-                        self.start_daemon_thread(self.protect_system_thread)
+                        self.start_feature_thread(self.protect_system_thread, "system_switch")
+
                     if self.pyas_config.get("network_switch"):
-                        self.start_daemon_thread(self.protect_net_thread)
+                        self.start_feature_thread(self.protect_net_thread, "network_switch")
 
                 if driver_enabled:
                     if self.install_system_driver() and self.start_driver_listener(wait_ready=True):
                         pass
                     else:
                         self.stop_system_driver()
+
                         with self.lock_config:
                             self.pyas_config["driver_switch"] = False
                             self.save_config()
 
-                        self.write_log("WARN", "System", detail="Driver Protection Failed to Start", success=False)
+                        self.write_log(
+                            "WARN",
+                            "System",
+                            detail="Driver Protection Failed to Start",
+                            success=False,
+                        )
 
         except Exception as e:
+            log_exception("PYAS_Scanner.ScannerMixin.init_engine_thread:72")
             self.write_log("WARN", "init_engine_thread", detail=str(e), success=False)
-
-####################################################################################################
 
     def yield_files(self, targets):
         if isinstance(targets, str):
             if os.path.isdir(targets):
                 for root, dirs, files in os.walk(targets):
                     dirs[:] = [d for d in dirs if not self._is_reparse_point(os.path.join(root, d))]
+
                     for f in files:
                         yield self.norm_path(os.path.join(root, f)), False
 
@@ -82,15 +111,15 @@ class ScannerMixin:
         try:
             if os.path.islink(path):
                 return True
-            if hasattr(os.path, 'isjunction') and os.path.isjunction(path):
+
+            if hasattr(os.path, "isjunction") and os.path.isjunction(path):
                 return True
 
             st = os.lstat(path)
-            return bool(getattr(st, 'st_file_attributes', 0) & 0x400)
+            return bool(getattr(st, "st_file_attributes", 0) & 0x400)
         except OSError:
+            log_exception("PYAS_Scanner.ScannerMixin._is_reparse_point:101")
             return False
-
-####################################################################################################
 
     def scan_engine(self, file_path):
         with self.lock_config:
@@ -99,72 +128,122 @@ class ScannerMixin:
 
         try:
             pe_label, _ = self.properties.pe_scan(file_path, enhanced_mode=sen_switch)
+
             if pe_label:
                 return pe_label
         except Exception:
+            log_exception("PYAS_Scanner.ScannerMixin.scan_engine:115")
             pass
 
         try:
             if ext_switch:
                 yara_label, _ = self.heuristic.yara_scan(file_path)
+
                 if yara_label:
                     return yara_label
         except Exception:
+            log_exception("PYAS_Scanner.ScannerMixin.scan_engine:123")
             pass
 
         return False
 
     def safe_scan_engine(self, file_path):
         norm_path = self.norm_path(file_path)
+
         if not norm_path:
             return False
 
-        file_hash = self.calc_file_hash(norm_path)
-        cache_key = file_hash if file_hash else os.path.normcase(norm_path)
+        gate, error = self._acquire_file_scan_gate(norm_path)
 
-        with self.lock_file_ops:
-            if cache_key in self.hash_cache:
-                return self.hash_cache[cache_key]
-
-            if cache_key in self.scan_events:
-                event = self.scan_events[cache_key]
-                needs_scan = False
-            else:
-                event = threading.Event()
-                self.scan_events[cache_key] = event
-                needs_scan = True
-
-        if not needs_scan:
-            event.wait(timeout=60)
-            with self.lock_file_ops:
-                return self.hash_cache.get(cache_key, False)
+        if not gate:
+            self.write_log("WARN", "Scan Deferred", source=norm_path, code=error, success=False)
+            self._schedule_file_task("verify", norm_path, self._retry_verified_scan, 0.5)
+            return self.scan_engine(norm_path)
 
         try:
-            result = self.scan_engine(norm_path)
+            file_hash = self.calc_file_hash(norm_path)
+
+            if not file_hash:
+                return self.scan_engine(norm_path)
+
+            with self.lock_config:
+                policy = (
+                    bool(self.pyas_config.get("extension_switch", False)),
+                    bool(self.pyas_config.get("sensitive_switch", False)),
+                )
+
+            cache_key = (file_hash, policy)
+
             with self.lock_file_ops:
-                if len(self.hash_cache) > 10000:
-                    for k in list(self.hash_cache.keys())[:1000]:
-                        del self.hash_cache[k]
+                if cache_key in self.hash_cache:
+                    return self.hash_cache[cache_key]
 
-                self.hash_cache[cache_key] = result
-            return result
+                event = self.scan_events.get(cache_key)
+                needs_scan = event is None
 
+                if needs_scan:
+                    event = threading.Event()
+                    self.scan_events[cache_key] = event
+
+            if not needs_scan:
+                event.wait(timeout=60)
+
+                with self.lock_file_ops:
+                    if cache_key in self.hash_cache:
+                        return self.hash_cache[cache_key]
+
+                return self.scan_engine(norm_path)
+
+            try:
+                before_exceptions = exception_sequence()
+                result = self.scan_engine(norm_path)
+                scan_succeeded = exception_sequence() == before_exceptions
+
+                with self.lock_config:
+                    current_policy = (
+                        bool(self.pyas_config.get("extension_switch", False)),
+                        bool(self.pyas_config.get("sensitive_switch", False)),
+                    )
+
+                if scan_succeeded and current_policy == policy:
+                    with self.lock_file_ops:
+                        if len(self.hash_cache) >= 100000:
+                            for key in list(islice(self.hash_cache, 10000)):
+                                del self.hash_cache[key]
+
+                        self.hash_cache[cache_key] = result
+
+                return result
+            finally:
+                with self.lock_file_ops:
+                    self.scan_events.pop(cache_key, None)
+                    event.set()
         finally:
-            with self.lock_file_ops:
-                if cache_key in self.scan_events:
-                    self.scan_events[cache_key].set()
-                    del self.scan_events[cache_key]
+            self.kernel32.CloseHandle(gate)
 
-            gc.collect()
+    def _retry_verified_scan(self, file_path):
+        if self.closing or not os.path.isfile(file_path):
+            return
 
-####################################################################################################
+        result = self.safe_scan_engine(file_path)
+
+        if result:
+            self.manage_named_list(
+                "quarantine", [file_path], action="add", lock_func=self.lock_file
+            )
+            self.write_log(
+                "BLOCK",
+                "Deferred Scan Block",
+                source=file_path,
+                file_hash=self.calc_file_hash(file_path),
+            )
 
     def _scan_result_messages(self, count=None, scanned=None, elapsed=None):
         if count is None or scanned is None or elapsed is None:
             with self.lock_virus:
-                count = len(getattr(self, 'virus_results', [])) if count is None else count
-                scanned = getattr(self, 'scan_count', 0) if scanned is None else scanned
-                scan_start = getattr(self, 'scan_start', time.time())
+                count = len(getattr(self, "virus_results", [])) if count is None else count
+                scanned = getattr(self, "scan_count", 0) if scanned is None else scanned
+                scan_start = getattr(self, "scan_start", time.time())
                 elapsed = int(time.time() - scan_start) if elapsed is None else elapsed
 
         return {
@@ -178,18 +257,18 @@ class ScannerMixin:
             "hindi_switch": f"{count} वायरस मिले, {scanned} फ़ाइलें स्कैन की गईं, समय {elapsed}s",
             "arabic_switch": f"تم العثور على {count} فيروسات، تم فحص {scanned} ملفات، الوقت {elapsed} ثانية",
             "russian_switch": f"Найдено {count} вирусов, проверено {scanned} файлов, время {elapsed}с",
-            "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s"
+            "slovenian_switch": f"Najdenih {count} virusov, skeniranih {scanned} datotek, čas {elapsed}s",
         }
 
     def _is_scan_cancel_requested(self):
         with self.lock_virus:
-            return getattr(self, 'scan_stop_requested', False)
+            return getattr(self, "scan_stop_requested", False)
 
     def _finish_scan_cancelled(self, messages=None):
         with self.lock_virus:
-            count = len(getattr(self, 'virus_results', []))
-            scanned = getattr(self, 'scan_count', 0)
-            scan_start = getattr(self, 'scan_start', time.time())
+            count = len(getattr(self, "virus_results", []))
+            scanned = getattr(self, "scan_count", 0)
+            scan_start = getattr(self, "scan_start", time.time())
             elapsed = int(time.time() - scan_start)
             self.scan_running = False
             self.scan_preparing = False
@@ -206,7 +285,7 @@ class ScannerMixin:
 
     def _begin_scan_preparation(self):
         with self.lock_virus:
-            if getattr(self, 'scan_running', False) or getattr(self, 'scan_preparing', False):
+            if getattr(self, "scan_running", False) or getattr(self, "scan_preparing", False):
                 return False
 
             self.scan_preparing = True
@@ -219,10 +298,12 @@ class ScannerMixin:
 
     def start_scan(self, targets, from_preparing=False):
         with self.lock_virus:
-            if getattr(self, 'scan_running', False) or (getattr(self, 'scan_preparing', False) and not from_preparing):
+            if getattr(self, "scan_running", False) or (
+                getattr(self, "scan_preparing", False) and not from_preparing
+            ):
                 return False
 
-            if getattr(self, 'scan_stop_requested', False):
+            if getattr(self, "scan_stop_requested", False):
                 self.scan_running = False
                 self.scan_preparing = False
                 self.scan_finished = True
@@ -236,22 +317,37 @@ class ScannerMixin:
             self.scan_count = 0
             self.scan_start = time.time()
 
-        self.scan_pool.submit(self.scan_worker, targets)
-        return True
+        try:
+            observe_future(
+                self.scan_pool.submit(self.scan_worker, targets), "ScannerMixin.scan_worker"
+            )
+            return True
+        except Exception:
+            log_exception("PYAS_Scanner.ScannerMixin.start_scan:253")
+
+            with self.lock_virus:
+                self.scan_running = False
+                self.scan_preparing = False
+                self.scan_finished = True
+
+            return False
 
     def scan_worker(self, targets):
         last_update = 0.0
+
         try:
             for file_path, is_explicit in self.yield_files(targets):
                 with self.lock_virus:
-                    if not self.scan_running or getattr(self, 'scan_stop_requested', False):
+                    if not self.scan_running or getattr(self, "scan_stop_requested", False):
                         break
 
                 norm_path = self.norm_path(file_path)
+
                 if not norm_path:
                     continue
 
                 current_time = time.time()
+
                 if current_time - last_update >= 0.05:
                     if self._window:
                         js_cmd = f"if(window.updateScanProgress) window.updateScanProgress({json.dumps(norm_path.replace(os.sep, '/'))});"
@@ -260,6 +356,7 @@ class ScannerMixin:
                     last_update = current_time
 
                 was_locked = False
+
                 try:
                     with self.lock_file_ops:
                         if norm_path in self.virus_lock:
@@ -270,35 +367,49 @@ class ScannerMixin:
                         continue
 
                     with self.lock_virus:
-                        if not self.scan_running or getattr(self, 'scan_stop_requested', False):
+                        if not self.scan_running or getattr(self, "scan_stop_requested", False):
                             break
+
                         self.scan_count += 1
 
                     with self.lock_config:
                         ext_filter = self.pyas_config.get("suffix_switch", True)
                         suffix = self.pyas_config.get("suffix", [])
 
-                    if not is_explicit and ext_filter and os.path.splitext(norm_path)[-1].lower() not in suffix:
+                    if (
+                        not is_explicit
+                        and ext_filter
+                        and os.path.splitext(norm_path)[-1].lower() not in suffix
+                    ):
                         continue
 
                     result = self.safe_scan_engine(norm_path)
+
                     with self.lock_virus:
-                        if not self.scan_running or getattr(self, 'scan_stop_requested', False):
+                        if not self.scan_running or getattr(self, "scan_stop_requested", False):
                             break
 
                     if result:
                         with self.lock_virus:
                             self.virus_results.append(norm_path)
 
-                        if self._window: 
+                        if self._window:
                             js_cmd = f"if(window.addVirusResult) window.addVirusResult({json.dumps(result)}, {json.dumps(norm_path.replace(os.sep, '/'))});"
                             self.ui_queue.put(js_cmd)
 
-                        self.write_log("SCAN", "Virus Detected", source=norm_path, file_hash=self.calc_file_hash(norm_path))
+                        self.write_log(
+                            "SCAN",
+                            "Virus Detected",
+                            source=norm_path,
+                            file_hash=self.calc_file_hash(norm_path),
+                        )
 
                     self.cloud_check(norm_path)
                 except Exception as e:
-                    self.write_log("WARN", "Scan Engine", source=norm_path, detail=str(e), success=False)
+                    log_exception("PYAS_Scanner.ScannerMixin.scan_worker:318")
+                    self.write_log(
+                        "WARN", "Scan Engine", source=norm_path, detail=str(e), success=False
+                    )
 
                 finally:
                     if was_locked:
@@ -306,30 +417,36 @@ class ScannerMixin:
 
         finally:
             with self.lock_virus:
-                cancelled = getattr(self, 'scan_stop_requested', False)
+                cancelled = getattr(self, "scan_stop_requested", False)
                 self.scan_running = False
                 self.scan_preparing = False
                 self.scan_finished = True
                 self.scan_stop_requested = False
-                count, scanned, elapsed = len(self.virus_results), self.scan_count, int(time.time() - self.scan_start)
+                count, scanned, elapsed = (
+                    len(self.virus_results),
+                    self.scan_count,
+                    int(time.time() - self.scan_start),
+                )
 
             messages = self._scan_result_messages(count, scanned, elapsed)
             log_detail = f"Found {count} viruses, scanned {scanned} files, time {elapsed}s"
 
             if self._window:
-                js_cmd = f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});"
+                js_cmd = (
+                    f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {count});"
+                )
                 self.ui_queue.put(js_cmd)
 
             self.write_log("INFO", "Scan Completed", detail=log_detail)
 
-####################################################################################################
-
     def stop_scan(self):
         with self.lock_virus:
-            active = getattr(self, 'scan_running', False) or getattr(self, 'scan_preparing', False)
+            active = getattr(self, "scan_running", False) or getattr(self, "scan_preparing", False)
+
             if active:
                 self.scan_stop_requested = True
                 self.scan_running = False
+
             return active
 
     def trigger_scan(self, method):
@@ -345,6 +462,7 @@ class ScannerMixin:
                         return self._finish_scan_cancelled()
 
                     fp = os.path.join(self.path_user, folder)
+
                     if os.path.exists(fp):
                         targets.append(fp)
 
@@ -362,32 +480,51 @@ class ScannerMixin:
                     if self._is_scan_cancel_requested():
                         return self._finish_scan_cancelled()
 
-                    if proc["path"] and proc["path"] != "None": 
+                    if proc["path"] and proc["path"] != "None":
                         targets.append(proc["path"])
 
                     pid = proc["pid"]
+
                     if pid <= 4:
                         continue
 
                     h_process = self.kernel32.OpenProcess(0x1000, False, pid)
+
                     if h_process:
                         try:
                             address = 0
                             mbi = MEMORY_BASIC_INFORMATION()
-                            while address < max_address and not self._is_scan_cancel_requested() and self.kernel32.VirtualQueryEx(h_process, ctypes.c_void_p(address), ctypes.byref(mbi), ctypes.sizeof(mbi)):
+
+                            while (
+                                address < max_address
+                                and not self._is_scan_cancel_requested()
+                                and self.kernel32.VirtualQueryEx(
+                                    h_process,
+                                    ctypes.c_void_p(address),
+                                    ctypes.byref(mbi),
+                                    ctypes.sizeof(mbi),
+                                )
+                            ):
 
                                 if mbi.State == 0x1000 and mbi.Type == 0x1000000:
-                                    if self.psapi.GetMappedFileNameW(h_process, ctypes.c_void_p(address), buf, 1024):
+                                    if self.psapi.GetMappedFileNameW(
+                                        h_process, ctypes.c_void_p(address), buf, 1024
+                                    ):
                                         raw_path = buf.value
+
                                         if raw_path.startswith("\\"):
                                             raw_path = self.device_path_to_drive(raw_path)
 
                                         file_path = self.norm_path(raw_path)
-                                        if file_path and not file_path.lower().startswith(system_dir):
+
+                                        if file_path and not file_path.lower().startswith(
+                                            system_dir
+                                        ):
                                             targets.append(file_path)
 
                                 if mbi.RegionSize == 0:
                                     break
+
                                 address += mbi.RegionSize
                         finally:
                             self.kernel32.CloseHandle(h_process)
@@ -402,107 +539,143 @@ class ScannerMixin:
 
             elif method == "file":
                 targets = self.select_files()
+
                 if self._is_scan_cancel_requested():
                     return self._finish_scan_cancelled()
 
                 if targets:
                     if not self.start_scan(targets, from_preparing=True):
                         return self._finish_scan_cancelled()
+
                     return True
 
                 return self._finish_scan_cancelled()
 
             elif method == "path":
                 targets = self.select_folder()
+
                 if self._is_scan_cancel_requested():
                     return self._finish_scan_cancelled()
 
                 if targets:
                     if not self.start_scan(targets, from_preparing=True):
                         return self._finish_scan_cancelled()
+
                     return True
 
                 return self._finish_scan_cancelled()
 
             elif method == "full":
                 targets = [f"{chr(d)}:/" for d in range(65, 91) if os.path.exists(f"{chr(d)}:/")]
-                if self._is_scan_cancel_requested() or not self.start_scan(targets, from_preparing=True):
+
+                if self._is_scan_cancel_requested() or not self.start_scan(
+                    targets, from_preparing=True
+                ):
                     return self._finish_scan_cancelled()
+
                 return True
 
             return self._finish_scan_cancelled()
 
         except Exception as e:
+            log_exception("PYAS_Scanner.ScannerMixin.trigger_scan:453")
             self.write_log("WARN", "trigger_scan", detail=str(e), success=False)
             return self._finish_scan_cancelled()
-
-####################################################################################################
 
     def _queue_virus_delete(self, file_path):
         self._schedule_file_task("delete", file_path, self._retry_virus_delete, 0.5)
 
     def _retry_virus_delete(self, file_path):
         file_hash = self.calc_file_hash(file_path)
+
         try:
             with self.lock_file_ops:
                 if file_path in self.virus_lock:
                     self.lock_file(file_path, False)
 
             target_key = os.path.normcase(self.norm_path(file_path, must_exist=False) or file_path)
+
             for proc in self.get_process_list():
                 proc_path = proc.get("path")
+
                 if not proc_path or proc_path == "None":
                     continue
-                proc_key = os.path.normcase(self.norm_path(proc_path, must_exist=False) or proc_path)
+
+                proc_key = os.path.normcase(
+                    self.norm_path(proc_path, must_exist=False) or proc_path
+                )
+
                 if proc_key == target_key:
-                    self.kill_process(proc["pid"])
+                    self.kill_process(proc["pid"], expected_path=file_path)
 
             try:
                 os.chmod(file_path, stat.S_IWRITE)
             except Exception:
+                log_exception("PYAS_Scanner.ScannerMixin._retry_virus_delete:480")
                 pass
+
             os.remove(file_path)
 
         except FileNotFoundError:
             pass
         except Exception as e:
+            log_exception("PYAS_Scanner.ScannerMixin._retry_virus_delete:486")
             self.lock_file(file_path, True, quiet=True)
             self._queue_virus_delete(file_path)
             self.write_log("INFO", "Virus Delete Deferred", source=file_path, detail=str(e))
             return
 
         self.remove_list_items("quarantine", [file_path])
+
         with self.lock_virus:
             target_key = os.path.normcase(self.norm_path(file_path, must_exist=False) or file_path)
             self.virus_results = [
-                result for result in self.virus_results
-                if os.path.normcase(self.norm_path(result, must_exist=False) or result) != target_key
+                result
+                for result in self.virus_results
+                if os.path.normcase(self.norm_path(result, must_exist=False) or result)
+                != target_key
             ]
-        self.write_log("INFO", "Virus Delete", source=file_path, file_hash=file_hash, operate=True, success=True)
+
+        self.write_log(
+            "INFO",
+            "Virus Delete",
+            source=file_path,
+            file_hash=file_hash,
+            operate=True,
+            success=True,
+        )
 
     def solve_scan(self, file_paths):
         deleted_paths = []
         proc_map = {}
+
         for proc in self.get_process_list():
             if proc["path"] and proc["path"] != "None":
 
                 norm_p = self.norm_path(proc["path"], must_exist=False)
+
                 if norm_p:
                     proc_map.setdefault(os.path.normcase(norm_p), []).append(proc["pid"])
 
         last_update = 0.0
+
         with self.lock_virus:
             deleted_set = set()
+
             for raw_path in file_paths:
 
                 path = self.norm_path(raw_path, must_exist=False)
+
                 if not path:
                     continue
 
                 current_time = time.time()
+
                 if current_time - last_update >= 0.05:
                     if self._window:
-                        self._window.evaluate_js(f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});")
+                        self._window.evaluate_js(
+                            f"if(window.updateDeleteProgress) window.updateDeleteProgress({json.dumps(path.replace(os.sep, '/'))});"
+                        )
 
                     last_update = current_time
 
@@ -511,19 +684,23 @@ class ScannerMixin:
                         self.lock_file(path, False)
 
                     path_key = os.path.normcase(path)
+
                     if path_key in proc_map:
                         for pid in proc_map[path_key]:
-                            self.kill_process(pid)
+                            self.kill_process(pid, expected_path=path)
 
                     try:
                         os.chmod(path, stat.S_IWRITE)
                     except Exception:
+                        log_exception("PYAS_Scanner.ScannerMixin.solve_scan:538")
                         pass
 
                     file_hash = self.calc_file_hash(path)
+
                     try:
                         os.remove(path)
                     except Exception as e:
+                        log_exception("PYAS_Scanner.ScannerMixin.solve_scan:544")
                         self.lock_file(path, True, quiet=True)
                         self._queue_virus_delete(path)
                         self.write_log("INFO", "Virus Delete Deferred", source=path, detail=str(e))
@@ -532,11 +709,27 @@ class ScannerMixin:
                     self.remove_list_items("quarantine", [path])
                     deleted_paths.append(raw_path)
                     deleted_set.add(path)
-                    self.write_log("INFO", "Virus Delete", source=path, file_hash=file_hash, operate=True, success=True)
+                    self.write_log(
+                        "INFO",
+                        "Virus Delete",
+                        source=path,
+                        file_hash=file_hash,
+                        operate=True,
+                        success=True,
+                    )
 
                 except Exception as e:
+                    log_exception("PYAS_Scanner.ScannerMixin.solve_scan:555")
                     self.lock_file(path, True)
-                    self.write_log("SCAN", "Virus Delete", source=path, file_hash=self.calc_file_hash(path), detail=str(e), operate=True, success=False)
+                    self.write_log(
+                        "SCAN",
+                        "Virus Delete",
+                        source=path,
+                        file_hash=self.calc_file_hash(path),
+                        detail=str(e),
+                        operate=True,
+                        success=False,
+                    )
 
             if deleted_set:
                 self.virus_results = [p for p in self.virus_results if p not in deleted_set]
@@ -554,10 +747,13 @@ class ScannerMixin:
             "hindi_switch": f"शेष वायरस {remaining}, हटाए गए फ़ाइलें {len(deleted_paths)}.",
             "arabic_switch": f"الفيروسات المتبقية {remaining}، تم حذف {len(deleted_paths)} ملفات.",
             "russian_switch": f"Осталось вирусов: {remaining}, удалено файлов: {len(deleted_paths)}.",
-            "slovenian_switch": f"Preostalih virusov: {remaining}, izbrisanih datotek: {len(deleted_paths)}."
+            "slovenian_switch": f"Preostalih virusov: {remaining}, izbrisanih datotek: {len(deleted_paths)}.",
         }
+
         if self._window:
-            self._window.evaluate_js(f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {remaining});")
+            self._window.evaluate_js(
+                f"if(window.finishScan) window.finishScan({json.dumps(messages)}, {remaining});"
+            )
 
         return deleted_paths
 
@@ -566,77 +762,3 @@ class ScannerMixin:
             norm_paths = set(self.norm_path(p, must_exist=False) for p in paths)
             self.virus_results = [p for p in self.virus_results if p not in norm_paths]
             return len(self.virus_results)
-
-####################################################################################################
-
-    def cloud_check(self, file_path):
-        norm_path = self.norm_path(file_path)
-        if not norm_path:
-            return
-
-        cache_key = os.path.normcase(norm_path)
-        with self.lock_file_ops:
-            if cache_key in self.cloud_pending:
-                return
-
-            self.cloud_pending.add(cache_key)
-
-        self.cloud_queue.put(norm_path)
-
-    def cloud_worker(self):
-        while True:
-            try:
-                file_path = self.cloud_queue.get()
-                cache_key = os.path.normcase(file_path)
-
-                try:
-                    self.perform_cloud_scan(file_path)
-                finally:
-                    with self.lock_file_ops:
-                        self.cloud_pending.discard(cache_key)
-
-                    self.cloud_queue.task_done()
-            except Exception:
-                pass
-
-    def perform_cloud_scan(self, file_path):
-        was_locked = False
-        try:
-            with self.lock_config:
-                if not self.pyas_config.get("cloud_switch", True):
-                    return False
-
-                api_host, api_key, max_size = self.pyas_config.get("api_host"), self.pyas_config.get("api_key"), self.pyas_config.get("size", 256 * 1024 * 1024)
-
-            if not os.path.exists(file_path) or not os.path.isfile(file_path):
-                return False
-
-            with self.lock_file_ops:
-                if file_path in self.virus_lock:
-                    self.lock_file(file_path, False)
-                    was_locked = True
-
-            if os.path.getsize(file_path) > max_size:
-                if was_locked:
-                    self.lock_file(file_path, True)
-                return False
-
-            file_hash = self.calc_file_hash(file_path)
-            success, sha256 = self.cloud.upload_file(file_path, api_host, api_key, file_hash=file_hash)
-            if was_locked:
-                self.lock_file(file_path, True)
-                was_locked = False
-
-            if not success:
-                self.write_log("WARN", "Cloud API", source=file_path, detail="Failed", success=False)
-
-        except Exception as e:
-            self.write_log("WARN", "perform_cloud_scan", detail=str(e), success=False)
-
-        finally:
-            if was_locked:
-                try:
-                    self.lock_file(file_path, True)
-                except Exception:
-                    pass
-        return False

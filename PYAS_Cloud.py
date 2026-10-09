@@ -1,248 +1,309 @@
-import os, time, uuid, logging, requests, hashlib
+from PYAS_Diagnostics import log_exception
+import os
+import time
+import threading
+import requests
 
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Union
-from concurrent.futures import ThreadPoolExecutor
 
-####################################################################################################
+class CloudScanner:
+    def __init__(self):
+        self.api_host = None
+        self.api_key = None
+        self.timeout = 30
 
-class PYAS_Client:
-    def __init__(self, api_key: str, hosts: Union[str, List[str]], timeout: int = 30):
-        self.timeout = timeout
-        self.logger = logging.getLogger("PYAS_API")
-        self.session = requests.Session()
-        self.session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-API/1.1"})
-        
-        if isinstance(hosts, str):
-            self.base_url = hosts.rstrip('/')
-        else:
-            self.base_url = self._get_fastest_host(hosts)
+        self.lock = threading.RLock()
+        self.local = threading.local()
 
-        self.logger.info(f"Initialized PYAS API Client targeting {self.base_url}")
+    def _get_session(self, api_host, api_key):
+        if (
+            not hasattr(self.local, "session")
+            or getattr(self.local, "host", None) != api_host
+            or getattr(self.local, "key", None) != api_key
+        ):
+            previous = getattr(self.local, "session", None)
 
-    def _get_fastest_host(self, hosts: List[str]) -> str:
-        def ping(host: str):
-            url = host.rstrip('/')
-            try:
-                start = time.perf_counter()
-                r = self.session.head(url, timeout=3)
-                if r.status_code < 500:
-                    return url, time.perf_counter() - start
-            except Exception:
-                pass
-            return url, float('inf')
+            if previous is not None:
+                previous.close()
 
-        self.logger.info("Testing host latencies...")
-        with ThreadPoolExecutor(max_workers=min(len(hosts), 10)) as executor:
-            results = list(executor.map(ping, hosts))
+            session = requests.Session()
+            session.headers.update({"X-API-Key": api_key, "User-Agent": "PYAS-Engine/1.1"})
+            self.local.session = session
+            self.local.host = api_host
+            self.local.key = api_key
 
-        valid_results = []
-        for url, latency in results:
-            if latency != float('inf'):
-                self.logger.info(f"Host: {url} -> {latency:.4f}s")
-                valid_results.append((url, latency))
-            else:
-                self.logger.warning(f"Host: {url} -> Timeout/Error")
-        
-        if not valid_results:
-            self.logger.warning("All host latency tests failed. Falling back to the first host.")
-            return hosts[0].rstrip('/')
-            
-        best_host, best_time = min(valid_results, key=lambda x: x[1])
-        self.logger.info(f"Selected fastest host: {best_host} ({best_time:.4f}s)")
-        return best_host
+        return self.local.session
 
-    def _request(self, method: str, endpoint: str, **kwargs) -> Optional[requests.Response]:
-        self.logger.debug(f"Request: {method} {endpoint}")
+    def _request(self, method, endpoint, api_host, api_key, **kwargs):
+        session = self._get_session(api_host, api_key)
+
         try:
-            r = self.session.request(method, f"{self.base_url}{endpoint}", timeout=self.timeout, **kwargs)
+            r = session.request(method, f"{api_host}{endpoint}", timeout=self.timeout, **kwargs)
+
             if r.status_code == 200:
                 return r
 
-            error_map = {401: "API Key invalid", 402: "Insufficient points", 404: "Not found", 413: "Payload too large", 500: "Server Error"}
-            self.logger.error(f"[{endpoint}] Failed: {error_map.get(r.status_code, f'HTTP {r.status_code}')}")
-            
-            if 400 <= r.status_code < 500:
-                setattr(r, 'is_fatal', True)
-                return r
+        except Exception:
+            log_exception("PYAS_Cloud.CloudScanner._request:31")
+            pass
 
-        except Exception as e:
-            self.logger.error(f"Connection error: {e}")
         return None
 
-####################################################################################################
+    def rescan(self, sha256, api_host, api_key):
+        r = self._request("POST", f"/api/rescan/{sha256}", api_host, api_key)
+        return r is not None and r.json().get("status") == "success"
 
-    def _calculate_sha256(self, path: Path) -> str:
-        self.logger.debug(f"Calculating SHA256 for {path}")
-        sha256_hash = hashlib.sha256()
+    def upload_file(
+        self,
+        file_path,
+        api_host,
+        api_key,
+        chunk_size=4194304,
+        need_rescan=False,
+        max_retries=3,
+        file_hash=None,
+        cancel_event=None,
+    ):
+        try:
+            sha256 = file_hash
+            cancel_event = cancel_event or threading.Event()
 
-        with open(path, "rb") as f:
-            for byte_block in iter(lambda: f.read(1048576), b""):
-                sha256_hash.update(byte_block)
+            if cancel_event.is_set() or not sha256:
+                return False, None
 
-        return sha256_hash.hexdigest()
+            status_req = self._request("GET", f"/api/processing_status/{sha256}", api_host, api_key)
 
-    def upload_file(self, file_path: str, chunk_size: int = 4194304, max_retries: int = 3) -> Optional[str]:
-        path = Path(file_path)
-        if not path.exists():
-            self.logger.error(f"File not found: {file_path}")
-            return None
-        
-        file_size = path.stat().st_size
-        self.logger.info(f"Initiating unified chunked upload for {path.name} ({file_size} bytes)")
+            if cancel_event.is_set():
+                return False, sha256
 
-        if file_size > 268435456:
-            self.logger.error(f"File size exceeds 256MB limit: {file_size} bytes")
-            return None
+            if status_req:
+                current_status = status_req.json().get("status")
 
-        local_sha256 = self._calculate_sha256(path)
-        status_req = self._request("GET", f"/api/processing_status/{local_sha256}")
-        
-        if status_req and status_req.status_code == 200:
-            if status_req.json().get('status') in ['done', 'processing', 'queued']:
-                self.logger.info(f"File already exists or processing on server: {local_sha256}")
-                return local_sha256
+                if current_status == "done":
+                    if need_rescan:
+                        self.rescan(sha256, api_host, api_key)
 
-        return self._upload_chunked(path, chunk_size, file_size, max_retries)
+                    return True, sha256
 
-####################################################################################################
+                elif current_status in ("queued", "processing"):
+                    return True, sha256
 
-    def _upload_chunked(self, path: Path, chunk_size: int, file_size: int, max_retries: int = 3) -> Optional[str]:
-        total_chunks = max(1, (file_size + chunk_size - 1) // chunk_size)
-        upload_id = uuid.uuid4().hex
-        self.logger.info(f"Starting chunked upload for {path.name} (Chunks: {total_chunks}, ID: {upload_id})")
-        
-        with open(path, 'rb') as f:
-            for i in range(total_chunks):
-                chunk_data = f.read(chunk_size)
-                headers = {
-                    "X-Chunk-Index": str(i), 
-                    "X-Total-Chunks": str(total_chunks), 
-                    "X-Upload-ID": upload_id
-                }
-                
-                chunk_success = False
-                for attempt in range(max_retries):
-                    r = self._request("POST", "/api/upload", files={'file': (path.name, chunk_data)}, headers=headers)
-                    
-                    if r and r.status_code == 200:
-                        chunk_success = True
-                        self.logger.debug(f"Uploaded chunk {i + 1}/{total_chunks}")
+            file_size = os.path.getsize(file_path)
 
-                        if i == total_chunks - 1:
-                            try:
-                                return r.json().get('url', '').split('/')[-1] or None
-                            except Exception as e:
-                                self.logger.error(f"Failed to parse final chunk response: {e}")
-                                return None
+            if file_size > 104857600:
+                return False, sha256
+
+            total_chunks = max(1, (file_size + chunk_size - 1) // chunk_size)
+            upload_id = os.urandom(16).hex()
+
+            with open(file_path, "rb") as f:
+                for i in range(total_chunks):
+                    if cancel_event.is_set():
+                        return False, sha256
+
+                    chunk_data = f.read(chunk_size)
+                    headers = {
+                        "X-Chunk-Index": str(i),
+                        "X-Total-Chunks": str(total_chunks),
+                        "X-Upload-ID": upload_id,
+                    }
+
+                    chunk_success = False
+
+                    for attempt in range(max_retries):
+                        if cancel_event.is_set():
+                            return False, sha256
+
+                        r = self._request(
+                            "POST",
+                            "/api/upload",
+                            api_host,
+                            api_key,
+                            files={"file": (os.path.basename(file_path), chunk_data)},
+                            headers=headers,
+                        )
+
+                        if cancel_event.is_set():
+                            return False, sha256
+
+                        if r:
+                            if i == total_chunks - 1:
+                                try:
+                                    resp = r.json()
+
+                                    if "url" in resp:
+                                        sha256 = resp.get("url", "").split("/")[-1]
+                                except Exception:
+                                    log_exception("PYAS_Cloud.CloudScanner.upload_file:89")
+                                    pass
+
+                            chunk_success = True
+                            break
+
+                        if cancel_event.wait(2**attempt):
+                            return False, sha256
+
+                    if not chunk_success:
+                        return False, sha256
+
+            return True, sha256
+        except Exception:
+            log_exception("PYAS_Cloud.CloudScanner.upload_file:101")
+            return False, None
+
+    def get_result(self, sha256, api_host, api_key, max_retries=6, interval=10):
+        try:
+            if not sha256:
+                return False
+
+            is_done = False
+
+            for _ in range(max_retries):
+                r = self._request("GET", f"/api/processing_status/{sha256}", api_host, api_key)
+
+                if r:
+                    st = r.json().get("status", "error")
+
+                    if st == "done":
+                        is_done = True
                         break
-                    
-                    if hasattr(r, 'is_fatal'):
-                        self.logger.error(f"Fatal upload error encountered at chunk {i}. Aborting.")
-                        return None
 
-                    wait_time = 2 ** attempt
-                    self.logger.warning(f"Chunk upload retry {attempt + 1}/{max_retries} for chunk {i}. Waiting {wait_time}s")
-                    time.sleep(wait_time)
-                
-                if not chunk_success:
-                    self.logger.error(f"Failed to upload chunk {i + 1}/{total_chunks} after {max_retries} attempts")
-                    return None
-        return None
+                    if st in ["error", "failed"]:
+                        return False
 
-####################################################################################################
+                time.sleep(interval)
 
-    def wait_for_analysis(self, sha256: str, interval: int = 5, max_retries: int = 60) -> bool:
-        self.logger.info(f"Waiting for analysis completion: {sha256}")
-        for attempt in range(max_retries):
-            r = self._request("GET", f"/api/processing_status/{sha256}")
-            if r and r.status_code == 200:
-                status = r.json().get('status')
-                self.logger.debug(f"Analysis status: {status}")
+            if not is_done:
+                return False
 
-                if status == 'done':
-                    self.logger.info(f"Analysis completed: {sha256}")
-                    return True
+            r = self._request("GET", f"/api/report/{sha256}", api_host, api_key)
 
-                if status in ['missing', 'error', 'failed']:
-                    self.logger.error(f"Analysis failed with status: {status}")
-                    return False
+            if r:
+                data = r.json().get("data", {})
+                metadata = data.get("metadata", {})
+                label = metadata.get("label", "Unsupport")
+                score = metadata.get("score", 0)
+                sims = data.get("similar", [])
 
-            time.sleep(interval)
-        
-        self.logger.error(f"Analysis polling timed out for {sha256}")
+                is_malicious = "General" in label
+                sim_malicious_count = 0
+                valid_sim_count = 0
+
+                for s in sims:
+                    if s.get("similarity", 0) > 80:
+                        valid_sim_count += 1
+
+                        if "General" in s.get("label", ""):
+                            sim_malicious_count += 1
+
+                if is_malicious and (
+                    valid_sim_count == 0 or sim_malicious_count == valid_sim_count
+                ):
+                    return f"Malware:WinPE/General.{score}!cl"
+
+        except Exception:
+            log_exception("PYAS_Cloud.CloudScanner.get_result:149")
+            pass
+
         return False
 
-    def get_report(self, sha256: str) -> Optional[Dict[str, Any]]:
-        self.logger.info(f"Fetching report for {sha256}")
-        r = self._request("GET", f"/api/report/{sha256}")
-        if r:
-            return r.json()
 
-        self.logger.error(f"Failed to fetch report for {sha256}")
-        return None
+class CloudQueueMixin:
+    def cloud_check(self, file_path):
+        with self.lock_config:
+            if not self.pyas_config.get("cloud_switch", False):
+                return
 
-####################################################################################################
+            cancel_event = self.cloud_cancel_event
 
-    def rescan(self, sha256: str) -> bool:
-        self.logger.info(f"Triggering rescan for {sha256}")
-        r = self._request("POST", f"/api/rescan/{sha256}")
+        norm_path = self.norm_path(file_path)
 
-        success = bool(r and r.json().get('status') == 'success')
-        if success:
-            self.logger.info(f"Rescan triggered successfully for {sha256}")
-        else:
-            self.logger.error(f"Rescan failed for {sha256}")
-        return success
+        if not norm_path or cancel_event.is_set():
+            return
 
-    def search_files(self, query: str, limit: int = 50, page: int = 0, snapshot: Optional[str] = None) -> List[Dict[str, Any]]:
-        self.logger.info(f"Searching files (Query: '{query}', Limit: {limit}, Page: {page})")
-        payload = {'query': query, 'page': page}
-        if snapshot:
-            payload['snapshot'] = snapshot
+        cache_key = (os.path.normcase(norm_path), cancel_event)
 
-        r = self._request("POST", "/api/search_more", data=payload)
-        results = r.json().get('results', [])[:limit] if r else []
-        self.logger.info(f"Search returned {len(results)} results")
-        return results
+        with self.lock_file_ops:
+            if cache_key in self.cloud_pending:
+                return
 
-    def download_sample(self, sha256: str, save_dir: str = "downloads") -> Optional[str]:
-        self.logger.info(f"Downloading sample {sha256}")
-        os.makedirs(save_dir, exist_ok=True)
-        path = os.path.join(save_dir, f"{sha256}.zip")
+            self.cloud_pending.add(cache_key)
 
-        r = self._request("GET", f"/api/download/{sha256}", stream=True)
-        if r:
-            with open(path, 'wb') as f:
-                for chunk in r.iter_content(8192):
-                    if chunk:
-                        f.write(chunk)
-            self.logger.info(f"Sample downloaded successfully to {path}")
-            return path
+        self.cloud_queue.put((norm_path, cancel_event))
 
-        self.logger.error(f"Failed to download sample {sha256}")
-        return None
+    def cloud_worker(self):
+        while True:
+            try:
+                file_path, cancel_event = self.cloud_queue.get()
+                cache_key = (os.path.normcase(file_path), cancel_event)
 
-####################################################################################################
+                try:
+                    self.perform_cloud_scan(file_path, cancel_event)
+                finally:
+                    with self.lock_file_ops:
+                        self.cloud_pending.discard(cache_key)
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(levelname)s [%(name)s] - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
-    
-    API_KEY = "" # https://pyas-security.com/setting?tab=application
-    HOSTS = [
-        "https://pyas-security.com/", 
-        "https://cn.pyas-security.com/"
-    ]
-    
-    client = PYAS_Client(API_KEY, HOSTS)
-    target_file = r"C:/Windows/explorer.exe"
-    
-    sha = client.upload_file(target_file)
-    if sha and client.wait_for_analysis(sha):
-        report = client.get_report(sha)
-        if report:
-            meta = report.get('data', {}).get('metadata', {})
-            logging.info(f"Result: {meta.get('label')} ({meta.get('score')}%)")
-            
-    for item in client.search_files('date>=2020; ext=exe | dll', limit=3):
-        client.download_sample(item['sha256'])
+                    self.cloud_queue.task_done()
+            except Exception:
+                log_exception("PYAS_Cloud.CloudQueueMixin.cloud_worker:31")
+                pass
+
+    def perform_cloud_scan(self, file_path, cancel_event=None):
+        was_locked = False
+
+        try:
+            with self.lock_config:
+                if not self.pyas_config.get("cloud_switch", False):
+                    return False
+
+                cancel_event = cancel_event or self.cloud_cancel_event
+                api_host, api_key, max_size = (
+                    self.pyas_config.get("api_host"),
+                    self.pyas_config.get("api_key"),
+                    self.pyas_config.get("size", 256 * 1024 * 1024),
+                )
+
+            if (
+                cancel_event.is_set()
+                or not os.path.exists(file_path)
+                or not os.path.isfile(file_path)
+            ):
+                return False
+
+            with self.lock_file_ops:
+                if file_path in self.virus_lock:
+                    self.lock_file(file_path, False)
+                    was_locked = True
+
+            if os.path.getsize(file_path) > max_size:
+                if was_locked:
+                    self.lock_file(file_path, True)
+
+                return False
+
+            file_hash = self.calc_file_hash(file_path)
+            success, sha256 = self.cloud.upload_file(
+                file_path, api_host, api_key, file_hash=file_hash, cancel_event=cancel_event
+            )
+
+            if was_locked:
+                self.lock_file(file_path, True)
+                was_locked = False
+
+            if not success and not cancel_event.is_set():
+                self.write_log(
+                    "WARN", "Cloud API", source=file_path, detail="Failed", success=False
+                )
+
+        except Exception as e:
+            log_exception("PYAS_Cloud.CloudQueueMixin.perform_cloud_scan:66")
+            self.write_log("WARN", "perform_cloud_scan", detail=str(e), success=False)
+
+        finally:
+            if was_locked:
+                try:
+                    self.lock_file(file_path, True)
+                except Exception:
+                    log_exception("PYAS_Cloud.CloudQueueMixin.perform_cloud_scan:73")
+                    pass
+
+        return False

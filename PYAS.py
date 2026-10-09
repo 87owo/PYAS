@@ -1,19 +1,62 @@
-import os, sys, time, copy, json, uuid, queue, platform, threading, logging
-import msvcrt, winreg, pystray, subprocess, webview, webbrowser
-import ctypes, ctypes.wintypes
+from PYAS_Diagnostics import log_exception, bind_report_logging
+import os
+import sys
+import time
+import copy
+import json
+import uuid
+import queue
+import platform
+import threading
+import logging
+from PYAS_Startup import (
+    bootstrap_startup,
+    check_webview_dependencies,
+    prepare_webview_profile,
+    restart_with_new_webview_profile,
+    wait_for_recovery_parent,
+)
 
+STARTUP_LOG_PATH = bootstrap_startup() if __name__ == "__main__" else None
+import msvcrt
+import winreg
+import pystray
+import subprocess
+import webview
+import webbrowser
+import ctypes
+import ctypes.wintypes
 from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler
 from PIL import Image
 from socketserver import ThreadingTCPServer
 from webview.dom import DOMEventHandler
-
 from PYAS_Engine import sign_scanner, rule_scanner, pe_scanner, cloud_scanner
 from PYAS_Protect import ProtectMixin
 from PYAS_Scanner import ScannerMixin
-from PYAS_Tools import COPYDATASTRUCT, FILE_NOTIFY_INFORMATION, FILTER_MESSAGE_HEADER, IO_COUNTERS, LUID, LUID_AND_ATTRIBUTES, MEMORY_BASIC_INFORMATION, MIB_TCPROW_OWNER_PID, POINT, PROCESSENTRY32W, PROCESS_BASIC_INFORMATION, PYAS_FULL_MESSAGE, PYAS_MESSAGE, PYAS_USER_MESSAGE, RECT, SERVICE_STATUS_PROCESS, SHQUERYRBINFO, TOKEN_PRIVILEGES, ToolsMixin, UNICODE_STRING
+from PYAS_Tools import (
+    COPYDATASTRUCT,
+    FILE_NOTIFY_INFORMATION,
+    FILTER_MESSAGE_HEADER,
+    IO_COUNTERS,
+    LUID,
+    LUID_AND_ATTRIBUTES,
+    MEMORY_BASIC_INFORMATION,
+    MIB_TCPROW_OWNER_PID,
+    POINT,
+    PROCESSENTRY32W,
+    PROCESS_BASIC_INFORMATION,
+    PYAS_FULL_MESSAGE,
+    PYAS_MESSAGE,
+    PYAS_USER_MESSAGE,
+    RECT,
+    SERVICE_STATUS_PROCESS,
+    SHQUERYRBINFO,
+    TOKEN_PRIVILEGES,
+    ToolsMixin,
+    UNICODE_STRING,
+)
 
-####################################################################################################
 
 PYAS_WINDOW_TITLE = "PYAS Security"
 WM_COPYDATA = 0x004A
@@ -26,10 +69,23 @@ PYAS_MESSAGE_CLOSE = 3
 PYAS_MESSAGE_QUIT = 4
 PYAS_MESSAGE_DRIVER_UNLOAD = 5
 PYAS_MESSAGE_DRIVER_UNINSTALL = 6
+PYAS_MAINTENANCE_MESSAGE = 0x8000 + 0x501
+PYAS_MAINTENANCE_COMMANDS = frozenset(
+    {
+        PYAS_MESSAGE_CLOSE,
+        PYAS_MESSAGE_QUIT,
+        PYAS_MESSAGE_DRIVER_UNLOAD,
+        PYAS_MESSAGE_DRIVER_UNINSTALL,
+    }
+)
 
-####################################################################################################
+from PYAS_WinAPI import WindowsMixin
+from PYAS_Config import ConfigMixin
+from PYAS_Logs import LogMixin
+from PYAS_Runtime import RuntimeMixin
 
-class _MainMixin:
+
+class _MainMixin(WindowsMixin, ConfigMixin, LogMixin, RuntimeMixin):
     def __init__(self):
         self._window = None
         self.tray_icon = None
@@ -46,37 +102,63 @@ class _MainMixin:
 
         if not self.check_singleton("PYAS_Security_Mutex"):
             forwarded_exit_code = self.forward_to_existing_instance()
+
             if forwarded_exit_code is not None:
                 os._exit(forwarded_exit_code)
 
-            self.h_recovery_mutex = self.kernel32.CreateMutexW(None, False, "PYAS_Security_Recovery_Mutex")
+            self.h_recovery_mutex = self.kernel32.CreateMutexW(
+                None, False, "PYAS_Security_Recovery_Mutex"
+            )
+
             if ctypes.get_last_error() == 183:
                 os._exit(2)
 
         self.init_variables()
         self.load_config()
         self.load_logs()
+        bind_report_logging(self)
 
     def find_existing_window(self, timeout=2.0):
         deadline = time.monotonic() + timeout
+
         while time.monotonic() < deadline:
             hwnd = self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
+
             if hwnd:
                 return hwnd
+
             time.sleep(0.05)
+
         return None
 
     def send_existing_window_message(self, hwnd, message_id, payload=None, timeout=1000):
         if not hwnd:
             return False
 
+        if message_id in PYAS_MAINTENANCE_COMMANDS:
+            try:
+                return bool(
+                    self.user32.SendMessageTimeoutW(
+                        hwnd,
+                        PYAS_MAINTENANCE_MESSAGE,
+                        message_id,
+                        None,
+                        PYAS_SEND_MESSAGE_FLAGS,
+                        timeout,
+                        None,
+                    )
+                )
+            except Exception:
+                log_exception("MainMixin.send_maintenance_message")
+                return False
+
         cds = COPYDATASTRUCT()
         cds.dwData = message_id
         buffer = None
 
         if payload is not None:
-            encoded = str(payload).encode('utf-8')
-            buffer = ctypes.create_string_buffer(encoded + b'\x00')
+            encoded = str(payload).encode("utf-8")
+            buffer = ctypes.create_string_buffer(encoded + b"\x00")
             cds.cbData = len(encoded) + 1
             cds.lpData = ctypes.cast(buffer, ctypes.c_void_p)
         else:
@@ -84,60 +166,81 @@ class _MainMixin:
             cds.lpData = None
 
         try:
-            return bool(self.user32.SendMessageTimeoutW(hwnd, WM_COPYDATA, 0, ctypes.byref(cds), PYAS_SEND_MESSAGE_FLAGS, timeout, None))
+            return bool(
+                self.user32.SendMessageTimeoutW(
+                    hwnd, WM_COPYDATA, 0, ctypes.byref(cds), PYAS_SEND_MESSAGE_FLAGS, timeout, None
+                )
+            )
         except Exception:
+            log_exception("PYAS._MainMixin.send_existing_window_message:96")
             return False
 
     def _is_driver_service_absent(self):
         scm = self.advapi32.OpenSCManagerW(None, None, 0x0001)
+
         if not scm:
             return False
 
         service = None
+
         try:
             ctypes.set_last_error(0)
             service = self.advapi32.OpenServiceW(scm, "PYAS_Driver", 0x0004)
+
             if service:
                 return False
+
             return ctypes.get_last_error() == 1060
 
         finally:
             if service:
                 self.advapi32.CloseServiceHandle(service)
+
             self.advapi32.CloseServiceHandle(scm)
 
     def wait_for_existing_shutdown(self, timeout=30.0, require_service_removal=True):
         deadline = time.monotonic() + timeout
+
         while time.monotonic() < deadline:
             window_closed = not self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
             service_removed = not require_service_removal or self._is_driver_service_absent()
+
             if window_closed and service_removed:
                 return True
+
             time.sleep(0.1)
+
         return False
 
     def forward_to_existing_instance(self):
         maintenance_request = any(
-            arg in self.args_pyas
-            for arg in ("-quit", "-driver-uninstall", "-driver-unload")
+            arg in self.args_pyas for arg in ("-quit", "-driver-uninstall", "-driver-unload")
         )
         hwnd = self.find_existing_window(timeout=10.0 if maintenance_request else 2.0)
+
         if not hwnd:
             return 2 if maintenance_request else None
 
         if "-quit" in self.args_pyas:
             if not self.send_existing_window_message(hwnd, PYAS_MESSAGE_QUIT, timeout=5000):
                 return 2
+
             return 0 if self.wait_for_existing_shutdown() else 2
 
         if "-driver-uninstall" in self.args_pyas:
-            if not self.send_existing_window_message(hwnd, PYAS_MESSAGE_DRIVER_UNINSTALL, timeout=5000):
+            if not self.send_existing_window_message(
+                hwnd, PYAS_MESSAGE_DRIVER_UNINSTALL, timeout=5000
+            ):
                 return 2
+
             return 0 if self.wait_for_existing_shutdown() else 2
 
         if "-driver-unload" in self.args_pyas:
-            if not self.send_existing_window_message(hwnd, PYAS_MESSAGE_DRIVER_UNLOAD, timeout=5000):
+            if not self.send_existing_window_message(
+                hwnd, PYAS_MESSAGE_DRIVER_UNLOAD, timeout=5000
+            ):
                 return 2
+
             return 0 if self.wait_for_existing_shutdown(require_service_removal=False) else 2
 
         if "-scan" in self.args_pyas:
@@ -145,613 +248,108 @@ class _MainMixin:
                 idx = self.args_pyas.index("-scan")
                 target = self.args_pyas[idx + 1]
             except Exception:
+                log_exception("PYAS._MainMixin.forward_to_existing_instance:155")
                 return 2
 
             if self.send_existing_window_message(hwnd, PYAS_MESSAGE_SCAN, target, timeout=1200):
                 try:
                     self.user32.SetForegroundWindow(hwnd)
                 except Exception:
+                    log_exception("PYAS._MainMixin.forward_to_existing_instance:161")
                     pass
+
                 return 0
+
             return 2
 
         if self.send_existing_window_message(hwnd, PYAS_MESSAGE_SHOW, timeout=1200):
             try:
                 self.user32.SetForegroundWindow(hwnd)
             except Exception:
+                log_exception("PYAS._MainMixin.forward_to_existing_instance:169")
                 pass
+
             return 0
+
         return 2
 
     def check_singleton(self, name):
         try:
             self.h_mutex = self.kernel32.CreateMutexW(None, False, name)
+
             if ctypes.get_last_error() == 183:
                 return False
 
             return True
         except Exception:
+            log_exception("PYAS._MainMixin.check_singleton:181")
             return False
-
-####################################################################################################
-
-    def init_environ(self):
-        self.python = sys.executable
-        if getattr(sys, 'frozen', False):
-            self.file_pyas = self.norm_path(sys.executable)
-        else:
-            self.file_pyas = self.norm_path(os.path.abspath(sys.argv[0]))
-
-        self.args_pyas = sys.argv[1:]
-        self.path_pyas = os.path.dirname(self.file_pyas)
-        self.pid_pyas = int(os.getpid())
-
-        self.path_appdata = os.environ.get("APPDATA")
-        self.path_localappdata = os.environ.get("LOCALAPPDATA") or self.path_appdata
-        self.path_name = os.environ.get("USERNAME")
-        self.path_temp = os.environ.get("TEMP", f"C:\\Users\\{self.path_name}\\AppData\\Local\\Temp")
-        self.path_config = os.environ.get("ALLUSERSPROFILE", "C:\\ProgramData")
-        self.path_system = os.environ.get("SYSTEMROOT", "C:\\Windows")
-        self.path_user = os.environ.get("USERPROFILE", f"C:\\Users\\{self.path_name}")
-
-        self.path_systemp = os.path.join(self.path_system, "Temp")
-        self.file_config = os.path.join(self.path_config, "PYAS", "Config.json")
-        self.file_log = os.path.join(self.path_config, "PYAS", "Report.json")
-        self.path_webview = os.path.join(self.path_localappdata or self.path_temp, "PYAS", "WebView2")
-        self.file_webview_log = os.path.join(self.path_localappdata or self.path_temp, "PYAS", "WebView2.log")
-        self.path_properties = os.path.join(self.path_pyas, "Engine", "Properties")
-        self.path_heuristic = os.path.join(self.path_pyas, "Engine", "Heuristic")
-        self.path_protect = os.path.join(self.path_pyas, "Plugins", "Filter")
-        self.path_rules = os.path.join(self.path_pyas, "Plugins", "Rules")
-        self.path_drivers = os.path.join(self.path_protect, "PYAS_Driver.sys")
-
-####################################################################################################
-
-    def init_windll(self):
-        for name in ["ntdll", "Psapi", "user32", "kernel32", "iphlpapi", "shell32", "fltlib", "advapi32"]:
-            try:
-                setattr(self, name.lower(), ctypes.WinDLL(name, use_last_error=True))
-            except Exception as e:
-                self.write_log("WARN", "init_windll", detail=str(e), success=False)
-
-        self.user32.FindWindowW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p]
-        self.user32.FindWindowW.restype = ctypes.wintypes.HWND
-        self.user32.ShowWindow.argtypes = [ctypes.wintypes.HWND, ctypes.c_int]
-        self.user32.ShowWindow.restype = ctypes.wintypes.BOOL
-        self.user32.SendMessageTimeoutW.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.UINT, ctypes.wintypes.WPARAM, ctypes.c_void_p, ctypes.wintypes.UINT, ctypes.wintypes.UINT, ctypes.c_void_p]
-        self.user32.SendMessageTimeoutW.restype = ctypes.wintypes.LPARAM
-
-        self.user32.WindowFromPoint.argtypes = [POINT]
-        self.user32.WindowFromPoint.restype = ctypes.wintypes.HWND
-        self.user32.GetAncestor.argtypes = [ctypes.wintypes.HWND, ctypes.c_uint]
-        self.user32.GetAncestor.restype = ctypes.wintypes.HWND
-        self.user32.GetCursorPos.argtypes = [ctypes.POINTER(POINT)]
-        self.user32.GetCursorPos.restype = ctypes.wintypes.BOOL
-        self.user32.GetWindowRect.argtypes = [ctypes.wintypes.HWND, ctypes.POINTER(RECT)]
-        self.user32.GetWindowRect.restype = ctypes.wintypes.BOOL
-        self.user32.SetWindowPos.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.wintypes.UINT]
-        self.user32.SetWindowPos.restype = ctypes.wintypes.BOOL
-        self.user32.SetLayeredWindowAttributes.argtypes = [ctypes.wintypes.HWND, ctypes.wintypes.DWORD, ctypes.c_byte, ctypes.wintypes.DWORD]
-        self.user32.SetLayeredWindowAttributes.restype = ctypes.wintypes.BOOL
-        self.user32.CreateWindowExW.restype = ctypes.wintypes.HWND
-
-        self.ntdll.NtQueryInformationProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.ULONG, ctypes.c_void_p, ctypes.wintypes.ULONG, ctypes.POINTER(ctypes.wintypes.ULONG)]
-        self.ntdll.NtQueryInformationProcess.restype = ctypes.wintypes.ULONG
-        self.ntdll.NtSuspendProcess.argtypes = [ctypes.wintypes.HANDLE]
-        self.ntdll.NtSuspendProcess.restype = ctypes.c_ulong
-        self.ntdll.NtResumeProcess.argtypes = [ctypes.wintypes.HANDLE]
-        self.ntdll.NtResumeProcess.restype = ctypes.c_ulong
-
-        self.shell32.CommandLineToArgvW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.c_int)]
-        self.shell32.CommandLineToArgvW.restype = ctypes.POINTER(ctypes.wintypes.LPWSTR)
-        self.shell32.SHEmptyRecycleBinW.argtypes = [ctypes.wintypes.HWND, ctypes.c_wchar_p, ctypes.wintypes.DWORD]
-        self.shell32.SHEmptyRecycleBinW.restype = ctypes.c_long
-        self.shell32.SHQueryRecycleBinW.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(SHQUERYRBINFO)]
-        self.shell32.SHQueryRecycleBinW.restype = ctypes.c_long
-
-        self.fltlib.FilterConnectCommunicationPort.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.HANDLE)]
-        self.fltlib.FilterConnectCommunicationPort.restype = ctypes.c_long
-        self.fltlib.FilterGetMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p]
-        self.fltlib.FilterGetMessage.restype = ctypes.c_long
-        self.fltlib.FilterSendMessage.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD)]
-        self.fltlib.FilterSendMessage.restype = ctypes.c_long
-        self.fltlib.FilterUnload.argtypes = [ctypes.wintypes.LPCWSTR]
-        self.fltlib.FilterUnload.restype = ctypes.c_long
-
-        self.advapi32.OpenProcessToken.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.HANDLE)]
-        self.advapi32.OpenProcessToken.restype = ctypes.wintypes.BOOL
-        self.advapi32.LookupPrivilegeValueW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.POINTER(LUID)]
-        self.advapi32.LookupPrivilegeValueW.restype = ctypes.wintypes.BOOL
-        self.advapi32.AdjustTokenPrivileges.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.BOOL, ctypes.POINTER(TOKEN_PRIVILEGES), ctypes.wintypes.DWORD, ctypes.POINTER(TOKEN_PRIVILEGES), ctypes.POINTER(ctypes.wintypes.DWORD)]
-        self.advapi32.AdjustTokenPrivileges.restype = ctypes.wintypes.BOOL
-        self.advapi32.OpenSCManagerW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
-        self.advapi32.OpenSCManagerW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.CreateServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR]
-        self.advapi32.CreateServiceW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.OpenServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.LPCWSTR, ctypes.wintypes.DWORD]
-        self.advapi32.OpenServiceW.restype = ctypes.wintypes.HANDLE
-        self.advapi32.ChangeServiceConfigW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPCWSTR]
-        self.advapi32.ChangeServiceConfigW.restype = ctypes.wintypes.BOOL
-        self.advapi32.StartServiceW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.LPCWSTR)]
-        self.advapi32.StartServiceW.restype = ctypes.wintypes.BOOL
-        self.advapi32.QueryServiceStatusEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_int, ctypes.POINTER(ctypes.c_ubyte), ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD)]
-        self.advapi32.QueryServiceStatusEx.restype = ctypes.wintypes.BOOL
-        self.advapi32.DeleteService.argtypes = [ctypes.wintypes.HANDLE]
-        self.advapi32.DeleteService.restype = ctypes.wintypes.BOOL
-        self.advapi32.CloseServiceHandle.argtypes = [ctypes.wintypes.HANDLE]
-        self.advapi32.CloseServiceHandle.restype = ctypes.wintypes.BOOL
-
-        self.kernel32.GetCurrentProcess.argtypes = []
-        self.kernel32.GetCurrentProcess.restype = ctypes.wintypes.HANDLE
-        self.kernel32.CreateToolhelp32Snapshot.restype = ctypes.wintypes.HANDLE
-        self.kernel32.CreateToolhelp32Snapshot.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.DWORD]
-        self.kernel32.Process32FirstW.restype = ctypes.wintypes.BOOL
-        self.kernel32.Process32FirstW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
-        self.kernel32.Process32NextW.restype = ctypes.wintypes.BOOL
-        self.kernel32.Process32NextW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
-        self.kernel32.OpenProcess.restype = ctypes.wintypes.HANDLE
-        self.kernel32.OpenProcess.argtypes = [ctypes.wintypes.DWORD, ctypes.wintypes.BOOL, ctypes.wintypes.DWORD]
-        self.kernel32.CloseHandle.restype = ctypes.wintypes.BOOL
-        self.kernel32.CloseHandle.argtypes = [ctypes.wintypes.HANDLE]
-        self.kernel32.CreateEventW.argtypes = [ctypes.c_void_p, ctypes.wintypes.BOOL, ctypes.wintypes.BOOL, ctypes.wintypes.LPCWSTR]
-        self.kernel32.CreateEventW.restype = ctypes.wintypes.HANDLE
-        self.kernel32.WaitForSingleObject.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD]
-        self.kernel32.WaitForSingleObject.restype = ctypes.wintypes.DWORD
-        self.kernel32.CancelIoEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p]
-        self.kernel32.CancelIoEx.restype = ctypes.wintypes.BOOL
-        self.kernel32.GetOverlappedResult.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.wintypes.BOOL]
-        self.kernel32.GetOverlappedResult.restype = ctypes.wintypes.BOOL
-        self.kernel32.TerminateProcess.restype = ctypes.wintypes.BOOL
-        self.kernel32.TerminateProcess.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_uint]
-        self.kernel32.CreateMutexW.restype = ctypes.wintypes.HANDLE
-        self.kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, ctypes.wintypes.BOOL, ctypes.c_wchar_p]
-        self.kernel32.CreateFileW.restype = ctypes.wintypes.HANDLE
-        self.kernel32.CreateFileW.argtypes = [ctypes.c_wchar_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.wintypes.DWORD, ctypes.wintypes.HANDLE]
-        self.kernel32.DeviceIoControl.restype = ctypes.wintypes.BOOL
-        self.kernel32.DeviceIoControl.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_void_p]
-        self.kernel32.ReadProcessMemory.restype = ctypes.wintypes.BOOL
-        self.kernel32.ReadProcessMemory.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_size_t)]
-        self.kernel32.QueryFullProcessImageNameW.restype = ctypes.wintypes.BOOL
-        self.kernel32.QueryFullProcessImageNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.wintypes.DWORD, ctypes.wintypes.LPWSTR, ctypes.POINTER(ctypes.wintypes.DWORD)]
-        self.kernel32.QueryDosDeviceW.restype = ctypes.wintypes.DWORD
-        self.kernel32.QueryDosDeviceW.argtypes = [ctypes.wintypes.LPCWSTR, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
-        self.kernel32.GetProcessIoCounters.argtypes = [ctypes.wintypes.HANDLE, ctypes.POINTER(IO_COUNTERS)]
-        self.kernel32.GetProcessIoCounters.restype = ctypes.wintypes.BOOL
-        self.kernel32.VirtualQueryEx.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.POINTER(MEMORY_BASIC_INFORMATION), ctypes.c_size_t]
-        self.kernel32.VirtualQueryEx.restype = ctypes.c_size_t
-        self.kernel32.SetProcessWorkingSetSize.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_size_t, ctypes.c_size_t]
-        self.kernel32.SetProcessWorkingSetSize.restype = ctypes.wintypes.BOOL
-
-        self.psapi.GetMappedFileNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
-        self.psapi.GetMappedFileNameW.restype = ctypes.wintypes.DWORD
-
-####################################################################################################
-
-    def init_variables(self):
-        self.heuristic = rule_scanner()
-        self.properties = pe_scanner()
-        self.cloud = cloud_scanner()
-        self.cloud_queue = queue.Queue()
-
-        self.ui_queue = queue.Queue()
-        self.start_daemon_thread(self.ui_dispatcher_thread)
-
-        self.driver_port = None
-        self.driver_stop_event = threading.Event()
-        self.driver_listener_ready_event = threading.Event()
-        self.driver_listener_failed_event = threading.Event()
-        self.driver_listener_thread = None
-        self.ui_ready_event = threading.Event()
-        self.engine_initialized = False
-        self.scan_running = False
-        self.scan_preparing = False
-        self.scan_stop_requested = False
-        self.scan_finished = False
-        self.virus_lock = {}
-        self.virus_results = []
-        self.scan_count = 0
-        self.scan_events = {}
-        self.hash_cache = {}
-        self.file_task_timers = {}
-        self.file_task_generations = {}
-        self.mbr_backup = {}
-        self.cloud_pending = set()
-        self.last_io_counters = {}
-        self.last_io_time = time.time()
-        self.suspended_procs = set()
-
-        self.lock_driver = threading.RLock()
-        self.lock_driver_unload = threading.Lock()
-        self.driver_unload_worker = None
-        self.driver_unload_result = None
-        self.closing = False
-        self.lock_update = threading.RLock()
-        self.lock_proc = threading.RLock()
-        self.lock_net = threading.RLock()
-        self.lock_io = threading.RLock()
-
-        self.pyas_default = {
-            "version": "3.7.0",
-            "api_host": "https://pyas-security.com/",
-            "api_key": "fBRZxYS1UxykM-qzNOlKOEl63WILzlvgNMn6QfsG6FXCAAIktCrOPTAfY5_hEyuZ",
-            "suffix": [
-                ".exe", ".dll", ".sys", ".ocx", ".scr", ".efi", ".acm", ".ax", ".cpl", ".drv", ".com", ".mui", ".pyd", ".wfx", ".api", ".awx", ".rll", ".winmd",
-                ".bat", ".cmd", ".ps1", ".vbs", ".vbe", ".wsf", ".reg", ".html", ".js", ".jse", ".jsp", ".php", ".hta", ".lnk", ".py", ".sh", ".url", ".rtf", ".ini",
-                ],
-            "size": 256 * 1024 * 1024,
-            "language": "english_switch",
-            "theme": "system_switch",
-            "first_launch": True,
-            "process_switch": False,
-            "suspend_switch": True,
-            "load_switch": True,
-            "document_switch": False,
-            "system_switch": False,
-            "driver_switch": False,
-            "network_switch": False,
-            "extension_switch": False,
-            "sensitive_switch": False,
-            "cloud_switch": False,
-            "suffix_switch": True,
-            "autostart_switch": True,
-            "context_switch": True,
-            "custom_rule": [],
-            "white_list": [],
-            "quarantine": [],
-            "block_list": []
-        }
-
-        self.pass_windows = [
-            {"exe": "System Idle Process", "class": "", "title": ""},
-            {"exe": "", "class": "Windows.UI.Core.CoreWindow", "title": ""},
-            {"exe": "explorer.exe", "class": "", "title": ""}
-        ]
-
-        self.scan_pool = ThreadPoolExecutor(max_workers=2)
-        self.protect_pool = ThreadPoolExecutor(max_workers=8)
-        self.proc_pool = ThreadPoolExecutor(max_workers=16)
-        self.start_daemon_thread(self.log_flush_thread)
-
-        for _ in range(2):
-            self.start_daemon_thread(self.cloud_worker)
-
-####################################################################################################
-
-    def ui_dispatcher_thread(self):
-        batch = []
-        while True:
-            try:
-                task = self.ui_queue.get(timeout=0.1)
-                batch.append(task)
-
-                while not self.ui_queue.empty() and len(batch) < 50:
-                    try:
-                        batch.append(self.ui_queue.get_nowait())
-                    except queue.Empty:
-                        break
-
-                if self._window and batch:
-                    js_script = "".join(batch)
-                    try:
-                        self._window.evaluate_js(js_script)
-                    except Exception:
-                        pass
-
-                for _ in batch:
-                    self.ui_queue.task_done()
-                batch.clear()
-
-            except queue.Empty:
-                continue
-            except Exception:
-                batch.clear()
-
-####################################################################################################
-
-    def _loc(self, text_dict):
-        with self.lock_config:
-            lang = self.pyas_config.get("language", "traditional_switch") if hasattr(self, 'pyas_config') else "traditional_switch"
-        return text_dict.get(lang, text_dict.get("traditional_switch", ""))
-
-    def load_config(self):
-        with self.lock_config:
-
-            if not os.path.exists(self.file_config):
-                self.pyas_config = copy.deepcopy(self.pyas_default)
-                self.write_log("INFO", "Config Update", detail="Create default config")
-                self.save_config()
-
-            else:
-                try:
-                    with open(self.file_config, "r", encoding="utf-8") as f:
-                        data = json.load(f)
-                        self.pyas_config = copy.deepcopy(self.pyas_default)
-                        self.pyas_config.update(data)
-
-                    self.pyas_config["version"] = self.pyas_default["version"]
-                    whitelist_metadata_updated = False
-                    for item in self.pyas_config.get("white_list", []):
-                        if not isinstance(item, dict) or not item.get("file") or "is_dir" in item:
-                            continue
-
-                        item_path = self.norm_path(item["file"], must_exist=False)
-                        if item_path and os.path.exists(item_path):
-                            item["is_dir"] = os.path.isdir(item_path)
-                            whitelist_metadata_updated = True
-
-                    if whitelist_metadata_updated:
-                        self.save_config()
-                except Exception as e:
-                    self.pyas_config = copy.deepcopy(self.pyas_default)
-                    self.write_log("WARN", "load_config", detail=str(e), success=False)
-
-    def save_config(self):
-        with self.lock_config:
-            try:
-                os.makedirs(os.path.dirname(self.file_config), exist_ok=True)
-                with open(self.file_config, "w", encoding="utf-8") as f:
-                    json.dump(self.pyas_config, f, indent=4, ensure_ascii=False)
-
-            except Exception as e:
-                self.write_log("WARN", "save_config", detail=str(e), success=False)
-
-    def update_config(self, key, value):
-        with self.lock_update:
-            defer_driver_disable = key == "driver_switch" and not value
-
-            with self.lock_config:
-                old_value = self.pyas_config.get(key)
-                if old_value == value:
-                    return value
-
-                if not defer_driver_disable:
-                    self.pyas_config[key] = value
-
-            if key in ["extension_switch", "sensitive_switch"]:
-                with self.lock_file_ops:
-                    if hasattr(self, 'hash_cache'):
-                        self.hash_cache.clear()
-
-            success = True
-            if value:
-                try:
-                    if key == "process_switch":
-                        self.start_daemon_thread(self.protect_proc_thread)
-                    elif key == "document_switch":
-                        self.start_daemon_thread(self.protect_file_thread)
-                    elif key == "system_switch":
-                        self.start_daemon_thread(self.protect_system_thread)
-                    elif key == "network_switch":
-                        self.start_daemon_thread(self.protect_net_thread)
-                    elif key == "driver_switch":
-                        if self.install_system_driver() and self.start_driver_listener(wait_ready=True):
-                            success = True
-                        else:
-                            self.stop_system_driver()
-                            success = False
-
-                    elif key == "context_switch":
-                        self.register_context_menu(True)
-                    elif key == "autostart_switch":
-                        success = self.manage_autostart(True)
-
-                except Exception as e:
-                    self.write_log("WARN", "Feature Start", detail=str(e), success=False)
-                    success = False
-            else:
-                if key == "driver_switch":
-                    success = self.stop_system_driver()
-
-                elif key == "context_switch":
-                    self.register_context_menu(False)
-                elif key == "autostart_switch":
-                    success = self.manage_autostart(False)
-
-                elif key == "document_switch":
-                    self._cancel_pending_file_scans()
-                    with self.lock_file_ops:
-                        if getattr(self, 'h_dir_file', None):
-                            try:
-                                self.kernel32.CloseHandle(self.h_dir_file)
-                            except Exception:
-                                pass
-                            self.h_dir_file = None
-
-                elif key == "suspend_switch":
-                    with self.lock_proc:
-                        if hasattr(self, 'suspended_procs'):
-                            for h in list(self.suspended_procs):
-                                try:
-                                    self.ntdll.NtResumeProcess(h)
-                                except Exception:
-                                    pass
-                            self.suspended_procs.clear()
-
-            if success:
-                with self.lock_config:
-                    if defer_driver_disable:
-                        self.pyas_config[key] = value
-
-                    self.write_log("INFO", "Config Update", detail=f"[{key}] {old_value} -> {value}")
-                    self.save_config()
-
-                if key == "language" and self.tray_icon:
-                    try:
-                        self.tray_icon.update_menu()
-                    except Exception:
-                        pass
-
-                return value
-
-            with self.lock_config:
-                self.pyas_config[key] = old_value
-
-            if self._window:
-                self._window.evaluate_js(f"if(window.revertSwitch) window.revertSwitch('{key}');")
-
-            return old_value
-
-    def get_config(self):
-        with self.lock_config:
-            cfg = self.pyas_config.copy()
-
-            rules = []
-            if os.path.exists(self.path_rules):
-                for f in os.listdir(self.path_rules):
-                    if f.lower().endswith(".json"):
-                        fp = os.path.join(self.path_rules, f)
-                        rules.append({"file": fp, "time": os.path.getmtime(fp)})
-
-            cfg["custom_rule"] = rules
-            return cfg
-
-    def reset_config(self):
-        with self.lock_config:
-            self.pyas_config = copy.deepcopy(self.pyas_default)
-            self.write_log("INFO", "Config Update", detail="Reset to default")
-            self.save_config()
-
-        return True
-
-    def load_logs(self):
-        with self.lock_logs:
-            pending_logs = list(self.logs_data)
-            if os.path.exists(self.file_log):
-                try:
-                    with open(self.file_log, "r", encoding="utf-8") as f:
-                        loaded_logs = json.load(f)
-
-                    self.logs_data = (loaded_logs + pending_logs)[-1000:]
-                except Exception:
-                    self.logs_data = pending_logs
-
-    def log_flush_thread(self):
-        while True:
-            time.sleep(5)
-            with self.lock_logs:
-                if getattr(self, 'logs_dirty', False):
-                    try:
-                        os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
-                        with open(self.file_log, "w", encoding="utf-8") as f:
-                            json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
-
-                        self.logs_dirty = False
-                    except Exception:
-                        pass
-
-####################################################################################################
-
-    def write_log(self, level, action, detail=None, code=None, pid=None, file_hash=None, source=None, target=None, operate=None, success=True):
-        with self.lock_logs:
-            entry = {
-                "id": str(uuid.uuid4()),
-                "timestamp": time.time(),
-                "time_str": time.strftime("%Y-%m-%d %H:%M:%S"),
-                "level": level,
-                "action": action,
-                "detail": detail,
-                "code": code,
-                "pid": pid,
-                "hash": file_hash,
-                "source": source,
-                "target": target,
-                "operate": operate,
-                "success": success
-            }
-            self.logs_data.append(entry)
-
-            if len(self.logs_data) > 1000:
-                self.logs_data = self.logs_data[-1000:]
-            self.logs_dirty = True
-
-            if self._window:
-                js_cmd = f"if(window.updateLogs) window.updateLogs({json.dumps(entry)});"
-                self.ui_queue.put(js_cmd)
-
-        if level == "BLOCK" and self.tray_icon:
-            self.trigger_block_notification(action, source, target, code)
-
-    def get_logs(self):
-        with self.lock_logs:
-            return self.logs_data.copy()
-
-    def clear_logs(self, log_ids=None):
-        with self.lock_logs:
-            if log_ids is None:
-                self.logs_data = []
-            else:
-                self.logs_data = [log for log in self.logs_data if log['id'] not in log_ids]
-
-            try:
-                if not self.logs_data:
-                    if os.path.exists(self.file_log):
-                        os.remove(self.file_log)
-                else:
-                    os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
-                    with open(self.file_log, "w", encoding="utf-8") as f:
-                        json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
-
-            except Exception:
-                pass
-            self.logs_dirty = False
-
-    def export_logs(self, log_ids=None):
-        if self._window:
-            path = self._window.create_file_dialog(webview.FileDialog.SAVE, directory='', save_filename='PYAS_Logs.json')
-            if path:
-                target_path = path[0] if isinstance(path, (tuple, list)) else path
-
-                with self.lock_logs:
-                    export_data = self.logs_data
-                    if log_ids is not None:
-                        export_data = [log for log in self.logs_data if log['id'] in log_ids]
-
-                    try:
-                        with open(target_path, 'w', encoding='utf-8') as f:
-                            json.dump(export_data, f, indent=4, ensure_ascii=False)
-
-                        return True
-                    except Exception:
-                        pass
-        return False
-
-####################################################################################################
 
     def get_tray_text(self, key):
         texts = {
             "open_ui": {
-                "traditional_switch": "開啟介面", "simplified_switch": "打开界面", "english_switch": "Open PYAS",
-                "japanese_switch": "PYAS を開く", "korean_switch": "PYAS 열기", "french_switch": "Ouvrir PYAS",
-                "spanish_switch": "Abrir PYAS", "hindi_switch": "PYAS खोलें", "arabic_switch": "فتح PYAS",
-                "russian_switch": "Открыть PYAS", "slovenian_switch": "Odpri PYAS"
+                "traditional_switch": "開啟介面",
+                "simplified_switch": "打开界面",
+                "english_switch": "Open PYAS",
+                "japanese_switch": "PYAS を開く",
+                "korean_switch": "PYAS 열기",
+                "french_switch": "Ouvrir PYAS",
+                "spanish_switch": "Abrir PYAS",
+                "hindi_switch": "PYAS खोलें",
+                "arabic_switch": "فتح PYAS",
+                "russian_switch": "Открыть PYAS",
+                "slovenian_switch": "Odpri PYAS",
             },
             "optimize_mem": {
-                "traditional_switch": "一鍵加速", "simplified_switch": "一键加速", "english_switch": "Memory Boost",
-                "japanese_switch": "メモリ最適化", "korean_switch": "메모리 최적화", "french_switch": "Optimiser",
-                "spanish_switch": "Optimizar", "hindi_switch": "मेमोरी बूस्ट", "arabic_switch": "تسريع",
-                "russian_switch": "Ускорение", "slovenian_switch": "Optimizacija"
+                "traditional_switch": "一鍵加速",
+                "simplified_switch": "一键加速",
+                "english_switch": "Memory Boost",
+                "japanese_switch": "メモリ最適化",
+                "korean_switch": "메모리 최적화",
+                "french_switch": "Optimiser",
+                "spanish_switch": "Optimizar",
+                "hindi_switch": "मेमोरी बूस्ट",
+                "arabic_switch": "تسريع",
+                "russian_switch": "Ускорение",
+                "slovenian_switch": "Optimizacija",
             },
             "check_update": {
-                "traditional_switch": "檢查更新", "simplified_switch": "检查更新", "english_switch": "Check Update",
-                "japanese_switch": "更新を確認", "korean_switch": "업데이트 확인", "french_switch": "Vérifier la mise à jour",
-                "spanish_switch": "Buscar actualizaciones", "hindi_switch": "अद्यतन जाँचे", "arabic_switch": "التحقق من التحديثات",
-                "russian_switch": "Проверить обновления", "slovenian_switch": "Preveri posodobitve"
+                "traditional_switch": "檢查更新",
+                "simplified_switch": "检查更新",
+                "english_switch": "Check Update",
+                "japanese_switch": "更新を確認",
+                "korean_switch": "업데이트 확인",
+                "french_switch": "Vérifier la mise à jour",
+                "spanish_switch": "Buscar actualizaciones",
+                "hindi_switch": "अद्यतन जाँचे",
+                "arabic_switch": "التحقق من التحديثات",
+                "russian_switch": "Проверить обновления",
+                "slovenian_switch": "Preveri posodobitve",
             },
             "exit_app": {
-                "traditional_switch": "退出防護", "simplified_switch": "退出防护", "english_switch": "Exit Security",
-                "japanese_switch": "保護を終了", "korean_switch": "보호 종료", "french_switch": "Quitter la sécurité",
-                "spanish_switch": "Salir de la seguridad", "hindi_switch": "सुरक्षा से बाहर निकलें", "arabic_switch": "خروج من الحماية",
-                "russian_switch": "Выйти из защиты", "slovenian_switch": "Izhod iz zaščite"
-            }
+                "traditional_switch": "退出防護",
+                "simplified_switch": "退出防护",
+                "english_switch": "Exit Security",
+                "japanese_switch": "保護を終了",
+                "korean_switch": "보호 종료",
+                "french_switch": "Quitter la sécurité",
+                "spanish_switch": "Salir de la seguridad",
+                "hindi_switch": "सुरक्षा से बाहर निकलें",
+                "arabic_switch": "خروج من الحماية",
+                "russian_switch": "Выйти из защиты",
+                "slovenian_switch": "Izhod iz zaščite",
+            },
         }
         return self._loc(texts.get(key, {}))
 
     def get_app_icon(self):
         icon_path = os.path.join(self.path_pyas, "Interface", "static", "img", "icon.ico")
+
         if os.path.exists(icon_path):
             try:
                 return Image.open(icon_path)
             except Exception:
+                log_exception("PYAS._MainMixin.get_app_icon:218")
                 pass
 
     def show_tray(self):
@@ -759,10 +357,14 @@ class _MainMixin:
             return
 
         menu = pystray.Menu(
-            pystray.MenuItem(lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True),
+            pystray.MenuItem(
+                lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True
+            ),
             pystray.MenuItem(lambda item: self.get_tray_text("optimize_mem"), self.optimize_memory),
-            pystray.MenuItem(lambda item: self.get_tray_text("check_update"), self.tray_check_update),
-            pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close)
+            pystray.MenuItem(
+                lambda item: self.get_tray_text("check_update"), self.tray_check_update
+            ),
+            pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close),
         )
         self.tray_icon = pystray.Icon("PYAS", self.get_app_icon(), "PYAS Security", menu)
         self.tray_icon.run_detached()
@@ -771,41 +373,94 @@ class _MainMixin:
         def _check():
             res = self.check_update()
 
-            title_error = self._loc({
-                "traditional_switch": "錯誤", "simplified_switch": "错误", "english_switch": "Error",
-                "japanese_switch": "エラー", "korean_switch": "오류", "french_switch": "Erreur",
-                "spanish_switch": "Error", "hindi_switch": "त्रुटि", "arabic_switch": "خطأ",
-                "russian_switch": "Ошибка", "slovenian_switch": "Napaka"})
+            title_error = self._loc(
+                {
+                    "traditional_switch": "錯誤",
+                    "simplified_switch": "错误",
+                    "english_switch": "Error",
+                    "japanese_switch": "エラー",
+                    "korean_switch": "오류",
+                    "french_switch": "Erreur",
+                    "spanish_switch": "Error",
+                    "hindi_switch": "त्रुटि",
+                    "arabic_switch": "خطأ",
+                    "russian_switch": "Ошибка",
+                    "slovenian_switch": "Napaka",
+                }
+            )
 
-            title_prompt = self._loc({
-                "traditional_switch": "提示", "simplified_switch": "提示", "english_switch": "Prompt",
-                "japanese_switch": "プロンプト", "korean_switch": "프롬프트", "french_switch": "Indication",
-                "spanish_switch": "Aviso", "hindi_switch": "सुझाव", "arabic_switch": "تلميح",
-                "russian_switch": "Подсказка", "slovenian_switch": "Namig"})
+            title_prompt = self._loc(
+                {
+                    "traditional_switch": "提示",
+                    "simplified_switch": "提示",
+                    "english_switch": "Prompt",
+                    "japanese_switch": "プロンプト",
+                    "korean_switch": "프롬프트",
+                    "french_switch": "Indication",
+                    "spanish_switch": "Aviso",
+                    "hindi_switch": "सुझाव",
+                    "arabic_switch": "تلميح",
+                    "russian_switch": "Подсказка",
+                    "slovenian_switch": "Namig",
+                }
+            )
 
-            msg_fail = self._loc({
-                "traditional_switch": "檢查更新失敗", "simplified_switch": "检查更新失败", "english_switch": "Update check failed",
-                "japanese_switch": "アップデートの確認に失敗しました", "korean_switch": "업데이트 확인 실패", "french_switch": "Échec de la vérification des mises à jour",
-                "spanish_switch": "Fallo al buscar actualizaciones", "hindi_switch": "अपडेट की जाँच विफल रही", "arabic_switch": "فشل التحقق من التحديثات",
-                "russian_switch": "Ошибка проверки обновлений", "slovenian_switch": "Preverjanje posodobitev ni uspelo"})
+            msg_fail = self._loc(
+                {
+                    "traditional_switch": "檢查更新失敗",
+                    "simplified_switch": "检查更新失败",
+                    "english_switch": "Update check failed",
+                    "japanese_switch": "アップデートの確認に失敗しました",
+                    "korean_switch": "업데이트 확인 실패",
+                    "french_switch": "Échec de la vérification des mises à jour",
+                    "spanish_switch": "Fallo al buscar actualizaciones",
+                    "hindi_switch": "अपडेट की जाँच विफल रही",
+                    "arabic_switch": "فشل التحقق من التحديثات",
+                    "russian_switch": "Ошибка проверки обновлений",
+                    "slovenian_switch": "Preverjanje posodobitev ni uspelo",
+                }
+            )
 
-            msg_new = self._loc({
-                "traditional_switch": "發現新版本", "simplified_switch": "发现新版本", "english_switch": "New version found",
-                "japanese_switch": "新しいバージョンが見つかりました", "korean_switch": "새 버전을 찾았습니다", "french_switch": "Nouvelle version trouvée",
-                "spanish_switch": "Nueva versión encontrada", "hindi_switch": "नया संस्करण मिला", "arabic_switch": "تم العثور على إصدار جديد",
-                "russian_switch": "Найдена новая версия", "slovenian_switch": "Najdena nova različica"})
+            msg_new = self._loc(
+                {
+                    "traditional_switch": "發現新版本",
+                    "simplified_switch": "发现新版本",
+                    "english_switch": "New version found",
+                    "japanese_switch": "新しいバージョンが見つかりました",
+                    "korean_switch": "새 버전을 찾았습니다",
+                    "french_switch": "Nouvelle version trouvée",
+                    "spanish_switch": "Nueva versión encontrada",
+                    "hindi_switch": "नया संस्करण मिला",
+                    "arabic_switch": "تم العثور على إصدار جديد",
+                    "russian_switch": "Найдена новая версия",
+                    "slovenian_switch": "Najdena nova različica",
+                }
+            )
 
-            msg_latest = self._loc({
-                "traditional_switch": "當前已是最新版本", "simplified_switch": "当前已是最新版本", "english_switch": "Currently at latest version",
-                "japanese_switch": "現在は最新バージョンです", "korean_switch": "현재 최신 버전입니다", "french_switch": "Actuellement à la dernière version",
-                "spanish_switch": "Actualmente en la última versión", "hindi_switch": "वर्तमान में नवीनतम संस्करण है", "arabic_switch": "أنت تستخدم أحدث إصدار حاليًا",
-                "russian_switch": "Установлена последняя версия", "slovenian_switch": "Trenutno imate najnovejšo različico"})
+            msg_latest = self._loc(
+                {
+                    "traditional_switch": "當前已是最新版本",
+                    "simplified_switch": "当前已是最新版本",
+                    "english_switch": "Currently at latest version",
+                    "japanese_switch": "現在は最新バージョンです",
+                    "korean_switch": "현재 최신 버전입니다",
+                    "french_switch": "Actuellement à la dernière version",
+                    "spanish_switch": "Actualmente en la última versión",
+                    "hindi_switch": "वर्तमान में नवीनतम संस्करण है",
+                    "arabic_switch": "أنت تستخدم أحدث إصدار حاليًا",
+                    "russian_switch": "Установлена последняя версия",
+                    "slovenian_switch": "Trenutno imate najnovejšo različico",
+                }
+            )
 
             if res.get("error"):
                 self.show_alert(title_error, msg_fail, "error")
 
             elif res.get("has_update"):
-                msg = f"{msg_new} {res.get('latest')}\n({res.get('current')} -> {res.get('latest')})"
+                msg = (
+                    f"{msg_new} {res.get('latest')}\n({res.get('current')} -> {res.get('latest')})"
+                )
+
                 if self.show_confirm(title_prompt, msg):
                     self.open_url(res.get("url"))
 
@@ -821,10 +476,9 @@ class _MainMixin:
             self._window.show()
 
             hwnd = self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
+
             if hwnd:
                 self.user32.SetForegroundWindow(hwnd)
-
-####################################################################################################
 
     def set_window(self, window):
         self._window = window
@@ -834,6 +488,7 @@ class _MainMixin:
             self._window.minimize()
         else:
             hwnd = self.user32.FindWindowW(None, PYAS_WINDOW_TITLE)
+
             if hwnd:
                 self.user32.ShowWindow(hwnd, 6)
 
@@ -851,6 +506,7 @@ class _MainMixin:
             try:
                 window.destroy()
             except Exception:
+                log_exception("PYAS._MainMixin.destroy_window_with_timeout.destroy_window:315")
                 pass
             finally:
                 done.set()
@@ -858,21 +514,8 @@ class _MainMixin:
         threading.Thread(target=destroy_window, daemon=True).start()
         done.wait(timeout)
 
-    def flush_logs_now(self):
-        with self.lock_logs:
-            if not getattr(self, 'logs_dirty', False):
-                return
-
-            try:
-                os.makedirs(os.path.dirname(self.file_log), exist_ok=True)
-                with open(self.file_log, "w", encoding="utf-8") as f:
-                    json.dump(self.logs_data, f, indent=4, ensure_ascii=False)
-                self.logs_dirty = False
-            except Exception:
-                pass
-
     def close(self, *args, uninstall_driver=False, **kwargs):
-        if getattr(self, 'closing', False):
+        if getattr(self, "closing", False):
             return True
 
         self.closing = True
@@ -881,6 +524,7 @@ class _MainMixin:
             driver_enabled = self.pyas_config.get("driver_switch", False)
 
         driver_loaded = driver_enabled or self.check_system_driver()
+
         if uninstall_driver:
             driver_stopped, driver_error = self.uninstall_system_driver()
         elif driver_loaded:
@@ -892,27 +536,39 @@ class _MainMixin:
         if not driver_stopped:
             self.closing = False
             action = "uninstall" if uninstall_driver else "unload"
-            self.write_log("WARN", "Driver Protection", detail=f"Controlled {action} failed: 0x{driver_error & 0xFFFFFFFF:08X}", success=False)
+            self.write_log(
+                "WARN",
+                "Driver Protection",
+                detail=f"Controlled {action} failed: 0x{driver_error & 0xFFFFFFFF:08X}",
+                success=False,
+            )
+
             if self._window:
                 try:
                     self._window.show()
                 except Exception:
+                    log_exception("PYAS._MainMixin.close:348")
                     pass
+
             return False
 
         if self.tray_icon:
             try:
                 self.tray_icon.stop()
             except Exception:
+                log_exception("PYAS._MainMixin.close:355")
                 pass
+
             self.tray_icon = None
 
         window = self._window
         self._window = None
+
         if window:
             try:
                 window.hide()
             except Exception:
+                log_exception("PYAS._MainMixin.close:364")
                 pass
 
         with self.lock_config:
@@ -923,104 +579,176 @@ class _MainMixin:
             self.pyas_config["network_switch"] = False
 
         self._cancel_pending_file_tasks()
+        scheduler = getattr(self, "file_scheduler", None)
+
+        if scheduler:
+            scheduler.close()
+
+        self.cloud_cancel_event.set()
 
         with self.lock_file_ops:
-            if getattr(self, 'h_dir_file', None):
+            if getattr(self, "h_dir_file", None):
                 try:
                     self.kernel32.CloseHandle(self.h_dir_file)
                 except Exception:
+                    log_exception("PYAS._MainMixin.close:380")
                     pass
+
                 self.h_dir_file = None
 
-            if hasattr(self, 'virus_lock'):
+            if hasattr(self, "virus_lock"):
                 for file_path, (fd, lock_size) in list(self.virus_lock.items()):
                     try:
                         msvcrt.locking(fd, msvcrt.LK_UNLCK, lock_size)
                     except Exception:
+                        log_exception("PYAS._MainMixin.close:388")
                         pass
+
                     try:
                         os.close(fd)
                     except Exception:
+                        log_exception("PYAS._MainMixin.close:392")
                         pass
+
                 self.virus_lock.clear()
 
         with self.lock_proc:
-            if hasattr(self, 'suspended_procs'):
+            if hasattr(self, "suspended_procs"):
                 for h in list(self.suspended_procs):
                     try:
                         self.ntdll.NtResumeProcess(h)
                         self.kernel32.CloseHandle(h)
                     except Exception:
+                        log_exception("PYAS._MainMixin.close:402")
                         pass
+
                 self.suspended_procs.clear()
 
-        for mutex_name in ('h_mutex', 'h_recovery_mutex'):
+        for mutex_name in ("h_mutex", "h_recovery_mutex"):
             handle = getattr(self, mutex_name, None)
+
             if handle:
                 try:
                     self.kernel32.CloseHandle(handle)
                 except Exception:
+                    log_exception("PYAS._MainMixin.close:411")
                     pass
+
                 setattr(self, mutex_name, None)
 
         self.flush_logs_now()
         self.destroy_window_with_timeout(window)
         os._exit(0)
 
+    def report_ui_error(self, stage, message):
+        logging.getLogger("PYAS.Startup").warning(
+            "UI stage=%s: %s", str(stage)[:80], str(message)[:2000]
+        )
+        return True
+
     def init_ui_ready(self):
+        logging.getLogger("PYAS.Startup").info("Python UI bridge ready")
         self.ui_ready_event.set()
+
         with self.lock_config:
             if self.engine_initialized:
                 return
 
             self.engine_initialized = True
+
         self.start_daemon_thread(self.init_engine_thread)
 
-####################################################################################################
-
     def trigger_block_notification(self, action, source, target, code):
-        if action not in ["Process Block", "Process DLL Block", "File Block", "Network Block", "Driver Block"]:
+        if action not in [
+            "Process Block",
+            "Process DLL Block",
+            "File Block",
+            "Network Block",
+            "Driver Block",
+        ]:
             return
 
         titles = {
             "Process Block": {
-                "traditional_switch": "進程防護", "simplified_switch": "进程防护", "english_switch": "Process Protection",
-                "japanese_switch": "プロセス保護", "korean_switch": "프로세스 보호", "french_switch": "Protection des Processus",
-                "spanish_switch": "Protección de Procesos", "hindi_switch": "प्रक्रिया सुरक्षा", "arabic_switch": "حماية العمليات",
-                "russian_switch": "Защита процессов", "slovenian_switch": "Zaščita procesov"
+                "traditional_switch": "進程防護",
+                "simplified_switch": "进程防护",
+                "english_switch": "Process Protection",
+                "japanese_switch": "プロセス保護",
+                "korean_switch": "프로세스 보호",
+                "french_switch": "Protection des Processus",
+                "spanish_switch": "Protección de Procesos",
+                "hindi_switch": "प्रक्रिया सुरक्षा",
+                "arabic_switch": "حماية العمليات",
+                "russian_switch": "Защита процессов",
+                "slovenian_switch": "Zaščita procesov",
             },
             "Process DLL Block": {
-                "traditional_switch": "記憶體防護", "simplified_switch": "内存防护", "english_switch": "Memory Protection",
-                "japanese_switch": "メモリ保護", "korean_switch": "메모리 보호", "french_switch": "Protection de la mémoire",
-                "spanish_switch": "Protección de memoria", "hindi_switch": "मेमोरी सुरक्षा", "arabic_switch": "حماية الذاكرة",
-                "russian_switch": "Защита памяти", "slovenian_switch": "Zaščita pomnilnika"
+                "traditional_switch": "記憶體防護",
+                "simplified_switch": "内存防护",
+                "english_switch": "Memory Protection",
+                "japanese_switch": "メモリ保護",
+                "korean_switch": "메모리 보호",
+                "french_switch": "Protection de la mémoire",
+                "spanish_switch": "Protección de memoria",
+                "hindi_switch": "मेमोरी सुरक्षा",
+                "arabic_switch": "حماية الذاكرة",
+                "russian_switch": "Защита памяти",
+                "slovenian_switch": "Zaščita pomnilnika",
             },
             "File Block": {
-                "traditional_switch": "檔案防護", "simplified_switch": "文件防护", "english_switch": "File Protection",
-                "japanese_switch": "ファイル保護", "korean_switch": "파일 보호", "french_switch": "Protection des Fichiers",
-                "spanish_switch": "Protección de Archivos", "hindi_switch": "फ़ाइल सुरक्षा", "arabic_switch": "حماية الملفات",
-                "russian_switch": "Защита файлов", "slovenian_switch": "Zaščita datotek"
+                "traditional_switch": "檔案防護",
+                "simplified_switch": "文件防护",
+                "english_switch": "File Protection",
+                "japanese_switch": "ファイル保護",
+                "korean_switch": "파일 보호",
+                "french_switch": "Protection des Fichiers",
+                "spanish_switch": "Protección de Archivos",
+                "hindi_switch": "फ़ाइल सुरक्षा",
+                "arabic_switch": "حماية الملفات",
+                "russian_switch": "Защита файлов",
+                "slovenian_switch": "Zaščita datotek",
             },
             "Network Block": {
-                "traditional_switch": "網路防護", "simplified_switch": "网络防护", "english_switch": "Network Protection",
-                "japanese_switch": "ネットワーク保護", "korean_switch": "네트워크 보호", "french_switch": "Protection Réseau",
-                "spanish_switch": "Protección de Red", "hindi_switch": "नेटवर्क सुरक्षा", "arabic_switch": "حماية الشبكة",
-                "russian_switch": "Сетевая защита", "slovenian_switch": "Omrežna zaščita"
+                "traditional_switch": "網路防護",
+                "simplified_switch": "网络防护",
+                "english_switch": "Network Protection",
+                "japanese_switch": "ネットワーク保護",
+                "korean_switch": "네트워크 보호",
+                "french_switch": "Protection Réseau",
+                "spanish_switch": "Protección de Red",
+                "hindi_switch": "नेटवर्क सुरक्षा",
+                "arabic_switch": "حماية الشبكة",
+                "russian_switch": "Сетевая защита",
+                "slovenian_switch": "Omrežna zaščita",
             },
             "Driver Block": {
-                "traditional_switch": "驅動防護", "simplified_switch": "驱动防护", "english_switch": "Driver Protection",
-                "japanese_switch": "ドライバー保護", "korean_switch": "드라이버 보호", "french_switch": "Protection des Pilotes",
-                "spanish_switch": "Protección de Controladores", "hindi_switch": "ड्राइवर सुरक्षा", "arabic_switch": "حماية برامج التشغيل",
-                "russian_switch": "Защита драйверов", "slovenian_switch": "Zaščita gonilnikov"
-            }
+                "traditional_switch": "驅動防護",
+                "simplified_switch": "驱动防护",
+                "english_switch": "Driver Protection",
+                "japanese_switch": "ドライバー保護",
+                "korean_switch": "드라이버 보호",
+                "french_switch": "Protection des Pilotes",
+                "spanish_switch": "Protección de Controladores",
+                "hindi_switch": "ड्राइवर सुरक्षा",
+                "arabic_switch": "حماية برامج التشغيل",
+                "russian_switch": "Защита драйверов",
+                "slovenian_switch": "Zaščita gonilnikov",
+            },
         }
 
         path = source or ""
         messages = {
-            "traditional_switch": f"威脅已終止: {path}", "simplified_switch": f"威胁已终止: {path}", "english_switch": f"Threat terminated: {path}",
-            "japanese_switch": f"脅威が終了しました: {path}", "korean_switch": f"위협이 종료되었습니다: {path}", "french_switch": f"Menace terminée : {path}",
-            "spanish_switch": f"Amenaza terminada: {path}", "hindi_switch": f"खतरा समाप्त: {path}", "arabic_switch": f"تم إنهاء التهديد: {path}",
-            "russian_switch": f"Угроза устранена: {path}", "slovenian_switch": f"Grožnja odpravljena: {path}"
+            "traditional_switch": f"威脅已終止: {path}",
+            "simplified_switch": f"威胁已终止: {path}",
+            "english_switch": f"Threat terminated: {path}",
+            "japanese_switch": f"脅威が終了しました: {path}",
+            "korean_switch": f"위협이 종료되었습니다: {path}",
+            "french_switch": f"Menace terminée : {path}",
+            "spanish_switch": f"Amenaza terminada: {path}",
+            "hindi_switch": f"खतरा समाप्त: {path}",
+            "arabic_switch": f"تم إنهاء التهديد: {path}",
+            "russian_switch": f"Угроза устранена: {path}",
+            "slovenian_switch": f"Grožnja odpravljena: {path}",
         }
 
         title = self._loc(titles.get(action, {}))
@@ -1029,9 +757,8 @@ class _MainMixin:
         try:
             self.tray_icon.notify(message, title)
         except Exception:
+            log_exception("PYAS._MainMixin.trigger_block_notification:483")
             pass
-
-####################################################################################################
 
     def show_notification(self, title, message):
         try:
@@ -1039,71 +766,128 @@ class _MainMixin:
                 self.tray_icon.notify(message, title)
 
         except Exception as e:
+            log_exception("PYAS._MainMixin.show_notification:491")
             self.write_log("WARN", "show_notification", detail=str(e), success=False)
 
     def show_alert(self, title, message, style="info"):
-        flags = 0x00000000 | (0x00000010 if style == "error" else 0x00000030 if style == "warning" else 0x00000040)
+        flags = 0x00000000 | (
+            0x00000010 if style == "error" else 0x00000030 if style == "warning" else 0x00000040
+        )
         self.user32.MessageBoxW(0, message, title, flags)
         return True
 
     def show_confirm(self, title, message):
         return self.user32.MessageBoxW(0, message, title, 0x00000004 | 0x00000020) == 6
 
-####################################################################################################
-
     def register_context_menu(self, enable):
-        paths = [r"Software\Classes\*\shell\PYAS_Scan", r"Software\Classes\Directory\shell\PYAS_Scan"]
-        cmd_path = f'"{self.file_pyas}"' if getattr(sys, 'frozen', False) else f'"{self.python}" "{self.file_pyas}"'
+        paths = [
+            r"Software\Classes\*\shell\PYAS_Scan",
+            r"Software\Classes\Directory\shell\PYAS_Scan",
+        ]
+        cmd_path = (
+            f'"{self.file_pyas}"'
+            if getattr(sys, "frozen", False)
+            else f'"{self.python}" "{self.file_pyas}"'
+        )
 
         try:
+            success = True
+
             for path in paths:
                 if enable:
-                    self._reg_write(winreg.HKEY_CURRENT_USER, path, None, winreg.REG_SZ, "PYAS Security Scan")
-                    self._reg_write(winreg.HKEY_CURRENT_USER, path, "Icon", winreg.REG_SZ, f'{cmd_path},0')
-                    self._reg_write(winreg.HKEY_CURRENT_USER, rf"{path}\command", None, winreg.REG_SZ, f'{cmd_path} -scan "%1"')
-
+                    success = (
+                        self._reg_write(
+                            winreg.HKEY_CURRENT_USER,
+                            path,
+                            None,
+                            winreg.REG_SZ,
+                            "PYAS Security Scan",
+                        )
+                        and success
+                    )
+                    success = (
+                        self._reg_write(
+                            winreg.HKEY_CURRENT_USER, path, "Icon", winreg.REG_SZ, f"{cmd_path},0"
+                        )
+                        and success
+                    )
+                    success = (
+                        self._reg_write(
+                            winreg.HKEY_CURRENT_USER,
+                            rf"{path}\command",
+                            None,
+                            winreg.REG_SZ,
+                            f'{cmd_path} -scan "%1"',
+                        )
+                        and success
+                    )
                 else:
-                    self._reg_delete(winreg.HKEY_CURRENT_USER, rf"{path}\command")
-                    self._reg_delete(winreg.HKEY_CURRENT_USER, path)
+                    for entry in (rf"{path}\command", path):
+                        try:
+                            with winreg.OpenKey(
+                                winreg.HKEY_CURRENT_USER, entry, 0, winreg.KEY_READ
+                            ):
+                                pass
+                        except FileNotFoundError:
+                            continue
 
-        except Exception as e:
-            self.write_log("WARN", "register_context_menu", detail=str(e), success=False)
+                        success = self._reg_delete(winreg.HKEY_CURRENT_USER, entry) and success
+
+            if not success:
+                self.write_log(
+                    "WARN",
+                    "register_context_menu",
+                    detail="Registry operation failed",
+                    success=False,
+                )
+
+            return success
+        except Exception as error:
+            log_exception("PYAS._MainMixin.register_context_menu:523")
+            self.write_log("WARN", "register_context_menu", detail=str(error), success=False)
+            return False
 
     def trigger_context_scan(self, target):
         if self._window:
-            self._window.evaluate_js(f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(target.replace(os.sep, '/'))});")
-
-####################################################################################################
+            self._window.evaluate_js(
+                f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(target.replace(os.sep, '/'))});"
+            )
 
     def on_drop(self, e):
         def _process_drop():
             try:
-                files = e.get('dataTransfer', {}).get('files', [])
-                paths = [f.get('pywebviewFullPath') for f in files if f.get('pywebviewFullPath')]
+                files = e.get("dataTransfer", {}).get("files", [])
+                paths = [f.get("pywebviewFullPath") for f in files if f.get("pywebviewFullPath")]
 
                 if paths and self._window:
-                    self._window.evaluate_js(f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(paths)});")
+                    self._window.evaluate_js(
+                        f"if(window.triggerContextScan) window.triggerContextScan({json.dumps(paths)});"
+                    )
 
             except Exception as ex:
+                log_exception("PYAS._MainMixin.on_drop._process_drop:540")
                 self.write_log("WARN", "on_drop", detail=str(ex), success=False)
 
         threading.Thread(target=_process_drop, daemon=True).start()
 
     def select_files(self, file_types=None):
-        if self._window: 
+        if self._window:
             kwargs = {"allow_multiple": True}
+
             if file_types:
                 kwargs["file_types"] = tuple(file_types)
 
-            return self._window.create_file_dialog(getattr(webview, 'OPEN_DIALOG', 10), **kwargs) or []
+            return (
+                self._window.create_file_dialog(getattr(webview, "OPEN_DIALOG", 10), **kwargs) or []
+            )
+
         return []
 
     def select_folder(self):
-        if self._window: 
-            return self._window.create_file_dialog(getattr(webview, 'FOLDER_DIALOG', 20)) or []
-        return []
+        if self._window:
+            return self._window.create_file_dialog(getattr(webview, "FOLDER_DIALOG", 20)) or []
 
-####################################################################################################
+        return []
 
     def open_file_location(self, file_path):
         if not file_path:
@@ -1115,6 +899,7 @@ class _MainMixin:
         if expanded_path.upper().startswith(reg_prefixes):
             try:
                 full_path = expanded_path
+
                 if full_path.startswith("HKLM"):
                     full_path = full_path.replace("HKLM", "HKEY_LOCAL_MACHINE", 1)
 
@@ -1134,52 +919,67 @@ class _MainMixin:
                     ("taskkill.exe",),
                     ["/F", "/IM", "regedit.exe"],
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
                 )
-                self._reg_write(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit", "LastKey", winreg.REG_SZ, full_path)
+                self._reg_write(
+                    winreg.HKEY_CURRENT_USER,
+                    r"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit",
+                    "LastKey",
+                    winreg.REG_SZ,
+                    full_path,
+                )
                 regedit = self._find_windows_tool("regedit.exe")
+
                 if not regedit:
                     return False
+
                 subprocess.Popen([regedit])
 
                 return True
             except Exception:
+                log_exception("PYAS._MainMixin.open_file_location:597")
                 pass
+
             return False
 
         if os.path.exists(expanded_path):
             try:
                 clean_path = os.path.normpath(expanded_path)
                 explorer = self._find_windows_tool("explorer.exe")
+
                 if not explorer:
                     return False
+
                 subprocess.Popen([explorer, "/select,", clean_path])
                 return True
 
             except Exception:
+                log_exception("PYAS._MainMixin.open_file_location:610")
                 pass
+
         return False
 
     def open_website(self):
         try:
             return webbrowser.open(self.pyas_config.get("api_host"))
         except Exception:
+            log_exception("PYAS._MainMixin.open_website:617")
             return False
 
     def open_url(self, url):
         try:
             return webbrowser.open(url)
         except Exception:
+            log_exception("PYAS._MainMixin.open_url:623")
             return False
 
-####################################################################################################
 
 class WindowAPI(_MainMixin, ScannerMixin, ToolsMixin, ProtectMixin):
     pass
 
 
 def get_base_path():
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         return os.path.dirname(sys.executable)
 
     return os.path.dirname(os.path.abspath(__file__))
@@ -1197,6 +997,7 @@ def get_frontend_asset_errors():
 
     for rel_path in required_files:
         abs_path = os.path.join(base_path, rel_path)
+
         if not os.path.isfile(abs_path):
             errors.append(f"Missing UI asset: {rel_path}")
         elif os.path.getsize(abs_path) <= 0:
@@ -1209,17 +1010,21 @@ def show_startup_error(message):
     try:
         ctypes.windll.user32.MessageBoxW(None, message, PYAS_WINDOW_TITLE, 0x00000010)
     except Exception:
+        log_exception("PYAS.show_startup_error:662")
         pass
 
-####################################################################################################
 
 class NoCacheRequestHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=os.path.join(get_base_path(), "Interface"), **kwargs)
 
+    def log_message(self, format, *args):
+        logging.getLogger("PYAS.Startup").info("HTTP %s: " + format, self.client_address[0], *args)
+
     def do_GET(self):
-        if self.path == '/':
-            self.path = '/templates/index.html'
+        if self.path == "/":
+            self.path = "/templates/index.html"
+
         return super().do_GET()
 
     def end_headers(self):
@@ -1228,7 +1033,6 @@ class NoCacheRequestHandler(SimpleHTTPRequestHandler):
         self.send_header("Pragma", "no-cache")
         super().end_headers()
 
-####################################################################################################
 
 class WindowHook:
     def __init__(self, title, api_ref=None):
@@ -1243,24 +1047,50 @@ class WindowHook:
         self.HTCAPTION = 2
         self.GWLP_WNDPROC = -4
 
-        class RECT(ctypes.Structure):
-            _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
-
         self.RECT = RECT
-        self.WNDPROC = ctypes.WINFUNCTYPE(ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p)
+        self.WNDPROC = ctypes.WINFUNCTYPE(
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p
+        )
 
         self.user32 = ctypes.windll.user32
-        self.user32.FindWindowW.argtypes, self.user32.FindWindowW.restype = [ctypes.c_wchar_p, ctypes.c_wchar_p], ctypes.wintypes.HWND
-        self.user32.CallWindowProcW.argtypes, self.user32.CallWindowProcW.restype = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p
-        self.user32.DefWindowProcW.argtypes, self.user32.DefWindowProcW.restype = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p], ctypes.c_void_p
+        self.user32.FindWindowW.argtypes, self.user32.FindWindowW.restype = [
+            ctypes.c_wchar_p,
+            ctypes.c_wchar_p,
+        ], ctypes.wintypes.HWND
+        self.user32.CallWindowProcW.argtypes, self.user32.CallWindowProcW.restype = [
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        ], ctypes.c_void_p
+        self.user32.DefWindowProcW.argtypes, self.user32.DefWindowProcW.restype = [
+            ctypes.c_void_p,
+            ctypes.c_uint,
+            ctypes.c_void_p,
+            ctypes.c_void_p,
+        ], ctypes.c_void_p
 
         if ctypes.sizeof(ctypes.c_void_p) == 8:
-            self.SetWindowLong, self.GetWindowLong = self.user32.SetWindowLongPtrW, self.user32.GetWindowLongPtrW
+            self.SetWindowLong, self.GetWindowLong = (
+                self.user32.SetWindowLongPtrW,
+                self.user32.GetWindowLongPtrW,
+            )
         else:
-            self.SetWindowLong, self.GetWindowLong = self.user32.SetWindowLongW, self.user32.GetWindowLongW
+            self.SetWindowLong, self.GetWindowLong = (
+                self.user32.SetWindowLongW,
+                self.user32.GetWindowLongW,
+            )
 
-        self.SetWindowLong.argtypes, self.SetWindowLong.restype = [ctypes.c_void_p, ctypes.c_int, self.WNDPROC], ctypes.c_void_p
-        self.GetWindowLong.argtypes, self.GetWindowLong.restype = [ctypes.c_void_p, ctypes.c_int], ctypes.c_void_p
+        self.SetWindowLong.argtypes, self.SetWindowLong.restype = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+            self.WNDPROC,
+        ], ctypes.c_void_p
+        self.GetWindowLong.argtypes, self.GetWindowLong.restype = [
+            ctypes.c_void_p,
+            ctypes.c_int,
+        ], ctypes.c_void_p
         self.new_wndproc_cb = self.WNDPROC(self.wndproc)
 
     def hook(self):
@@ -1268,204 +1098,341 @@ class WindowHook:
             return
 
         hwnd = self.user32.FindWindowW(None, self.title)
+
         if hwnd:
             self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
             self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
 
             try:
-                self.user32.ChangeWindowMessageFilterEx.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_uint, ctypes.c_void_p]
+                self.user32.ChangeWindowMessageFilterEx.argtypes = [
+                    ctypes.c_void_p,
+                    ctypes.c_uint,
+                    ctypes.c_uint,
+                    ctypes.c_void_p,
+                ]
+                self.user32.ChangeWindowMessageFilter.argtypes = [ctypes.c_uint, ctypes.c_uint]
+                self.user32.ChangeWindowMessageFilter.restype = ctypes.wintypes.BOOL
+
+                if not self.user32.ChangeWindowMessageFilter(PYAS_MAINTENANCE_MESSAGE, 0):
+                    raise OSError("Could not remove process-wide maintenance message allowance")
+
+                if not self.user32.ChangeWindowMessageFilterEx(
+                    hwnd, PYAS_MAINTENANCE_MESSAGE, 2, None
+                ):
+                    raise OSError("Could not protect maintenance message channel")
+
+                self.maintenance_channel_ready = True
                 self.user32.ChangeWindowMessageFilterEx(hwnd, self.WM_COPYDATA, 1, None)
             except Exception:
+                log_exception("PYAS.WindowHook.hook:732")
                 pass
 
     def call_default(self, hwnd, msg, wparam, lparam):
         if self.old_wndproc:
             return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam)
+
         return self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     def wndproc(self, hwnd, msg, wparam, lparam):
+        if msg == PYAS_MAINTENANCE_MESSAGE:
+            if (
+                not getattr(self, "maintenance_channel_ready", False)
+                or wparam not in PYAS_MAINTENANCE_COMMANDS
+                or not self.api_ref
+            ):
+                return 0
+
+            uninstall = wparam in (PYAS_MESSAGE_QUIT, PYAS_MESSAGE_DRIVER_UNINSTALL)
+            threading.Thread(
+                target=self.api_ref.close, kwargs={"uninstall_driver": uninstall}, daemon=True
+            ).start()
+            return 1
+
         if msg == self.WM_COPYDATA:
             try:
+                if not lparam:
+                    return 0
+
                 cds = COPYDATASTRUCT.from_address(lparam)
+
+                if cds.dwData not in (PYAS_MESSAGE_SCAN, PYAS_MESSAGE_SHOW):
+                    return 0
+
+                if cds.dwData == PYAS_MESSAGE_SCAN and (
+                    not cds.lpData or not 0 < cds.cbData <= 131072
+                ):
+                    return 0
+
                 if cds.dwData == PYAS_MESSAGE_SCAN:
-                    path = ctypes.string_at(cds.lpData, cds.cbData).decode('utf-8').strip('\x00')
+                    path = ctypes.string_at(cds.lpData, cds.cbData).decode("utf-8").strip("\x00")
+
                     if self.api_ref:
                         threading.Thread(target=self.api_ref.restore_from_tray, daemon=True).start()
-                        threading.Thread(target=self.api_ref.trigger_context_scan, args=(path,), daemon=True).start()
+                        threading.Thread(
+                            target=self.api_ref.trigger_context_scan, args=(path,), daemon=True
+                        ).start()
 
                 elif cds.dwData == PYAS_MESSAGE_SHOW and self.api_ref:
                     threading.Thread(target=self.api_ref.restore_from_tray, daemon=True).start()
 
-                elif cds.dwData == PYAS_MESSAGE_CLOSE and self.api_ref:
-                    threading.Thread(target=self.api_ref.close, daemon=True).start()
-
-                elif cds.dwData in (PYAS_MESSAGE_QUIT, PYAS_MESSAGE_DRIVER_UNINSTALL) and self.api_ref:
-                    threading.Thread(target=self.api_ref.close, kwargs={"uninstall_driver": True}, daemon=True).start()
-
-                elif cds.dwData == PYAS_MESSAGE_DRIVER_UNLOAD and self.api_ref:
-                    threading.Thread(target=self.api_ref.close, daemon=True).start()
-
             except Exception:
+                log_exception("PYAS.WindowHook.wndproc:762")
                 pass
+
             return 1
 
-        if msg == self.WM_CLOSE or (msg == self.WM_SYSCOMMAND and (wparam & 0xFFF0) == self.SC_CLOSE):
-            if self.api_ref and not getattr(self.api_ref, 'closing', False):
+        if msg == self.WM_CLOSE or (
+            msg == self.WM_SYSCOMMAND and (wparam & 0xFFF0) == self.SC_CLOSE
+        ):
+            if self.api_ref and not getattr(self.api_ref, "closing", False):
                 threading.Thread(target=self.api_ref.hide_window, daemon=True).start()
                 return 0
+
             return self.call_default(hwnd, msg, wparam, lparam)
 
         if msg == self.WM_NCHITTEST:
             x, y = lparam & 0xFFFF, (lparam >> 16) & 0xFFFF
+
             if x >= 32768:
                 x -= 65536
+
             if y >= 32768:
                 y -= 65536
 
             rect = self.RECT()
             self.user32.GetWindowRect(hwnd, ctypes.byref(rect))
+
             if rect.top <= y <= rect.top + 44 and rect.left <= x <= rect.right - 150:
                 return self.HTCAPTION
 
         if msg == self.WM_DPICHANGED:
             try:
                 rect = self.RECT.from_address(lparam)
-                self.user32.SetWindowPos(hwnd, None, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, 0x0004 | 0x0010 | 0x0020)
+                self.user32.SetWindowPos(
+                    hwnd,
+                    None,
+                    rect.left,
+                    rect.top,
+                    rect.right - rect.left,
+                    rect.bottom - rect.top,
+                    0x0004 | 0x0010 | 0x0020,
+                )
             except Exception:
+                log_exception("PYAS.WindowHook.wndproc:788")
                 pass
 
         return self.call_default(hwnd, msg, wparam, lparam)
 
-####################################################################################################
 
-def configure_webview_logging(log_path):
-    try:
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        logger = logging.getLogger("pywebview")
-        logger.setLevel(logging.DEBUG)
-        normalized = os.path.normcase(os.path.abspath(log_path))
-        for handler in logger.handlers:
-            if isinstance(handler, logging.FileHandler) and os.path.normcase(os.path.abspath(handler.baseFilename)) == normalized:
-                return
-        handler = logging.FileHandler(log_path, encoding="utf-8")
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-        logger.addHandler(handler)
-    except Exception:
-        pass
+class StartupHTTPServer(ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        logging.getLogger("PYAS.Startup").exception("HTTP request failed: %s", client_address)
 
 
 def start_api(port_container, error_container, ready_event):
-    ThreadingTCPServer.allow_reuse_address = True
-    ThreadingTCPServer.daemon_threads = True
+    logger = logging.getLogger("PYAS.Startup")
+
     try:
-        with ThreadingTCPServer(("127.0.0.1", 0), NoCacheRequestHandler) as httpd:
+        with StartupHTTPServer(("127.0.0.1", 0), NoCacheRequestHandler) as httpd:
             port_container.append(httpd.server_address[1])
+            logger.info("HTTP listener ready: 127.0.0.1:%s", port_container[0])
             ready_event.set()
             httpd.serve_forever()
-
     except Exception as e:
+        logger.exception("HTTP listener failed")
         error_container.append(str(e))
         ready_event.set()
+
+
+def verify_ui_server(port):
+    from urllib.request import build_opener, ProxyHandler
+
+    opener = build_opener(ProxyHandler({}))
+
+    for path in ("/", "/static/css/style.css", "/static/js/i18n.js", "/static/js/main.js"):
+        with opener.open(f"http://127.0.0.1:{port}{path}", timeout=3) as response:
+            if response.status != 200 or not response.read(1):
+                raise RuntimeError(f"UI HTTP health check failed: {path}")
+
+    logging.getLogger("PYAS.Startup").info("HTTP UI health checks passed")
+
+
+def start_ui():
+    logger = logging.getLogger("PYAS.Startup")
+    hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
+    init_width, init_height = 980, 670
+    stage = "assets"
+    js_api = None
+    webview_completed = threading.Event()
+    recovery_lock = threading.Lock()
+
+    def fail_startup(reason, recover=False):
+        with recovery_lock:
+            if webview_completed.is_set():
+                return
+
+            webview_completed.set()
+            logger.error("Startup failed: %s", reason)
+
+            if js_api:
+                js_api.write_log("WARN", "WebView2", detail=reason, success=False)
+                js_api.flush_logs_now()
+
+            if (
+                recover
+                and js_api
+                and restart_with_new_webview_profile(js_api.path_webview, __file__)
+            ):
+                os._exit(3)
+
+            if not hide_on_start:
+                show_startup_error(
+                    f"PYAS could not initialize its interface.\n\n{reason}\n\n"
+                    f"Diagnostic log: {STARTUP_LOG_PATH or 'unavailable'}"
+                )
+
+            os._exit(3)
+
+    try:
+        wait_for_recovery_parent()
+        arguments = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+        os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (
+            arguments + " --proxy-bypass-list=localhost;127.0.0.1"
+        ).strip()
+        frontend_errors = get_frontend_asset_errors()
+
+        if frontend_errors:
+            raise RuntimeError("UI files are incomplete: " + "; ".join(frontend_errors))
+
+        logger.info("UI assets verified")
+
+        stage = "http"
+        port_container, server_errors = [], []
+        server_ready = threading.Event()
+        threading.Thread(
+            target=start_api, args=(port_container, server_errors, server_ready), daemon=True
+        ).start()
+
+        if not server_ready.wait(5.0) or not port_container or server_errors:
+            raise RuntimeError("Local UI server did not start: " + "; ".join(server_errors))
+
+        verify_ui_server(port_container[0])
+
+        stage = "api"
+        logger.info("Initializing Python API")
+        js_api = WindowAPI()
+        js_api.file_webview_log = STARTUP_LOG_PATH or js_api.file_webview_log
+
+        stage = "profile"
+        preferred_profile = os.environ.get("PYAS_WEBVIEW_PROFILE", js_api.path_webview)
+        js_api.path_webview = prepare_webview_profile(preferred_profile)
+
+        stage = "runtime"
+        check_webview_dependencies(webview)
+
+        stage = "window"
+        user32 = ctypes.windll.user32
+        pos_x = (user32.GetSystemMetrics(0) - init_width) // 2
+        pos_y = (user32.GetSystemMetrics(1) - init_height) // 2
+        startup_url = f"http://127.0.0.1:{port_container[0]}/"
+        window = webview.create_window(
+            title=PYAS_WINDOW_TITLE,
+            url=startup_url,
+            width=init_width,
+            height=init_height,
+            x=pos_x,
+            y=pos_y,
+            frameless=True,
+            easy_drag=False,
+            js_api=js_api,
+            background_color="#e0e0e0",
+            hidden=hide_on_start,
+        )
+
+        if platform.system() == "Windows":
+            window_hook = WindowHook(PYAS_WINDOW_TITLE, js_api)
+            window.events.shown += window_hook.hook
+
+        js_api.set_window(window)
+        logger.info("Native window configured; hidden=%s", hide_on_start)
+
+        stage = "tray"
+        js_api.show_tray()
+        logger.info("Tray initialized")
+        webview_loaded_event = threading.Event()
+        dnd_state = {"bound": False}
+
+        def bind_dnd():
+            webview_loaded_event.set()
+            logger.info("WebView document loaded")
+
+            if dnd_state["bound"]:
+                return
+
+            try:
+                window.dom.document.events.drop += DOMEventHandler(js_api.on_drop, True, True)
+                dnd_state["bound"] = True
+            except Exception:
+                logger.exception("Drag and drop binding failed")
+
+        def webview_startup_watchdog():
+            if js_api.ui_ready_event.wait(30.0) or webview_completed.is_set():
+                return
+
+            if webview_loaded_event.is_set():
+                logger.warning("UI bridge timeout; reloading once")
+
+                try:
+                    window.load_url(startup_url)
+                except Exception:
+                    logger.exception("UI reload failed")
+
+            if js_api.ui_ready_event.wait(30.0) or webview_completed.is_set():
+                return
+
+            reason = (
+                "Python bridge or configuration initialization timed out"
+                if webview_loaded_event.is_set()
+                else ("WebView2 did not load the local UI document")
+            )
+            fail_startup(reason, recover=True)
+
+        def on_closed():
+            webview_completed.set()
+
+        window.events.loaded += bind_dnd
+        window.events.closed += on_closed
+        threading.Thread(target=webview_startup_watchdog, daemon=True).start()
+        stage = "webview"
+        logger.info("Starting edgechromium")
+        webview.start(gui="edgechromium", private_mode=False, storage_path=js_api.path_webview)
+        webview_completed.set()
+    except Exception as e:
+        logger.exception("Startup exception at stage=%s", stage)
+        fail_startup(f"{stage}: {e}", recover=stage == "webview")
+
 
 if __name__ == "__main__":
     if "-quit" in sys.argv or "-driver-unload" in sys.argv or "-driver-uninstall" in sys.argv:
         controller = WindowAPI()
+
         if "-quit" in sys.argv or "-driver-uninstall" in sys.argv:
             success, delete_error = controller.uninstall_system_driver()
+
             if not success:
-                controller.write_log("WARN", "Driver Service", detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}", success=False)
+                controller.write_log(
+                    "WARN",
+                    "Driver Service",
+                    detail=f"DeleteService failed: 0x{delete_error & 0xFFFFFFFF:08X}",
+                    success=False,
+                )
         else:
             success = controller.stop_system_driver()
+
         controller.flush_logs_now()
         os._exit(0 if success else 2)
 
-    hide_on_start = "-h" in sys.argv or "-hide" in sys.argv
-    init_width, init_height = 980, 670
-
-    os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = "--proxy-bypass-list=<-loopback>;localhost;127.0.0.1"
-
-    frontend_errors = get_frontend_asset_errors()
-    if frontend_errors:
-        show_startup_error("PYAS UI files are incomplete.\n\n" + "\n".join(frontend_errors))
-        os._exit(4)
-
-    port_container = []
-    server_errors = []
-    server_ready = threading.Event()
-    api_thread = threading.Thread(target=start_api, args=(port_container, server_errors, server_ready), daemon=True)
-    api_thread.start()
-    server_ready.wait(timeout=5.0)
-
-    if not port_container:
-        show_startup_error("PYAS could not start its local UI server.\n\n" + (server_errors[0] if server_errors else "Unknown error"))
-        os._exit(1)
-
-    js_api = WindowAPI()
-    configure_webview_logging(js_api.file_webview_log)
-    try:
-        os.makedirs(js_api.path_webview, exist_ok=True)
-    except Exception as e:
-        js_api.write_log("WARN", "WebView2", detail=f"User data folder creation failed: {e}", success=False)
-
-    user32 = ctypes.windll.user32
-    pos_x, pos_y = (user32.GetSystemMetrics(0) - init_width) // 2, (user32.GetSystemMetrics(1) - init_height) // 2
-
-    startup_url = f"http://127.0.0.1:{port_container[0]}/"
-    window = webview.create_window(
-        title=PYAS_WINDOW_TITLE, url=startup_url, width=init_width, height=init_height, x=pos_x, y=pos_y,
-        frameless=True, easy_drag=False, js_api=js_api, background_color='#e0e0e0', hidden=hide_on_start)
-
-    if platform.system() == "Windows":
-        window_hook = WindowHook(PYAS_WINDOW_TITLE, js_api)
-        window.events.shown += window_hook.hook
-
-    js_api.set_window(window)
-    js_api.show_tray()
-
-    webview_loaded_event = threading.Event()
-    dnd_state = {"bound": False}
-
-    def bind_dnd():
-        webview_loaded_event.set()
-        if dnd_state["bound"]:
-            return
-        try:
-            window.dom.document.events.drop += DOMEventHandler(js_api.on_drop, True, True)
-            dnd_state["bound"] = True
-        except Exception:
-            pass
-
-    def webview_startup_watchdog():
-        if js_api.ui_ready_event.wait(30.0):
-            return
-
-        if webview_loaded_event.is_set():
-            try:
-                js_api.write_log("WARN", "WebView2", detail="UI bridge was not ready after 30 seconds; reloading once", success=False)
-                window.reload()
-            except Exception as e:
-                js_api.write_log("WARN", "WebView2", detail=f"Reload failed: {e}", success=False)
-
-        if js_api.ui_ready_event.wait(30.0):
-            return
-
-        js_api.write_log("WARN", "WebView2", detail="UI initialization timed out after recovery attempt", success=False)
-        js_api.flush_logs_now()
-        if not hide_on_start:
-            show_startup_error(
-                "PYAS WebView2 failed to initialize.\n\n"
-                "Please repair or update Microsoft Edge WebView2 Runtime, then start PYAS again.\n\n"
-                f"Diagnostic log: {js_api.file_webview_log}"
-            )
-        os._exit(3)
-
-    window.events.loaded += bind_dnd
-    threading.Thread(target=webview_startup_watchdog, daemon=True).start()
-    try:
-        webview.start(gui="edgechromium", private_mode=False, storage_path=js_api.path_webview)
-    except Exception as e:
-        js_api.write_log("WARN", "WebView2", detail=f"Startup failed: {e}", success=False)
-        js_api.flush_logs_now()
-        if not hide_on_start:
-            show_startup_error(f"PYAS WebView2 failed to start.\n\n{e}\n\nDiagnostic log: {js_api.file_webview_log}")
-        os._exit(3)
+    start_ui()

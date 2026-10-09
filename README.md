@@ -19,6 +19,8 @@
 
 ## Overview
 
+Current desktop source version: **3.7.1** (`PYAS_Version.py`; Windows file version `3.7.1.0`). The source version does not imply that a matching installer has already been published.
+
 PYAS Security is a source-available Windows endpoint security project that combines multiple detection and protection layers in one desktop application. It brings together local PE-file machine-learning inference, YARA-based matching, digital-signature inspection, optional cloud analysis, real-time user-mode monitoring, and a native Windows minifilter driver.
 
 The project is designed both as a usable security application and as an engineering platform for studying malware detection, Windows internals, rule-driven prevention, model training, and online file analysis.
@@ -42,7 +44,7 @@ The project is designed both as a usable security application and as an engineer
 | Static rules | File and process-memory matching | YARA rules compiled and loaded by `rule_scanner` |
 | PE machine learning | Feature extraction and local classification | `pefile`, NumPy, ONNX Runtime |
 | Signature trust | Authenticode verification | Windows WinVerifyTrust APIs |
-| Cloud analysis | Upload, polling, rescan, and result retrieval | HTTPS API with chunked upload support |
+| Cloud analysis | Optional queued submission; client methods for polling and rescanning | `PYAS_Cloud.py`, HTTPS and chunked upload |
 | Process protection | New-process inspection, optional suspension, termination controls | Win32/NT APIs and worker pools |
 | File protection | Directory change monitoring, debounced real-time scans, file locking | Windows file notification APIs |
 | Memory protection | Process-memory YARA scanning and kernel callbacks | User-mode scanner plus driver rules |
@@ -50,118 +52,123 @@ The project is designed both as a usable security application and as an engineer
 | Kernel enforcement | File, process/thread, registry, memory, image-load, and boot/disk controls | Native C++ minifilter driver |
 | Recovery and maintenance | Quarantine, system repair, startup management, cleanup, MBR backup/check | Python application services |
 
-Protection modules are individually configurable. Several active-protection switches are disabled by default so users can enable only the controls appropriate for their environment.
+Protection modules are individually configurable. Cloud submission is disabled by default. Several active-protection switches are also disabled by default so users can enable only the controls appropriate for their environment.
 
 ## Detection pipeline
 
 ```mermaid
 flowchart LR
     A[File or process event] --> B{Scope and policy checks}
-    B -->|Allowed| C[Hash and metadata]
     B -->|Excluded| Z[Skip]
-    C --> D[Digital signature verification]
-    C --> E[YARA rule scan]
-    C --> F[PE feature extraction]
-    F --> G[ONNX model inference]
-    D --> H[Local verdict aggregation]
-    E --> H
-    G --> H
-    H --> I{Cloud analysis enabled?}
-    I -->|Yes| J[Hash lookup / chunked upload]
-    J --> K[Cloud report]
-    I -->|No| L[Local result]
-    K --> M[Alert and response]
-    L --> M
+    B -->|Allowed| C[Shared scan entry: stable file gate and hash]
+    C --> D{Content and policy cache hit?}
+    D -->|Yes| H[Cached local verdict]
+    D -->|No| E[Local engines: signature / YARA / PE and ONNX]
+    E --> F[Local verdict and eligible cache publication]
+    F --> H
+    H --> M[Alert and configured response]
     M --> N[Quarantine / delete / allow]
+    H -. optional submission .-> I{Cloud switch enabled?}
+    I -->|Yes| J[Cloud queue: hash lookup / chunked upload]
+    I -->|No| K[No upload]
 ```
+
+`PYAS_Scanner.py` coordinates local scanning and remediation. The common scan entry holds a read handle that denies concurrent writes/deletes while hashing and classifying. If the handle cannot be acquired, classification still runs and a retry is scheduled, but the result is not published to the shared cache.
+
+`PYAS_Cloud.py` contains both `CloudScanner` and `CloudQueueMixin`. The desktop cloud worker currently submits files; it does not automatically call `get_result()` or merge a remote verdict into local remediation. Polling and rescan methods remain available to explicit client callers.
 
 ## System architecture
 
+The desktop application currently consists of **27 `PYAS*.py` modules**. `WindowAPI` in `PYAS.py` combines `_MainMixin`, `ScannerMixin`, `ToolsMixin`, and `ProtectMixin` on one application instance. The mixins share the existing configuration, state, queues, and locks rather than creating separate service instances.
+
 ```mermaid
 flowchart TB
-    subgraph UI[Presentation layer]
-        WEB[HTML / CSS / JavaScript]
-        WV[WebView2 desktop shell]
-        TRAY[System tray and Windows shell integration]
-    end
+    UI[Interface: HTML / CSS / JavaScript] <--> WV[WebView2]
+    WV <--> CORE[PYAS.py: WindowAPI / tray / window messages]
+    START[PYAS_Startup.py: diagnostics and profile recovery] --> WV
+    CORE --> MAIN[Main mixins: Runtime / Config / Logs / WinAPI]
+    CORE --> SCAN[PYAS_Scanner.py: ScannerMixin]
+    CORE --> TOOLS[PYAS_Tools.py: ToolsMixin]
+    CORE --> PROTECT[PYAS_Protect.py: ProtectMixin]
 
-    subgraph APP[Python application layer]
-        CORE[PYAS.py orchestration]
-        SCAN[ScannerMixin]
-        PROTECT[ProtectMixin]
-        TOOLS[ToolsMixin]
-        ENGINE[PYAS_Engine.py]
-    end
+    MAIN --> ENGINE[PYAS_Engine.py: compatible engine exports]
+    SCAN --> LOCAL[Rules / Signature / PE]
+    ENGINE --> LOCAL
+    LOCAL --> FEATURES[PYAS_Features.py]
+    LOCAL --> ASSETS[Engine: YARA assets and ONNX models]
+    SCAN --> CLOUD[PYAS_Cloud.py: client and cloud queue]
+    CLOUD -. optional HTTPS submission .-> ONLINE[Analyze: separate online analysis service]
 
-    subgraph DETECT[Detection engines]
-        YARA[YARA rules]
-        PE[PE feature extractor]
-        ONNX[ONNX Runtime models]
-        SIGN[Authenticode verification]
-        CLOUD[PYAS Cloud API]
-    end
+    TOOLS --> UTIL[Autostart / Process / Maintenance / Threats]
+    PROTECT --> RT[PYAS_Realtime.py]
+    PROTECT --> SYS[PYAS_System.py]
+    PROTECT --> POP[PYAS_Popup.py: matching and window operations]
+    PROTECT --> DRIVER[PYAS_Driver.py]
+    RT --> SCHED[PYAS_Scheduler.py: bounded delayed work]
+    DRIVER <--> PORT[Filter Manager communication port]
+    PORT <--> KERNEL[Plugins/Filter: native minifilter]
+    KERNEL --> POLICY[Plugins/Rules: protection policies]
 
-    subgraph KERNEL[Windows kernel layer]
-        PORT[Filter Manager communication port]
-        RULES[Dynamic rule engine and trust cache]
-        FILE[File-system minifilter]
-        PROC[Process and thread callbacks]
-        REG[Registry callbacks]
-        MEM[Memory and image-load controls]
-        BOOT[Boot and disk I/O controls]
-    end
-
-    subgraph ONLINE[Online analysis platform]
-        API[Flask application and REST API]
-        QUEUE[Priority analysis workers]
-        DB[(PostgreSQL)]
-        STORAGE[(Sample and report storage)]
-    end
-
-    WEB <--> WV
-    WV <--> CORE
-    TRAY <--> CORE
-    CORE --> SCAN
-    CORE --> PROTECT
-    CORE --> TOOLS
-    SCAN --> ENGINE
-    PROTECT --> ENGINE
-    ENGINE --> YARA
-    ENGINE --> PE
-    PE --> ONNX
-    ENGINE --> SIGN
-    ENGINE -. optional HTTPS .-> CLOUD
-    PROTECT <--> PORT
-    PORT <--> RULES
-    RULES --> FILE
-    RULES --> PROC
-    RULES --> REG
-    RULES --> MEM
-    RULES --> BOOT
-    CLOUD --> API
-    API --> QUEUE
-    QUEUE --> DB
-    QUEUE --> STORAGE
+    MAIN --> STORE[PYAS_Storage.py: atomic JSON writes]
+    CORE -. exception reporting .-> DIAG[PYAS_Diagnostics.py]
 ```
+
+- **Application state:** `PYAS_Runtime.py` owns initialization, UI dispatch, and feature-worker lifecycle. `PYAS_Config.py` applies switches and persists settings after successful operations; failures restore the prior state and attempt the corresponding rollback. Driver disable state is committed only after unloading succeeds.
+- **Protection:** `PYAS_Realtime.py` handles process, file, and network monitoring; `PYAS_System.py` handles system protection and repair; `PYAS_Driver.py` owns driver lifecycle and communication; `PYAS_Popup.py` combines popup matching with native window operations.
+- **Shared infrastructure:** `PYAS_Process.py` centralizes process enumeration and operations; `PYAS_WinAPI.py` centralizes Win32/NT declarations, native structures, and file-notification decoding. `PYAS_Scheduler.py` uses one scheduler and at most four workers, with a default 2048 pending-work limit, bounded critical retry capacity, and recovery scans on overflow.
+- **Storage and diagnostics:** configuration and reports use atomic JSON replacement via `PYAS_Storage.py`. `PYAS_Diagnostics.py` supplies consistent exception context and tracebacks, including background futures and workers, with bounded repeat suppression. The UI text log trims from 100,000 UTF-16 code units to approximately 90,000; tables render at most 1,000 rows, while log retention/export allows 10,000 records. The scan cache allows 100,000 entries and evicts 10,000 at capacity.
+- **Compatibility:** `PYAS_Engine.py` continues to export `sign_scanner`, `rule_scanner`, `pe_scanner`, and `cloud_scanner` as aliases for the implementation classes. Cloud queue logic resides in `PYAS_Cloud.py`; native popup operations reside in `PYAS_Popup.py`; Windows API declarations reside in `PYAS_WinAPI.py`.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for state ownership, rollback behavior, performance limits, diagnostics, and validation details.
 
 ## Repository layout
 
 ```text
 PYAS/
-├── PYAS.py                    # Desktop entry point, UI bridge, configuration and lifecycle
-├── PYAS_Engine.py             # YARA, PE/ML, signature and cloud scanning engines
-├── PYAS_Scanner.py            # Scan scheduling, workers, results and remediation
-├── PYAS_Protect.py            # Real-time protection and driver lifecycle/communication
-├── PYAS_Tools.py              # Windows utilities, startup, process, network and cleanup tools
-├── PYAS_Version.py            # Windows executable version metadata
+├── PYAS.py                   # Desktop entry point, WindowAPI, tray, messages and lifecycle
+├── PYAS_Startup.py           # WebView2 startup checks, diagnostics and profile recovery
+├── PYAS_Runtime.py           # Environment/state initialization, UI queue and feature workers
+├── PYAS_Config.py            # Settings, switch application, persistence and rollback
+├── PYAS_Logs.py              # Activity reports, bounded history, export and flushing
+├── PYAS_WinAPI.py            # Shared Win32/NT constants, structures and API declarations
+├── PYAS_Storage.py           # Atomic JSON persistence
+├── PYAS_Diagnostics.py       # Exception logging, repeat suppression and future observation
+├── PYAS_Scheduler.py         # Bounded delayed work, debounce and overflow recovery
+├── PYAS_Tools.py             # Windows utility facade and general system operations
+├── PYAS_Autostart.py         # SID-bound elevated startup tasks and startup management
+├── PYAS_Process.py           # Shared process enumeration, command lines and termination
+├── PYAS_Maintenance.py       # Cleanup and memory-maintenance utilities
+├── PYAS_Threats.py           # Named threat lists and threat extraction/removal
+├── PYAS_Protect.py           # Protection facade, allowlists and file locking
+├── PYAS_Driver.py            # Driver install/unload, listener and communication protocol
+├── PYAS_System.py            # System monitoring/repair and MBR protection
+├── PYAS_Realtime.py          # Process, file and network protection workers
+├── PYAS_Popup.py             # Popup fingerprints, matching and native window operations
+├── PYAS_Scanner.py           # Scan coordination, shared verdict cache and remediation
+├── PYAS_Engine.py            # Compatible exports for the local/cloud engine classes
+├── PYAS_Signature.py         # Authenticode signature verification
+├── PYAS_Rules.py             # YARA and heuristic rule scanning
+├── PYAS_PE.py                # PE model loading, feature ordering and ONNX classification
+├── PYAS_Features.py          # PE structural/statistical feature extraction
+├── PYAS_Cloud.py             # Cloud HTTP client, session reuse, queue and cancellation
+├── PYAS_Version.py           # Source version and Windows executable metadata generation
+├── ARCHITECTURE.md             # Detailed architecture and validation notes
+├── README.md                   # Project overview and source layout
 ├── Engine/
-│   ├── Heuristic/             # YARA signatures and rule assets
-│   └── Properties/            # PE feature models and training/inference utilities
-├── Interface/                 # WebView2 HTML, CSS, JavaScript and icons
-└── Plugins/
-    ├── Filter/                # Native Windows minifilter driver source
-    └── Rules/                 # Driver protection policies
+│   ├── Heuristic/              # Desktop YARA signatures and rule assets
+│   └── Properties/             # PE feature models and training/inference utilities
+├── Interface/                  # WebView2 HTML, CSS, JavaScript and icons
+├── Plugins/
+│   ├── Filter/                 # Native Windows minifilter components
+│   └── Rules/                  # Driver protection policies
+├── Install/
+│   └── Inno.Installer.Source/  # Inno Setup installer source
+├── Analyze/                    # Separate online analysis platform
+├── Experimental/               # Experimental/research components
+└── tests/                      # Python regression and JavaScript UI tests
 ```
+
+This lists all desktop Python modules and the main project directories. Additional engine assets, generated files, caches, local backups, and duplicate development directories are not part of this architecture inventory. Packaging must include all 27 desktop modules and the required runtime assets.
 
 ## Getting started
 
@@ -238,7 +245,7 @@ PYAS stores machine-wide configuration and reports under:
 %ProgramData%\PYAS\Report.json
 ```
 
-WebView2 user data and its diagnostic log are stored under the current user's local application-data directory. Configuration includes scan limits, enabled protection layers, language and theme preferences, custom rule references, allow/block lists, and quarantine metadata.
+WebView2 user data is stored under the current user's local application-data directory. Startup, WebView, background exceptions, and activity records share `Report.json` (up to 10,000 records). New records include the desktop source `version`; exception tracebacks are stored in `detail`. If the machine-wide log directory is not writable, logging uses `PYAS/Report.json` in the temporary directory for that session. Configuration includes scan limits, enabled protection layers, language and theme preferences, custom rule references, allow/block lists, and quarantine metadata.
 
 Before reporting a configuration issue, reproduce it with default settings when safe to do so and remove sensitive paths or file information from logs.
 
@@ -258,23 +265,23 @@ The service can be containerized with Docker Compose, but the checked-in deploym
 
 ## Python API example
 
-`PYAS_Cloud.py` provides a client for the online analysis API:
+`PYAS_Cloud.py` provides `CloudScanner`, the desktop application's cloud client. The example below explicitly requests the existing client's verdict for a previously submitted SHA-256; it does not upload a new file:
 
 ```python
-from PYAS_Cloud import PYAS_Client
+from PYAS_Cloud import CloudScanner
 
-client = PYAS_Client(
+client = CloudScanner()
+verdict = client.get_result(
+    sha256="SHA256_OF_A_PREVIOUSLY_SUBMITTED_FILE",
+    api_host="https://pyas-security.com",
     api_key="YOUR_API_KEY",
-    hosts="https://pyas-security.com",
+    max_retries=6,
+    interval=10,
 )
-
-sha256 = client.upload_file(r"C:\samples\candidate.exe")
-if sha256 and client.wait_for_analysis(sha256):
-    report = client.get_report(sha256)
-    print(report)
+print(verdict)
 ```
 
-Only submit files that you are authorized to upload. Samples may contain confidential or personal information.
+`get_result()` returns a supported malicious classification string or `False`; `False` is not a complete remote report or a guarantee that a sample is safe. The desktop's queued submission path does not call this method automatically. Only submit files that you are authorized to upload; samples may contain confidential or personal information.
 
 ## Building the driver
 

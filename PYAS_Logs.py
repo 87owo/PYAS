@@ -1,4 +1,9 @@
-from PYAS_Diagnostics import log_exception, create_log_entry, MAX_LOG_ENTRIES
+from PYAS_Diagnostics import (
+    log_exception,
+    create_log_entry,
+    is_ui_log_entry,
+    MAX_LOG_ENTRIES,
+)
 import os
 import time
 import json
@@ -39,9 +44,20 @@ class LogMixin:
         target=None,
         operate=None,
         success=True,
+        ui_visible=None,
     ):
         entry = create_log_entry(
-            level, action, detail, code, pid, file_hash, source, target, operate, success
+            level,
+            action,
+            detail,
+            code,
+            pid,
+            file_hash,
+            source,
+            target,
+            operate,
+            success,
+            ui_visible=ui_visible,
         )
         self._append_log_entry(entry)
 
@@ -57,13 +73,13 @@ class LogMixin:
 
             self.logs_dirty = True
 
-            if self._window:
+            if self._window and is_ui_log_entry(entry):
                 js_cmd = f"if(window.updateLogs) window.updateLogs({json.dumps(entry)});"
                 self.ui_queue.put(js_cmd)
 
     def get_logs(self):
         with self.lock_logs:
-            return self.logs_data.copy()
+            return [entry for entry in self.logs_data if is_ui_log_entry(entry)]
 
     def clear_logs(self, log_ids=None):
         with self.lock_logs:
@@ -97,10 +113,10 @@ class LogMixin:
                 target_path = path[0] if isinstance(path, (tuple, list)) else path
 
                 with self.lock_logs:
-                    export_data = self.logs_data
+                    export_data = [entry for entry in self.logs_data if is_ui_log_entry(entry)]
 
                     if log_ids is not None:
-                        export_data = [log for log in self.logs_data if log["id"] in log_ids]
+                        export_data = [log for log in export_data if log["id"] in log_ids]
 
                     try:
                         with open(target_path, "w", encoding="utf-8") as f:

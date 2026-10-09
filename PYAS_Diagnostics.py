@@ -14,6 +14,18 @@ from PYAS_Version import VERSION
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
 MAX_LOG_ENTRIES = 10000
+BACKGROUND_DIAGNOSTIC_ACTIONS = frozenset(
+    {
+        "Scan Engine",
+        "Scan Deferred",
+        "Cloud API",
+        "perform_cloud_scan",
+        "repair_system_image",
+        "repair_system_wallpaper",
+        "protect_system_thread",
+        "show_notification",
+    }
+)
 
 _lock = threading.Lock()
 _recent = OrderedDict()
@@ -32,10 +44,11 @@ def create_log_entry(
     operate=None,
     success=True,
     timestamp=None,
+    ui_visible=None,
 ):
     timestamp = time.time() if timestamp is None else timestamp
 
-    return {
+    entry = {
         "id": str(uuid.uuid4()),
         "timestamp": timestamp,
         "time_str": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp)),
@@ -51,6 +64,34 @@ def create_log_entry(
         "operate": operate,
         "success": success,
     }
+
+    if ui_visible is not None:
+        entry["ui_visible"] = bool(ui_visible)
+
+    return entry
+
+
+def is_ui_log_entry(entry):
+    visibility = entry.get("ui_visible")
+
+    if isinstance(visibility, bool):
+        return visibility
+
+    level = entry.get("level", "")
+
+    if level in {"ERROR", "CRITICAL", "FATAL", "BLOCK", "SCAN"}:
+        return True
+
+    action = entry.get("action")
+
+    if action in {"Exception", "Diagnostic"}:
+        return False
+
+    return not (
+        level in {"WARN", "WARNING"}
+        and entry.get("operate") is not True
+        and action in BACKGROUND_DIAGNOSTIC_ACTIONS
+    )
 
 
 def report_log_path():
@@ -94,6 +135,7 @@ class ReportHandler(logging.Handler):
                 source=record.name,
                 success=record.levelno < logging.WARNING,
                 timestamp=record.created,
+                ui_visible=record.levelno >= logging.ERROR,
             )
             application = self.application() if self.application else None
 

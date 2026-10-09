@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pathOnly: [{key: 'path', label: 'col_path', flex: 1}],
         fileList: [{key: 'time_str', label: 'col_date', flex: 1.5}, {key: 'path', label: 'col_path', flex: 5}],
         junk: [{key: 'path', label: 'col_path', flex: 3}, {key: 'sizeStr', label: 'col_size', flex: 1}],
-        popup: [{key: 'exe', label: 'col_prog', flex: 1}, {key: 'class', label: 'col_class', flex: 1}, {key: 'title', label: 'col_title', flex: 2}],
+        popup: [{key: 'mode', label: 'col_status', flex: 0.7, isI18n: true}, {key: 'exe', label: 'col_prog', flex: 1}, {key: 'class', label: 'col_class', flex: 1}, {key: 'title', label: 'col_title', flex: 2}],
         repair: [{key: 'display', label: 'col_repair', flex: 1, isI18n: true}, {key: 'path', label: 'col_path', flex: 3}],
         netmon: [{key: 'name', label: 'col_name', flex: 1.5}, {key: 'pid', label: 'col_pid', flex: 0.5}, {key: 'downStr', label: 'col_down_speed', flex: 1}, {key: 'upStr', label: 'col_up_speed', flex: 1}, {key: 'connCount', label: 'col_conn_count', flex: 0.8}]
     };
@@ -468,7 +468,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectAllCb.indeterminate = (checkedCount > 0 && checkedCount < cData.length);
             };
 
-            const MAX_ITEMS = 2000;
+            const MAX_ITEMS = 1000;
             const limitData = displayData.slice(0, MAX_ITEMS);
             
             let htmlContent = limitData.map(item => {
@@ -499,7 +499,13 @@ document.addEventListener('DOMContentLoaded', () => {
         widget.renderData(state.filterText, isInit);
     };
 
-    const getCheckedValues = (selector) => Array.from(document.querySelectorAll(`${selector} .manage-list-item input[type="checkbox"]:checked`)).map(cb => cb.value);
+    const getCheckedValues = (selector) => {
+        if (selector === '#log_export_window') {
+            const widget = document.querySelector(`${selector} .manage-widget`);
+            if (widget?.gridState) return Array.from(widget.gridState.checkedSet);
+        }
+        return Array.from(document.querySelectorAll(`${selector} .manage-list-item input[type="checkbox"]:checked`)).map(cb => cb.value);
+    };
     const formatSize = (bytes) => {
         if (bytes === 0) return '0 B';
         const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -704,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderDataGrid('#whitelist_window', mapList(cfg.white_list), cols.fileList, 'path');
             renderDataGrid('#quarantine_window', mapList(cfg.quarantine), cols.fileList, 'path');
             renderDataGrid('#custom_protect_window', mapList(cfg.custom_rule), cols.fileList, 'path');
-            const popupRules = (cfg.block_list || []).map(item => ({ exe: item.exe || '*', class: item.class || '*', title: item.title || '*', value: item.exe || item.title }));
+            const popupRules = (cfg.block_list || []).map((item, index) => ({ mode: item.schema_version === 2 ? (item.match_mode === 'title' ? 'popup_fallback' : 'popup_adaptive') : 'popup_fallback', exe: item.exe || '*', class: item.class || '*', title: item.title || '*', value: item.id || `legacy:${index}` }));
             renderDataGrid('#popup_window', popupRules, cols.popup, 'value');
         });
     };
@@ -819,7 +825,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (entry.operate !== null) parts.push(`Op: ${entry.operate}`);
             parts.push(`Success: ${entry.success}`);
             let val = logWidget.value + parts.join(' | ') + '\n';
-            if (val.length > 20000) val = val.substring(val.indexOf('\n', val.length - 15000) + 1);
+            if (val.length > 100000) {
+                const newline = val.indexOf('\n', val.length - 90000);
+                val = newline >= 0 && newline < val.length - 1 ? val.slice(newline + 1) : val.slice(-90000);
+            }
             logWidget.value = val;
             logWidget.scrollTop = logWidget.scrollHeight;
         }
@@ -1008,19 +1017,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (val === 'add') {
                 if (id === 'popup_window') {
-                    const wrapper = document.getElementById(selectId).nextElementSibling;
-                    const triggerText = wrapper.querySelector('.custom-select-text');
-                    const originalI18n = triggerText.getAttribute('data-i18n');
-                    const originalText = triggerText.textContent;
-                    
-                    triggerText.setAttribute('data-i18n', 'msg_click_target');
-                    triggerText.textContent = getMsg('msg_click_target');
-                    
-                    window.pywebview.api.capture_popup_window().then(rule => {
-                        triggerText.setAttribute('data-i18n', originalI18n || 'btn_select');
-                        triggerText.textContent = originalText;
-                        if (rule) window.pywebview.api.add_popup_rule(rule).then(ok => ok && refreshConfigLists());
+                    const select = document.getElementById(selectId);
+                    if (select.dataset.capturing === 'true') return;
+                    select.dataset.capturing = 'true';
+                    const triggerText = select.nextElementSibling?.querySelector('.custom-select-text');
+                    const originalI18n = triggerText?.getAttribute('data-i18n');
+                    const originalText = triggerText?.textContent;
+                    if (triggerText) {
+                        triggerText.setAttribute('data-i18n', 'msg_click_target');
+                        triggerText.textContent = getMsg('msg_click_target');
+                    }
+                    let failureMessage = 'popup_capture_failed';
+                    Promise.resolve().then(() => window.pywebview.api.capture_popup_window()).then(async rule => {
+                        if (rule?.error) throw new Error(rule.error);
+                        if (!rule) return;
+                        failureMessage = 'popup_add_failed';
+                        const ok = await window.pywebview.api.add_popup_rule(rule);
+                        if (!ok) throw new Error('Popup rule was not saved');
+                        await refreshConfigLists();
+                    }).catch(error => {
+                        console.error('Popup capture/add failed', error);
+                        return window.pywebview.api.show_alert(getMsg('title_prompt'), getMsg(failureMessage), 'warning');
+                    }).catch(error => console.error('Popup error notification failed', error)).finally(() => {
+                        select.dataset.capturing = 'false';
+                        if (triggerText) {
+                            triggerText.setAttribute('data-i18n', originalI18n || 'btn_select');
+                            triggerText.textContent = originalText;
+                        }
+                        updateCustomSelectUI(selectId, 'none');
                     });
+                    return;
                 } else {
                     const fTypes = id === 'custom_protect_window' ? ['JSON Files (*.json)'] : null;
                     const currentListKey = id === 'custom_protect_window' ? 'custom_rule' : listKey;
@@ -1051,7 +1077,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else if (val === 'remove') {
                 const checked = getCheckedValues(`#${id}`);
-                if (checked.length > 0) window.pywebview.api.remove_list_items(listKey, checked).then(refreshConfigLists);
+                if (checked.length > 0) {
+                    const remove = id === 'popup_window' ? window.pywebview.api.remove_popup_rules(checked) : window.pywebview.api.remove_list_items(listKey, checked);
+                    remove.then(refreshConfigLists);
+                }
             } else if (val === 'quarantine' || val === 'whitelist') {
                 const checked = getCheckedValues(`#${id}`);
                 if (checked.length > 0) {
@@ -1220,51 +1249,92 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDataGrid('#netmon_window', [], cols.netmon, 'pid', false);
 
     let pywebviewInitStarted = false;
+    let pywebviewInitReady = false;
+    let pywebviewInitAttempts = 0;
+    let pywebviewInitTimer = null;
+    const pywebviewInitDeadline = Date.now() + 30000;
 
-    const initializePywebview = () => {
-        if (pywebviewInitStarted || !window.pywebview?.api) return;
+    const reportStartupError = (stage, message) => {
+        const text = String(message);
+        console.error(`PYAS startup ${stage}:`, text);
+        if (window.pywebview?.api?.report_ui_error) {
+            window.pywebview.api.report_ui_error(stage, text).catch(() => {});
+        }
+    };
+
+    const schedulePywebviewInit = (delay) => {
+        clearTimeout(pywebviewInitTimer);
+        pywebviewInitTimer = setTimeout(initializePywebview, delay);
+    };
+
+    const initializePywebview = async () => {
+        if (pywebviewInitStarted || pywebviewInitReady || pywebviewInitAttempts >= 3) return;
+        if (!window.pywebview?.api) {
+            if (Date.now() < pywebviewInitDeadline) schedulePywebviewInit(250);
+            else showStartupError("The Python interface bridge is unavailable. PYAS will attempt recovery.");
+            return;
+        }
         pywebviewInitStarted = true;
-
-        const configTimeout = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error("Configuration request timed out")), 10000);
+        pywebviewInitAttempts += 1;
+        clearTimeout(pywebviewInitTimer);
+        let timeoutId;
+        let timedOut = false;
+        let stage = 'get_config';
+        const timeout = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                timedOut = true;
+                reject(new Error("Python interface initialization timed out"));
+            }, 8000);
         });
-
-        Promise.race([window.pywebview.api.get_config(), configTimeout]).then(cfg => {
-            const theme = cfg.theme || "white_switch";
-            const lang = cfg.language || "english_switch";
-            appState.firstLaunch = cfg.first_launch;
-            applyTheme(theme);
-            translateText(lang);
-            updateCustomSelectUI('theme_select', theme);
-            updateCustomSelectUI('lang_select', lang);
-
-            const switchMap = ["process_switch", "suspend_switch", "load_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
-            document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
-                if (appState.firstLaunch) {
-                    toggle.checked = false;
-                    toggle.disabled = true;
-                } else if (switchMap[index]) {
-                    toggle.checked = !!cfg[switchMap[index]];
-                }
-            });
-
+        try {
+            for (const error of (window.pyasStartupErrors || []).splice(0)) {
+                reportStartupError(error.stage, error.message);
+            }
+            await Promise.race([(async () => {
+                const cfg = await window.pywebview.api.get_config();
+                if (timedOut) return;
+                if (!cfg || typeof cfg !== 'object') throw new Error("Invalid configuration response");
+                stage = 'ui_apply';
+                const theme = cfg.theme || "white_switch";
+                const lang = cfg.language || "english_switch";
+                appState.firstLaunch = cfg.first_launch;
+                applyTheme(theme);
+                translateText(lang);
+                updateCustomSelectUI('theme_select', theme);
+                updateCustomSelectUI('lang_select', lang);
+                const switchMap = ["process_switch", "suspend_switch", "load_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
+                document.querySelectorAll('.toggle-switch input').forEach((toggle, index) => {
+                    if (appState.firstLaunch) {
+                        toggle.checked = false;
+                        toggle.disabled = true;
+                    } else if (switchMap[index]) {
+                        toggle.checked = !!cfg[switchMap[index]];
+                    }
+                });
+                stage = 'init_ui_ready';
+                await window.pywebview.api.init_ui_ready();
+            })(), timeout]);
+            pywebviewInitReady = true;
             closeStartupOverlay();
-            window.pywebview.api.init_ui_ready();
-        }).catch(err => {
+        } catch (err) {
+            reportStartupError(stage, err?.message || err);
+            showStartupError(`Interface initialization failed (${stage}): ${err?.message || err}`);
+            if (pywebviewInitAttempts < 3) schedulePywebviewInit(500 * pywebviewInitAttempts);
+        } finally {
+            clearTimeout(timeoutId);
             pywebviewInitStarted = false;
-            console.error("Config load failed:", err);
-            showStartupError(`Configuration failed to load: ${err?.message || err}`);
-        });
+        }
     };
 
     window.addEventListener('pywebviewready', initializePywebview);
     initializePywebview();
 
+
     window.onEngineReady = async () => {
         if (!appState.firstLaunch) return;
         await window.pywebview.api.update_config("first_launch", false);
         const switchMap = ["process_switch", "suspend_switch", "load_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "sensitive_switch", "extension_switch", "cloud_switch", "suffix_switch", "autostart_switch", "context_switch"];
-        const seq = ["cloud_switch", "autostart_switch", "suffix_switch", "process_switch", "suspend_switch", "load_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "context_switch"];
+        const seq = ["autostart_switch", "suffix_switch", "process_switch", "suspend_switch", "load_switch", "document_switch", "system_switch", "network_switch", "driver_switch", "context_switch"];
         
         for (const key of seq) {
             const index = switchMap.indexOf(key);

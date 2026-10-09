@@ -1,6 +1,6 @@
 #define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
 #define AppName "PYAS"
-#define AppVersion "3.7.0.0"
+#define AppVersion "3.7.1.0"
 #define AppPublisher "PYAS Security"
 #define AppURL "https://github.com/87owo/PYAS"
 #define AppExeName "PYAS.exe"
@@ -38,6 +38,7 @@ SolidCompression=yes
 OutputDir=Output
 OutputBaseFilename=PYAS_Setup
 UsePreviousTasks=no
+SetupLogging=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -57,7 +58,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "Redist\VC_redist.x64.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion; AfterInstall: EnsureVCRedist
-Source: "Redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}\PYAS_Redist"; Flags: deleteafterinstall ignoreversion; AfterInstall: EnsureWebView2
+Source: "Redist\MicrosoftEdgeWebview2Setup.exe"; Flags: dontcopy noencryption
 Source: "Payload\Engine\*"; DestDir: "{app}\Engine"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\Interface\*"; DestDir: "{app}\Interface"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\License\*"; DestDir: "{app}\License"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -99,6 +100,9 @@ chinesetraditional.InstallVCRedist=安裝 Microsoft Visual C++ 執行庫
 english.LegacyVersionDetected=An older version of PYAS was detected. Please uninstall it manually before installing.
 english.QuitFailed=PYAS or its driver could not be stopped safely. Restart Windows and run Setup again.
 english.DependencyInstallFailed=Required Microsoft runtime installation failed. Setup cannot continue.
+english.WebView2InstallFailed=Microsoft Edge WebView2 Runtime could not be detected. Check your connection or install the Evergreen Runtime manually, then retry Setup.%n%nDetails: %1
+chinesesimplified.WebView2InstallFailed=无法检测到 Microsoft Edge WebView2 运行环境。请检查网络或手动安装 Evergreen 运行环境，然后重试安装。%n%n详细信息：%1
+chinesetraditional.WebView2InstallFailed=無法偵測到 Microsoft Edge WebView2 執行環境。請檢查網路或手動安裝 Evergreen 執行環境，再重試安裝。%n%n詳細資訊：%1
 chinesesimplified.LegacyVersionDetected=检测到存在旧版 PYAS。请先手动卸载旧版后，再运行本安装程序。
 chinesetraditional.LegacyVersionDetected=檢測到存在舊版 PYAS。請先手動卸載舊版後，再執行本安裝程式。
 
@@ -118,17 +122,45 @@ begin
   Result := (Length(Trim(Version)) > 0) and (Trim(Version) <> '0.0.0.0');
 end;
 
-function IsWebView2Installed: Boolean;
+function QueryWebView2Version(RootKey: Integer; RootName: string; LogDetails: Boolean): Boolean;
 var
   Version: string;
+  PackedVersion: Int64;
 begin
   Result := False;
-  if RegQueryStringValue(HKLM, 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
-    Result := IsValidRuntimeVersion(Version);
-  if not Result and RegQueryStringValue(HKLM, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
-    Result := IsValidRuntimeVersion(Version);
-  if not Result and RegQueryStringValue(HKCU, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
-    Result := IsValidRuntimeVersion(Version);
+  if RegQueryStringValue(RootKey, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', Version) then
+  begin
+    if StrToVersion(Trim(Version), PackedVersion) then
+      Result := PackedVersion > 0;
+    if LogDetails or Result then
+      Log('WebView2 ' + RootName + ': pv=' + Version + ', valid=' + IntToStr(Ord(Result)));
+  end
+  else if LogDetails then
+    Log('WebView2 ' + RootName + ': version not found or not readable');
+end;
+
+function IsWebView2Installed(LogDetails: Boolean): Boolean;
+begin
+  Result := QueryWebView2Version(HKLM32, 'HKLM32', LogDetails);
+  if not Result and IsWin64 then
+    Result := QueryWebView2Version(HKLM64, 'HKLM64', LogDetails);
+  if not Result then
+    Result := QueryWebView2Version(HKCU32, 'HKCU32', LogDetails);
+  if not Result and IsWin64 then
+    Result := QueryWebView2Version(HKCU64, 'HKCU64', LogDetails);
+end;
+
+function WaitForWebView2: Boolean;
+var
+  Attempt: Integer;
+begin
+  for Attempt := 0 to 60 do
+  begin
+    Result := IsWebView2Installed(False);
+    if Result then Exit;
+    if Attempt < 60 then Sleep(500);
+  end;
+  Result := False;
 end;
 
 function IsVCRedistInstalled: Boolean;
@@ -169,20 +201,63 @@ begin
   end;
 end;
 
-procedure EnsureWebView2;
+function EnsureWebView2: string;
 var
   ResultCode: Integer;
-  InstallerPath: string;
+  InstallerPath, Detail: string;
+  Started: Boolean;
 begin
-  if IsWebView2Installed then Exit;
-  InstallerPath := ExpandConstant('{tmp}\PYAS_Redist\MicrosoftEdgeWebview2Setup.exe');
-  WizardForm.StatusLabel.Caption := CustomMessage('InstallingWebView2Runtime');
-  if not Exec(InstallerPath, '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
-     not DependencyExitCodeSucceeded(ResultCode) or not IsWebView2Installed then
+  Result := '';
+  if IsWebView2Installed(True) then
   begin
-    DependenciesReady := False;
-    RaiseException(CustomMessage('DependencyInstallFailed'));
+    Log('WebView2 is already installed; skipping the bootstrapper');
+    Exit;
   end;
+  WizardForm.PreparingLabel.Caption := CustomMessage('InstallingWebView2Runtime');
+  ExtractTemporaryFile('MicrosoftEdgeWebview2Setup.exe');
+  InstallerPath := ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe');
+  Log('Starting WebView2 bootstrapper: ' + InstallerPath + ' /silent /install');
+  ResultCode := -1;
+  Started := Exec(InstallerPath, '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if Started then
+  begin
+    Detail := Format('WebView2 installer exit code: %d (0x%x)', [ResultCode, ResultCode]);
+    if not DependencyExitCodeSucceeded(ResultCode) then
+      Log('WebView2 installer returned a non-success code; checking the runtime before failing');
+  end
+  else
+    Detail := Format('WebView2 installer launch error: %d (%s)', [ResultCode, SysErrorMessage(ResultCode)]);
+  Log(Detail);
+  if IsWebView2Installed(True) then
+  begin
+    Log('WebView2 was detected after the installation attempt; continuing Setup');
+    Exit;
+  end;
+  if Started then
+  begin
+    Log('Waiting up to 30 seconds for WebView2 registration');
+    if WaitForWebView2 then
+    begin
+      Log('WebView2 registration completed; continuing Setup');
+      Exit;
+    end;
+  end;
+  IsWebView2Installed(True);
+  Log('WebView2 prerequisite failed: ' + Detail);
+  Result := FmtMessage(CustomMessage('WebView2InstallFailed'), [Detail]);
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): string;
+begin
+  DependenciesReady := False;
+  try
+    Result := EnsureWebView2;
+  except
+    Log('WebView2 prerequisite exception: ' + GetExceptionMessage);
+    Result := FmtMessage(CustomMessage('WebView2InstallFailed'), [GetExceptionMessage]);
+  end;
+  DependenciesReady := Result = '';
+  NeedsRestart := DependencyRestartRequired;
 end;
 
 function WaitForMainWindowToClose(TimeoutMs: Cardinal): Boolean;
@@ -302,11 +377,42 @@ begin
   end;
 end;
 
+procedure RemoveStartupTasks;
+var
+  TaskService, RootFolder, Tasks, Task: Variant;
+  I: Integer;
+  TaskName, ExecutablePath: string;
+begin
+  try
+    TaskService := CreateOleObject('Schedule.Service');
+    TaskService.Connect();
+    RootFolder := TaskService.GetFolder('\');
+    Tasks := RootFolder.GetTasks(1);
+    ExecutablePath := ExpandConstant('{app}\{#AppExeName}');
+    for I := Tasks.Count downto 1 do
+    begin
+      Task := Tasks.Item(I);
+      TaskName := Task.Name;
+      if (TaskName = 'PYAS_Security_ATS') or (Pos('PYAS_Security_ATS_S-1-', TaskName) = 1) then
+      begin
+        if (Task.Definition.Actions.Count = 1) and
+           (CompareText(Task.Definition.Actions.Item(1).Path, ExecutablePath) = 0) then
+        begin
+          RootFolder.DeleteTask(TaskName, 0);
+          Log('Removed PYAS startup task: ' + TaskName);
+        end;
+      end;
+    end;
+  except
+    Log('Could not remove all PYAS startup tasks');
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
-    RemoveLegacyStartupTask;
+    RemoveStartupTasks;
   end
   else if CurUninstallStep = usPostUninstall then
   begin

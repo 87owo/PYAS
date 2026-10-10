@@ -70,6 +70,8 @@ PYAS_MESSAGE_QUIT = 4
 PYAS_MESSAGE_DRIVER_UNLOAD = 5
 PYAS_MESSAGE_DRIVER_UNINSTALL = 6
 PYAS_MAINTENANCE_MESSAGE = 0x8000 + 0x501
+MSGFLT_REMOVE = 2
+MSGFLT_DISALLOW = 2
 PYAS_MAINTENANCE_COMMANDS = frozenset(
     {
         PYAS_MESSAGE_CLOSE,
@@ -1103,6 +1105,8 @@ class WindowHook:
             self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
             self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
 
+            self.maintenance_channel_ready = False
+
             try:
                 self.user32.ChangeWindowMessageFilterEx.argtypes = [
                     ctypes.c_void_p,
@@ -1113,13 +1117,16 @@ class WindowHook:
                 self.user32.ChangeWindowMessageFilter.argtypes = [ctypes.c_uint, ctypes.c_uint]
                 self.user32.ChangeWindowMessageFilter.restype = ctypes.wintypes.BOOL
 
-                if not self.user32.ChangeWindowMessageFilter(PYAS_MAINTENANCE_MESSAGE, 0):
-                    raise OSError("Could not remove process-wide maintenance message allowance")
+                self.user32.ChangeWindowMessageFilter(PYAS_MAINTENANCE_MESSAGE, MSGFLT_REMOVE)
+                filter_info = (ctypes.wintypes.DWORD * 2)(8, 0)
 
                 if not self.user32.ChangeWindowMessageFilterEx(
-                    hwnd, PYAS_MAINTENANCE_MESSAGE, 2, None
+                    hwnd, PYAS_MAINTENANCE_MESSAGE, MSGFLT_DISALLOW, ctypes.byref(filter_info)
                 ):
                     raise OSError("Could not protect maintenance message channel")
+
+                if filter_info[1] == 3:
+                    raise OSError("Maintenance message remains allowed by a wider filter")
 
                 self.maintenance_channel_ready = True
                 self.user32.ChangeWindowMessageFilterEx(hwnd, self.WM_COPYDATA, 1, None)

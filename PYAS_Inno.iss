@@ -1,4 +1,4 @@
-#define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
+﻿#define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
 #define AppName "PYAS"
 #define AppVersion "3.7.1.0"
 #define AppPublisher "PYAS Security"
@@ -39,6 +39,8 @@ OutputDir=Output
 OutputBaseFilename=PYAS_Setup
 UsePreviousTasks=no
 SetupLogging=yes
+CloseApplications=no
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -62,7 +64,7 @@ Source: "Redist\MicrosoftEdgeWebview2Setup.exe"; Flags: dontcopy noencryption
 Source: "Payload\Engine\*"; DestDir: "{app}\Engine"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\Interface\*"; DestDir: "{app}\Interface"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "Payload\License\*"; DestDir: "{app}\License"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "Payload\PYAS.exe"; DestDir: "{app}"; Flags: ignoreversion; AfterInstall: FinalizeDriverRemoval
+Source: "Payload\PYAS.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Payload\Plugins\*"; DestDir: "{app}\Plugins"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Registry]
@@ -98,7 +100,9 @@ english.InstallVCRedist=Install Microsoft Visual C++ Runtime
 chinesesimplified.InstallVCRedist=安装 Microsoft Visual C++ 运行库
 chinesetraditional.InstallVCRedist=安裝 Microsoft Visual C++ 執行庫
 english.LegacyVersionDetected=An older version of PYAS was detected. Please uninstall it manually before installing.
-english.QuitFailed=PYAS or its driver could not be stopped safely. Restart Windows and run Setup again.
+english.QuitFailed=PYAS is still running or did not respond to the exit request. Exit PYAS from its tray menu, then retry Setup.
+chinesesimplified.QuitFailed=PYAS 仍在运行或未响应退出请求。请从托盘菜单退出 PYAS，然后重试安装。
+chinesetraditional.QuitFailed=PYAS 仍在運作或未回應退出請求。請從系統匣選單退出 PYAS，再重試安裝。
 english.DependencyInstallFailed=Required Microsoft runtime installation failed. Setup cannot continue.
 english.WebView2InstallFailed=Microsoft Edge WebView2 Runtime could not be detected. Check your connection or install the Evergreen Runtime manually, then retry Setup.%n%nDetails: %1
 chinesesimplified.WebView2InstallFailed=无法检测到 Microsoft Edge WebView2 运行环境。请检查网络或手动安装 Evergreen 运行环境，然后重试安装。%n%n详细信息：%1
@@ -111,8 +115,21 @@ var
   DependencyRestartRequired: Boolean;
   DependenciesReady: Boolean;
 
-function FindWindow(lpClassName: LongWord; lpWindowName: string): HWND;
-  external 'FindWindowW@user32.dll stdcall';
+function GetWindowThreadProcessId(Wnd: HWND; var ProcessId: Cardinal): Cardinal;
+  external 'GetWindowThreadProcessId@user32.dll stdcall';
+
+function OpenProcess(Access: Cardinal; InheritHandle: Boolean; ProcessId: Cardinal): THandle;
+  external 'OpenProcess@kernel32.dll stdcall';
+
+function WaitForSingleObject(Handle: THandle; Timeout: Cardinal): Cardinal;
+  external 'WaitForSingleObject@kernel32.dll stdcall';
+
+function CloseHandle(Handle: THandle): Boolean;
+  external 'CloseHandle@kernel32.dll stdcall';
+
+function SendMessageTimeout(Wnd: HWND; Msg: Cardinal; WParam, LParam: Longint;
+  Flags, Timeout: Cardinal; var MessageResult: LongWord): Longint;
+  external 'SendMessageTimeoutW@user32.dll stdcall';
 
 function GetTickCount: Cardinal;
   external 'GetTickCount@kernel32.dll stdcall';
@@ -247,9 +264,98 @@ begin
   Result := FmtMessage(CustomMessage('WebView2InstallFailed'), [Detail]);
 end;
 
+function QuitRunningInstance: Boolean;
+var
+  Wnd: HWND;
+  ProcessId, Started, WaitResult: Cardinal;
+  ProcessHandle: THandle;
+  MessageResult: LongWord;
+begin
+  Result := True;
+  Started := GetTickCount;
+  repeat
+    Wnd := FindWindowByWindowName('PYAS Security');
+    if Wnd <> 0 then Break;
+    if not CheckForMutexes('PYAS_Security_Mutex,PYAS_Security_Recovery_Mutex') then
+    begin
+      Log('PYAS is not running; no exit request is needed');
+      Exit;
+    end;
+    Sleep(100);
+  until GetTickCount - Started >= 10000;
+
+  Result := False;
+  if Wnd = 0 then
+  begin
+    Log('PYAS is running but its exit message window is not available');
+    Exit;
+  end;
+
+  ProcessId := 0;
+  GetWindowThreadProcessId(Wnd, ProcessId);
+  if ProcessId = 0 then
+  begin
+    Result := FindWindowByWindowName('PYAS Security') = 0;
+    Exit;
+  end;
+
+  ProcessHandle := OpenProcess($00100000, False, ProcessId);
+  if ProcessHandle = 0 then
+  begin
+    Result := (FindWindowByWindowName('PYAS Security') = 0) and
+      not CheckForMutexes('PYAS_Security_Mutex,PYAS_Security_Recovery_Mutex');
+    Log('Could not open the PYAS process for exit monitoring');
+    Exit;
+  end;
+
+  try
+    if WaitForSingleObject(ProcessHandle, 0) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+
+    Log('Sending an exit request to PYAS; the application owns driver shutdown');
+    MessageResult := 0;
+    if SendMessageTimeout(Wnd, $8501, 4, 0, $0022, 5000, MessageResult) = 0 then
+      Log('PYAS exit message delivery failed or timed out')
+    else if MessageResult <> 1 then
+      Log('PYAS rejected the exit request; its maintenance channel may not be ready')
+    else
+      Log('PYAS accepted the exit request; waiting for process termination');
+
+    Started := GetTickCount;
+    repeat
+      WaitResult := WaitForSingleObject(ProcessHandle, 0);
+      if WaitResult = 0 then
+      begin
+        Result := (FindWindowByWindowName('PYAS Security') = 0) and
+          not CheckForMutexes('PYAS_Security_Mutex,PYAS_Security_Recovery_Mutex');
+        if Result then Log('PYAS process exited');
+        Exit;
+      end;
+      if WaitResult <> $00000102 then
+      begin
+        Log('PYAS process exit monitoring failed');
+        Exit;
+      end;
+      Sleep(100);
+    until GetTickCount - Started >= 30000;
+    Log('PYAS is still running after the exit request');
+  finally
+    CloseHandle(ProcessHandle);
+  end;
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): string;
 begin
   DependenciesReady := False;
+  NeedsRestart := DependencyRestartRequired;
+  if not QuitRunningInstance then
+  begin
+    Result := CustomMessage('QuitFailed');
+    Exit;
+  end;
   try
     Result := EnsureWebView2;
   except
@@ -260,53 +366,8 @@ begin
   NeedsRestart := DependencyRestartRequired;
 end;
 
-function WaitForMainWindowToClose(TimeoutMs: Cardinal): Boolean;
-var
-  Deadline: Cardinal;
-begin
-  Deadline := GetTickCount + TimeoutMs;
-  repeat
-    if FindWindow(0, 'PYAS Security') = 0 then
-    begin
-      Result := True;
-      Exit;
-    end;
-    Sleep(100);
-  until GetTickCount >= Deadline;
-  Result := False;
-end;
-
-function QuitOldInstance(InstallPath: string): Boolean;
-var
-  ResultCode: Integer;
-  ExePath: string;
-begin
-  Result := True;
-  ExePath := InstallPath + '\{#AppExeName}';
-  if not FileExists(ExePath) then Exit;
-
-  if not Exec(ExePath, '-quit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  Result := (ResultCode = 0) and WaitForMainWindowToClose(30000);
-end;
-
-procedure FinalizeDriverRemoval;
-var
-  ResultCode: Integer;
-  ExePath: string;
-begin
-  ExePath := ExpandConstant('{app}\{#AppExeName}');
-  if not Exec(ExePath, '-quit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or (ResultCode <> 0) then
-    RaiseException(CustomMessage('QuitFailed'));
-end;
-
 function InitializeSetup(): Boolean;
 var
-  OldInstallPath: string;
   LegacyPath: string;
 begin
   DependencyRestartRequired := False;
@@ -319,23 +380,14 @@ begin
     Exit;
   end;
 
-  if RegQueryStringValue(HKLM, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + ExpandConstant('{#AppId}') + '_is1', 'InstallLocation', OldInstallPath) or
-     RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' + ExpandConstant('{#AppId}') + '_is1', 'InstallLocation', OldInstallPath) then
-  begin
-    if not QuitOldInstance(OldInstallPath) then
-    begin
-      MsgBox(CustomMessage('QuitFailed'), mbCriticalError, MB_OK);
-      Result := False;
-      Exit;
-    end;
-  end;
-
-  Result := True;
+  Result := QuitRunningInstance;
+  if not Result then
+    MsgBox(CustomMessage('QuitFailed'), mbCriticalError, MB_OK);
 end;
 
 function InitializeUninstall(): Boolean;
 begin
-  Result := QuitOldInstance(ExpandConstant('{app}'));
+  Result := QuitRunningInstance;
   if not Result then
     MsgBox(CustomMessage('QuitFailed'), mbCriticalError, MB_OK);
 end;

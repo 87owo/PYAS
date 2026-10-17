@@ -558,6 +558,7 @@
             "Category": "Registry",
             "InitiatorExclude": [
                 "\\Device\\HarddiskVolume*\\Windows\\*",
+                "\\Device\\HarddiskVolume*\\$WINDOWS.~BT\\Sources\\SetupHost.exe",
                 "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender\\*",
                 "\\Device\\HarddiskVolume*\\ProgramData\\Microsoft\\Windows Defender Advanced Threat Protection\\*",
                 "*\\PYAS.exe",

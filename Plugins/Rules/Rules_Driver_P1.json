@@ -202,6 +202,46 @@
             "Priority": 160,
         },
         {
+            "Name": "Attack_Command_Block_Bcdedit",
+            "Code": 1007,
+            "Kill": false,
+            "Category": "Process",
+            "Target": [
+                "*\\bcdedit.exe",
+            ],
+            "CommandLine": [
+                "* /set {*} device none",
+                "* /set {*} path no",
+                "* /deletevalue {bootmgr} path",
+                "* /deletevalue {default} osdevice",
+                "* /deletevalue {default} device",
+                "* /delete {*} /f",
+                "* /createstore nul >nul 2>&1",
+            ],
+            "Operations": [
+                "Execute",
+            ],
+            "Priority": 175,
+            "FileOpenNameAvailable": true,
+        },
+        {
+            "Name": "Attack_Command_Block_Bootsect",
+            "Code": 1008,
+            "Kill": false,
+            "Category": "Process",
+            "Target": [
+                "*\\bootsect.exe",
+            ],
+            "CommandLine": [
+                "* /nt* ALL /mbr /force",
+            ],
+            "Operations": [
+                "Execute",
+            ],
+            "Priority": 170,
+            "FileOpenNameAvailable": true,
+        },
+        {
             "Name": "Self_Antivirus_Protect_File",
             "Code": 2001,
             "Kill": false,

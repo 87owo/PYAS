@@ -119,6 +119,10 @@ class _MainMixin(WindowsMixin, ConfigMixin, LogMixin, RuntimeMixin):
         self.load_config()
         self.load_logs()
         bind_report_logging(self)
+        if not any(
+            arg in self.args_pyas for arg in ("-quit", "-driver-unload", "-driver-uninstall")
+        ):
+            self.initialize_autostart()
 
     def find_existing_window(self, timeout=2.0):
         deadline = time.monotonic() + timeout
@@ -218,6 +222,13 @@ class _MainMixin(WindowsMixin, ConfigMixin, LogMixin, RuntimeMixin):
         maintenance_request = any(
             arg in self.args_pyas for arg in ("-quit", "-driver-uninstall", "-driver-unload")
         )
+        if (
+            not maintenance_request
+            and "-scan" not in self.args_pyas
+            and any(arg in self.args_pyas for arg in ("-h", "-hide"))
+        ):
+            return 0
+
         hwnd = self.find_existing_window(timeout=10.0 if maintenance_request else 2.0)
 
         if not hwnd:

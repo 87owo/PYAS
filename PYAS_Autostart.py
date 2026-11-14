@@ -8,16 +8,165 @@ import winreg
 import subprocess
 import ctypes
 import ctypes.wintypes
+import tempfile
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 
 class AutostartMixin:
+    def _autostart_launcher_paths(self):
+        local = getattr(self, "path_localappdata", None) or os.environ.get("LOCALAPPDATA")
+        if not local:
+            raise OSError("LOCALAPPDATA is unavailable for the logon launcher")
+        directory = os.path.join(local, "PYAS")
+        return (
+            os.path.join(directory, "Autostart.js"),
+            os.path.join(directory, "AutostartCheck.json"),
+            os.path.join(directory, "AutostartStatus.json"),
+        )
+
+    def _autostart_launcher_script(self, sid):
+        frozen = getattr(sys, "frozen", False)
+        values = {
+            "taskName": "PYAS_Security_ATS_" + sid,
+            "userSid": sid,
+            "executable": self.file_pyas if frozen else sys.executable,
+            "launchArguments": "-hide" if frozen else subprocess.list2cmdline([self.file_pyas, "-hide"]),
+            "workingDirectory": os.path.dirname(self.file_pyas),
+        }
+        return "".join("var " + key + " = " + json.dumps(value) + ";\n" for key, value in values.items()) + r"""
+(function () {
+    var check = WScript.Arguments.length > 0 && WScript.Arguments.Item(0) === "--check";
+    var token = WScript.Arguments.length > 1 ? WScript.Arguments.Item(1) : "";
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+    var directory = fso.GetParentFolderName(WScript.ScriptFullName);
+    var path = fso.BuildPath(directory, check ? "AutostartCheck.json" : "AutostartStatus.json");
+    var restored = false;
+    function getTask(service) {
+        var folder = service.GetFolder("\\");
+        try {
+            return folder.GetTask(taskName);
+        } catch (missing) {
+            if (check || (missing.number >>> 0) !== 0x80070002) { throw missing; }
+        }
+        var definition = service.NewTask(0);
+        definition.RegistrationInfo.Description = "PYAS elevated autostart for the signed-in user";
+        definition.Principal.UserId = userSid;
+        definition.Principal.LogonType = 3;
+        definition.Principal.RunLevel = 1;
+        var trigger = definition.Triggers.Create(9);
+        trigger.UserId = userSid;
+        trigger.Delay = "PT10S";
+        trigger.Enabled = true;
+        var action = definition.Actions.Create(0);
+        action.Path = executable;
+        action.Arguments = launchArguments;
+        action.WorkingDirectory = workingDirectory;
+        var settings = definition.Settings;
+        settings.Enabled = true;
+        settings.AllowDemandStart = true;
+        settings.DisallowStartIfOnBatteries = false;
+        settings.StopIfGoingOnBatteries = false;
+        settings.ExecutionTimeLimit = "PT0S";
+        settings.MultipleInstances = 2;
+        settings.RestartCount = 3;
+        settings.RestartInterval = "PT1M";
+        var task = folder.RegisterTaskDefinition(taskName, definition, 6, userSid, null, 3,
+            "D:(A;;FA;;;SY)(A;;FA;;;BA)(A;;FRFX;;;" + userSid + ")");
+        restored = true;
+        return task;
+    }
+    function quote(value) {
+        return '"' + String(value).replace(/[\x00-\x1f\\"]/g, function (c) {
+            return "\\u" + ("0000" + c.charCodeAt(0).toString(16)).slice(-4);
+        }) + '"';
+    }
+    function report(ok, attempts, error, result) {
+        try {
+            var output = fso.CreateTextFile(path, true, true);
+            output.Write('{"mode":' + quote(check ? "check" : "launch") +
+                ',"token":' + quote(token) + ',"taskName":' + quote(taskName) +
+                ',"ok":' + (ok ? "true" : "false") + ',"attempts":' + attempts +
+                ',"restored":' + (restored ? "true" : "false") +
+                ',"lastTaskResult":' + result + ',"error":' + quote(error) +
+                ',"timestamp":' + new Date().getTime() + '}');
+            output.Close();
+        } catch (ignored) {}
+    }
+    var error = "";
+    for (var attempt = 1; attempt <= (check ? 1 : 12); attempt++) {
+        try {
+            var service = new ActiveXObject("Schedule.Service");
+            service.Connect();
+            var task = getTask(service);
+            if (!task.Enabled) { throw new Error("The PYAS startup task is disabled"); }
+            if (!check) { task.Run(""); }
+            report(true, attempt, "", task.LastTaskResult);
+            WScript.Quit(0);
+            return;
+        } catch (failure) {
+            if (!check && (failure.number >>> 0) === 0x8004131f) {
+                report(true, attempt, "Already running", 267009);
+                WScript.Quit(0);
+                return;
+            }
+            error = "0x" + ("00000000" + (failure.number >>> 0).toString(16)).slice(-8) +
+                ": " + (failure.description || failure.message || String(failure));
+            if (!check && attempt < 12) { WScript.Sleep(2000); }
+        }
+    }
+    report(false, check ? 1 : 12, error, -1);
+    WScript.Quit(1);
+})();
+"""
+
     def _set_registry_autostart(self, enable):
         run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
         value_name = "PYAS_Security"
 
         if enable:
-            command = f'"{self.file_pyas}" -hide'
+            sid = self._get_autostart_user_sid()
+            host = os.path.join(
+                os.environ.get("SystemRoot") or r"C:\Windows", "System32", "wscript.exe"
+            )
+            script_path, check_path, _ = self._autostart_launcher_paths()
+            command = f'"{host}" //B //Nologo //E:JScript "{script_path}"'
+            if len(command) > 260 or not os.path.isfile(host):
+                raise OSError("The silent logon launcher is unavailable or exceeds 260 characters")
+            directory = os.path.dirname(script_path)
+            os.makedirs(directory, exist_ok=True)
+            temporary = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-16", newline="\n", dir=directory,
+                    suffix=".js", delete=False,
+                ) as output:
+                    temporary = output.name
+                    output.write(self._autostart_launcher_script(sid))
+                    output.flush()
+                    os.fsync(output.fileno())
+                os.replace(temporary, script_path)
+                temporary = None
+            finally:
+                if temporary is not None:
+                    os.unlink(temporary)
+            token = uuid.uuid4().hex
+            result = self._run_windows_tool(
+                ("wscript.exe",),
+                ["//B", "//Nologo", "//E:JScript", script_path, "--check", token],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15,
+            )
+            try:
+                with open(check_path, "r", encoding="utf-16") as status_file:
+                    status = json.load(status_file)
+            except (OSError, ValueError) as error:
+                raise OSError("The silent logon launcher did not produce a check result") from error
+            if (
+                result is None or result.returncode != 0 or status.get("ok") is not True
+                or status.get("mode") != "check" or status.get("token") != token
+                or status.get("taskName") != "PYAS_Security_ATS_" + sid
+            ):
+                raise OSError("Silent logon launcher check failed: " + str(status.get("error", "")))
             return self._reg_write(
                 winreg.HKEY_CURRENT_USER, run_key, value_name, winreg.REG_SZ, command
             )
@@ -28,13 +177,35 @@ class AutostartMixin:
                     winreg.DeleteValue(reg, value_name)
                 except FileNotFoundError:
                     pass
-
             return True
         except FileNotFoundError:
             return True
         except Exception:
-            log_exception("PYAS_Autostart.AutostartMixin._set_registry_autostart:25")
+            log_exception("PYAS_Autostart.AutostartMixin._set_registry_autostart")
             return False
+
+    def initialize_autostart(self):
+        try:
+            _, _, status_path = self._autostart_launcher_paths()
+            with open(status_path, "r", encoding="utf-16") as status_file:
+                status = json.load(status_file)
+            if status.get("mode") == "launch":
+                self.write_log(
+                    "INFO" if status.get("ok") is True else "WARN",
+                    "Autostart Launch", detail=json.dumps(status, ensure_ascii=False),
+                    success=status.get("ok") is True,
+                )
+        except (OSError, ValueError):
+            pass
+        with self.lock_update:
+            with self.lock_config:
+                enabled = self.pyas_config.get("autostart_switch", True)
+            if not self.manage_autostart(enabled):
+                self.write_log(
+                    "WARN", "System",
+                    detail="Autostart verification failed; keeping the requested setting for the next launch",
+                    success=False,
+                )
 
     def _get_autostart_user_sid(self):
         user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -126,7 +297,6 @@ class AutostartMixin:
         quote = lambda value: "'" + value.replace("'", "''") + "'"
         values = (
             "$ErrorActionPreference = 'Stop'; "
-            "[Console]::OutputEncoding = [Text.UTF8Encoding]::new(); "
             f"$Sid = {quote(sid)}; $Executable = {quote(os.path.normpath(executable))}; "
             f"$Arguments = {quote(arguments)}; $WorkingDirectory = {quote(os.path.dirname(self.file_pyas))}; "
             f"$Enable = {'$true' if enable else '$false'}; "
@@ -161,6 +331,36 @@ function Save-Task($Task) {
     $BackupPath = Join-Path $BackupDirectory ($Task.Name + '-' + [Guid]::NewGuid().ToString('N') + '.xml')
     [IO.File]::WriteAllText($BackupPath, $Task.Xml, [Text.Encoding]::UTF8)
 }
+function Get-TaskSecurity($Task) {
+    $Sddl = if ($Task) { $Task.GetSecurityDescriptor(4) } else { 'D:(A;;FA;;;SY)(A;;FA;;;BA)' }
+    $Raw = [Security.AccessControl.RawSecurityDescriptor]::new($Sddl)
+    $Aces = @($Raw.DiscretionaryAcl)
+    $ExplicitDeny = @($Aces | Where-Object { -not $_.IsInherited -and $_.AceQualifier -eq [Security.AccessControl.AceQualifier]::AccessDenied })
+    $ExplicitOther = @($Aces | Where-Object { -not $_.IsInherited -and $_.AceQualifier -ne [Security.AccessControl.AceQualifier]::AccessDenied })
+    $Inherited = @($Aces | Where-Object { $_.IsInherited })
+    $Ordered = [Security.AccessControl.RawAcl]::new($Raw.DiscretionaryAcl.Revision, $Aces.Count)
+    foreach ($Ace in ($ExplicitDeny + $ExplicitOther + $Inherited)) {
+        $Ordered.InsertAce($Ordered.Count, $Ace)
+    }
+    $Raw.DiscretionaryAcl = $Ordered
+    $Security = [Security.AccessControl.CommonSecurityDescriptor]::new($false, $false, $Raw)
+    $Security.DiscretionaryAcl.AddAccess(
+        [Security.AccessControl.AccessControlType]::Allow,
+        [Security.Principal.SecurityIdentifier]::new($Sid), 0x1200a9,
+        [Security.AccessControl.InheritanceFlags]::None,
+        [Security.AccessControl.PropagationFlags]::None)
+    return $Security.GetSddlForm([Security.AccessControl.AccessControlSections]::Access)
+}
+function Test-TaskAccess($Task) {
+    $Security = [Security.AccessControl.RawSecurityDescriptor]::new($Task.GetSecurityDescriptor(4))
+    foreach ($Ace in $Security.DiscretionaryAcl) {
+        if ($Ace.AceType -eq [Security.AccessControl.AceType]::AccessAllowed -and
+            $Ace.SecurityIdentifier.Value -eq $Sid -and ($Ace.AccessMask -band 0x1200a9) -eq 0x1200a9) {
+            return $true
+        }
+    }
+    return $false
+}
 function Test-Task($Task) {
     if (-not $Task -or -not $Task.Enabled) { return $false }
     $Definition = $Task.Definition
@@ -175,11 +375,13 @@ function Test-Task($Task) {
         $Trigger.Type -eq 9 -and $Trigger.Enabled -and (Resolve-Sid $Trigger.UserId) -eq $Sid -and
         $Trigger.Delay -eq 'PT10S' -and -not $Settings.DisallowStartIfOnBatteries -and
         -not $Settings.StopIfGoingOnBatteries -and $Settings.ExecutionTimeLimit -eq 'PT0S' -and
-        $Settings.MultipleInstances -eq 2 -and $Settings.RestartCount -eq 3 -and
-        $Settings.RestartInterval -eq 'PT1M')
+        $Settings.AllowDemandStart -and $Settings.MultipleInstances -eq 2 -and
+        $Settings.RestartCount -eq 3 -and
+        $Settings.RestartInterval -eq 'PT1M' -and (Test-TaskAccess $Task))
 }
 $Existing = Find-Task $TaskName
 $ExistingXml = if ($Existing) { $Existing.Xml } else { $null }
+$ExistingSecurity = if ($Existing) { $Existing.GetSecurityDescriptor(4) } else { $null }
 if ($Enable) {
     if (-not (Test-Task $Existing)) {
         if ($Existing) { Save-Task $Existing }
@@ -197,6 +399,7 @@ if ($Enable) {
         $Action.Arguments = $Arguments
         $Action.WorkingDirectory = $WorkingDirectory
         $Definition.Settings.Enabled = $true
+        $Definition.Settings.AllowDemandStart = $true
         $Definition.Settings.DisallowStartIfOnBatteries = $false
         $Definition.Settings.StopIfGoingOnBatteries = $false
         $Definition.Settings.ExecutionTimeLimit = 'PT0S'
@@ -204,12 +407,12 @@ if ($Enable) {
         $Definition.Settings.RestartCount = 3
         $Definition.Settings.RestartInterval = 'PT1M'
         try {
-            $Folder.RegisterTaskDefinition($TaskName, $Definition, 6, $Sid, $null, 3) | Out-Null
+            $Folder.RegisterTaskDefinition($TaskName, $Definition, 6, $Sid, $null, 3, (Get-TaskSecurity $Existing)) | Out-Null
             if (-not (Test-Task (Find-Task $TaskName))) { throw 'Autostart task verification failed' }
         } catch {
             $Failure = $_
             if ($Existing) {
-                $Folder.RegisterTask($TaskName, $ExistingXml, 6, $Sid, $null, 3) | Out-Null
+                $Folder.RegisterTask($TaskName, $ExistingXml, 6, $Sid, $null, 3, $ExistingSecurity) | Out-Null
             } else {
                 $Created = Find-Task $TaskName
                 if ($Created) { $Folder.DeleteTask($TaskName, 0) }
@@ -233,7 +436,11 @@ if ($Legacy -and (Resolve-Sid $Legacy.Definition.Principal.UserId) -eq $Sid -and
         )
 
     def manage_autostart(self, enable):
+        stage = "remove the previous logon command"
         try:
+            if not self._set_registry_autostart(False):
+                raise OSError("The previous logon command could not be removed")
+            stage = "configure the scheduled task"
             sid = self._get_autostart_user_sid()
             command = self._autostart_task_script(enable, sid)
             result = self._run_powershell(
@@ -265,21 +472,22 @@ if ($Legacy -and (Resolve-Sid $Legacy.Definition.Principal.UserId) -eq $Sid -and
             ):
                 raise OSError("Autostart task readback did not match the requested state")
 
-            if not self._set_registry_autostart(False):
-                raise OSError("The legacy HKCU Run entry could not be removed")
+            stage = "check and install the silent logon launcher"
+            if enable and not self._set_registry_autostart(True):
+                raise OSError("The silent logon launcher could not be installed")
 
             self.autostart_mode = "task" if enable else "disabled"
             self.write_log(
                 "INFO",
                 "manage_autostart",
-                detail=f"Verified {self.autostart_mode}: {state['taskName']}",
+                detail=f"Configured {self.autostart_mode}: {state['taskName']}; silent launcher={bool(enable)}",
                 success=True,
             )
             return True
         except Exception as e:
             log_exception("PYAS_Autostart.AutostartMixin.manage_autostart:201")
             self.autostart_mode = "unavailable"
-            self.write_log("WARN", "manage_autostart", detail=str(e), success=False)
+            self.write_log("WARN", "manage_autostart", detail=f"{stage}: {e}", success=False)
             return False
 
     def get_startup_list(self):

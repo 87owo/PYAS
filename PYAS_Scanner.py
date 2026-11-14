@@ -39,22 +39,8 @@ class ScannerMixin(CloudQueueMixin):
                 first_launch = self.pyas_config.get("first_launch", True)
                 driver_enabled = self.pyas_config.get("driver_switch", False)
                 context_enabled = self.pyas_config.get("context_switch", True)
-                autostart_enabled = self.pyas_config.get("autostart_switch", True)
 
             self.register_context_menu(context_enabled)
-
-            with self.lock_update:
-                with self.lock_config:
-                    autostart_enabled = self.pyas_config.get("autostart_switch", True)
-
-                if not self.manage_autostart(autostart_enabled) and autostart_enabled:
-                    with self.lock_config:
-                        self.pyas_config["autostart_switch"] = False
-                        self.save_config()
-
-                    self.ui_queue.put(
-                        "(()=>{const ats=document.querySelector('[data-config-key=autostart_switch]');if(ats)ats.checked=false;})();"
-                    )
 
             if not first_launch:
                 with self.lock_config:

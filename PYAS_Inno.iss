@@ -1,6 +1,6 @@
-﻿#define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
+#define AppId "{{a7d7bac3-93b8-4630-8308-c7a56bf7fdf4}"
 #define AppName "PYAS"
-#define AppVersion "3.7.2.0"
+#define AppVersion "3.7.3.0"
 #define AppPublisher "PYAS Security"
 #define AppURL "https://github.com/87owo/PYAS"
 #define AppExeName "PYAS.exe"
@@ -74,6 +74,9 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueName: 
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\PYAS"
+Type: files; Name: "{localappdata}\PYAS\Autostart.js"
+Type: files; Name: "{localappdata}\PYAS\AutostartCheck.json"
+Type: files; Name: "{localappdata}\PYAS\AutostartStatus.json"
 
 [Icons]
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon

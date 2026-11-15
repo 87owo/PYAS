@@ -555,6 +555,7 @@
                 "*\\HideFastUserSwitching",
                 "*\\ShutdownWithoutLogon",
                 "*\\DisableCAD",
+                "*\\BootExecute",
             ],
             "Operations": [
                 "Write",
@@ -628,7 +629,6 @@
                 "*\\ConsentPromptBehaviorAdmin",
                 "*\\ConsentPromptBehaviorUser",
                 "*\\EnableSecureUIAPaths",
-                "*\\BootExecute",
                 "*\\SubSystems",
                 "*\\FirmwareBootDevice",
                 "*\\BootDriverFlags",

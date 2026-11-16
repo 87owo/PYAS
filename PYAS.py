@@ -32,6 +32,7 @@ if __name__ == "__main__" and _onefile_parent_guard["status"] != "not_applicable
 import msvcrt
 import winreg
 import pystray
+from PYAS_Tray import RetryingTrayIcon
 import subprocess
 import webview
 import webbrowser
@@ -377,21 +378,24 @@ class _MainMixin(WindowsMixin, ConfigMixin, LogMixin, RuntimeMixin):
                 pass
 
     def show_tray(self):
-        if self.tray_icon is not None:
-            return
+        with self.lock_config:
+            if self.tray_icon is not None or getattr(self, "closing", False):
+                return
 
-        menu = pystray.Menu(
-            pystray.MenuItem(
-                lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True
-            ),
-            pystray.MenuItem(lambda item: self.get_tray_text("optimize_mem"), self.optimize_memory),
-            pystray.MenuItem(
-                lambda item: self.get_tray_text("check_update"), self.tray_check_update
-            ),
-            pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close),
-        )
-        self.tray_icon = pystray.Icon("PYAS", self.get_app_icon(), "PYAS Security", menu)
-        self.tray_icon.run_detached()
+            menu = pystray.Menu(
+                pystray.MenuItem(
+                    lambda item: self.get_tray_text("open_ui"), self.restore_from_tray, default=True
+                ),
+                pystray.MenuItem(lambda item: self.get_tray_text("optimize_mem"), self.optimize_memory),
+                pystray.MenuItem(
+                    lambda item: self.get_tray_text("check_update"), self.tray_check_update
+                ),
+                pystray.MenuItem(lambda item: self.get_tray_text("exit_app"), self.close),
+            )
+            self.tray_icon = RetryingTrayIcon(
+                "PYAS", self.get_app_icon(), "PYAS Security", menu, icon_loader=self.get_app_icon
+            )
+            self.tray_icon.run_detached()
 
     def tray_check_update(self, icon=None, item=None):
         def _check():
@@ -576,14 +580,15 @@ class _MainMixin(WindowsMixin, ConfigMixin, LogMixin, RuntimeMixin):
 
             return False
 
-        if self.tray_icon:
-            try:
-                self.tray_icon.stop()
-            except Exception:
-                log_exception("PYAS._MainMixin.close:355")
-                pass
+        with self.lock_config:
+            if self.tray_icon:
+                try:
+                    self.tray_icon.stop()
+                except Exception:
+                    log_exception("PYAS._MainMixin.close:355")
+                    pass
 
-            self.tray_icon = None
+                self.tray_icon = None
 
         window = self._window
         self._window = None
@@ -1455,7 +1460,7 @@ def start_ui():
 
         stage = "tray"
         js_api.show_tray()
-        logger.info("Tray initialized")
+        logger.info("Tray startup requested; registration is confirmed separately")
         webview_loaded_event = threading.Event()
         dnd_state = {"bound": False}
 

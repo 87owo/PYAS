@@ -33,6 +33,7 @@ import msvcrt
 import winreg
 import pystray
 from PYAS_Tray import RetryingTrayIcon
+from PYAS_WindowDrag import enable_native_drag
 import subprocess
 import webview
 import webbrowser
@@ -1449,6 +1450,7 @@ def start_ui():
             def install_window_hook():
                 try:
                     window_hook.bind_window(window)
+                    enable_native_drag(window)
                 except Exception:
                     logger.exception("Could not protect the native PYAS window")
                     fail_startup("Could not protect the native PYAS window")

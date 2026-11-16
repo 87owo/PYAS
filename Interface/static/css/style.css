@@ -45,8 +45,15 @@ body {
     background-color: var(--bg-window);
 }
 
-.pywebview-drag-region {
+.pyas-drag-region {
     touch-action: none;
+    -webkit-app-region: drag;
+    app-region: drag;
+}
+
+.pyas-drag-region :is(button, a, input, textarea, select, option, label, [role="button"], [contenteditable]:not([contenteditable="false"]), .window-controls) {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
 }
 
 .navigate-window {

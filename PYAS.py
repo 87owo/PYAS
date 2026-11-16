@@ -1,3 +1,8 @@
+if __name__ == "__main__":
+    from PYAS_Bootstrap import neutralize_onefile_parent
+
+    _onefile_parent_guard = neutralize_onefile_parent()
+
 from PYAS_Diagnostics import log_exception, bind_report_logging
 import os
 import sys
@@ -18,6 +23,12 @@ from PYAS_Startup import (
 )
 
 STARTUP_LOG_PATH = bootstrap_startup() if __name__ == "__main__" else None
+if __name__ == "__main__" and _onefile_parent_guard["status"] != "not_applicable":
+    logging.getLogger("PYAS.Startup").log(
+        logging.INFO if _onefile_parent_guard["status"] == "closed" else logging.WARNING,
+        "Onefile parent window mitigation: %s", _onefile_parent_guard,
+    )
+
 import msvcrt
 import winreg
 import pystray
@@ -1048,9 +1059,16 @@ class NoCacheRequestHandler(SimpleHTTPRequestHandler):
 
 
 class WindowHook:
+    WM_QUERYENDSESSION = 0x0011
+    WM_ENDSESSION = 0x0016
+    WM_NCDESTROY = 0x0082
+
     def __init__(self, title, api_ref=None):
         self.title, self.api_ref = title, api_ref
         self.old_wndproc = None
+        self.hwnd = None
+        self.native_window = None
+        self._wndprocs = {}
         self.WM_DPICHANGED = 0x02E0
         self.WM_NCHITTEST = 0x0084
         self.WM_CLOSE = 0x0010
@@ -1065,7 +1083,11 @@ class WindowHook:
             ctypes.c_void_p, ctypes.c_void_p, ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p
         )
 
-        self.user32 = ctypes.windll.user32
+        self.user32 = ctypes.WinDLL("user32", use_last_error=True)
+        self.user32.GetWindowThreadProcessId.argtypes = [
+            ctypes.wintypes.HWND, ctypes.POINTER(ctypes.wintypes.DWORD)
+        ]
+        self.user32.GetWindowThreadProcessId.restype = ctypes.wintypes.DWORD
         self.user32.FindWindowW.argtypes, self.user32.FindWindowW.restype = [
             ctypes.c_wchar_p,
             ctypes.c_wchar_p,
@@ -1106,15 +1128,46 @@ class WindowHook:
         ], ctypes.c_void_p
         self.new_wndproc_cb = self.WNDPROC(self.wndproc)
 
+    def bind_window(self, window):
+        native = window.native
+        if native is None:
+            raise RuntimeError("Native PYAS window is not available")
+
+        if self.native_window is not native:
+            self.native_window = native
+            native.HandleCreated += self._on_handle_created
+
+        self.hook()
+
+    def _on_handle_created(self, sender, event):
+        self.hook()
+
     def hook(self):
-        if self.old_wndproc:
+        native = getattr(self, "native_window", None)
+        if native is not None:
+            hwnd = native.Handle.ToInt64()
+            pid = ctypes.wintypes.DWORD()
+            if not self.user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            if pid.value != os.getpid():
+                raise RuntimeError("Refusing to hook a window from another process")
+        else:
+            hwnd = self.user32.FindWindowW(None, self.title)
+
+        if self.old_wndproc and getattr(self, "hwnd", hwnd) == hwnd:
             return
 
-        hwnd = self.user32.FindWindowW(None, self.title)
-
         if hwnd:
-            self.old_wndproc = self.GetWindowLong(hwnd, self.GWLP_WNDPROC)
-            self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
+            ctypes.set_last_error(0)
+            previous = self.SetWindowLong(hwnd, self.GWLP_WNDPROC, self.new_wndproc_cb)
+            if not previous:
+                raise ctypes.WinError(ctypes.get_last_error())
+
+            if not hasattr(self, "_wndprocs"):
+                self._wndprocs = {}
+            self._wndprocs[hwnd] = previous
+            self.old_wndproc = previous
+            self.hwnd = hwnd
 
             self.maintenance_channel_ready = False
 
@@ -1146,12 +1199,27 @@ class WindowHook:
                 pass
 
     def call_default(self, hwnd, msg, wparam, lparam):
-        if self.old_wndproc:
-            return self.user32.CallWindowProcW(self.old_wndproc, hwnd, msg, wparam, lparam)
+        previous = getattr(self, "_wndprocs", {}).get(hwnd, self.old_wndproc)
+        if previous:
+            return self.user32.CallWindowProcW(previous, hwnd, msg, wparam, lparam)
 
         return self.user32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
     def wndproc(self, hwnd, msg, wparam, lparam):
+        if msg == self.WM_QUERYENDSESSION:
+            return 1
+
+        if msg == self.WM_ENDSESSION:
+            return 0
+
+        if msg == self.WM_NCDESTROY:
+            result = self.call_default(hwnd, msg, wparam, lparam)
+            getattr(self, "_wndprocs", {}).pop(hwnd, None)
+            if getattr(self, "hwnd", None) == hwnd:
+                self.hwnd = None
+                self.old_wndproc = None
+            return result
+
         if msg == PYAS_MAINTENANCE_MESSAGE:
             if (
                 not getattr(self, "maintenance_channel_ready", False)
@@ -1372,7 +1440,15 @@ def start_ui():
 
         if platform.system() == "Windows":
             window_hook = WindowHook(PYAS_WINDOW_TITLE, js_api)
-            window.events.shown += window_hook.hook
+
+            def install_window_hook():
+                try:
+                    window_hook.bind_window(window)
+                except Exception:
+                    logger.exception("Could not protect the native PYAS window")
+                    fail_startup("Could not protect the native PYAS window")
+
+            window.events.before_show += install_window_hook
 
         js_api.set_window(window)
         logger.info("Native window configured; hidden=%s", hide_on_start)

@@ -45,6 +45,10 @@ body {
     background-color: var(--bg-window);
 }
 
+.pywebview-drag-region {
+    touch-action: none;
+}
+
 .navigate-window {
     height: 44px;
     background-color: var(--bg-nav);

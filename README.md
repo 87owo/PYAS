@@ -111,7 +111,6 @@ PYAS/
 │   └── Properties/          # Models and training utilities
 ├── Interface/              # HTML, CSS, JavaScript and icons
 ├── Install/                # Installer source
-├── tests/                  # Regression tests
 └── Plugins/
     ├── Filter/             # Native Windows driver components
     └── Rules/              # Driver protection policies

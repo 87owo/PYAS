@@ -908,15 +908,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    const viewSelectedItems = async (paths, selectedCount) => {
+        try {
+            if (selectedCount > 1 && !await window.pywebview.api.show_confirm(
+                getMsg("title_prompt"), getMsg("msg_view_items_confirm")
+            )) return;
+            paths.forEach(path => window.pywebview.api.open_file_location(path));
+        } catch (error) {
+            console.error('Failed to view selected items:', error);
+        }
+    };
+
     document.getElementById('taskmgr_select')?.addEventListener('change', (e) => {
         const val = e.target.value;
         const checkedCbs = document.querySelectorAll('#taskmgr_window .manage-list-item input[type="checkbox"]:checked');
         if (checkedCbs.length === 0 || !window.pywebview) return updateCustomSelectUI('taskmgr_select', 'none');
 
         if (val === 'view') {
-            checkedCbs.forEach(cb => {
-                if (cb.dataset.path && cb.dataset.path !== "path_unknown") window.pywebview.api.open_file_location(cb.dataset.path);
-            });
+            const paths = Array.from(checkedCbs).map(cb => cb.dataset.path).filter(p => p && p !== "path_unknown");
+            viewSelectedItems(paths, checkedCbs.length);
         } else if (val === 'end') {
             window.pywebview.api.show_confirm(getMsg("msg_end_proc_title"), getMsg("msg_end_proc_confirm")).then(res => {
                 if (res) Promise.all(Array.from(checkedCbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => fetchProcs());
@@ -939,9 +949,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checkedCbs.length === 0 || !window.pywebview) return updateCustomSelectUI('netmon_select', 'none');
 
         if (val === 'view') {
-            checkedCbs.forEach(cb => {
-                if (cb.dataset.path && cb.dataset.path !== "path_unknown") window.pywebview.api.open_file_location(cb.dataset.path);
-            });
+            const paths = Array.from(checkedCbs).map(cb => cb.dataset.path).filter(p => p && p !== "path_unknown");
+            viewSelectedItems(paths, checkedCbs.length);
         } else if (val === 'end') {
             window.pywebview.api.show_confirm(getMsg("msg_end_proc_title"), getMsg("msg_end_proc_confirm")).then(res => {
                 if (res) Promise.all(Array.from(checkedCbs).map(cb => window.pywebview.api.kill_process(parseInt(cb.value)))).then(() => fetchNetmon());
@@ -974,7 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.pywebview) return;
         
         if (val === 'view') {
-            checked.forEach(path => window.pywebview.api.open_file_location(path));
+            viewSelectedItems(checked, checked.length);
         } else if (val === 'delete') {
             if (checked.length > 0) {
                 window.pywebview.api.clean_system_junk(checked).then(size => {

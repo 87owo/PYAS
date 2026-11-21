@@ -1,4 +1,4 @@
-VERSION = "3.7.3"
+VERSION = "3.7.4"
 FILE_VERSION = VERSION + ".0"
 
 

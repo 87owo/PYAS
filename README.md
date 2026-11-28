@@ -203,7 +203,7 @@ Build and test kernel components only in an isolated virtual machine with snapsh
 
 ## Rule editor
 
-PYAS includes a Blockly-based visual editor for creating driver protection rules. The packaged editor is distributed through project releases.
+PYAS includes a Blockly-based visual editor for creating driver protection rules. This editor is included in the project release.
 
 ![PYAS rule editor](https://github.com/user-attachments/assets/29a816a8-3bf9-4e1c-b881-7336676ad7f9)
 

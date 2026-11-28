@@ -84,17 +84,20 @@ def load_data_efficiently(jsonl_path, base_schema, dll_schema, api_schema, num_l
     offset_api = offset_dll + DLL_HASH_DIM
 
     file_size = os.path.getsize(jsonl_path)
-    workers = min(os.cpu_count() or 4, 16)
-    chunk_size = file_size // workers
-    
-    tasks = []
-    for i in range(workers):
-        start = i * chunk_size
-        end = file_size if i == workers - 1 else (i + 1) * chunk_size
-        tasks.append((jsonl_path, start, end, base_schema, num_features, offset_dll, offset_api))
-        
-    with multiprocessing.Pool(workers) as pool:
-        results = pool.map(_chunk_worker, tasks)
+    task_bytes = 32 * 1024 * 1024
+    max_workers = max(1, (os.cpu_count() or 1) - 2)
+    task_count = (file_size + task_bytes - 1) // task_bytes
+
+    tasks = (
+        (jsonl_path, start, min(start + task_bytes, file_size),
+         base_schema, num_features, offset_dll, offset_api)
+        for start in range(0, file_size, task_bytes)
+    )
+
+    results = []
+    if task_count:
+        with multiprocessing.Pool(min(max_workers, task_count)) as pool:
+            results = list(pool.imap(_chunk_worker, tasks, chunksize=1))
         
     Xs = [r[0] for r in results if r[0].shape[0] > 0]
     ys = [r[1] for r in results if r[1].shape[0] > 0]
